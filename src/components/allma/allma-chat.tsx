@@ -230,9 +230,9 @@ export function AllmaChat({
         <ConversationScrollButton />
       </Conversation>
 
-      <div className="no-print sticky bottom-0 glass border-t border-border/60 px-4 pb-5 pt-3">
+      <div className="no-print sticky bottom-0 z-30 glass border-t border-border/60 px-4 pb-4 pt-3">
         <div className="mx-auto w-full max-w-3xl">
-          {/* Animated glow ring wrapper */}
+          {/* Glow ring sits outside; PromptInput strips its own border */}
           <div className="input-glow-ring">
             <PromptInput
               onSubmit={(message, event) => {
@@ -240,9 +240,9 @@ export function AllmaChat({
                 send(message.text ?? "");
                 event.currentTarget.reset();
               }}
-              className="rounded-[2rem] bg-card"
+              className="rounded-[2rem] bg-card border-0 shadow-none"
             >
-              {/* Left icons — inline-start keeps them in the same row as textarea */}
+              {/* Left icons — inline */}
               <InputGroupAddon align="inline-start" className="gap-0.5 pl-2">
                 <button
                   type="button"
@@ -260,15 +260,15 @@ export function AllmaChat({
                 </button>
               </InputGroupAddon>
 
-              {/* Textarea stretches between the two icon groups */}
+              {/* Textarea fills the middle */}
               <PromptInputTextarea
                 ref={textareaRef}
                 autoFocus
                 placeholder="Describe what's happening…"
-                className="bg-transparent min-h-[3rem] py-3.5"
+                className="bg-transparent min-h-[2.75rem] py-3"
               />
 
-              {/* Right icons — inline-end keeps them in the same row */}
+              {/* Right icons — inline */}
               <InputGroupAddon align="inline-end" className="gap-0.5 pr-2">
                 <button
                   type="button"
@@ -281,7 +281,7 @@ export function AllmaChat({
               </InputGroupAddon>
             </PromptInput>
           </div>
-          <p className="mt-2 text-center text-[10px] text-muted-foreground/50">
+          <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">
             Verify important advice with a local expert
           </p>
         </div>

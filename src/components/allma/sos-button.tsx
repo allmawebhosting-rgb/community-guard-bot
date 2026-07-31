@@ -103,7 +103,7 @@ export function SosButton() {
         aria-label="Emergency SOS"
         onClick={() => setOpen(true)}
         whileTap={{ scale: 0.93 }}
-        className="no-print sos-pulse fixed bottom-24 right-4 z-50 flex h-16 w-16 flex-col items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lift sm:bottom-8 sm:right-8"
+        className="no-print sos-pulse fixed bottom-[7.5rem] right-4 z-50 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lift sm:bottom-[7.5rem] sm:right-6"
       >
         <ShieldAlert className="h-6 w-6" />
         <span className="text-[10px] font-bold tracking-widest">SOS</span>
