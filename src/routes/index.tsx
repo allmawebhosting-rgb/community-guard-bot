@@ -30,6 +30,27 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const { isAuthenticated, loading } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (loading || !isAuthenticated || started.current) return;
+    started.current = true;
+
+    void (async () => {
+      try {
+        const existing = await queryClient.fetchQuery(threadsQueryOptions());
+        const thread = existing[0] ?? (await createThread());
+        await queryClient.invalidateQueries({ queryKey: ["threads"] });
+        navigate({ to: "/chat/$threadId", params: { threadId: thread.id }, replace: true });
+      } catch {
+        started.current = false;
+      }
+    })();
+  }, [loading, isAuthenticated, navigate, queryClient]);
+
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
@@ -40,3 +61,4 @@ function Home() {
     </div>
   );
 }
+
