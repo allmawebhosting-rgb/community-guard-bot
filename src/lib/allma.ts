@@ -7,6 +7,8 @@ export type QuickAction = {
   tone?: "urgent" | "default";
   /** Tailwind bg/text classes for the icon circle */
   iconColor: string;
+  /** Subtle tinted card background matching the icon color */
+  cardBg: string;
 };
 
 export const QUICK_ACTIONS: QuickAction[] = [
@@ -17,7 +19,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     description: "Immediate help & location sharing",
     prompt: "This is an emergency. I need help right now.",
     tone: "urgent",
-    iconColor: "bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400",
+    iconColor: "bg-red-500 text-white",
+    cardBg: "bg-red-50 dark:bg-red-950/20 hover:bg-red-50/80 dark:hover:bg-red-950/30",
   },
   {
     id: "crime",
@@ -25,7 +28,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     label: "Report Crime",
     description: "File a report step by step",
     prompt: "I want to report a crime.",
-    iconColor: "bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400",
+    iconColor: "bg-blue-500 text-white",
+    cardBg: "bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-50/80 dark:hover:bg-blue-950/30",
   },
   {
     id: "missing",
@@ -33,7 +37,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     label: "Missing Person",
     description: "Report and share a profile",
     prompt: "I need to report a missing person.",
-    iconColor: "bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400",
+    iconColor: "bg-violet-500 text-white",
+    cardBg: "bg-violet-50 dark:bg-violet-950/20 hover:bg-violet-50/80 dark:hover:bg-violet-950/30",
   },
   {
     id: "lost",
@@ -41,7 +46,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     label: "Lost & Found",
     description: "Log lost or recovered items",
     prompt: "I want to report something lost or found.",
-    iconColor: "bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400",
+    iconColor: "bg-amber-500 text-white",
+    cardBg: "bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-50/80 dark:hover:bg-amber-950/30",
   },
   {
     id: "hospital",
@@ -49,7 +55,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     label: "Find Hospital",
     description: "Nearest facility with directions",
     prompt: "Find the nearest hospital.",
-    iconColor: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400",
+    iconColor: "bg-emerald-500 text-white",
+    cardBg: "bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30",
   },
   {
     id: "police",
@@ -57,7 +64,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     label: "Find Police Station",
     description: "Locate stations near you",
     prompt: "Find the nearest police station.",
-    iconColor: "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400",
+    iconColor: "bg-indigo-500 text-white",
+    cardBg: "bg-indigo-50 dark:bg-indigo-950/20 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/30",
   },
   {
     id: "fire",
@@ -66,7 +74,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     description: "Alert fire brigade instantly",
     prompt: "There is a fire. I need help.",
     tone: "urgent",
-    iconColor: "bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400",
+    iconColor: "bg-orange-500 text-white",
+    cardBg: "bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-50/80 dark:hover:bg-orange-950/30",
   },
   {
     id: "ambulance",
@@ -75,7 +84,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     description: "Request emergency medical care",
     prompt: "I need an ambulance.",
     tone: "urgent",
-    iconColor: "bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400",
+    iconColor: "bg-rose-500 text-white",
+    cardBg: "bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-50/80 dark:hover:bg-rose-950/30",
   },
   {
     id: "alerts",
@@ -83,7 +93,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     label: "Community Alerts",
     description: "Safety updates in your area",
     prompt: "Show me the latest community safety alerts near me.",
-    iconColor: "bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400",
+    iconColor: "bg-sky-500 text-white",
+    cardBg: "bg-sky-50 dark:bg-sky-950/20 hover:bg-sky-50/80 dark:hover:bg-sky-950/30",
   },
   {
     id: "ask",
@@ -91,7 +102,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
     label: "Ask Allma AI",
     description: "Chat with your safety assistant",
     prompt: "What should I do to stay safe in my area?",
-    iconColor: "bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400",
+    iconColor: "bg-purple-500 text-white",
+    cardBg: "bg-purple-50 dark:bg-purple-950/20 hover:bg-purple-50/80 dark:hover:bg-purple-950/30",
   },
 ];
 

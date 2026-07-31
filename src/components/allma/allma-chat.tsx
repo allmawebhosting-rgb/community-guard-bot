@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { toast } from "sonner";
-import { FileText, MapPin, Megaphone } from "lucide-react";
+import { Camera, FileText, MapPin, Megaphone, Mic, Paperclip } from "lucide-react";
 import {
   Conversation,
   ConversationContent,
@@ -11,10 +11,10 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import {
   PromptInput,
-  PromptInputFooter,
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
+import { InputGroupAddon } from "@/components/ui/input-group";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { BrandMark } from "@/components/allma/brand";
 import { QuickActionGrid } from "@/components/allma/quick-actions";
@@ -232,28 +232,56 @@ export function AllmaChat({
 
       <div className="no-print sticky bottom-0 glass border-t border-border/60 px-4 pb-5 pt-3">
         <div className="mx-auto w-full max-w-3xl">
-          {/* Gradient glow border wrapper */}
-          <div className="relative rounded-3xl p-px bg-gradient-to-r from-primary via-primary-glow to-primary gradient-shift shadow-lift">
+          {/* Animated glow ring wrapper */}
+          <div className="input-glow-ring">
             <PromptInput
               onSubmit={(message, event) => {
                 event.preventDefault();
                 send(message.text ?? "");
                 event.currentTarget.reset();
               }}
-              className="rounded-[calc(1.5rem-1px)] bg-card"
+              className="rounded-[2rem] bg-card"
             >
+              {/* Left icons — inline-start keeps them in the same row as textarea */}
+              <InputGroupAddon align="inline-start" className="gap-0.5 pl-2">
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  aria-label="Add photo"
+                >
+                  <Camera className="h-[17px] w-[17px]" />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  aria-label="Attach file"
+                >
+                  <Paperclip className="h-[17px] w-[17px]" />
+                </button>
+              </InputGroupAddon>
+
+              {/* Textarea stretches between the two icon groups */}
               <PromptInputTextarea
                 ref={textareaRef}
                 autoFocus
                 placeholder="Describe what's happening…"
-                className="bg-transparent"
+                className="bg-transparent min-h-[3rem] py-3.5"
               />
-              <PromptInputFooter className="justify-end">
-                <PromptInputSubmit status={status} disabled={busy} />
-              </PromptInputFooter>
+
+              {/* Right icons — inline-end keeps them in the same row */}
+              <InputGroupAddon align="inline-end" className="gap-0.5 pr-2">
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  aria-label="Voice input"
+                >
+                  <Mic className="h-[17px] w-[17px]" />
+                </button>
+                <PromptInputSubmit status={status} disabled={busy} size="icon-sm" />
+              </InputGroupAddon>
             </PromptInput>
           </div>
-          <p className="mt-2 text-center text-[10px] text-muted-foreground/60">
+          <p className="mt-2 text-center text-[10px] text-muted-foreground/50">
             Verify important advice with a local expert
           </p>
         </div>
