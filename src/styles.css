@@ -251,6 +251,68 @@
   animation: allma-rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Slow pulse for hero orbs */
+@keyframes allma-pulse-slow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+@utility animate-pulse-slow {
+  animation: allma-pulse-slow 4s ease-in-out infinite;
+}
+
+/* Gradient input glow border */
+@keyframes allma-input-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 transparent, 0 0 18px 2px color-mix(in oklab, var(--primary) 28%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 0 transparent, 0 0 28px 6px color-mix(in oklab, var(--primary-glow) 32%, transparent);
+  }
+}
+
+@utility input-glow {
+  animation: allma-input-glow 3s ease-in-out infinite;
+}
+
+@keyframes allma-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@utility gradient-shift {
+  background-size: 200% 200%;
+  animation: allma-gradient-shift 4s ease infinite;
+}
+
+/* Shimmer loading animation */
+@keyframes allma-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@utility animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--muted) 80%, transparent) 25%,
+    color-mix(in oklab, var(--primary) 30%, transparent) 50%,
+    color-mix(in oklab, var(--muted) 80%, transparent) 75%
+  );
+  background-size: 200% 100%;
+  animation: allma-shimmer 2s ease-in-out infinite;
+}
+
+/* Floating badge animation */
+@keyframes allma-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@utility animate-float {
+  animation: allma-float 3s ease-in-out infinite;
+}
+
 @media print {
   .no-print {
     display: none !important;

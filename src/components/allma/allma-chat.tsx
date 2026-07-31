@@ -167,18 +167,24 @@ export function AllmaChat({
       <Conversation className="min-h-0 flex-1">
         <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
           {isEmpty ? (
-            <div className="rise-in flex flex-col gap-6 pt-8 sm:pt-14">
-              <div className="hero-glow -mx-4 rounded-3xl px-4 py-8">
-                <BrandMark className="h-12 w-12" />
-                <h1 className="mt-5 text-3xl font-semibold leading-tight sm:text-4xl">
-                  Hello, I&apos;m <span className="brand-gradient-text">Allma Safety AI</span>.
-                  <br />
-                  How can I help you today?
-                </h1>
-                <p className="mt-3 max-w-lg text-sm text-muted-foreground">
-                  Tell me what happened in your own words. I&apos;ll ask one question at a time and
-                  turn it into a proper report — or point you to the nearest help.
-                </p>
+            <div className="rise-in flex flex-col gap-6 pt-8 sm:pt-12">
+              <div className="hero-glow -mx-4 rounded-3xl px-4 py-10 relative overflow-hidden">
+                {/* Subtle animated gradient orbs */}
+                <div className="pointer-events-none absolute -top-12 -right-12 h-48 w-48 rounded-full bg-primary/10 blur-3xl animate-pulse-slow" />
+                <div className="pointer-events-none absolute -bottom-8 -left-8 h-36 w-36 rounded-full bg-primary-glow/10 blur-2xl animate-pulse-slow [animation-delay:1.2s]" />
+                <div className="relative">
+                  <BrandMark className="h-14 w-14 shadow-lift" />
+                  <h1 className="mt-5 text-3xl font-semibold leading-tight sm:text-4xl">
+                    Hello, I&apos;m{" "}
+                    <span className="brand-gradient-text">Allma Safety AI</span>.
+                    <br />
+                    How can I help you today?
+                  </h1>
+                  <p className="mt-3 max-w-lg text-sm text-muted-foreground">
+                    Tell me what happened in your own words. I&apos;ll guide you step by step —
+                    filing a report, finding help, or keeping you safe.
+                  </p>
+                </div>
               </div>
               <QuickActionGrid onSelect={send} />
               <p className="text-[11px] leading-relaxed text-muted-foreground">{DISCLAIMER}</p>
@@ -224,25 +230,32 @@ export function AllmaChat({
         <ConversationScrollButton />
       </Conversation>
 
-      <div className="no-print sticky bottom-0 glass border-t border-border/70 px-4 pb-4 pt-3">
+      <div className="no-print sticky bottom-0 glass border-t border-border/60 px-4 pb-5 pt-3">
         <div className="mx-auto w-full max-w-3xl">
-          <PromptInput
-            onSubmit={(message, event) => {
-              event.preventDefault();
-              send(message.text ?? "");
-              event.currentTarget.reset();
-            }}
-            className="rounded-3xl"
-          >
-            <PromptInputTextarea
-              ref={textareaRef}
-              autoFocus
-              placeholder="Describe what's happening…"
-            />
-            <PromptInputFooter className="justify-end">
-              <PromptInputSubmit status={status} disabled={busy} />
-            </PromptInputFooter>
-          </PromptInput>
+          {/* Gradient glow border wrapper */}
+          <div className="relative rounded-3xl p-px bg-gradient-to-r from-primary via-primary-glow to-primary gradient-shift shadow-lift">
+            <PromptInput
+              onSubmit={(message, event) => {
+                event.preventDefault();
+                send(message.text ?? "");
+                event.currentTarget.reset();
+              }}
+              className="rounded-[calc(1.5rem-1px)] bg-card"
+            >
+              <PromptInputTextarea
+                ref={textareaRef}
+                autoFocus
+                placeholder="Describe what's happening…"
+                className="bg-transparent"
+              />
+              <PromptInputFooter className="justify-end">
+                <PromptInputSubmit status={status} disabled={busy} />
+              </PromptInputFooter>
+            </PromptInput>
+          </div>
+          <p className="mt-2 text-center text-[10px] text-muted-foreground/60">
+            Verify important advice with a local expert
+          </p>
         </div>
       </div>
     </div>
