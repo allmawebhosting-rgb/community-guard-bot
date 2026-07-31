@@ -1,7 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppHeader } from "@/components/allma/app-header";
 import { AllmaChat } from "@/components/allma/allma-chat";
 import { SosButton } from "@/components/allma/sos-button";
+import { useAuth } from "@/hooks/useAuth";
+import { createThread, threadsQueryOptions } from "@/lib/threads";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/")({
   head: () => ({
