@@ -1,0 +1,250 @@
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type UIMessage } from "ai";
+import { toast } from "sonner";
+import { FileText, MapPin, Megaphone } from "lucide-react";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import {
+  PromptInput,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+} from "@/components/ai-elements/prompt-input";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+import { BrandMark } from "@/components/allma/brand";
+import { QuickActionGrid } from "@/components/allma/quick-actions";
+import { supabase } from "@/integrations/supabase/client";
+import { DISCLAIMER } from "@/lib/allma";
+import { cn } from "@/lib/utils";
+
+type ToolPart = {
+  type: string;
+  state?: string;
+  output?: unknown;
+};
+
+function ToolCard({ part }: { part: ToolPart }) {
+  const name = part.type.replace(/^tool-/, "");
+  const running = part.state !== "output-available" && part.state !== "output-error";
+  const output = part.output as Record<string, unknown> | undefined;
+
+  const meta: Record<string, { icon: typeof FileText; label: string; busy: string }> = {
+    create_report: { icon: FileText, label: "Incident report", busy: "Filing your report…" },
+    find_facilities: { icon: MapPin, label: "Nearby help", busy: "Searching the directory…" },
+    list_alerts: { icon: Megaphone, label: "Community alerts", busy: "Checking alerts…" },
+  };
+  const entry = meta[name] ?? { icon: FileText, label: name, busy: "Working…" };
+  const Icon = entry.icon;
+
+  if (running) {
+    return <Shimmer className="text-sm">{entry.busy}</Shimmer>;
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3 shadow-soft">
+      <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {entry.label}
+      </p>
+      {name === "create_report" && output?.ok ? (
+        <div className="space-y-1 text-sm">
+          <p className="font-semibold">{String(output.title ?? "Report filed")}</p>
+          <p className="text-muted-foreground">
+            Reference <span className="font-mono text-foreground">{String(output.reference)}</span>{" "}
+            · status {String(output.status)} · risk {String(output.risk_level)}
+          </p>
+        </div>
+      ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
+        <ul className="space-y-2 text-sm">
+          {(output.facilities as Array<Record<string, unknown>>).map((facility, index) => (
+            <li key={index} className="flex items-start justify-between gap-3">
+              <span>
+                <span className="block font-medium">{String(facility.name)}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {String(facility.address ?? facility.district ?? "")}
+                </span>
+              </span>
+              {facility.phone ? (
+                <a
+                  href={`tel:${facility.phone}`}
+                  className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
+                >
+                  Call
+                </a>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : name === "list_alerts" && Array.isArray(output?.alerts) ? (
+        <ul className="space-y-2 text-sm">
+          {(output.alerts as Array<Record<string, unknown>>).map((alert, index) => (
+            <li key={index}>
+              <span className="font-medium">{String(alert.title)}</span>
+              <span className="block text-xs text-muted-foreground">
+                {String(alert.area ?? "")} · {String(alert.severity)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">Done.</p>
+      )}
+    </div>
+  );
+}
+
+export function AllmaChat({
+  threadId,
+  initialMessages,
+  className,
+}: {
+  threadId: string | null;
+  initialMessages?: UIMessage[];
+  className?: string;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        prepareSendMessagesRequest: async ({ messages, body }) => {
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token;
+          const headers: Record<string, string> = {};
+          if (token) headers.Authorization = `Bearer ${token}`;
+          return {
+            body: { ...body, messages, threadId },
+            headers,
+          };
+
+        },
+      }),
+    [threadId],
+  );
+
+  const { messages, sendMessage, status, error } = useChat({
+    id: threadId ?? "guest",
+    messages: initialMessages,
+    transport,
+    onError: (chatError) => {
+      console.error(chatError);
+      toast.error("Allma could not respond just now. Please try again.");
+    },
+  });
+
+  const busy = status === "submitted" || status === "streaming";
+
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    focusInput();
+  }, [focusInput, threadId]);
+
+  useEffect(() => {
+    if (status === "ready") focusInput();
+  }, [status, focusInput]);
+
+  const send = useCallback(
+    (text: string) => {
+      if (!text.trim() || busy) return;
+      void sendMessage({ text: text.trim() });
+      focusInput();
+    },
+    [busy, sendMessage, focusInput],
+  );
+
+  const isEmpty = messages.length === 0;
+
+  return (
+    <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+      <Conversation className="min-h-0 flex-1">
+        <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
+          {isEmpty ? (
+            <div className="rise-in flex flex-col gap-6 pt-8 sm:pt-14">
+              <div className="hero-glow -mx-4 rounded-3xl px-4 py-8">
+                <BrandMark className="h-12 w-12" />
+                <h1 className="mt-5 text-3xl font-semibold leading-tight sm:text-4xl">
+                  Hello, I&apos;m <span className="brand-gradient-text">Allma Safety AI</span>.
+                  <br />
+                  How can I help you today?
+                </h1>
+                <p className="mt-3 max-w-lg text-sm text-muted-foreground">
+                  Tell me what happened in your own words. I&apos;ll ask one question at a time and
+                  turn it into a proper report — or point you to the nearest help.
+                </p>
+              </div>
+              <QuickActionGrid onSelect={send} />
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{DISCLAIMER}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5 pt-6">
+              {messages.map((message) => (
+                <Message key={message.id} from={message.role}>
+                  <MessageContent>
+                    {message.parts.map((part, index) => {
+                      if (part.type === "text") {
+                        return message.role === "assistant" ? (
+                          <MessageResponse key={index}>{part.text}</MessageResponse>
+                        ) : (
+                          <p key={index} className="whitespace-pre-wrap">
+                            {part.text}
+                          </p>
+                        );
+                      }
+                      if (part.type.startsWith("tool-")) {
+                        return <ToolCard key={index} part={part as ToolPart} />;
+                      }
+                      return null;
+                    })}
+                  </MessageContent>
+                </Message>
+              ))}
+              {status === "submitted" ? (
+                <Message from="assistant">
+                  <MessageContent>
+                    <Shimmer className="text-sm">Allma is thinking…</Shimmer>
+                  </MessageContent>
+                </Message>
+              ) : null}
+              {error ? (
+                <p className="text-sm text-destructive">
+                  Something interrupted the response. Try sending your message again.
+                </p>
+              ) : null}
+            </div>
+          )}
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
+
+      <div className="no-print sticky bottom-0 glass border-t border-border/70 px-4 pb-4 pt-3">
+        <div className="mx-auto w-full max-w-3xl">
+          <PromptInput
+            onSubmit={(message, event) => {
+              event.preventDefault();
+              send(message.text ?? "");
+              event.currentTarget.reset();
+            }}
+            className="rounded-3xl"
+          >
+            <PromptInputTextarea
+              ref={textareaRef}
+              autoFocus
+              placeholder="Describe what's happening…"
+            />
+            <PromptInputFooter className="justify-end">
+              <PromptInputSubmit status={status} disabled={busy} />
+            </PromptInputFooter>
+          </PromptInput>
+        </div>
+      </div>
+    </div>
+  );
+}
