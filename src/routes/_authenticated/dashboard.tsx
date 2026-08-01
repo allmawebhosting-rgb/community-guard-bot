@@ -11,7 +11,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
-import { AppHeader } from "@/components/allma/app-header";
+import { AppShell } from "@/components/allma/app-shell";
 import { SosButton } from "@/components/allma/sos-button";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
