@@ -564,7 +564,9 @@ export const Route = createFileRoute("/api/chat")({
           },
           headers: getLovableAiGatewayResponseHeaders(undefined, {
             ...(initialRunId ? { "X-Lovable-AIG-Run-ID": initialRunId } : {}),
+            "X-Allma-Model": usedModel,
           }),
+
         });
 
         return withLovableAiGatewayRunIdHeader(response, gateway);
