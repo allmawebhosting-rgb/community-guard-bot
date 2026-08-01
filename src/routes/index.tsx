@@ -1,67 +1,23 @@
-import { useEffect, useRef } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AppShell } from "@/components/allma/app-shell";
-import { AllmaChat } from "@/components/allma/allma-chat";
-import { useAuth } from "@/hooks/useAuth";
-import { createThread, threadsQueryOptions } from "@/lib/threads";
-import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { LandingPage } from "@/components/allma/landing-page";
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === "string" ? search.q : undefined,
-  }),
   head: () => ({
     meta: [
-      { title: "Allma Safety AI — AI community safety assistant" },
+      { title: "Allma Safety AI — Uganda's AI safety assistant" },
       {
         name: "description",
         content:
-          "Chat with Allma Safety AI to report crime, raise an SOS, find hospitals and police stations, and get calm safety guidance in seconds.",
+          "Chat with Allma Safety AI to report crime, raise an SOS, find hospitals and police stations, and get calm safety guidance in seconds. Built for Uganda.",
       },
-      { property: "og:title", content: "Allma Safety AI — AI community safety assistant" },
+      { property: "og:title", content: "Allma Safety AI — Uganda's AI safety assistant" },
       {
         property: "og:description",
-        content:
-          "Report incidents by chatting. Emergency SOS, crime reports, missing persons, lost & found and nearby help.",
+        content: "Report incidents by chatting. Emergency SOS, crime reports, missing persons, lost & found and nearby help.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Home,
+  component: LandingPage,
 });
-
-function Home() {
-  const { isAuthenticated, loading } = useAuth();
-  const { q } = Route.useSearch();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const started = useRef(false);
-
-  useEffect(() => {
-    if (loading || !isAuthenticated || started.current) return;
-    started.current = true;
-
-    void (async () => {
-      try {
-        const existing = await queryClient.fetchQuery(threadsQueryOptions());
-        const thread = q ? await createThread() : (existing[0] ?? (await createThread()));
-        await queryClient.invalidateQueries({ queryKey: ["threads"] });
-        navigate({
-          to: "/chat/$threadId",
-          params: { threadId: thread.id },
-          search: q ? { q } : {},
-          replace: true,
-        });
-      } catch {
-        started.current = false;
-      }
-    })();
-  }, [loading, isAuthenticated, navigate, queryClient, q]);
-
-  return (
-    <AppShell>
-      <AllmaChat key={q ?? "guest"} threadId={null} initialPrompt={q} />
-    </AppShell>
-  );
-}
