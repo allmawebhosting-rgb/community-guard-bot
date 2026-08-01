@@ -109,6 +109,19 @@ export const Route = createFileRoute("/api/chat")({
 
 
           tools: {
+            suggest_replies: tool({
+              description:
+                "Offer 2-4 short, tappable follow-up suggestions that fit EXACTLY what you just said. Call this at the very end of a turn. Suggestions must be answers or next steps for the current step of the conversation — never a generic menu. Do NOT call this in the same turn as ask_structured_question (that card already shows options).",
+              inputSchema: z.object({
+                suggestions: z.array(
+                  z.object({
+                    label: z.string().describe("Short chip label, max ~24 characters"),
+                    prompt: z.string().describe("Exact text to send as the user's message when tapped"),
+                  }),
+                ),
+              }),
+              execute: async (input) => ({ ok: true, ...input }),
+            }),
             ask_structured_question: tool({
               description:
                 "Ask the user one structured question at a time with tappable options. Use during guided reporting flows so the user can pick an answer instead of typing. After the user picks, continue the conversation based on their answer.",

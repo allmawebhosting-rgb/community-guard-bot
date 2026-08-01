@@ -454,3 +454,54 @@
     display: none !important;
   }
 }
+
+/* Premium chat surfaces --------------------------------------------------- */
+@utility chat-card {
+  position: relative;
+  border-radius: 1.4rem;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--card) 88%, transparent),
+      color-mix(in oklab, var(--card) 72%, transparent)
+    );
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: var(--shadow-soft);
+
+  /* Gradient hairline border that reads as a premium bevel */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      140deg,
+      color-mix(in oklab, var(--primary) 38%, transparent),
+      color-mix(in oklab, var(--border) 90%, transparent) 45%,
+      color-mix(in oklab, var(--primary-glow) 30%, transparent)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+@utility chip-scroll {
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 88%, transparent 100%);
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (min-width: 640px) {
+  .chip-scroll {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}

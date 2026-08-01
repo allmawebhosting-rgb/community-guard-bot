@@ -62,14 +62,8 @@ type ToolPart = {
   output?: unknown;
 };
 
-const SUGGESTION_CHIPS = [
-  { label: "📷 Upload photo", prompt: "I want to attach a photo as evidence." },
-  { label: "📍 Share location", prompt: "I want to share my current location." },
-  { label: "🏥 Find hospital", prompt: "Find the nearest hospital near me." },
-  { label: "👮 Find police station", prompt: "Find the nearest police station." },
-  { label: "📞 Emergency numbers", prompt: "Show me emergency contact numbers." },
-  { label: "📋 Generate report", prompt: "Please generate a full report from what I've told you." },
-];
+type Suggestion = { label: string; prompt: string };
+
 
 const ATTACHMENT_OPTIONS = [
   { id: "camera", icon: Camera, label: "Camera", accept: "image/*", capture: "environment" as const },
@@ -199,6 +193,10 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
   const Icon = entry.icon;
 
   // Silent background tools — no card once they finish.
+  if (name === "suggest_replies") {
+    return null;
+  }
+
   if (!running && (name === "remember" || name === "recall_history" || name === "get_draft")) {
     return null;
   }
@@ -206,7 +204,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
 
   if (running) {
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-3 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-3">
         <Shimmer className="text-sm">{entry.busy}</Shimmer>
       </div>
     );
@@ -221,7 +219,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     const options = Array.isArray(output.options) ? output.options : [];
 
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-4">
         <div className="mb-3">
           <div className="mb-1.5 flex items-center justify-between">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Step {step} of {total}</p>
@@ -260,7 +258,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     const optional = Boolean(output.optional);
 
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-4">
         <div className="mb-3 flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
             <Upload className="h-5 w-5 text-primary" />
@@ -300,7 +298,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     const actions = Array.isArray(output.actions) ? output.actions : [];
 
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-4">
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {actions.map((action: { label: string; subtitle: string; icon?: string }, index: number) => {
@@ -342,7 +340,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     };
 
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-4">
         <div className="mb-3 flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Review before submitting</p>
@@ -400,7 +398,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
   }
 
   return (
-    <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-3.5 shadow-soft backdrop-blur-sm">
+    <div className="chat-card p-3.5">
       <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         <Icon className="h-3.5 w-3.5 text-primary" /> {entry.label}
       </p>
@@ -640,11 +638,25 @@ export function AllmaChat({
 
   const isEmpty = messages.length === 0;
   const lastMsg = messages[messages.length - 1];
-  const showChips =
-    !busy &&
-    !isEmpty &&
-    lastMsg?.role === "assistant" &&
-    status === "ready";
+
+  // Contextual chips come from the model's suggest_replies tool for the last
+  // assistant turn. No generic fallback list — suggestions always follow the topic.
+  const contextualChips = useMemo(() => {
+    if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
+    const parts = (lastMsg.parts ?? []) as ToolPart[];
+    // If the turn ended with a structured question card, its options are the choices.
+    if (parts.some((p) => p.type === "tool-ask_structured_question")) return [];
+    const suggestionPart = [...parts]
+      .reverse()
+      .find((p) => p.type === "tool-suggest_replies") as ToolPart | undefined;
+    const output = suggestionPart?.output as
+      | { suggestions?: Array<{ label: string; prompt: string }> }
+      | undefined;
+    return ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
+  }, [busy, isEmpty, status, lastMsg]);
+
+  const showChips = contextualChips.length > 0;
+
 
   const shareLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
@@ -750,11 +762,11 @@ export function AllmaChat({
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
                         return message.role === "assistant" ? (
-                          <MessageResponse key={index} className="rounded-[1.4rem] border border-border/55 bg-card/70 px-4 py-3 shadow-soft">
+                          <MessageResponse key={index} className="chat-card px-4 py-3 text-[15px] leading-relaxed">
                             {part.text}
                           </MessageResponse>
                         ) : (
-                          <p key={index} className="whitespace-pre-wrap rounded-[1.3rem] bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-primary-foreground shadow-soft">
+                          <p key={index} className="whitespace-pre-wrap rounded-[1.3rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift">
                             {part.text}
                           </p>
                         );
@@ -784,7 +796,7 @@ export function AllmaChat({
                     })}
                   </MessageContent>
 
-                  {/* Suggestion chips after last assistant message */}
+                  {/* Contextual suggestion chips — generated by the model for this exact step */}
                   {message.role === "assistant" &&
                     msgIndex === messages.length - 1 &&
                     showChips && (
@@ -792,23 +804,31 @@ export function AllmaChat({
                         <motion.div
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.3, duration: 0.35 }}
-                          className="mt-3 flex flex-wrap gap-2"
+                          transition={{ delay: 0.15, duration: 0.35 }}
+                          className="chip-scroll -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible"
                         >
-                          {SUGGESTION_CHIPS.map((chip) => (
+                          {contextualChips.map((chip, chipIndex) => (
                             <motion.button
-                              key={chip.label}
+                              key={`${chip.label}-${chipIndex}`}
                               type="button"
-                              whileHover={{ scale: 1.04 }}
+                              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              transition={{
+                                delay: 0.15 + chipIndex * 0.06,
+                                duration: 0.3,
+                                ease: [0.16, 1, 0.3, 1],
+                              }}
+                              whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => send(chip.prompt)}
-                              className="rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-[11px] font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-primary/50 hover:bg-accent hover:text-foreground"
+                              className="shrink-0 whitespace-nowrap rounded-full border border-border/55 bg-card/70 px-3.5 py-1.5 text-xs font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
                             >
                               {chip.label}
                             </motion.button>
                           ))}
                         </motion.div>
                       </AnimatePresence>
+
                     )}
                 </Message>
               ))}
