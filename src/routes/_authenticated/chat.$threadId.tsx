@@ -5,7 +5,6 @@ import type { UIMessage } from "ai";
 import { Loader2 } from "lucide-react";
 import { AppShell } from "@/components/allma/app-shell";
 import { AllmaChat } from "@/components/allma/allma-chat";
-import { SosButton } from "@/components/allma/sos-button";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
@@ -59,7 +58,7 @@ function ChatThreadPage() {
   );
 
   return (
-    <AppShell activeThreadId={threadId}>
+    <AppShell title="Allma Safety AI">
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -72,7 +71,6 @@ function ChatThreadPage() {
           initialPrompt={q}
         />
       )}
-      <SosButton />
     </AppShell>
   );
 }

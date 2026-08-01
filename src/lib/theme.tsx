@@ -16,8 +16,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-    const preferred: Theme =
-      stored ?? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    // Allma is dark-first by design; only an explicit stored choice switches it.
+    const preferred: Theme = stored ?? "dark";
     setTheme(preferred);
   }, []);
 

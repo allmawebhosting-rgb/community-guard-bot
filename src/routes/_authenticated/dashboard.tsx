@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/allma/app-shell";
-import { SosButton } from "@/components/allma/sos-button";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -86,7 +85,7 @@ function Dashboard() {
   const emergencies = (reports.data ?? []).filter((report) => report.report_type === "emergency");
 
   return (
-    <AppShell showThreads={false}>
+    <AppShell title="Dashboard">
       <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 pb-28 pt-6">
 
         <div className="hero-glow mb-6 rounded-3xl p-6">
@@ -261,7 +260,6 @@ function Dashboard() {
 
         <p className="mt-8 text-[11px] leading-relaxed text-muted-foreground">{DISCLAIMER}</p>
       </main>
-      <SosButton />
     </AppShell>
 
   );

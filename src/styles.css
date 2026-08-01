@@ -35,6 +35,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-alert: var(--alert);
   --color-alert-foreground: var(--alert-foreground);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-destructive: var(--destructive);
@@ -64,45 +66,47 @@
 
 :root {
   --radius: 1rem;
-  --background: oklch(0.985 0.006 240);
-  --foreground: oklch(0.19 0.03 250);
-  --surface: oklch(0.965 0.01 235);
-  --surface-foreground: oklch(0.19 0.03 250);
+  --background: oklch(0.985 0.006 60);
+  --foreground: oklch(0.18 0.03 25);
+  --surface: oklch(0.965 0.012 60);
+  --surface-foreground: oklch(0.18 0.03 25);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.19 0.03 250);
+  --card-foreground: oklch(0.18 0.03 25);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.19 0.03 250);
-  --primary: oklch(0.55 0.16 248);
-  --primary-foreground: oklch(0.99 0.005 240);
-  --primary-glow: oklch(0.72 0.14 210);
-  --secondary: oklch(0.94 0.014 240);
-  --secondary-foreground: oklch(0.28 0.04 250);
-  --muted: oklch(0.945 0.01 240);
-  --muted-foreground: oklch(0.5 0.03 250);
-  --accent: oklch(0.93 0.035 210);
-  --accent-foreground: oklch(0.28 0.06 250);
+  --popover-foreground: oklch(0.18 0.03 25);
+  --primary: oklch(0.53 0.215 26);
+  --primary-foreground: oklch(0.99 0.004 60);
+  --primary-glow: oklch(0.66 0.2 38);
+  --secondary: oklch(0.955 0.012 60);
+  --secondary-foreground: oklch(0.26 0.04 25);
+  --muted: oklch(0.955 0.01 60);
+  --muted-foreground: oklch(0.48 0.03 30);
+  --accent: oklch(0.955 0.03 60);
+  --accent-foreground: oklch(0.26 0.05 25);
   --alert: oklch(0.72 0.16 62);
   --alert-foreground: oklch(0.2 0.05 60);
+  --gold: oklch(0.72 0.16 82);
+  --gold-foreground: oklch(0.2 0.04 60);
   --success: oklch(0.62 0.13 160);
   --success-foreground: oklch(0.99 0.005 160);
   --destructive: oklch(0.55 0.22 22);
   --destructive-foreground: oklch(0.99 0.005 20);
-  --border: oklch(0.9 0.012 240);
-  --input: oklch(0.9 0.012 240);
-  --ring: oklch(0.55 0.16 248);
-  --chart-1: oklch(0.55 0.16 248);
-  --chart-2: oklch(0.68 0.13 200);
+  --border: oklch(0.9 0.012 40);
+  --input: oklch(0.9 0.012 40);
+  --ring: oklch(0.53 0.215 26);
+  --chart-1: oklch(0.53 0.215 26);
+  --chart-2: oklch(0.72 0.16 82);
   --chart-3: oklch(0.72 0.16 62);
   --chart-4: oklch(0.62 0.13 160);
   --chart-5: oklch(0.55 0.22 22);
-  --sidebar: oklch(0.97 0.008 240);
-  --sidebar-foreground: oklch(0.24 0.03 250);
-  --sidebar-primary: oklch(0.55 0.16 248);
-  --sidebar-primary-foreground: oklch(0.99 0.005 240);
-  --sidebar-accent: oklch(0.93 0.02 240);
-  --sidebar-accent-foreground: oklch(0.24 0.03 250);
-  --sidebar-border: oklch(0.9 0.012 240);
-  --sidebar-ring: oklch(0.55 0.16 248);
+  --sidebar: oklch(0.97 0.008 60);
+  --sidebar-foreground: oklch(0.22 0.03 25);
+  --sidebar-primary: oklch(0.53 0.215 26);
+  --sidebar-primary-foreground: oklch(0.99 0.005 60);
+  --sidebar-accent: oklch(0.94 0.02 60);
+  --sidebar-accent-foreground: oklch(0.22 0.03 25);
+  --sidebar-border: oklch(0.9 0.012 40);
+  --sidebar-ring: oklch(0.53 0.215 26);
 
   --gradient-hero: linear-gradient(
     140deg,
@@ -110,69 +114,69 @@
     color-mix(in oklab, var(--primary-glow) 14%, transparent) 55%,
     transparent
   );
-  --gradient-brand: linear-gradient(120deg, var(--primary), var(--primary-glow));
+  --gradient-brand: linear-gradient(105deg, oklch(0.72 0.16 82), oklch(0.62 0.19 50) 55%, oklch(0.53 0.215 26));
   --shadow-soft: 0 1px 2px oklch(0.2 0.04 250 / 0.06), 0 12px 32px -16px oklch(0.2 0.04 250 / 0.24);
   --shadow-lift: 0 18px 48px -22px oklch(0.2 0.04 250 / 0.4);
   --glass-bg: color-mix(in oklab, var(--card) 72%, transparent);
 }
 
 .dark {
-  /* ── Uganda-inspired premium dark theme ── */
-  /* Deep black backgrounds */
-  --background: oklch(0.09 0.01 255);
-  --foreground: oklch(0.96 0.008 240);
-  --surface: oklch(0.13 0.015 255);
-  --surface-foreground: oklch(0.96 0.008 240);
-  --card: oklch(0.14 0.016 255);
-  --card-foreground: oklch(0.96 0.008 240);
-  --popover: oklch(0.14 0.016 255);
-  --popover-foreground: oklch(0.96 0.008 240);
-  /* Uganda yellow as primary accent */
-  --primary: oklch(0.906 0.188 96);
-  --primary-foreground: oklch(0.09 0.01 255);
-  --primary-glow: oklch(0.72 0.18 60);
-  --secondary: oklch(0.18 0.02 255);
-  --secondary-foreground: oklch(0.95 0.008 240);
-  --muted: oklch(0.18 0.018 255);
-  --muted-foreground: oklch(0.65 0.02 250);
-  --accent: oklch(0.2 0.025 255);
-  --accent-foreground: oklch(0.95 0.01 240);
-  --alert: oklch(0.79 0.15 68);
+  /* ── Allma signal theme: near-black, crimson red, Uganda gold ── */
+  --background: oklch(0.055 0.008 25);
+  --foreground: oklch(0.97 0.006 60);
+  --surface: oklch(0.11 0.012 25);
+  --surface-foreground: oklch(0.97 0.006 60);
+  --card: oklch(0.125 0.014 25);
+  --card-foreground: oklch(0.97 0.006 60);
+  --popover: oklch(0.115 0.014 25);
+  --popover-foreground: oklch(0.97 0.006 60);
+  /* Crimson red primary */
+  --primary: oklch(0.575 0.235 26);
+  --primary-foreground: oklch(0.99 0.004 60);
+  --primary-glow: oklch(0.7 0.21 36);
+  --secondary: oklch(0.165 0.018 25);
+  --secondary-foreground: oklch(0.96 0.006 60);
+  --muted: oklch(0.17 0.016 25);
+  --muted-foreground: oklch(0.68 0.02 55);
+  --accent: oklch(0.195 0.026 25);
+  --accent-foreground: oklch(0.96 0.008 60);
+  --alert: oklch(0.8 0.16 72);
   --alert-foreground: oklch(0.2 0.05 60);
-  --success: oklch(0.72 0.13 162);
-  --success-foreground: oklch(0.16 0.03 160);
-  /* Uganda red as destructive */
-  --destructive: oklch(0.55 0.22 27);
-  --destructive-foreground: oklch(0.98 0.005 20);
+  /* Uganda gold */
+  --gold: oklch(0.855 0.175 88);
+  --gold-foreground: oklch(0.16 0.03 60);
+  --success: oklch(0.72 0.14 156);
+  --success-foreground: oklch(0.14 0.03 156);
+  --destructive: oklch(0.575 0.235 26);
+  --destructive-foreground: oklch(0.99 0.004 20);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.906 0.188 96);
-  --chart-1: oklch(0.906 0.188 96);
-  --chart-2: oklch(0.72 0.18 60);
-  --chart-3: oklch(0.79 0.15 68);
-  --chart-4: oklch(0.72 0.13 162);
-  --chart-5: oklch(0.55 0.22 27);
-  /* Sidebar deeper black */
-  --sidebar: oklch(0.07 0.009 255);
-  --sidebar-foreground: oklch(0.94 0.008 240);
-  --sidebar-primary: oklch(0.906 0.188 96);
-  --sidebar-primary-foreground: oklch(0.09 0.01 255);
-  --sidebar-accent: oklch(0.15 0.018 255);
-  --sidebar-accent-foreground: oklch(0.94 0.008 240);
+  --ring: oklch(0.575 0.235 26);
+  --chart-1: oklch(0.575 0.235 26);
+  --chart-2: oklch(0.855 0.175 88);
+  --chart-3: oklch(0.7 0.21 36);
+  --chart-4: oklch(0.72 0.14 156);
+  --chart-5: oklch(0.6 0.15 300);
+  --sidebar: oklch(0.045 0.006 25);
+  --sidebar-foreground: oklch(0.95 0.006 60);
+  --sidebar-primary: oklch(0.575 0.235 26);
+  --sidebar-primary-foreground: oklch(0.99 0.004 60);
+  --sidebar-accent: oklch(0.14 0.016 25);
+  --sidebar-accent-foreground: oklch(0.95 0.006 60);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.906 0.188 96);
+  --sidebar-ring: oklch(0.575 0.235 26);
 
-  /* Uganda yellow → red brand gradient */
-  --gradient-brand: linear-gradient(120deg, oklch(0.906 0.188 96), oklch(0.55 0.22 27));
+  /* Gold → red brand gradient (wordmark, highlights) */
+  --gradient-brand: linear-gradient(105deg, oklch(0.9 0.17 92), oklch(0.78 0.19 62) 55%, oklch(0.62 0.235 28));
   --gradient-hero: linear-gradient(
     140deg,
-    color-mix(in oklab, oklch(0.55 0.22 27) 18%, transparent),
-    color-mix(in oklab, oklch(0.906 0.188 96) 10%, transparent) 55%,
+    color-mix(in oklab, oklch(0.575 0.235 26) 22%, transparent),
+    color-mix(in oklab, oklch(0.855 0.175 88) 10%, transparent) 55%,
     transparent
   );
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 14px 34px -18px oklch(0 0 0 / 0.7);
-  --shadow-lift: 0 22px 54px -24px oklch(0 0 0 / 0.8);
-  --glass-bg: color-mix(in oklab, var(--card) 55%, transparent);
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.5), 0 14px 34px -18px oklch(0 0 0 / 0.75);
+  --shadow-lift: 0 22px 54px -24px oklch(0 0 0 / 0.85);
+  --glass-bg: color-mix(in oklab, var(--card) 60%, transparent);
 }
 
 @layer base {
@@ -226,6 +230,31 @@
   background-image: var(--gradient-brand);
   background-clip: text;
   color: transparent;
+}
+
+@utility gold-text {
+  color: var(--color-gold);
+}
+
+/* Radial halo behind the assistant mascot */
+@utility mascot-halo {
+  background-image: radial-gradient(
+      circle at 50% 42%,
+      color-mix(in oklab, var(--primary) 55%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(circle at 50% 40%, color-mix(in oklab, var(--gold) 26%, transparent), transparent 42%);
+  filter: blur(6px);
+}
+
+/* Sweeping red-gold light streak backdrop */
+@utility signal-streak {
+  background-image: radial-gradient(
+      120% 60% at 10% 55%,
+      color-mix(in oklab, var(--primary) 24%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(90% 50% at 85% 20%, color-mix(in oklab, var(--gold) 14%, transparent), transparent 60%);
 }
 
 @utility shadow-soft {
