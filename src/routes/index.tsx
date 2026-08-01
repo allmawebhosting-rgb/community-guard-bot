@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AppHeader } from "@/components/allma/app-header";
+import { AppShell } from "@/components/allma/app-shell";
 import { AllmaChat } from "@/components/allma/allma-chat";
 import { SosButton } from "@/components/allma/sos-button";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,6 +8,9 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Allma Safety AI — AI community safety assistant" },
@@ -31,6 +34,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const { isAuthenticated, loading } = useAuth();
+  const { q } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const started = useRef(false);
@@ -42,23 +46,24 @@ function Home() {
     void (async () => {
       try {
         const existing = await queryClient.fetchQuery(threadsQueryOptions());
-        const thread = existing[0] ?? (await createThread());
+        const thread = q ? await createThread() : (existing[0] ?? (await createThread()));
         await queryClient.invalidateQueries({ queryKey: ["threads"] });
-        navigate({ to: "/chat/$threadId", params: { threadId: thread.id }, replace: true });
+        navigate({
+          to: "/chat/$threadId",
+          params: { threadId: thread.id },
+          search: q ? { q } : {},
+          replace: true,
+        });
       } catch {
         started.current = false;
       }
     })();
-  }, [loading, isAuthenticated, navigate, queryClient]);
+  }, [loading, isAuthenticated, navigate, queryClient, q]);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppHeader />
-      <main className="flex min-h-0 flex-1 flex-col">
-        <AllmaChat threadId={null} />
-      </main>
+    <AppShell>
+      <AllmaChat key={q ?? "guest"} threadId={null} initialPrompt={q} />
       <SosButton />
-    </div>
+    </AppShell>
   );
 }
-

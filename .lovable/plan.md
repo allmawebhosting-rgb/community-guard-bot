@@ -1,48 +1,44 @@
-## Allma Safety AI — Phase 1
+## Goal
 
-An AI-first community safety assistant. The homepage *is* the chat. Everything else (reports, SOS, lookups) happens through conversation.
+Adopt the layout and visual structure of the allma.store demo assistant, keeping all existing Allma Safety AI features (safety chat, conversational reporting, SOS, dashboard).
 
-### Scope for this build
-AI chat + reporting core: threaded conversations saved to the cloud, conversational incident reporting, Emergency SOS, backend + auth, and the user dashboard. Admin dashboard, live maps, matching engine, and push notifications come in a later phase (schema will be laid so they slot in).
+## What the reference looks like
 
-### Experience
+```text
+┌───────────┬──────────────┬────────────────────────────┐
+│ nav rail  │ chat list    │  top bar: logo + tabs      │
+│ (grouped, │  [+ New chat]│                            │
+│ collapsi- │  thread 1    │      [ big AI mark ]       │
+│ ble)      │  thread 2    │        Allma Safety AI     │
+│           │              │      tagline (2 lines)     │
+│ SAFETY    │              │   [chip][chip][chip][chip] │
+│ REPORT    │              │   ── START WITH ──         │
+│ NEARBY    │              │   [card] [card]            │
+│ ─────     │              │   [card] [card]            │
+│ avatar    │              │  ┌ composer 📷 📎 … 🎤 ↑ ┐ │
+└───────────┴──────────────┴────────────────────────────┘
+```
 
-**Homepage (`/`)** — opens straight into the assistant:
-- "Hello, I'm Allma Safety AI. How can I help you today?"
-- Quick-action chips: Emergency SOS, Report Crime, Missing Person, Lost & Found, Find Hospital, Find Police Station, Fire Emergency, Ambulance, Community Alerts, Ask Allma. Tapping one seeds the conversation.
-- Persistent floating SOS button.
+## Layout work
 
-**Chat** — threaded, each thread at its own URL (`/chat/:threadId`), listed in a sidebar/drawer, messages persisted per user. Streaming responses, one question at a time, never a long form.
+1. **App shell** (`src/components/allma/app-shell.tsx`) using the shadcn sidebar:
+   - Left icon-collapsible nav rail with grouped sections: SAFETY (Assistant, Dashboard, Community alerts), REPORT (Report crime, Missing person, Lost & found, Emergency SOS), NEARBY (Police, Hospitals, Fire & ambulance), plus a footer user block with avatar, name, and role badge.
+   - Second column: thread list ("Allma chats" header, gradient "New chat" button, active-thread highlight) — moved out of the chat route into the shell.
+   - Slim top bar with brand lockup, page tabs, theme toggle, and sidebar trigger. On mobile both columns collapse into sheets.
+   - Applied to the chat routes and the dashboard so navigation is consistent.
 
-**Conversational reporting** — the AI drives an interview (what, when, where, description, photo, contacts) and, when it has enough, produces a structured incident report saved to the database with a reference number. Supported: crime (theft, robbery, assault, domestic violence, fraud, cybercrime, corruption, kidnapping, accident, burglary, vandalism, animal theft, other), missing persons, lost items, found items, emergencies.
+2. **Hero empty state** (`src/components/allma/assistant-hero.tsx`): centered glowing brand mark with soft radial gradient, large gradient wordmark, two-line tagline, a row of pill suggestion chips ("Report a theft", "Find nearest hospital", "Someone is missing", "Is this area safe tonight?"), a "START WITH" divider, and a 2×2 grid of tinted action cards (Report an incident, Emergency SOS, Missing person, Find help nearby) — each seeds the matching AI conversation. Replaces the current quick-action row on the empty chat screen.
 
-**Emergency SOS** — confirm → request GPS → show emergency numbers with tap-to-call → log an emergency incident tied to the user (or anonymous).
+3. **Composer** upgrade in `allma-chat.tsx` around the existing AI Elements `PromptInput`: rounded pill with soft focus glow, camera button, paperclip attach button, mic button on the right of the field, circular send button, thumbnail strip for pending attachments, and the "Verify important advice…"-style safety footnote (reused for the "Police Integration Ready / not officially connected" disclaimer).
 
-**Missing persons** — after the interview, generate a printable poster page from the collected details and photo.
+## Composer functionality
 
-**Safety knowledge** — the assistant answers guidance questions calmly and always points to real emergency services.
+- **Camera / attach**: file input (`capture="environment"` for camera) → upload to the existing private `evidence` storage bucket under the user's folder → attach signed URLs as image parts on the outgoing message so the model can see them; images render as thumbnails in the transcript. Guests are prompted to sign in before uploading.
+- **Voice**: `MediaRecorder`-free Web Audio capture encoded to WAV, posted to a new server route `src/routes/api/transcribe.ts` that calls the Lovable AI transcription endpoint with `openai/gpt-4o-mini-transcribe` and streams the transcript back into the textarea for the user to edit and send.
 
-**Dashboard (`/dashboard`)** — My Reports, Emergency History, Missing Persons, Lost & Found, Community Alerts, Emergency Contacts, Profile.
+## Technical notes
 
-**Auth** — email + password, Google sign-in, and guest/anonymous reporting (a guest can still file a report; it's linked if they later sign in).
-
-**Design** — mobile-first, dark/light mode, rounded cards, soft gradients, tasteful glass surfaces, smooth motion, high accessibility. Distinct safety-led identity (deep calm base with a decisive alert accent), not a generic AI purple theme. Custom Allma mark rather than a stock sparkle icon.
-
-### Technical notes
-
-- Stack stays TanStack Start + React + TypeScript + Tailwind. Backend on Lovable Cloud (Postgres, auth, storage, RLS).
-- AI runs server-side through the Lovable AI Gateway with the AI SDK: a streaming chat route, tool calling for report creation/lookup, structured output for categorization, risk level, and report summaries. Keys never touch the browser.
-- Chat UI built on AI Elements primitives (conversation, message, prompt input, tool display, shimmer loading).
-- Tables: profiles, threads, messages, reports (with typed subtables/fields for crime, emergency, missing person, lost item, found item), evidence, community alerts, emergency contacts, notifications, report status history, user roles, audit log. Roles in a separate `user_roles` table with a security-definer check, so the admin phase drops in safely. RLS on everything: users read/write their own; alerts publicly readable.
-- Media uploads (photo/video/audio) to a private storage bucket with owner-scoped policies.
-- Nearby help in this phase uses a seeded facilities table + device geolocation with distance, directions link, and call button; live map layer deferred.
-- Legal framing throughout: "Police Integration Ready" — explicit copy that Allma is not affiliated with any police force or emergency service, and that emergencies should also be reported by phone.
-- Modular structure (chat, reporting, emergency, directory, dashboard modules) so it can fold into a larger Allma AI ecosystem later.
-
-### Build order
-1. Enable Cloud, schema + RLS + storage, auth pages.
-2. Design system, shell, theming, Allma identity.
-3. Chat route + streaming AI + threads/persistence.
-4. Quick actions, reporting tools, report generation.
-5. SOS flow, missing-person poster, nearby help, alerts.
-6. Dashboard, then polish and accessibility pass.
+- No schema changes; evidence bucket and RLS already exist. Attachment rows optionally recorded in `report_evidence` only when a report is created (unchanged behaviour).
+- The chat model, system prompt, tools, and persistence in `src/routes/api/chat.ts` stay as-is.
+- Design tokens stay Allma's signal-blue/alert palette in `src/styles.css`; the reference's green is not copied. Add tokens for the card tints, hero glow, and composer glow.
+- `allma-chat.tsx` splits into chat transcript + composer + hero components to keep files small.

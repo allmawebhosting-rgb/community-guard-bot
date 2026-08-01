@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { toast } from "sonner";
-import { Camera, FileText, MapPin, Megaphone, Mic, Paperclip } from "lucide-react";
+import {
+  Camera,
+  FileText,
+  Loader2,
+  MapPin,
+  Megaphone,
+  Mic,
+  Paperclip,
+  X,
+} from "lucide-react";
 import {
   Conversation,
   ConversationContent,
@@ -16,16 +25,23 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { InputGroupAddon } from "@/components/ui/input-group";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import { BrandMark } from "@/components/allma/brand";
-import { QuickActionGrid } from "@/components/allma/quick-actions";
+import { AssistantHero } from "@/components/allma/assistant-hero";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
-import { DISCLAIMER } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
 type ToolPart = {
   type: string;
   state?: string;
   output?: unknown;
+};
+
+type Attachment = {
+  id: string;
+  name: string;
+  mediaType: string;
+  url: string;
+  preview: string;
 };
 
 function ToolCard({ part }: { part: ToolPart }) {
@@ -100,13 +116,19 @@ function ToolCard({ part }: { part: ToolPart }) {
 export function AllmaChat({
   threadId,
   initialMessages,
+  initialPrompt,
   className,
 }: {
   threadId: string | null;
   initialMessages?: UIMessage[];
+  initialPrompt?: string;
   className?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const cameraRef = useRef<HTMLInputElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const transport = useMemo(
     () =>
@@ -121,7 +143,6 @@ export function AllmaChat({
             body: { ...body, messages, threadId },
             headers,
           };
-
         },
       }),
     [threadId],
@@ -140,7 +161,7 @@ export function AllmaChat({
   const busy = status === "submitted" || status === "streaming";
 
   const focusInput = useCallback(() => {
-    requestAnimationFrame(() => textareaRef.current?.focus());
+    requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }));
   }, []);
 
   useEffect(() => {
@@ -153,43 +174,108 @@ export function AllmaChat({
 
   const send = useCallback(
     (text: string) => {
-      if (!text.trim() || busy) return;
-      void sendMessage({ text: text.trim() });
+      const trimmed = text.trim();
+      if ((!trimmed && attachments.length === 0) || busy) return;
+
+      const parts: UIMessage["parts"] = [];
+      if (trimmed) parts.push({ type: "text", text: trimmed });
+      for (const attachment of attachments) {
+        parts.push({
+          type: "file",
+          mediaType: attachment.mediaType,
+          filename: attachment.name,
+          url: attachment.url,
+        });
+      }
+
+      void sendMessage({ role: "user", parts });
+      setAttachments([]);
       focusInput();
     },
-    [busy, sendMessage, focusInput],
+    [attachments, busy, sendMessage, focusInput],
   );
+
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (seeded.current || !initialPrompt || messages.length > 0) return;
+    seeded.current = true;
+    send(initialPrompt);
+  }, [initialPrompt, messages.length, send]);
+
+  const { recording, transcribing, toggle: toggleVoice } = useVoiceInput({
+    onTranscript: (text) => {
+      const field = textareaRef.current;
+      if (!field) return;
+      field.value = field.value ? `${field.value} ${text}` : text;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      focusInput();
+    },
+    onError: (message) => toast.error(message),
+  });
+
+  const uploadFiles = useCallback(async (files: FileList | null) => {
+    if (!files?.length) return;
+    const { data: auth } = await supabase.auth.getUser();
+    const userId = auth.user?.id;
+    if (!userId) {
+      toast.error("Sign in to attach photos or files to your report.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (file.size > 20 * 1024 * 1024) {
+          toast.error(`${file.name} is larger than 20MB.`);
+          continue;
+        }
+        const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+        const { error: uploadError } = await supabase.storage
+          .from("evidence")
+          .upload(path, file, { contentType: file.type || "application/octet-stream" });
+        if (uploadError) {
+          console.error(uploadError);
+          toast.error(`Could not upload ${file.name}.`);
+          continue;
+        }
+        const { data: signed, error: signError } = await supabase.storage
+          .from("evidence")
+          .createSignedUrl(path, 3600);
+        if (signError || !signed?.signedUrl) {
+          toast.error(`Could not attach ${file.name}.`);
+          continue;
+        }
+        setAttachments((current) => [
+          ...current,
+          {
+            id: path,
+            name: file.name,
+            mediaType: file.type || "application/octet-stream",
+            url: signed.signedUrl,
+            preview: URL.createObjectURL(file),
+          },
+        ]);
+      }
+    } finally {
+      setUploading(false);
+    }
+  }, []);
 
   const isEmpty = messages.length === 0;
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
-      <Conversation className="min-h-0 flex-1">
-        <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
-          {isEmpty ? (
-            <div className="rise-in flex flex-col gap-6 pt-8 sm:pt-12">
-              <div className="hero-glow -mx-4 rounded-3xl px-4 py-10 relative overflow-hidden">
-                {/* Subtle animated gradient orbs */}
-                <div className="pointer-events-none absolute -top-12 -right-12 h-48 w-48 rounded-full bg-primary/10 blur-3xl animate-pulse-slow" />
-                <div className="pointer-events-none absolute -bottom-8 -left-8 h-36 w-36 rounded-full bg-primary-glow/10 blur-2xl animate-pulse-slow [animation-delay:1.2s]" />
-                <div className="relative">
-                  <BrandMark className="h-14 w-14 shadow-lift" />
-                  <h1 className="mt-5 text-3xl font-semibold leading-tight sm:text-4xl">
-                    Hello, I&apos;m{" "}
-                    <span className="brand-gradient-text">Allma Safety AI</span>.
-                    <br />
-                    How can I help you today?
-                  </h1>
-                  <p className="mt-3 max-w-lg text-sm text-muted-foreground">
-                    Tell me what happened in your own words. I&apos;ll guide you step by step —
-                    filing a report, finding help, or keeping you safe.
-                  </p>
-                </div>
-              </div>
-              <QuickActionGrid onSelect={send} />
-              <p className="text-[11px] leading-relaxed text-muted-foreground">{DISCLAIMER}</p>
-            </div>
-          ) : (
+      {isEmpty ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-3xl px-4 pb-6">
+            <AssistantHero onSelect={send} />
+          </div>
+        </div>
+      ) : (
+        <Conversation className="min-h-0 flex-1">
+          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
+            {
+
             <div className="flex flex-col gap-5 pt-6">
               {messages.map((message) => (
                 <Message key={message.id} from={message.role}>
@@ -202,6 +288,23 @@ export function AllmaChat({
                           <p key={index} className="whitespace-pre-wrap">
                             {part.text}
                           </p>
+                        );
+                      }
+                      if (part.type === "file") {
+                        return part.mediaType?.startsWith("image/") ? (
+                          <img
+                            key={index}
+                            src={part.url}
+                            alt={part.filename ?? "Attached evidence"}
+                            className="max-h-56 w-auto rounded-xl border border-border/60 object-cover"
+                          />
+                        ) : (
+                          <span
+                            key={index}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-background/20 px-2 py-1 text-xs"
+                          >
+                            <Paperclip className="h-3 w-3" /> {part.filename ?? "Attachment"}
+                          </span>
                         );
                       }
                       if (part.type.startsWith("tool-")) {
@@ -225,14 +328,77 @@ export function AllmaChat({
                 </p>
               ) : null}
             </div>
-          )}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+            }
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      )}
+
 
       <div className="no-print sticky bottom-0 z-30 glass border-t border-border/60 px-4 pb-4 pt-3">
         <div className="mx-auto w-full max-w-3xl">
-          {/* Glow ring sits outside; PromptInput strips its own border */}
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(event) => {
+              void uploadFiles(event.target.files);
+              event.target.value = "";
+            }}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept="image/*,video/*,audio/*,application/pdf"
+            className="hidden"
+            onChange={(event) => {
+              void uploadFiles(event.target.files);
+              event.target.value = "";
+            }}
+          />
+
+          {attachments.length > 0 || uploading ? (
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="group relative flex items-center gap-2 rounded-xl border border-border/70 bg-card px-2 py-1.5 text-xs shadow-soft"
+                >
+                  {attachment.mediaType.startsWith("image/") ? (
+                    <img
+                      src={attachment.preview}
+                      alt=""
+                      className="h-8 w-8 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <Paperclip className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="max-w-[9rem] truncate">{attachment.name}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${attachment.name}`}
+                    onClick={() =>
+                      setAttachments((current) =>
+                        current.filter((item) => item.id !== attachment.id),
+                      )
+                    }
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              {uploading ? (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="input-glow-ring">
             <PromptInput
               onSubmit={(message, event) => {
@@ -242,17 +408,18 @@ export function AllmaChat({
               }}
               className="rounded-[2rem] bg-card border-0 shadow-none"
             >
-              {/* Left icons — inline */}
               <InputGroupAddon align="inline-start" className="gap-0.5 pl-2">
                 <button
                   type="button"
+                  onClick={() => cameraRef.current?.click()}
                   className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  aria-label="Add photo"
+                  aria-label="Take a photo"
                 >
                   <Camera className="h-[17px] w-[17px]" />
                 </button>
                 <button
                   type="button"
+                  onClick={() => fileRef.current?.click()}
                   className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   aria-label="Attach file"
                 >
@@ -260,29 +427,35 @@ export function AllmaChat({
                 </button>
               </InputGroupAddon>
 
-              {/* Textarea fills the middle */}
               <PromptInputTextarea
                 ref={textareaRef}
-                autoFocus
                 placeholder="Describe what's happening…"
                 className="bg-transparent min-h-[2.75rem] py-3"
               />
 
-              {/* Right icons — inline */}
               <InputGroupAddon align="inline-end" className="gap-0.5 pr-2">
                 <button
                   type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  aria-label="Voice input"
+                  onClick={toggleVoice}
+                  disabled={transcribing}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                    recording && "bg-destructive text-destructive-foreground hover:bg-destructive",
+                  )}
+                  aria-label={recording ? "Stop recording" : "Voice input"}
                 >
-                  <Mic className="h-[17px] w-[17px]" />
+                  {transcribing ? (
+                    <Loader2 className="h-[17px] w-[17px] animate-spin" />
+                  ) : (
+                    <Mic className="h-[17px] w-[17px]" />
+                  )}
                 </button>
                 <PromptInputSubmit status={status} disabled={busy} size="icon-sm" />
               </InputGroupAddon>
             </PromptInput>
           </div>
           <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">
-            Verify important advice with a local expert
+            Police Integration Ready — not officially connected to police or emergency services
           </p>
         </div>
       </div>
