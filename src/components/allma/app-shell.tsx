@@ -24,10 +24,10 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-type TabPath = "/" | "/alerts" | "/sos" | "/reports" | "/profile";
+type TabPath = "/chat" | "/alerts" | "/sos" | "/reports" | "/profile";
 
 const TABS: { label: string; to: TabPath; icon: typeof Home }[] = [
-  { label: "Home", to: "/", icon: Home },
+  { label: "Home", to: "/chat", icon: Home },
   { label: "Alerts", to: "/alerts", icon: Bell },
   { label: "Reports", to: "/reports", icon: FileText },
   { label: "Profile", to: "/profile", icon: UserRound },
@@ -35,7 +35,8 @@ const TABS: { label: string; to: TabPath; icon: typeof Home }[] = [
 
 function BottomTabs() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isHome = pathname === "/" || pathname.startsWith("/chat");
+  const isHome = pathname === "/chat" || pathname.startsWith("/chat/");
+
 
   return (
     <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl">
