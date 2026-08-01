@@ -30,38 +30,43 @@ export function AssistantHero({
 
       {/* ── Logo + heading ─────────────────────────────── */}
       <div className="relative flex flex-col items-center text-center">
-        {/* Glow orbs — tightly contained so they never overflow */}
+        {/* Ambient glow orbs */}
         <div className="pointer-events-none absolute -top-8 left-1/2 h-36 w-36 -translate-x-1/2 rounded-full bg-primary/10 blur-2xl animate-pulse-slow sm:-top-14 sm:h-56 sm:w-56 sm:blur-3xl" />
-        <div className="pointer-events-none absolute top-0 left-1/2 h-20 w-20 -translate-x-1/2 rounded-full bg-primary-glow/15 blur-xl animate-pulse-slow sm:h-32 sm:w-32" style={{ animationDelay: "1.2s" }} />
+        <div className="pointer-events-none absolute top-0 left-1/2 h-20 w-20 -translate-x-1/2 rounded-full bg-primary-glow/10 blur-xl animate-pulse-slow sm:h-32 sm:w-32" style={{ animationDelay: "1.2s" }} />
 
-        {/* Floating logo */}
+        {/* Floating logo with glowing ring */}
         <motion.div
           initial={{ opacity: 0, scale: 0.7, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
           className="relative animate-float"
         >
-          <div className="absolute inset-0 -m-2 rounded-[1.75rem] bg-gradient-to-br from-primary/25 to-primary-glow/15 blur-lg" />
+          {/* Outer glow ring */}
+          <div className="absolute inset-0 -m-3 rounded-[2rem] avatar-glow" />
+          {/* Inner brand mark */}
           <BrandMark className="relative h-14 w-14 rounded-3xl shadow-lift sm:h-16 sm:w-16 lg:h-20 lg:w-20" />
         </motion.div>
 
-        {/* Heading */}
+        {/* Greeting */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="relative mt-3"
+          className="relative mt-4"
         >
+          <p className="font-display text-lg font-semibold text-muted-foreground sm:text-xl">
+            Hello 👋
+          </p>
           <h1 className="font-display text-[1.55rem] font-bold leading-tight tracking-tight sm:text-[2rem] lg:text-5xl">
-            <span className="text-foreground">Hello, I'm </span>
+            <span className="text-foreground">I'm </span>
             <span className="brand-gradient-text">Allma Safety AI.</span>
           </h1>
-          <h2 className="font-display text-[1.55rem] font-bold leading-tight tracking-tight text-foreground sm:text-[2rem] lg:text-5xl">
-            How can I help you today?
+          <h2 className="mt-1 font-display text-[1.2rem] font-semibold leading-tight tracking-tight text-foreground/80 sm:text-[1.5rem] lg:text-3xl">
+            How can I help keep you safe today?
           </h2>
         </motion.div>
 
-        {/* Subtitle — hidden on mobile to save space */}
+        {/* Subtitle — desktop only */}
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -112,7 +117,7 @@ export function AssistantHero({
         </div>
       </div>
 
-      {/* ── 2×2 square action grid ─────────────────────── */}
+      {/* ── Quick action grid ─────────────────────────── */}
       <QuickActionGrid onSelect={onSelect} className="w-full max-w-lg px-0" />
 
       {/* ── Disclaimer — desktop only ─────────────────── */}

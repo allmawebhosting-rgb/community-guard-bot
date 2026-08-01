@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { MeshBackground } from "@/components/allma/mesh-background";
 import {
   Ambulance,
   Backpack,
@@ -413,6 +414,9 @@ export function AppShell({
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Animated Uganda-inspired mesh background */}
+      <MeshBackground />
+
       {/* Desktop left nav */}
       <aside className={cn("hidden shrink-0 border-r border-sidebar-border lg:block", railCollapsed ? "w-[68px]" : "w-60")}>
         <NavRail collapsed={railCollapsed} />
@@ -445,13 +449,24 @@ export function AppShell({
             <PanelLeft className="h-4 w-4" />
           </Button>
 
-          {/* Brand */}
+          {/* Brand + online status */}
           <Link to="/" className="flex min-w-0 items-center gap-2">
             <BrandMark className="h-7 w-7 rounded-xl lg:hidden" />
-            <span className="brand-gradient-text truncate font-display text-sm font-bold">
-              Allma Safety AI
-            </span>
+            <div className="min-w-0 leading-tight">
+              <p className="brand-gradient-text truncate font-display text-sm font-bold">
+                Allma Safety AI
+              </p>
+              <p className="hidden truncate text-[9px] text-muted-foreground/60 sm:block">
+                Keeping Uganda safer with AI.
+              </p>
+            </div>
           </Link>
+
+          {/* Online status badge */}
+          <span className="hidden items-center gap-1.5 rounded-full border border-border/50 bg-card/60 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground backdrop-blur-sm sm:flex">
+            <span className="online-pulse h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Online
+          </span>
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-1">

@@ -10,8 +10,20 @@ import {
   Megaphone,
   Mic,
   Paperclip,
+  Plus,
+  Video,
+  FileAudio,
+  FileIcon,
+  Navigation,
   X,
 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import {
   Conversation,
   ConversationContent,
@@ -35,6 +47,23 @@ type ToolPart = {
   state?: string;
   output?: unknown;
 };
+
+const SUGGESTION_CHIPS = [
+  { label: "📷 Upload photo", prompt: "I want to attach a photo as evidence." },
+  { label: "📍 Share location", prompt: "I want to share my current location." },
+  { label: "🏥 Find hospital", prompt: "Find the nearest hospital near me." },
+  { label: "👮 Find police station", prompt: "Find the nearest police station." },
+  { label: "📞 Emergency numbers", prompt: "Show me emergency contact numbers." },
+  { label: "📋 Generate report", prompt: "Please generate a full report from what I've told you." },
+];
+
+const ATTACHMENT_OPTIONS = [
+  { id: "camera", icon: Camera, label: "Camera", accept: "image/*", capture: "environment" as const },
+  { id: "gallery", icon: Paperclip, label: "Gallery", accept: "image/*", capture: undefined },
+  { id: "video", icon: Video, label: "Video", accept: "video/*", capture: undefined },
+  { id: "voice", icon: FileAudio, label: "Voice", accept: "audio/*", capture: undefined },
+  { id: "document", icon: FileIcon, label: "Document", accept: "application/pdf,.doc,.docx", capture: undefined },
+];
 
 type Attachment = {
   id: string;
@@ -125,10 +154,13 @@ export function AllmaChat({
   className?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const cameraRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const attachInputRef = useRef<HTMLInputElement | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  const [pendingAccept, setPendingAccept] = useState<string | undefined>();
+  const [pendingCapture, setPendingCapture] = useState<"environment" | undefined>();
 
   const transport = useMemo(
     () =>
@@ -262,9 +294,53 @@ export function AllmaChat({
   }, []);
 
   const isEmpty = messages.length === 0;
+  const lastMsg = messages[messages.length - 1];
+  const showChips =
+    !busy &&
+    !isEmpty &&
+    lastMsg?.role === "assistant" &&
+    status === "ready";
+
+  const shareLocation = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      toast.error("Location not available on this device.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        send(`My current location is: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
+      },
+      () => toast.error("Location permission denied."),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, [send]);
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+      {/* Hidden file input for attachment sheet */}
+      <input
+        ref={attachInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(event) => {
+          void uploadFiles(event.target.files);
+          event.target.value = "";
+          setAttachSheetOpen(false);
+        }}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept="image/*,video/*,audio/*,application/pdf"
+        className="hidden"
+        onChange={(event) => {
+          void uploadFiles(event.target.files);
+          event.target.value = "";
+        }}
+      />
+
       {isEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4 pb-6">
@@ -274,10 +350,8 @@ export function AllmaChat({
       ) : (
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
-            {
-
             <div className="flex flex-col gap-5 pt-6">
-              {messages.map((message) => (
+              {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role}>
                   <MessageContent>
                     {message.parts.map((part, index) => {
@@ -313,6 +387,33 @@ export function AllmaChat({
                       return null;
                     })}
                   </MessageContent>
+
+                  {/* Suggestion chips after last assistant message */}
+                  {message.role === "assistant" &&
+                    msgIndex === messages.length - 1 &&
+                    showChips && (
+                      <AnimatePresence>
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.3, duration: 0.35 }}
+                          className="mt-3 flex flex-wrap gap-2"
+                        >
+                          {SUGGESTION_CHIPS.map((chip) => (
+                            <motion.button
+                              key={chip.label}
+                              type="button"
+                              whileHover={{ scale: 1.04 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => send(chip.prompt)}
+                              className="rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-[11px] font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-primary/50 hover:bg-accent hover:text-foreground"
+                            >
+                              {chip.label}
+                            </motion.button>
+                          ))}
+                        </motion.div>
+                      </AnimatePresence>
+                    )}
                 </Message>
               ))}
               {status === "submitted" ? (
@@ -328,38 +429,13 @@ export function AllmaChat({
                 </p>
               ) : null}
             </div>
-            }
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>
       )}
 
-
       <div className="no-print sticky bottom-0 z-30 glass border-t border-border/60 px-4 pb-4 pt-3">
         <div className="mx-auto w-full max-w-3xl">
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(event) => {
-              void uploadFiles(event.target.files);
-              event.target.value = "";
-            }}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            accept="image/*,video/*,audio/*,application/pdf"
-            className="hidden"
-            onChange={(event) => {
-              void uploadFiles(event.target.files);
-              event.target.value = "";
-            }}
-          />
-
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {attachments.map((attachment) => (
@@ -408,23 +484,17 @@ export function AllmaChat({
               }}
               className="rounded-[2rem] bg-card border-0 shadow-none"
             >
-              <InputGroupAddon align="inline-start" className="gap-0.5 pl-2">
-                <button
+              <InputGroupAddon align="inline-start" className="pl-2">
+                {/* Attachment menu trigger */}
+                <motion.button
                   type="button"
-                  onClick={() => cameraRef.current?.click()}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setAttachSheetOpen(true)}
                   className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110"
-                  aria-label="Take a photo"
+                  aria-label="Attach files"
                 >
-                  <Camera className="h-[17px] w-[17px]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110"
-                  aria-label="Attach file"
-                >
-                  <Paperclip className="h-[17px] w-[17px]" />
-                </button>
+                  <Plus className="h-[17px] w-[17px]" />
+                </motion.button>
               </InputGroupAddon>
 
               <PromptInputTextarea
@@ -459,6 +529,61 @@ export function AllmaChat({
           </p>
         </div>
       </div>
+
+      {/* ── Attachment bottom sheet ── */}
+      <Drawer open={attachSheetOpen} onOpenChange={setAttachSheetOpen}>
+        <DrawerContent className="mx-auto max-w-lg rounded-t-[1.75rem] border-border/60 bg-card/95 backdrop-blur-xl">
+          <DrawerHeader className="pb-2 pt-4">
+            <DrawerTitle className="text-base font-semibold">Add to your report</DrawerTitle>
+          </DrawerHeader>
+          <div className="grid grid-cols-3 gap-3 px-4 pb-6 pt-2">
+            {ATTACHMENT_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              return (
+                <motion.button
+                  key={opt.id}
+                  type="button"
+                  whileHover={{ scale: 1.04, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    if (attachInputRef.current) {
+                      attachInputRef.current.accept = opt.accept;
+                      if (opt.capture) {
+                        attachInputRef.current.setAttribute("capture", opt.capture);
+                      } else {
+                        attachInputRef.current.removeAttribute("capture");
+                      }
+                      attachInputRef.current.click();
+                    }
+                  }}
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-border/50 bg-card p-4 shadow-soft transition-all hover:border-primary/40 hover:bg-accent"
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </span>
+                  <span className="text-[11px] font-medium text-muted-foreground">{opt.label}</span>
+                </motion.button>
+              );
+            })}
+            {/* Location option */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.04, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setAttachSheetOpen(false);
+                shareLocation();
+              }}
+              className="flex flex-col items-center gap-2 rounded-2xl border border-border/50 bg-card p-4 shadow-soft transition-all hover:border-primary/40 hover:bg-accent"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Navigation className="h-5 w-5 text-primary" />
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground">Location</span>
+            </motion.button>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

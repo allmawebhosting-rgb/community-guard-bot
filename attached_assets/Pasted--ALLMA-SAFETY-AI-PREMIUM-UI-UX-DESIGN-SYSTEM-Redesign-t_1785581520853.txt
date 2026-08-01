@@ -1,0 +1,543 @@
+# ALLMA SAFETY AI – PREMIUM UI / UX DESIGN SYSTEM
+
+Redesign the entire application into a premium, modern AI chat experience. The interface should feel as polished as ChatGPT, Apple Intelligence, Linear, Arc Browser, and Notion AI while reflecting Uganda's identity in a tasteful way.
+
+Do NOT use outdated cards, generic buttons, or cluttered layouts.
+
+The entire UI should feel alive with subtle animations and premium transitions.
+
+------------------------------------------------
+
+# DESIGN PHILOSOPHY
+
+• AI First
+• Mobile First
+• Minimal
+• Elegant
+• Fast
+• Premium
+• Trustworthy
+• Calm during emergencies
+
+The AI conversation should always be the main focus.
+
+------------------------------------------------
+
+# UGANDA BRANDING
+
+Use the Ugandan flag colours in subtle animated gradients instead of displaying the flag directly.
+
+Primary Colors
+
+Black
+#000000
+
+Yellow
+#FCDC04
+
+Red
+#D90012
+
+Accent
+
+White
+
+Neutral Gray
+
+Avoid making the UI look overly colorful. The colors should appear as elegant glowing gradients.
+
+------------------------------------------------
+
+# ANIMATED BACKGROUND
+
+Create a soft animated mesh gradient.
+
+The background slowly moves using the Uganda colors.
+
+Example gradient:
+
+Black
+
+↓
+
+Dark Gray
+
+↓
+
+Red Glow
+
+↓
+
+Yellow Glow
+
+↓
+
+Black
+
+Animation:
+
+Slow movement
+
+Soft blur
+
+No distractions
+
+Premium appearance
+
+------------------------------------------------
+
+# GLASSMORPHISM
+
+Use glass effects for:
+
+Message composer
+
+Suggestion cards
+
+AI welcome card
+
+Floating buttons
+
+Dialogs
+
+Settings
+
+Use:
+
+Blur
+
+Low opacity
+
+Soft borders
+
+Light reflections
+
+------------------------------------------------
+
+# AI HEADER
+
+Top navigation should include:
+
+Animated Allma logo
+
+Allma Safety AI
+
+Status:
+
+🟢 Online
+
+Below:
+
+"Keeping Uganda safer with AI."
+
+The status indicator should softly pulse.
+
+------------------------------------------------
+
+# WELCOME SCREEN
+
+Large AI avatar.
+
+Animated glowing ring around avatar.
+
+Greeting:
+
+Hello 👋
+
+I'm Allma Safety AI.
+
+How can I help keep you safe today?
+
+Below:
+
+Animated quick suggestions.
+
+Example chips:
+
+🚨 Emergency SOS
+
+🚔 Report Crime
+
+👤 Missing Person
+
+🎒 Lost Item
+
+🏥 Find Hospital
+
+👮 Police Station
+
+📢 Community Alerts
+
+These chips should animate when tapped.
+
+------------------------------------------------
+
+# CHAT
+
+Messages should animate naturally.
+
+User messages
+
+Slide in from right.
+
+AI messages
+
+Fade + slide from left.
+
+Typing indicator
+
+Animated three dots.
+
+Streaming text
+
+Words appear naturally.
+
+Auto-scroll
+
+Always smooth.
+
+------------------------------------------------
+
+# MESSAGE COMPOSER (REDESIGN)
+
+Completely redesign the composer.
+
+Current composer is broken.
+
+Replace it with a modern floating composer similar to ChatGPT.
+
+Layout:
+
+------------------------------------------------
+
+📎
+
+Text input
+
+🎤
+
+😊
+
+➕
+
+Send
+
+------------------------------------------------
+
+Features:
+
+Rounded pill shape
+
+Glass background
+
+Shadow
+
+Blur
+
+Auto expanding
+
+Voice recording
+
+Image upload
+
+Video upload
+
+Document upload
+
+Location sharing
+
+Camera
+
+Emoji picker
+
+File preview
+
+Drag & Drop (desktop)
+
+The Send button should only appear when text exists.
+
+Otherwise show microphone.
+
+------------------------------------------------
+
+# SMART ATTACHMENT MENU
+
+When "+" is pressed open a bottom sheet.
+
+Upload:
+
+📷 Camera
+
+🖼 Gallery
+
+🎥 Video
+
+🎤 Voice
+
+📄 Document
+
+📍 Current Location
+
+👤 Contact
+
+Everything should animate smoothly.
+
+------------------------------------------------
+
+# SUGGESTION CHIPS
+
+After every AI response show smart suggestion chips.
+
+Example:
+
+Report Crime
+
+Upload Photo
+
+Call Police
+
+Share Location
+
+Need Ambulance
+
+Find Hospital
+
+Generate Report
+
+These chips should animate.
+
+------------------------------------------------
+
+# MESSAGE CARDS
+
+Whenever the AI displays important information:
+
+Use beautiful cards.
+
+Cards should include:
+
+Icon
+
+Title
+
+Description
+
+Buttons
+
+Soft shadow
+
+Glass effect
+
+Rounded corners
+
+------------------------------------------------
+
+# SOS BUTTON
+
+Floating emergency button.
+
+Bottom right.
+
+Red glowing pulse.
+
+Long press required to activate.
+
+Activation animation:
+
+Countdown
+
+3
+
+2
+
+1
+
+SOS Activated
+
+------------------------------------------------
+
+# LOADING ANIMATIONS
+
+Use skeleton loaders.
+
+Never show blank pages.
+
+Use shimmer effects.
+
+------------------------------------------------
+
+# PAGE TRANSITIONS
+
+Every page transition:
+
+Fade
+
+Scale
+
+Slide
+
+200–300ms
+
+------------------------------------------------
+
+# MICRO INTERACTIONS
+
+Buttons slightly scale when pressed.
+
+Cards lift on hover.
+
+Icons bounce softly.
+
+Success checkmarks animate.
+
+Confetti for completed onboarding.
+
+------------------------------------------------
+
+# COMMUNITY ALERTS
+
+Display alerts as beautiful cards.
+
+Color based on severity.
+
+🔴 Critical
+
+🟠 High
+
+🟡 Medium
+
+🟢 Low
+
+Cards slide in.
+
+------------------------------------------------
+
+# MAP
+
+Map should have rounded corners.
+
+Glass controls.
+
+Animated location pin.
+
+Current location pulse.
+
+------------------------------------------------
+
+# NOTIFICATIONS
+
+Beautiful notification center.
+
+Grouped by:
+
+Emergency
+
+Reports
+
+Community
+
+Updates
+
+Unread notifications glow softly.
+
+------------------------------------------------
+
+# DARK MODE
+
+Primary mode.
+
+Black background.
+
+Soft yellow highlights.
+
+Red emergency accents.
+
+Premium glass cards.
+
+------------------------------------------------
+
+# LIGHT MODE
+
+Pure white.
+
+Light gray.
+
+Yellow accents.
+
+Soft shadows.
+
+------------------------------------------------
+
+# ANIMATIONS
+
+Framer Motion.
+
+Use:
+
+Fade
+
+Scale
+
+Slide
+
+Spring
+
+Stagger
+
+Morph
+
+Shared Layout Animations
+
+Everything should feel alive.
+
+------------------------------------------------
+
+# ACCESSIBILITY
+
+Large touch targets.
+
+Readable fonts.
+
+Voice input.
+
+Screen reader friendly.
+
+High contrast.
+
+------------------------------------------------
+
+# RESPONSIVE
+
+Perfect on:
+
+Phone
+
+Tablet
+
+Desktop
+
+------------------------------------------------
+
+# PERFORMANCE
+
+Lazy loading.
+
+Image optimization.
+
+Smooth 60 FPS animations.
+
+Minimal bundle size.
+
+------------------------------------------------
+
+# FINAL EXPERIENCE
+
+The final UI should not feel like a government reporting system.
+
+It should feel like a premium AI assistant that people trust, enjoy using, and can rely on in emergencies.
+
+The user should immediately feel:
+
+"This is the smartest and most modern public safety AI platform built in Uganda."
+
+Every interaction should reinforce speed, clarity, trust, and calmness while subtly celebrating Uganda through elegant animated gradients inspired by the national flag colours.

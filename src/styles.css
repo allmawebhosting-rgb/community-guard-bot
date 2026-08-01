@@ -117,55 +117,62 @@
 }
 
 .dark {
-  --background: oklch(0.17 0.028 255);
+  /* ── Uganda-inspired premium dark theme ── */
+  /* Deep black backgrounds */
+  --background: oklch(0.09 0.01 255);
   --foreground: oklch(0.96 0.008 240);
-  --surface: oklch(0.215 0.03 255);
+  --surface: oklch(0.13 0.015 255);
   --surface-foreground: oklch(0.96 0.008 240);
-  --card: oklch(0.225 0.031 255);
+  --card: oklch(0.14 0.016 255);
   --card-foreground: oklch(0.96 0.008 240);
-  --popover: oklch(0.225 0.031 255);
+  --popover: oklch(0.14 0.016 255);
   --popover-foreground: oklch(0.96 0.008 240);
-  --primary: oklch(0.7 0.14 235);
-  --primary-foreground: oklch(0.17 0.03 255);
-  --primary-glow: oklch(0.8 0.12 200);
-  --secondary: oklch(0.27 0.032 255);
+  /* Uganda yellow as primary accent */
+  --primary: oklch(0.906 0.188 96);
+  --primary-foreground: oklch(0.09 0.01 255);
+  --primary-glow: oklch(0.72 0.18 60);
+  --secondary: oklch(0.18 0.02 255);
   --secondary-foreground: oklch(0.95 0.008 240);
-  --muted: oklch(0.27 0.03 255);
-  --muted-foreground: oklch(0.72 0.02 250);
-  --accent: oklch(0.31 0.05 240);
+  --muted: oklch(0.18 0.018 255);
+  --muted-foreground: oklch(0.65 0.02 250);
+  --accent: oklch(0.2 0.025 255);
   --accent-foreground: oklch(0.95 0.01 240);
   --alert: oklch(0.79 0.15 68);
   --alert-foreground: oklch(0.2 0.05 60);
   --success: oklch(0.72 0.13 162);
   --success-foreground: oklch(0.16 0.03 160);
-  --destructive: oklch(0.63 0.2 22);
+  /* Uganda red as destructive */
+  --destructive: oklch(0.55 0.22 27);
   --destructive-foreground: oklch(0.98 0.005 20);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.7 0.14 235);
-  --chart-1: oklch(0.7 0.14 235);
-  --chart-2: oklch(0.8 0.12 200);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.906 0.188 96);
+  --chart-1: oklch(0.906 0.188 96);
+  --chart-2: oklch(0.72 0.18 60);
   --chart-3: oklch(0.79 0.15 68);
   --chart-4: oklch(0.72 0.13 162);
-  --chart-5: oklch(0.63 0.2 22);
-  --sidebar: oklch(0.2 0.03 255);
+  --chart-5: oklch(0.55 0.22 27);
+  /* Sidebar deeper black */
+  --sidebar: oklch(0.07 0.009 255);
   --sidebar-foreground: oklch(0.94 0.008 240);
-  --sidebar-primary: oklch(0.7 0.14 235);
-  --sidebar-primary-foreground: oklch(0.17 0.03 255);
-  --sidebar-accent: oklch(0.27 0.032 255);
+  --sidebar-primary: oklch(0.906 0.188 96);
+  --sidebar-primary-foreground: oklch(0.09 0.01 255);
+  --sidebar-accent: oklch(0.15 0.018 255);
   --sidebar-accent-foreground: oklch(0.94 0.008 240);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.7 0.14 235);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.906 0.188 96);
 
+  /* Uganda yellow → red brand gradient */
+  --gradient-brand: linear-gradient(120deg, oklch(0.906 0.188 96), oklch(0.55 0.22 27));
   --gradient-hero: linear-gradient(
     140deg,
-    color-mix(in oklab, var(--primary) 22%, transparent),
-    color-mix(in oklab, var(--primary-glow) 14%, transparent) 55%,
+    color-mix(in oklab, oklch(0.55 0.22 27) 18%, transparent),
+    color-mix(in oklab, oklch(0.906 0.188 96) 10%, transparent) 55%,
     transparent
   );
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.3), 0 14px 34px -18px oklch(0 0 0 / 0.6);
-  --shadow-lift: 0 22px 54px -24px oklch(0 0 0 / 0.7);
-  --glass-bg: color-mix(in oklab, var(--card) 62%, transparent);
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 14px 34px -18px oklch(0 0 0 / 0.7);
+  --shadow-lift: 0 22px 54px -24px oklch(0 0 0 / 0.8);
+  --glass-bg: color-mix(in oklab, var(--card) 55%, transparent);
 }
 
 @layer base {
@@ -328,6 +335,32 @@
 
 @utility animate-float {
   animation: allma-float 3s ease-in-out infinite;
+}
+
+/* Online status pulse */
+@keyframes allma-online-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.88); }
+}
+
+@utility online-pulse {
+  animation: allma-online-pulse 2s ease-in-out infinite;
+}
+
+/* Avatar glow ring */
+@keyframes allma-glow-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent),
+                0 0 28px 6px color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 18%, transparent),
+                0 0 48px 12px color-mix(in oklab, var(--primary-glow) 28%, transparent);
+  }
+}
+
+@utility avatar-glow {
+  animation: allma-glow-ring 3s ease-in-out infinite;
 }
 
 @media print {
