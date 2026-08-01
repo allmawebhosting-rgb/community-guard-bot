@@ -265,7 +265,7 @@ export function AllmaChat({
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
-      <Conversation className="min-h-0 flex-1">
+      <Conversation className="min-h-0 flex-1" initial={isEmpty ? false : "smooth"}>
         <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
           {isEmpty ? (
             <AssistantHero onSelect={send} />
