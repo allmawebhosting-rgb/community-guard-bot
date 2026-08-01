@@ -262,7 +262,8 @@ function Dashboard() {
         <p className="mt-8 text-[11px] leading-relaxed text-muted-foreground">{DISCLAIMER}</p>
       </main>
       <SosButton />
-    </div>
+    </AppShell>
+
   );
 }
 
