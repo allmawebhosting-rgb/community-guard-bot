@@ -3,20 +3,34 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { toast } from "sonner";
 import {
+  AlertCircle,
+  Ambulance,
   Camera,
+  CheckCircle,
+  CheckCircle2,
+  CreditCard,
   FileText,
+  Flame,
+  HelpCircle,
   Loader2,
   MapPin,
   Megaphone,
   Mic,
   Paperclip,
+  Phone,
   Plus,
+  Search,
+  Shield,
+  ShieldAlert,
+  Upload,
+  User,
   Video,
   FileAudio,
   FileIcon,
   Navigation,
   X,
 } from "lucide-react";
+
 import { motion, AnimatePresence } from "motion/react";
 import {
   Drawer,
