@@ -640,11 +640,25 @@ export function AllmaChat({
 
   const isEmpty = messages.length === 0;
   const lastMsg = messages[messages.length - 1];
-  const showChips =
-    !busy &&
-    !isEmpty &&
-    lastMsg?.role === "assistant" &&
-    status === "ready";
+
+  // Contextual chips come from the model's suggest_replies tool for the last
+  // assistant turn. No generic fallback list — suggestions always follow the topic.
+  const contextualChips = useMemo(() => {
+    if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
+    const parts = (lastMsg.parts ?? []) as ToolPart[];
+    // If the turn ended with a structured question card, its options are the choices.
+    if (parts.some((p) => p.type === "tool-ask_structured_question")) return [];
+    const suggestionPart = [...parts]
+      .reverse()
+      .find((p) => p.type === "tool-suggest_replies") as ToolPart | undefined;
+    const output = suggestionPart?.output as
+      | { suggestions?: Array<{ label: string; prompt: string }> }
+      | undefined;
+    return (output?.suggestions ?? []).slice(0, 4);
+  }, [busy, isEmpty, status, lastMsg]);
+
+  const showChips = contextualChips.length > 0;
+
 
   const shareLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
