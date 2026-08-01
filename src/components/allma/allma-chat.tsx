@@ -444,9 +444,38 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
             </li>
           ))}
         </ul>
+      ) : (name === "my_reports" && Array.isArray(output?.reports)) ||
+        (name === "match_reports" && Array.isArray(output?.matches)) ? (
+        <ul className="space-y-2 text-sm">
+          {((output.reports ?? output.matches) as Array<Record<string, unknown>>).map(
+            (row, index) => (
+              <li key={index} className="flex items-start justify-between gap-3">
+                <span>
+                  <span className="block font-medium">{String(row.title ?? "Report")}</span>
+                  <span className="block font-mono text-xs text-muted-foreground">
+                    {String(row.reference ?? "")}
+                  </span>
+                </span>
+                {row.status ? (
+                  <span className="shrink-0 rounded-full border border-border/60 px-2.5 py-1 text-[11px] font-semibold capitalize text-muted-foreground">
+                    {String(row.status)}
+                  </span>
+                ) : null}
+              </li>
+            ),
+          )}
+          {((output.reports ?? output.matches) as unknown[]).length === 0 ? (
+            <li className="text-muted-foreground">Nothing found.</li>
+          ) : null}
+        </ul>
+      ) : name === "save_draft" && output?.ok ? (
+        <p className="text-sm text-muted-foreground">
+          Saved — you can pick this up any time.
+        </p>
       ) : (
         <p className="text-sm text-muted-foreground">Done.</p>
       )}
+
     </div>
   );
 }
