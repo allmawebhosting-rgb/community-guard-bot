@@ -73,6 +73,80 @@ type Attachment = {
   preview: string;
 };
 
+type GuidedCase = {
+  type: string;
+  priority: "Critical" | "High" | "Medium" | "Low";
+  question: string;
+  evidence: string[];
+  nextActions: string[];
+};
+
+function inferGuidedCase(prompt: string): GuidedCase | null {
+  const normalized = prompt.toLowerCase();
+
+  if (normalized.includes("fire") || normalized.includes("smoke")) {
+    return {
+      type: "Fire",
+      priority: "Critical",
+      question: "Where is the fire or smoke right now?",
+      evidence: ["Photo of the scene", "Voice note of what you see", "Location sharing"],
+      nextActions: ["Call fire brigade", "Move to a safe place", "Share location"],
+    };
+  }
+
+  if (normalized.includes("missing") || normalized.includes("child") || normalized.includes("disappeared")) {
+    return {
+      type: "Missing Person",
+      priority: "High",
+      question: "When was the person last seen and where?",
+      evidence: ["Photo of the person", "Last known clothing details", "Any contact details"],
+      nextActions: ["Notify family", "Share last known location", "Contact police"],
+    };
+  }
+
+  if (normalized.includes("attack") || normalized.includes("assault") || normalized.includes("gunshot") || normalized.includes("robbery")) {
+    return {
+      type: "High Priority Emergency",
+      priority: "Critical",
+      question: "Are you in immediate danger right now?",
+      evidence: ["Voice note", "Photo or video", "Live location"],
+      nextActions: ["Call emergency services", "Stay in a safe place", "Share location"],
+    };
+  }
+
+  if (normalized.includes("accident") || normalized.includes("crash") || normalized.includes("collision")) {
+    return {
+      type: "Road Accident",
+      priority: "High",
+      question: "How many people are involved and where did the accident happen?",
+      evidence: ["Photo of the scene", "Vehicle details", "Location pin"],
+      nextActions: ["Call ambulance", "Notify police", "Share precise location"],
+    };
+  }
+
+  if (normalized.includes("stolen") || normalized.includes("theft") || normalized.includes("phone")) {
+    return {
+      type: "Theft",
+      priority: "Medium",
+      question: "Where did the theft happen, and when did it happen?",
+      evidence: ["Photo of the item", "Receipt or proof of ownership", "IMEI or serial number"],
+      nextActions: ["Block SIM", "Block mobile money", "Generate report"],
+    };
+  }
+
+  if (normalized.includes("hospital") || normalized.includes("ambulance")) {
+    return {
+      type: "Medical Help",
+      priority: "Critical",
+      question: "Are you experiencing a medical emergency right now?",
+      evidence: ["Current location", "Symptoms or type of emergency", "Any voice details"],
+      nextActions: ["Call ambulance", "Find nearest hospital", "Share location"],
+    };
+  }
+
+  return null;
+}
+
 function ToolCard({ part }: { part: ToolPart }) {
   const name = part.type.replace(/^tool-/, "");
   const running = part.state !== "output-available" && part.state !== "output-error";
@@ -163,6 +237,8 @@ export function AllmaChat({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  const [composerText, setComposerText] = useState("");
+  const [activeCase, setActiveCase] = useState<GuidedCase | null>(null);
   const [pendingAccept, setPendingAccept] = useState<string | undefined>();
   const [pendingCapture, setPendingCapture] = useState<"environment" | undefined>();
 
@@ -214,7 +290,11 @@ export function AllmaChat({
       if ((!trimmed && attachments.length === 0) || busy) return;
 
       const parts: UIMessage["parts"] = [];
-      if (trimmed) parts.push({ type: "text", text: trimmed });
+      if (trimmed) {
+        parts.push({ type: "text", text: trimmed });
+        const workflow = inferGuidedCase(trimmed);
+        if (workflow) setActiveCase(workflow);
+      }
       for (const attachment of attachments) {
         parts.push({
           type: "file",
@@ -354,6 +434,54 @@ export function AllmaChat({
       ) : (
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
+            {activeCase ? (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 rounded-[1.5rem] border border-border/60 bg-card/75 p-4 shadow-soft backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Case detected</p>
+                    <h3 className="mt-1 text-lg font-semibold text-foreground">{activeCase.type}</h3>
+                  </div>
+                  <span className="rounded-full border border-border/60 bg-background/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                    {activeCase.priority}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-border/50 bg-background/30 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Next question</p>
+                    <p className="mt-1 text-sm text-foreground">{activeCase.question}</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/50 bg-background/30 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Suggested evidence</p>
+                    <ul className="mt-1 space-y-1 text-sm text-foreground">
+                      {activeCase.evidence.map((item) => (
+                        <li key={item}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-2xl border border-border/50 bg-background/30 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Recommended next actions</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {activeCase.nextActions.map((action) => (
+                      <button
+                        key={action}
+                        type="button"
+                        onClick={() => send(action)}
+                        className="rounded-full border border-border/60 bg-card/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-accent hover:text-foreground"
+                      >
+                        {action}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
             <div className="flex flex-col gap-4 pt-6">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role}>
@@ -485,7 +613,10 @@ export function AllmaChat({
             <PromptInput
               onSubmit={(message, event) => {
                 event.preventDefault();
-                send(message.text ?? "");
+                const text = (message.text ?? "").trim();
+                if (!text) return;
+                send(text);
+                setComposerText("");
                 event.currentTarget.reset();
               }}
               className="rounded-[2rem] border-0 bg-transparent shadow-none"
@@ -505,8 +636,9 @@ export function AllmaChat({
 
               <PromptInputTextarea
                 ref={textareaRef}
-                placeholder="Ask Allma to help, report or find help…"
+                placeholder="Ask Allma to help, report, or find help…"
                 className="min-h-[2.75rem] bg-transparent py-3 text-[14px] leading-6"
+                onChange={(event) => setComposerText(event.target.value)}
               />
 
               <InputGroupAddon align="inline-end" className="gap-0.5 pr-2">
@@ -526,7 +658,9 @@ export function AllmaChat({
                     <Mic className="h-[17px] w-[17px]" />
                   )}
                 </button>
-                <PromptInputSubmit status={status} disabled={busy} size="icon-sm" />
+                {composerText.trim().length > 0 ? (
+                  <PromptInputSubmit status={status} disabled={busy} size="icon-sm" />
+                ) : null}
               </InputGroupAddon>
             </PromptInput>
           </div>
