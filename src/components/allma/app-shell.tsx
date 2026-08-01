@@ -42,8 +42,9 @@ function BottomTabs() {
     <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl">
       <div className="mx-auto grid h-[4.5rem] w-full max-w-2xl grid-cols-5 items-center px-2 pb-[env(safe-area-inset-bottom)]">
         {TABS.slice(0, 2).map((tab) => (
-          <TabLink key={tab.to} tab={tab} active={tab.to === "/" ? isHome : pathname === tab.to} />
+          <TabLink key={tab.to} tab={tab} active={tab.to === "/chat" ? isHome : pathname === tab.to} />
         ))}
+
 
         <div className="relative grid place-items-center">
           <Link
