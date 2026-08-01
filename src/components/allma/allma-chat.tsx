@@ -652,7 +652,7 @@ export function AllmaChat({
     const output = suggestionPart?.output as
       | { suggestions?: Array<{ label: string; prompt: string }> }
       | undefined;
-    return (output?.suggestions ?? []).slice(0, 4);
+    return ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
   }, [busy, isEmpty, status, lastMsg]);
 
   const showChips = contextualChips.length > 0;
