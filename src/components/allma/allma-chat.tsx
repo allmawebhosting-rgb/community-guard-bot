@@ -204,7 +204,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
 
   if (running) {
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-3 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-3">
         <Shimmer className="text-sm">{entry.busy}</Shimmer>
       </div>
     );
@@ -219,7 +219,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     const options = Array.isArray(output.options) ? output.options : [];
 
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-4">
         <div className="mb-3">
           <div className="mb-1.5 flex items-center justify-between">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Step {step} of {total}</p>
@@ -258,7 +258,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     const optional = Boolean(output.optional);
 
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-4">
         <div className="mb-3 flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
             <Upload className="h-5 w-5 text-primary" />
@@ -298,7 +298,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     const actions = Array.isArray(output.actions) ? output.actions : [];
 
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-4">
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {actions.map((action: { label: string; subtitle: string; icon?: string }, index: number) => {
@@ -340,7 +340,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     };
 
     return (
-      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+      <div className="chat-card p-4">
         <div className="mb-3 flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Review before submitting</p>
@@ -398,7 +398,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
   }
 
   return (
-    <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-3.5 shadow-soft backdrop-blur-sm">
+    <div className="chat-card p-3.5">
       <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         <Icon className="h-3.5 w-3.5 text-primary" /> {entry.label}
       </p>
