@@ -26,7 +26,7 @@ export const Route = createFileRoute("/sos")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: SosScreen;
+  component: SosScreen,
 });
 
 type Coords = { latitude: number; longitude: number };
