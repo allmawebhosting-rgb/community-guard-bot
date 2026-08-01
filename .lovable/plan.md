@@ -1,44 +1,51 @@
-## Goal
+# Redesign: Allma Safety AI (mockup-matched)
 
-Adopt the layout and visual structure of the allma.store demo assistant, keeping all existing Allma Safety AI features (safety chat, conversational reporting, SOS, dashboard).
+Rebuild the whole front end to match the uploaded mockup — a dark, mobile-first Uganda safety assistant with a red/gold signal palette, glowing robot mascot, bottom tab bar with a central SOS, and the five AI experiences shown in the mockup panels. All existing backend tables (reports, evidence, alerts, facilities, threads, messages, contacts) and the AI chat route stay in place.
 
-## What the reference looks like
+## 1. Visual system (replaces the current blue palette)
 
-```text
-┌───────────┬──────────────┬────────────────────────────┐
-│ nav rail  │ chat list    │  top bar: logo + tabs      │
-│ (grouped, │  [+ New chat]│                            │
-│ collapsi- │  thread 1    │      [ big AI mark ]       │
-│ ble)      │  thread 2    │        Allma Safety AI     │
-│           │              │      tagline (2 lines)     │
-│ SAFETY    │              │   [chip][chip][chip][chip] │
-│ REPORT    │              │   ── START WITH ──         │
-│ NEARBY    │              │   [card] [card]            │
-│ ─────     │              │   [card] [card]            │
-│ avatar    │              │  ┌ composer 📷 📎 … 🎤 ↑ ┐ │
-└───────────┴──────────────┴────────────────────────────┘
-```
+- New dark-first tokens in `src/styles.css`: near-black background (`#0a0a0a`-class), elevated card surface, **crimson red primary** with glow, **gold/amber accent**, plus per-category tints (theft, missing, lost, hospital, police, fire) and severity colors (critical / high / low) for alerts.
+- Add tokens for the mockup's signature effects: radial red mascot halo, flowing red-gold light streak background, gold gradient text, card glow-on-hover, SOS pulse ring.
+- Typography: bold display headings + clean sans body (Space Grotesk / DM Sans already loaded), with gold-highlighted words in headlines ("Uganda's **AI** Safety Assistant").
+- Every color stays a semantic token; no hardcoded hex in components. Light mode kept readable but the app is designed dark.
 
-## Layout work
+## 2. Marketing landing page (`/`)
 
-1. **App shell** (`src/components/allma/app-shell.tsx`) using the shadcn sidebar:
-   - Left icon-collapsible nav rail with grouped sections: SAFETY (Assistant, Dashboard, Community alerts), REPORT (Report crime, Missing person, Lost & found, Emergency SOS), NEARBY (Police, Hospitals, Fire & ambulance), plus a footer user block with avatar, name, and role badge.
-   - Second column: thread list ("Allma chats" header, gradient "New chat" button, active-thread highlight) — moved out of the chat route into the shell.
-   - Slim top bar with brand lockup, page tabs, theme toggle, and sidebar trigger. On mobile both columns collapse into sheets.
-   - Applied to the chat routes and the dashboard so navigation is consistent.
+Mirrors the top of the mockup: logo lockup, "Uganda's AI Safety Assistant / Report. Get Help. Stay Safe." headline over the light-streak background, product description, phone-frame previews of the assistant and SOS screens, and the 5-badge feature strip (AI-First, Step by Step, Smart Suggestions, Media Support, Built for Uganda). CTA into the app / sign-in. Own SEO head tags.
 
-2. **Hero empty state** (`src/components/allma/assistant-hero.tsx`): centered glowing brand mark with soft radial gradient, large gradient wordmark, two-line tagline, a row of pill suggestion chips ("Report a theft", "Find nearest hospital", "Someone is missing", "Is this area safe tonight?"), a "START WITH" divider, and a 2×2 grid of tinted action cards (Report an incident, Emergency SOS, Missing person, Find help nearby) — each seeds the matching AI conversation. Replaces the current quick-action row on the empty chat screen.
+## 3. App shell
 
-3. **Composer** upgrade in `allma-chat.tsx` around the existing AI Elements `PromptInput`: rounded pill with soft focus glow, camera button, paperclip attach button, mic button on the right of the field, circular send button, thumbnail strip for pending attachments, and the "Verify important advice…"-style safety footnote (reused for the "Police Integration Ready / not officially connected" disclaimer).
+- Replace the sidebar-heavy shell with a **mobile-app layout**: compact top bar (menu, agent avatar + "Online" status, profile mark) and a **bottom tab bar** — Home, Alerts, centre floating SOS, Reports, Profile.
+- On desktop the same layout is centred in a max-width column with an optional slide-over drawer for chat threads, so it reads as one product on both sizes.
 
-## Composer functionality
+## 4. Home / assistant screen
 
-- **Camera / attach**: file input (`capture="environment"` for camera) → upload to the existing private `evidence` storage bucket under the user's folder → attach signed URLs as image parts on the outgoing message so the model can see them; images render as thumbnails in the transcript. Guests are prompted to sign in before uploading.
-- **Voice**: `MediaRecorder`-free Web Audio capture encoded to WAV, posted to a new server route `src/routes/api/transcribe.ts` that calls the Lovable AI transcription endpoint with `openai/gpt-4o-mini-transcribe` and streams the transcript back into the textarea for the user to edit and send.
+Glowing robot mascot with red halo, "Hello 👋 I'm **Allma Safety AI** — How can I help keep you safe today?", then the 2×3 tinted action grid: Emergency SOS, Report Crime, Missing Person, Lost & Found, Find Hospital, Police Station. Each tile seeds the matching AI flow.
+
+## 5. Emergency SOS screen
+
+Hold-to-activate ring (3-second press with progress ring and haptic-style pulse), then Share Location / Call Police / Call Ambulance action tiles and an "Emergency Contacts — N will be notified" row that reads the existing contacts table.
+
+## 6. The five AI features from the mockup
+
+1. **AI chat assistant** — restyled transcript: assistant messages on the surface with the agent avatar and timestamps, user messages in a red-tinted bubble with a read tick, typing indicator, and a composer with mic + attach.
+2. **Step-by-step guided reporting** — the AI drives one question at a time; the UI renders a "Step 2 of 7" progress bar, a question card, tappable option list with a green check on the selected answer (Just now / Within 1 hour / Earlier today / Yesterday / Custom time incl. date picker), and a helper footnote. Implemented as an AI tool the model calls to ask a structured question; answers post back as the next user turn.
+3. **Media upload** — "Do you have a photo of the phone?" card with photo preview, Change Photo / Continue / Skip for now. Camera capture and gallery pick upload to the existing private `evidence` bucket; signed URLs are attached to the message so the model can see the image.
+4. **Smart suggestions** — "Recommended Actions" card the AI emits per report type (Block SIM Card, Block Mobile Money, Track IMEI, Call Police, Generate Report, See All Actions), each with icon, subtitle, and a tap action.
+5. **Report summary** — review card with Category / Item / Date / Location / IMEI / Photos rows, Edit and gold "Confirm & Submit" buttons, "you will receive a report number" note and a "Your data is secure" footer. Confirm writes the report and returns its reference number.
+
+## 7. Supporting screens
+
+- **Nearby Help** — facility list (police, hospital, medical centre, fire) with distance, call and directions buttons, beside a map panel with colour-coded markers and "View all on map".
+- **Community Alerts** — severity-badged alert cards (CRITICAL / HIGH / LOW) with relative timestamps.
+- **My Reports** — report cards with reference number and status chip (Under Review, Received, In Progress).
+- **Quick Ask AI** — tappable starter questions ("What should I do during a flood?", "How do I report cyber crime?", "What numbers should I call in emergency?", "How do I stay safe at night?") plus a slim "Ask Allma AI…" input.
 
 ## Technical notes
 
-- No schema changes; evidence bucket and RLS already exist. Attachment rows optionally recorded in `report_evidence` only when a report is created (unchanged behaviour).
-- The chat model, system prompt, tools, and persistence in `src/routes/api/chat.ts` stay as-is.
-- Design tokens stay Allma's signal-blue/alert palette in `src/styles.css`; the reference's green is not copied. Add tokens for the card tints, hero glow, and composer glow.
-- `allma-chat.tsx` splits into chat transcript + composer + hero components to keep files small.
+- No schema changes needed; all screens read/write existing tables under current RLS. Nearby-help distance is computed client-side from facility coordinates.
+- Chat stays on `src/routes/api/chat.ts` with the current model and persistence; new features are added as AI SDK tools (`ask_structured_question`, `request_media`, `recommend_actions`, `report_summary`) rendered as custom tool cards in the transcript, with tool params collapsed by default.
+- Voice input keeps the existing `/api/transcribe` route; camera/gallery upload reuses the `evidence` bucket with signed URLs.
+- The safety disclaimer ("not officially connected to police") stays visible on SOS and report submission.
+- Large components are split per screen under `src/components/allma/` so no file grows unwieldy; `allma-chat.tsx` is broken into transcript, composer, and tool-card modules.
+- The mockup image is design reference only and is not embedded in the app; the robot mascot and light-streak artwork are generated as app assets.
