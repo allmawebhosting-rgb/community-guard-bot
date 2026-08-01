@@ -736,8 +736,9 @@ export function AllmaChat({
                         );
                       }
                       if (part.type.startsWith("tool-")) {
-                        return <ToolCard key={index} part={part as ToolPart} />;
+                        return <ToolCard key={index} part={part as ToolPart} onSend={send} />;
                       }
+
                       return null;
                     })}
                   </MessageContent>
