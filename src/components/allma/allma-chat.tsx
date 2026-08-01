@@ -412,7 +412,7 @@ export function AllmaChat({
                 <button
                   type="button"
                   onClick={() => cameraRef.current?.click()}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110"
                   aria-label="Take a photo"
                 >
                   <Camera className="h-[17px] w-[17px]" />
@@ -420,7 +420,7 @@ export function AllmaChat({
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110"
                   aria-label="Attach file"
                 >
                   <Paperclip className="h-[17px] w-[17px]" />
@@ -429,7 +429,7 @@ export function AllmaChat({
 
               <PromptInputTextarea
                 ref={textareaRef}
-                placeholder="Describe what's happening…"
+                placeholder="Ask Allma to help, report or find help…"
                 className="bg-transparent min-h-[2.75rem] py-3"
               />
 
@@ -439,7 +439,7 @@ export function AllmaChat({
                   onClick={toggleVoice}
                   disabled={transcribing}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                    "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110",
                     recording && "bg-destructive text-destructive-foreground hover:bg-destructive",
                   )}
                   aria-label={recording ? "Stop recording" : "Voice input"}
