@@ -762,11 +762,11 @@ export function AllmaChat({
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
                         return message.role === "assistant" ? (
-                          <MessageResponse key={index} className="rounded-[1.4rem] border border-border/55 bg-card/70 px-4 py-3 shadow-soft">
+                          <MessageResponse key={index} className="chat-card px-4 py-3 text-[15px] leading-relaxed">
                             {part.text}
                           </MessageResponse>
                         ) : (
-                          <p key={index} className="whitespace-pre-wrap rounded-[1.3rem] bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-primary-foreground shadow-soft">
+                          <p key={index} className="whitespace-pre-wrap rounded-[1.3rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift">
                             {part.text}
                           </p>
                         );

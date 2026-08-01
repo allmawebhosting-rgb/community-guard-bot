@@ -467,10 +467,8 @@
     );
   backdrop-filter: blur(18px) saturate(140%);
   box-shadow: var(--shadow-soft);
-}
 
-/* Gradient hairline border that reads as a premium bevel */
-@utility chat-card {
+  /* Gradient hairline border that reads as a premium bevel */
   &::before {
     content: "";
     position: absolute;
