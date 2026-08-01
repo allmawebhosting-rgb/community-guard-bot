@@ -871,7 +871,14 @@ export function AllmaChat({
             </div>
           ) : null}
 
-          <div className="input-glow-ring rounded-[2rem] border border-border/55 bg-card/75 backdrop-blur-xl">
+          <div
+            className={cn(
+              "composer-shell focus-within:composer-shell-focused",
+              recording && "composer-shell-recording",
+            )}
+          >
+            <div className="rounded-[calc(2rem-2px)] border border-border/40 bg-card/85 backdrop-blur-xl">
+
             <PromptInput
               onSubmit={(message, event) => {
                 event.preventDefault();
