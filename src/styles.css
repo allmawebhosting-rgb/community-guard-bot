@@ -321,6 +321,56 @@
   border-radius: 2rem;
 }
 
+/* Composer shell — rotating gradient border, brightens on focus */
+@keyframes allma-composer-spin {
+  to { --allma-angle: 360deg; }
+}
+
+@property --allma-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@utility composer-shell {
+  position: relative;
+  border-radius: 2rem;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--allma-angle),
+    color-mix(in oklab, var(--primary) 70%, transparent),
+    color-mix(in oklab, var(--primary-glow) 75%, transparent),
+    color-mix(in oklab, var(--success) 55%, transparent),
+    color-mix(in oklab, var(--primary) 70%, transparent)
+  );
+  animation: allma-composer-spin 8s linear infinite;
+  box-shadow: 0 0 20px -6px color-mix(in oklab, var(--primary) 35%, transparent);
+  transition: box-shadow 260ms ease, padding 200ms ease;
+}
+
+@utility composer-shell-focused {
+  padding: 2.5px;
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--primary) 12%, transparent),
+    0 0 36px -4px color-mix(in oklab, var(--primary-glow) 55%, transparent);
+}
+
+@utility composer-shell-recording {
+  background: conic-gradient(
+    from var(--allma-angle),
+    color-mix(in oklab, var(--destructive) 85%, transparent),
+    color-mix(in oklab, var(--destructive) 35%, transparent),
+    color-mix(in oklab, var(--destructive) 85%, transparent)
+  );
+  animation: allma-composer-spin 2.4s linear infinite;
+  box-shadow: 0 0 28px -4px color-mix(in oklab, var(--destructive) 55%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-shell { animation: none; }
+}
+
+
 /* Gradient input glow border */
 @keyframes allma-input-glow {
   0%, 100% {
