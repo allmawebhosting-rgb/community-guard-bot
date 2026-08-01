@@ -86,9 +86,9 @@ function Dashboard() {
   const emergencies = (reports.data ?? []).filter((report) => report.report_type === "emergency");
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppHeader />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-6">
+    <AppShell showThreads={false}>
+      <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 pb-28 pt-6">
+
         <div className="hero-glow mb-6 rounded-3xl p-6">
           <h1 className="text-2xl font-semibold sm:text-3xl">Your safety dashboard</h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
