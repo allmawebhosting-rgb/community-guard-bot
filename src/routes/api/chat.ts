@@ -82,13 +82,29 @@ export const Route = createFileRoute("/api/chat")({
 
         const uiMessages = messages as UIMessage[];
 
+        let memoryBlock = "";
+        if (userId) {
+          const { data: memoryRows } = await supabase
+            .from("ai_user_memory")
+            .select("kind, key, value")
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+            .limit(30);
+          if (memoryRows && memoryRows.length > 0) {
+            memoryBlock = `\n\nWHAT YOU ALREADY KNOW ABOUT THIS USER (do not re-ask these):\n${memoryRows
+              .map((row) => `- ${row.key} (${row.kind}): ${row.value}`)
+              .join("\n")}`;
+          }
+        }
+
         const result = streamText({
           model: gateway("google/gemini-3.6-flash"),
           system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }`,
+          }${memoryBlock}`,
           messages: await convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(50),
+
           tools: {
             ask_structured_question: tool({
               description:
