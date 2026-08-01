@@ -87,17 +87,21 @@ function ToolCard({ part }: { part: ToolPart }) {
   const Icon = entry.icon;
 
   if (running) {
-    return <Shimmer className="text-sm">{entry.busy}</Shimmer>;
+    return (
+      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-3 shadow-soft backdrop-blur-sm">
+        <Shimmer className="text-sm">{entry.busy}</Shimmer>
+      </div>
+    );
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-3 shadow-soft">
-      <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" /> {entry.label}
+    <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-3.5 shadow-soft backdrop-blur-sm">
+      <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <Icon className="h-3.5 w-3.5 text-primary" /> {entry.label}
       </p>
       {name === "create_report" && output?.ok ? (
         <div className="space-y-1 text-sm">
-          <p className="font-semibold">{String(output.title ?? "Report filed")}</p>
+          <p className="font-semibold text-foreground">{String(output.title ?? "Report filed")}</p>
           <p className="text-muted-foreground">
             Reference <span className="font-mono text-foreground">{String(output.reference)}</span>{" "}
             · status {String(output.status)} · risk {String(output.risk_level)}
@@ -343,23 +347,25 @@ export function AllmaChat({
 
       {isEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-4 pb-6">
+          <div className="mx-auto w-full max-w-4xl px-4 pb-6">
             <AssistantHero onSelect={send} />
           </div>
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
-            <div className="flex flex-col gap-5 pt-6">
+            <div className="flex flex-col gap-4 pt-6">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role}>
-                  <MessageContent>
+                  <MessageContent className={message.role === "assistant" ? "rounded-[1.4rem] rounded-tl-sm bg-transparent px-0 py-0" : "rounded-[1.4rem] rounded-br-sm"}>
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
                         return message.role === "assistant" ? (
-                          <MessageResponse key={index}>{part.text}</MessageResponse>
+                          <MessageResponse key={index} className="rounded-[1.4rem] border border-border/55 bg-card/70 px-4 py-3 shadow-soft">
+                            {part.text}
+                          </MessageResponse>
                         ) : (
-                          <p key={index} className="whitespace-pre-wrap">
+                          <p key={index} className="whitespace-pre-wrap rounded-[1.3rem] bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-primary-foreground shadow-soft">
                             {part.text}
                           </p>
                         );
@@ -475,14 +481,14 @@ export function AllmaChat({
             </div>
           ) : null}
 
-          <div className="input-glow-ring">
+          <div className="input-glow-ring rounded-[2rem] border border-border/55 bg-card/75 backdrop-blur-xl">
             <PromptInput
               onSubmit={(message, event) => {
                 event.preventDefault();
                 send(message.text ?? "");
                 event.currentTarget.reset();
               }}
-              className="rounded-[2rem] bg-card border-0 shadow-none"
+              className="rounded-[2rem] border-0 bg-transparent shadow-none"
             >
               <InputGroupAddon align="inline-start" className="pl-2">
                 {/* Attachment menu trigger */}
@@ -500,7 +506,7 @@ export function AllmaChat({
               <PromptInputTextarea
                 ref={textareaRef}
                 placeholder="Ask Allma to help, report or find help…"
-                className="bg-transparent min-h-[2.75rem] py-3"
+                className="min-h-[2.75rem] bg-transparent py-3 text-[14px] leading-6"
               />
 
               <InputGroupAddon align="inline-end" className="gap-0.5 pr-2">

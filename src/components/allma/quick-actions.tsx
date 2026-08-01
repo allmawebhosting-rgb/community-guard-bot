@@ -30,15 +30,13 @@ function SquareCard({
       whileTap={{ scale: 0.95 }}
       onClick={() => onSelect(action.prompt)}
       className={cn(
-        "group flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-2xl border border-border/40 p-3 text-center shadow-soft transition-all duration-200",
-        "hover:border-border/60 hover:shadow-lift",
-        action.cardBg,
+        "group flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[1.5rem] border border-border/55 bg-card/80 p-3 text-center shadow-soft transition-all duration-200 backdrop-blur-sm",
+        "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent/55 hover:shadow-lift",
       )}
     >
-      {/* Colored icon circle */}
       <span
         className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-2xl text-2xl shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:shadow-md",
+          "flex h-12 w-12 items-center justify-center rounded-2xl text-2xl shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md",
           action.iconColor,
         )}
         aria-hidden
@@ -46,7 +44,6 @@ function SquareCard({
         {action.emoji}
       </span>
 
-      {/* Label */}
       <span className="w-full space-y-0.5">
         <span className="block text-[12px] font-bold leading-tight text-foreground">
           {action.label}

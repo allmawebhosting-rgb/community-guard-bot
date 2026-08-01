@@ -211,6 +211,13 @@
   -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
 
+@utility premium-surface {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--card) 94%, transparent), color-mix(in oklab, var(--card) 78%, transparent));
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
 @utility hero-glow {
   background-image: var(--gradient-hero);
 }

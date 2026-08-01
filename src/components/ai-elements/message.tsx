@@ -37,7 +37,7 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 export const Message = ({ className, from, ...props }: MessageProps) => (
   <div
     className={cn(
-      "group flex w-full max-w-[95%] flex-col gap-2",
+      "group flex w-full max-w-[94%] flex-col gap-2.5 sm:max-w-[92%]",
       from === "user" ? "is-user ml-auto justify-end" : "is-assistant",
       className
     )}
@@ -54,11 +54,9 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
-      // User bubble: gradient background
-      "group-[.is-user]:ml-auto group-[.is-user]:rounded-2xl group-[.is-user]:rounded-br-sm group-[.is-user]:bg-gradient-to-br group-[.is-user]:from-primary group-[.is-user]:to-primary-glow group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-primary-foreground group-[.is-user]:shadow-soft",
-      // Assistant: clean
-      "group-[.is-assistant]:text-foreground",
+      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2.5 overflow-hidden text-[0.95rem] leading-7",
+      "group-[.is-user]:ml-auto group-[.is-user]:rounded-[1.5rem] group-[.is-user]:rounded-br-sm group-[.is-user]:bg-gradient-to-br group-[.is-user]:from-primary group-[.is-user]:to-primary-glow group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-primary-foreground group-[.is-user]:shadow-soft",
+      "group-[.is-assistant]:rounded-[1.4rem] group-[.is-assistant]:border group-[.is-assistant]:border-border/55 group-[.is-assistant]:bg-card/70 group-[.is-assistant]:px-4 group-[.is-assistant]:py-3 group-[.is-assistant]:shadow-soft group-[.is-assistant]:backdrop-blur-sm group-[.is-assistant]:text-foreground",
       className
     )}
     {...props}
@@ -329,7 +327,7 @@ export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
       className={cn(
-        "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        "size-full text-[0.95rem] leading-7 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className
       )}
       plugins={streamdownPlugins}
