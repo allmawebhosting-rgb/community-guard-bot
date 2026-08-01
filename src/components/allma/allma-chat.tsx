@@ -568,7 +568,7 @@ export function AllmaChat({
         </Conversation>
       )}
 
-      <div className="no-print sticky bottom-0 z-30 glass border-t border-border/60 px-4 pb-4 pt-3">
+      <div className="no-print sticky bottom-[4.9rem] z-30 glass border-t border-border/60 px-4 pb-4 pt-3">
         <div className="mx-auto w-full max-w-3xl">
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
