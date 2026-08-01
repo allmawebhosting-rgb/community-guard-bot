@@ -161,7 +161,21 @@ function inferGuidedCase(prompt: string): GuidedCase | null {
   return null;
 }
 
-function ToolCard({ part }: { part: ToolPart }) {
+const ACTION_ICONS: Record<string, typeof FileText> = {
+  phone: Phone,
+  upload: Upload,
+  location: MapPin,
+  block: ShieldAlert,
+  report: FileText,
+  search: Search,
+  ambulance: Ambulance,
+  police: Shield,
+  money: CreditCard,
+  shield: Shield,
+  sim: CreditCard,
+};
+
+function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => void }) {
   const name = part.type.replace(/^tool-/, "");
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
@@ -170,6 +184,10 @@ function ToolCard({ part }: { part: ToolPart }) {
     create_report: { icon: FileText, label: "Incident report", busy: "Filing your report…" },
     find_facilities: { icon: MapPin, label: "Nearby help", busy: "Searching the directory…" },
     list_alerts: { icon: Megaphone, label: "Community alerts", busy: "Checking alerts…" },
+    ask_structured_question: { icon: HelpCircle, label: "Question", busy: "Preparing question…" },
+    request_media: { icon: Upload, label: "Upload evidence", busy: "Preparing upload…" },
+    recommend_actions: { icon: AlertCircle, label: "Recommended actions", busy: "Finding recommendations…" },
+    report_summary: { icon: FileText, label: "Report summary", busy: "Preparing summary…" },
   };
   const entry = meta[name] ?? { icon: FileText, label: name, busy: "Working…" };
   const Icon = entry.icon;
@@ -178,6 +196,193 @@ function ToolCard({ part }: { part: ToolPart }) {
     return (
       <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-3 shadow-soft backdrop-blur-sm">
         <Shimmer className="text-sm">{entry.busy}</Shimmer>
+      </div>
+    );
+  }
+
+  // Custom interactive cards for the redesigned AI flows
+  if (name === "ask_structured_question" && output?.ok) {
+    const step = Number(output.step ?? 1);
+    const total = Number(output.total_steps ?? 5);
+    const question = String(output.question ?? "");
+    const helper = output.helper_text ? String(output.helper_text) : null;
+    const options = Array.isArray(output.options) ? output.options : [];
+
+    return (
+      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+        <div className="mb-3">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Step {step} of {total}</p>
+            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-border/60">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-primary-glow"
+                style={{ width: `${(step / total) * 100}%` }}
+              />
+            </div>
+          </div>
+          <h4 className="text-sm font-semibold text-foreground">{question}</h4>
+          {helper ? <p className="mt-1 text-xs text-muted-foreground">{helper}</p> : null}
+        </div>
+        <div className="grid gap-2">
+          {options.map((opt: { label: string; value: string }, index: number) => (
+            <motion.button
+              key={index}
+              type="button"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onSend(opt.value)}
+              className="group flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-2.5 text-left text-sm text-foreground transition-all hover:border-primary/50 hover:bg-accent"
+            >
+              <span>{opt.label}</span>
+              <CheckCircle className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:text-primary group-hover:opacity-100" />
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (name === "request_media" && output?.ok) {
+    const mediaType = String(output.media_type ?? "photo");
+    const prompt = String(output.prompt ?? "Please upload a photo or file.");
+    const optional = Boolean(output.optional);
+
+    return (
+      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+        <div className="mb-3 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            <Upload className="h-5 w-5 text-primary" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} requested</p>
+            <p className="text-xs text-muted-foreground">{prompt}</p>
+          </div>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Tap the <Plus className="mx-0.5 inline h-3.5 w-3.5" /> button in the composer to attach a file.
+        </p>
+        <div className="flex gap-2">
+          {optional ? (
+            <button
+              type="button"
+              onClick={() => onSend("Skip for now")}
+              className="rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent"
+            >
+              Skip for now
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onSend("I want to upload a file")}
+            className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (name === "recommend_actions" && output?.ok) {
+    const title = String(output.title ?? "Recommended actions");
+    const actions = Array.isArray(output.actions) ? output.actions : [];
+
+    return (
+      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {actions.map((action: { label: string; subtitle: string; icon?: string }, index: number) => {
+            const ActionIcon = ACTION_ICONS[action.icon ?? "shield"] ?? Shield;
+            return (
+              <motion.button
+                key={index}
+                type="button"
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onSend(action.label)}
+                className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/40 p-3 text-left transition-all hover:border-primary/50 hover:bg-accent"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <ActionIcon className="h-4 w-4 text-primary" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{action.label}</p>
+                  <p className="text-xs text-muted-foreground">{action.subtitle}</p>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (name === "report_summary" && output?.ok) {
+    const summary = {
+      reportType: String(output.report_type ?? ""),
+      category: String(output.category ?? ""),
+      title: String(output.title ?? ""),
+      summary: String(output.summary ?? ""),
+      occurredAt: output.occurred_at_text ? String(output.occurred_at_text) : null,
+      location: output.location_text ? String(output.location_text) : null,
+      risk: String(output.risk_level ?? ""),
+      anonymous: Boolean(output.is_anonymous),
+    };
+
+    return (
+      <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4 shadow-soft backdrop-blur-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <FileText className="h-4 w-4 text-primary" />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Review before submitting</p>
+        </div>
+        <h4 className="mb-1 text-sm font-semibold text-foreground">{summary.title}</h4>
+        <p className="mb-3 text-xs text-muted-foreground">{summary.summary}</p>
+        <div className="mb-3 space-y-1.5 rounded-xl border border-border/50 bg-background/40 p-3">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Category</span>
+            <span className="font-medium text-foreground">{summary.category}</span>
+          </div>
+          {summary.occurredAt ? (
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Date / time</span>
+              <span className="font-medium text-foreground">{summary.occurredAt}</span>
+            </div>
+          ) : null}
+          {summary.location ? (
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Location</span>
+              <span className="font-medium text-foreground">{summary.location}</span>
+            </div>
+          ) : null}
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Risk level</span>
+            <span className="font-medium text-foreground">{summary.risk}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Anonymous</span>
+            <span className="font-medium text-foreground">{summary.anonymous ? "Yes" : "No"}</span>
+          </div>
+        </div>
+        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          Your data is encrypted and shared only with verified responders.
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => onSend("I need to edit this report")}
+            className="rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onSend("Confirm and submit this report")}
+            className="rounded-full bg-gradient-to-r from-primary to-primary-glow px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90"
+          >
+            Confirm & Submit
+          </button>
+        </div>
       </div>
     );
   }
@@ -233,6 +438,7 @@ function ToolCard({ part }: { part: ToolPart }) {
     </div>
   );
 }
+
 
 export function AllmaChat({
   threadId,
