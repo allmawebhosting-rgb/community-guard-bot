@@ -193,6 +193,10 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
   const Icon = entry.icon;
 
   // Silent background tools — no card once they finish.
+  if (name === "suggest_replies") {
+    return null;
+  }
+
   if (!running && (name === "remember" || name === "recall_history" || name === "get_draft")) {
     return null;
   }
