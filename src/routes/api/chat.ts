@@ -492,11 +492,35 @@ export const Route = createFileRoute("/api/chat")({
               },
             }),
           },
-
-
         });
 
+        const CHAT_MODELS = [
+          "google/gemini-3.6-flash",
+          "google/gemini-2.5-flash",
+          "openai/gpt-5.6-luna",
+        ];
+
+        let result: ReturnType<typeof buildStream> | null = null;
+        let usedModel = CHAT_MODELS[0];
+        for (const modelId of CHAT_MODELS) {
+          const attempt = buildStream(modelId);
+          try {
+            await attempt.warnings;
+            result = attempt;
+            usedModel = modelId;
+            break;
+          } catch (error) {
+            console.error(`Model ${modelId} unavailable, trying fallback`, error);
+          }
+        }
+        if (!result) {
+          return new Response("The assistant is busy right now. Please try again.", {
+            status: 503,
+          });
+        }
+
         const response = result.toUIMessageStreamResponse({
+
           originalMessages: uiMessages,
           onFinish: async ({ responseMessage }) => {
             if (!userId || !threadId) return;
