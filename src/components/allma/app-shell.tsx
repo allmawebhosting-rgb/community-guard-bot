@@ -95,8 +95,9 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const startPrompt = (prompt: string) => {
     onClose();
-    navigate({ to: "/", search: { q: prompt } });
+    navigate({ to: "/chat", search: { q: prompt } });
   };
+
 
   const newChat = async () => {
     if (!isAuthenticated) {
