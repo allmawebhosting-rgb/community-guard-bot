@@ -161,7 +161,7 @@ export function AllmaChat({
   const busy = status === "submitted" || status === "streaming";
 
   const focusInput = useCallback(() => {
-    requestAnimationFrame(() => textareaRef.current?.focus());
+    requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }));
   }, []);
 
   useEffect(() => {
@@ -421,7 +421,6 @@ export function AllmaChat({
 
               <PromptInputTextarea
                 ref={textareaRef}
-                autoFocus
                 placeholder="Describe what's happening…"
                 className="bg-transparent min-h-[2.75rem] py-3"
               />
