@@ -97,13 +97,16 @@ export const Route = createFileRoute("/api/chat")({
           }
         }
 
-        const result = streamText({
-          model: gateway("google/gemini-3.6-flash"),
+        const modelMessages = await convertToModelMessages(uiMessages);
+
+        const buildStream = (modelId: string) => streamText({
+          model: gateway(modelId),
           system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
           }${memoryBlock}`,
-          messages: await convertToModelMessages(uiMessages),
+          messages: modelMessages,
           stopWhen: stepCountIs(50),
+
 
           tools: {
             ask_structured_question: tool({
