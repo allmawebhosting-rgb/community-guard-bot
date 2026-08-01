@@ -265,11 +265,17 @@ export function AllmaChat({
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
-      <Conversation className="min-h-0 flex-1" initial={isEmpty ? false : "smooth"}>
-        <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
-          {isEmpty ? (
+      {isEmpty ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-3xl px-4 pb-6">
             <AssistantHero onSelect={send} />
-          ) : (
+          </div>
+        </div>
+      ) : (
+        <Conversation className="min-h-0 flex-1">
+          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
+            {
+
             <div className="flex flex-col gap-5 pt-6">
               {messages.map((message) => (
                 <Message key={message.id} from={message.role}>
