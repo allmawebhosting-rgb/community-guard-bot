@@ -932,7 +932,9 @@ export function AllmaChat({
                 ) : null}
               </InputGroupAddon>
             </PromptInput>
+            </div>
           </div>
+
           <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">
             Police Integration Ready — not officially connected to police or emergency services
           </p>
