@@ -91,22 +91,22 @@
   --success-foreground: oklch(0.99 0.005 160);
   --destructive: oklch(0.55 0.22 22);
   --destructive-foreground: oklch(0.99 0.005 20);
-  --border: oklch(0.9 0.012 240);
-  --input: oklch(0.9 0.012 240);
-  --ring: oklch(0.55 0.16 248);
-  --chart-1: oklch(0.55 0.16 248);
-  --chart-2: oklch(0.68 0.13 200);
+  --border: oklch(0.9 0.012 40);
+  --input: oklch(0.9 0.012 40);
+  --ring: oklch(0.53 0.215 26);
+  --chart-1: oklch(0.53 0.215 26);
+  --chart-2: oklch(0.72 0.16 82);
   --chart-3: oklch(0.72 0.16 62);
   --chart-4: oklch(0.62 0.13 160);
   --chart-5: oklch(0.55 0.22 22);
-  --sidebar: oklch(0.97 0.008 240);
-  --sidebar-foreground: oklch(0.24 0.03 250);
-  --sidebar-primary: oklch(0.55 0.16 248);
-  --sidebar-primary-foreground: oklch(0.99 0.005 240);
-  --sidebar-accent: oklch(0.93 0.02 240);
-  --sidebar-accent-foreground: oklch(0.24 0.03 250);
-  --sidebar-border: oklch(0.9 0.012 240);
-  --sidebar-ring: oklch(0.55 0.16 248);
+  --sidebar: oklch(0.97 0.008 60);
+  --sidebar-foreground: oklch(0.22 0.03 25);
+  --sidebar-primary: oklch(0.53 0.215 26);
+  --sidebar-primary-foreground: oklch(0.99 0.005 60);
+  --sidebar-accent: oklch(0.94 0.02 60);
+  --sidebar-accent-foreground: oklch(0.22 0.03 25);
+  --sidebar-border: oklch(0.9 0.012 40);
+  --sidebar-ring: oklch(0.53 0.215 26);
 
   --gradient-hero: linear-gradient(
     140deg,
@@ -114,7 +114,7 @@
     color-mix(in oklab, var(--primary-glow) 14%, transparent) 55%,
     transparent
   );
-  --gradient-brand: linear-gradient(120deg, var(--primary), var(--primary-glow));
+  --gradient-brand: linear-gradient(105deg, oklch(0.72 0.16 82), oklch(0.62 0.19 50) 55%, oklch(0.53 0.215 26));
   --shadow-soft: 0 1px 2px oklch(0.2 0.04 250 / 0.06), 0 12px 32px -16px oklch(0.2 0.04 250 / 0.24);
   --shadow-lift: 0 18px 48px -22px oklch(0.2 0.04 250 / 0.4);
   --glass-bg: color-mix(in oklab, var(--card) 72%, transparent);
