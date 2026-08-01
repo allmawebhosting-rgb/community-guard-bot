@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_user_memory: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          kind: string
+          updated_at: string
+          user_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          kind?: string
+          updated_at?: string
+          user_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          kind?: string
+          updated_at?: string
+          user_id?: string
+          value?: string
+        }
+        Relationships: []
+      }
       community_alerts: {
         Row: {
           alert_type: string
@@ -379,6 +409,7 @@ export type Database = {
       threads: {
         Row: {
           created_at: string
+          draft_data: Json | null
           id: string
           intent: string | null
           title: string
@@ -387,6 +418,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          draft_data?: Json | null
           id?: string
           intent?: string | null
           title?: string
@@ -395,6 +427,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          draft_data?: Json | null
           id?: string
           intent?: string | null
           title?: string

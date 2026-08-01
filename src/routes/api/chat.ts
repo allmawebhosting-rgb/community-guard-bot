@@ -82,13 +82,32 @@ export const Route = createFileRoute("/api/chat")({
 
         const uiMessages = messages as UIMessage[];
 
-        const result = streamText({
-          model: gateway("google/gemini-3.6-flash"),
+        let memoryBlock = "";
+        if (userId) {
+          const { data: memoryRows } = await supabase
+            .from("ai_user_memory")
+            .select("kind, key, value")
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+            .limit(30);
+          if (memoryRows && memoryRows.length > 0) {
+            memoryBlock = `\n\nWHAT YOU ALREADY KNOW ABOUT THIS USER (do not re-ask these):\n${memoryRows
+              .map((row) => `- ${row.key} (${row.kind}): ${row.value}`)
+              .join("\n")}`;
+          }
+        }
+
+        const modelMessages = await convertToModelMessages(uiMessages);
+
+        const buildStream = (modelId: string) => streamText({
+          model: gateway(modelId),
           system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }`,
-          messages: await convertToModelMessages(uiMessages),
+          }${memoryBlock}`,
+          messages: modelMessages,
           stopWhen: stepCountIs(50),
+
+
           tools: {
             ask_structured_question: tool({
               description:
@@ -302,11 +321,206 @@ export const Route = createFileRoute("/api/chat")({
                 return { ok: true, alerts: data ?? [] };
               },
             }),
+            remember: tool({
+              description:
+                "Store a durable fact about this user so future conversations don't start from scratch. Use for home district/area, landmark, preferred language, emergency contact name and phone, and whether they prefer anonymous reporting. Never store sensitive incident details here.",
+              inputSchema: z.object({
+                key: z
+                  .string()
+                  .describe("Short snake_case key, e.g. home_district, emergency_contact_phone"),
+                value: z.string().describe("The value to remember, in plain text"),
+                kind: z
+                  .enum(["profile", "preference", "contact", "fact"])
+                  .describe("Category of the memory"),
+              }),
+              execute: async ({ key, value, kind }) => {
+                if (!userId) return { ok: false, message: "User is not signed in." };
+                const { error } = await supabase
+                  .from("ai_user_memory")
+                  .upsert(
+                    { user_id: userId, key: key.slice(0, 80), value: value.slice(0, 500), kind },
+                    { onConflict: "user_id,key" },
+                  );
+                if (error) {
+                  console.error("remember failed", error);
+                  return { ok: false, message: "Could not save that detail." };
+                }
+                return { ok: true, key, value };
+              },
+            }),
+            recall_history: tool({
+              description:
+                "Search this user's earlier conversations for context, e.g. 'the phone I reported last week'. Returns matching message snippets.",
+              inputSchema: z.object({
+                query: z.string().describe("Keyword or phrase to search for"),
+              }),
+              execute: async ({ query }) => {
+                if (!userId) return { ok: false, message: "User is not signed in." };
+                const { data, error } = await supabase
+                  .from("messages")
+                  .select("role, parts, created_at, thread_id")
+                  .eq("user_id", userId)
+                  .order("created_at", { ascending: false })
+                  .limit(200);
+                if (error) return { ok: false, message: "History lookup failed." };
+                const needle = query.toLowerCase();
+                const matches = (data ?? [])
+                  .map((row) => {
+                    const parts = Array.isArray(row.parts) ? row.parts : [];
+                    const text = parts
+                      .map((part) =>
+                        part && typeof part === "object" && "text" in part
+                          ? String((part as { text?: unknown }).text ?? "")
+                          : "",
+                      )
+                      .join(" ")
+                      .trim();
+                    return { role: row.role, created_at: row.created_at, text };
+                  })
+                  .filter((row) => row.text.toLowerCase().includes(needle))
+                  .slice(0, 6)
+                  .map((row) => ({ ...row, text: row.text.slice(0, 300) }));
+                return { ok: true, matches };
+              },
+            }),
+            save_draft: tool({
+              description:
+                "Save an unfinished reporting flow so the user can resume it later. Call this when the user pauses, leaves, or says they will come back.",
+              inputSchema: z.object({
+                flow: z.string().describe("Flow name, e.g. crime, missing_person, lost_item"),
+                step: z.number().describe("Current step number"),
+                total_steps: z.number().describe("Total steps in the flow"),
+                collected_json: z
+                  .string()
+                  .describe("JSON object string of everything collected so far"),
+              }),
+              execute: async (input) => {
+                if (!userId || !threadId)
+                  return { ok: false, message: "No active saved conversation." };
+                let collected: unknown = {};
+                try {
+                  collected = JSON.parse(input.collected_json);
+                } catch {
+                  collected = { notes: input.collected_json };
+                }
+                const { error } = await supabase
+                  .from("threads")
+                  .update({
+                    draft_data: {
+                      flow: input.flow,
+                      step: input.step,
+                      total_steps: input.total_steps,
+                      collected,
+                      saved_at: new Date().toISOString(),
+                    } as never,
+                  })
+                  .eq("id", threadId)
+                  .eq("user_id", userId);
+                if (error) {
+                  console.error("save_draft failed", error);
+                  return { ok: false, message: "Could not save the draft." };
+                }
+                return { ok: true, flow: input.flow, step: input.step };
+              },
+            }),
+            get_draft: tool({
+              description:
+                "Load the most recent unfinished reporting flow for this user so it can be resumed instead of restarted.",
+              inputSchema: z.object({}),
+              execute: async () => {
+                if (!userId) return { ok: false, message: "User is not signed in." };
+                const { data, error } = await supabase
+                  .from("threads")
+                  .select("id, title, draft_data, updated_at")
+                  .eq("user_id", userId)
+                  .not("draft_data", "is", null)
+                  .order("updated_at", { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                if (error) return { ok: false, message: "Draft lookup failed." };
+                if (!data) return { ok: true, draft: null };
+                return { ok: true, draft: data.draft_data, thread_title: data.title };
+              },
+            }),
+            my_reports: tool({
+              description:
+                "Look up the reports this user has already filed, optionally by reference number, so you can tell them the current status directly in chat.",
+              inputSchema: z.object({
+                reference: z
+                  .string()
+                  .nullable()
+                  .describe("Optional report reference like ALM-1A2B3C4D"),
+              }),
+              execute: async ({ reference }) => {
+                if (!userId) return { ok: false, message: "User is not signed in." };
+                let query = supabase
+                  .from("reports")
+                  .select("reference, title, report_type, status, risk_level, created_at")
+                  .eq("user_id", userId)
+                  .order("created_at", { ascending: false })
+                  .limit(5);
+                if (reference) query = query.ilike("reference", `%${reference.trim()}%`);
+                const { data, error } = await query;
+                if (error) return { ok: false, message: "Report lookup failed." };
+                return { ok: true, reports: data ?? [] };
+              },
+            }),
+            match_reports: tool({
+              description:
+                "Find possible matches between lost and found reports in the same area, e.g. a lost phone reported by someone and a found phone nearby. Use after filing a lost or found item report.",
+              inputSchema: z.object({
+                looking_for: z
+                  .enum(["lost_item", "found_item"])
+                  .describe("Which report type to search for"),
+                keyword: z.string().describe("Item keyword, e.g. phone, national ID, wallet"),
+                area: z.string().nullable().describe("Optional area or district"),
+              }),
+              execute: async ({ looking_for, keyword, area }) => {
+                if (!userId) return { ok: false, message: "User is not signed in." };
+                let query = supabase
+                  .from("reports")
+                  .select("reference, title, category, location_text, created_at")
+                  .eq("user_id", userId)
+                  .eq("report_type", looking_for)
+                  .ilike("title", `%${keyword}%`)
+                  .order("created_at", { ascending: false })
+                  .limit(5);
+                if (area) query = query.ilike("location_text", `%${area}%`);
+                const { data, error } = await query;
+                if (error) return { ok: false, message: "Match lookup failed." };
+                return { ok: true, matches: data ?? [] };
+              },
+            }),
           },
-
         });
 
+        const CHAT_MODELS = [
+          "google/gemini-3.6-flash",
+          "google/gemini-2.5-flash",
+          "openai/gpt-5.6-luna",
+        ];
+
+        let result: ReturnType<typeof buildStream> | null = null;
+        let usedModel = CHAT_MODELS[0];
+        for (const modelId of CHAT_MODELS) {
+          const attempt = buildStream(modelId);
+          try {
+            await attempt.warnings;
+            result = attempt;
+            usedModel = modelId;
+            break;
+          } catch (error) {
+            console.error(`Model ${modelId} unavailable, trying fallback`, error);
+          }
+        }
+        if (!result) {
+          return new Response("The assistant is busy right now. Please try again.", {
+            status: 503,
+          });
+        }
+
         const response = result.toUIMessageStreamResponse({
+
           originalMessages: uiMessages,
           onFinish: async ({ responseMessage }) => {
             if (!userId || !threadId) return;
@@ -350,7 +564,9 @@ export const Route = createFileRoute("/api/chat")({
           },
           headers: getLovableAiGatewayResponseHeaders(undefined, {
             ...(initialRunId ? { "X-Lovable-AIG-Run-ID": initialRunId } : {}),
+            "X-Allma-Model": usedModel,
           }),
+
         });
 
         return withLovableAiGatewayRunIdHeader(response, gateway);

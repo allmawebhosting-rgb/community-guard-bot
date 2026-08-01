@@ -188,9 +188,21 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     request_media: { icon: Upload, label: "Upload evidence", busy: "Preparing upload…" },
     recommend_actions: { icon: AlertCircle, label: "Recommended actions", busy: "Finding recommendations…" },
     report_summary: { icon: FileText, label: "Report summary", busy: "Preparing summary…" },
+    my_reports: { icon: FileText, label: "Your reports", busy: "Checking your reports…" },
+    match_reports: { icon: Search, label: "Possible matches", busy: "Looking for matches…" },
+    recall_history: { icon: Search, label: "Earlier conversations", busy: "Recalling earlier chats…" },
+    remember: { icon: Shield, label: "Saved", busy: "Noting that down…" },
+    save_draft: { icon: FileText, label: "Draft saved", busy: "Saving your draft…" },
+    get_draft: { icon: FileText, label: "Saved draft", busy: "Loading your draft…" },
   };
   const entry = meta[name] ?? { icon: FileText, label: name, busy: "Working…" };
   const Icon = entry.icon;
+
+  // Silent background tools — no card once they finish.
+  if (!running && (name === "remember" || name === "recall_history" || name === "get_draft")) {
+    return null;
+  }
+
 
   if (running) {
     return (
@@ -432,9 +444,38 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
             </li>
           ))}
         </ul>
+      ) : (name === "my_reports" && Array.isArray(output?.reports)) ||
+        (name === "match_reports" && Array.isArray(output?.matches)) ? (
+        <ul className="space-y-2 text-sm">
+          {((output.reports ?? output.matches) as Array<Record<string, unknown>>).map(
+            (row, index) => (
+              <li key={index} className="flex items-start justify-between gap-3">
+                <span>
+                  <span className="block font-medium">{String(row.title ?? "Report")}</span>
+                  <span className="block font-mono text-xs text-muted-foreground">
+                    {String(row.reference ?? "")}
+                  </span>
+                </span>
+                {row.status ? (
+                  <span className="shrink-0 rounded-full border border-border/60 px-2.5 py-1 text-[11px] font-semibold capitalize text-muted-foreground">
+                    {String(row.status)}
+                  </span>
+                ) : null}
+              </li>
+            ),
+          )}
+          {((output.reports ?? output.matches) as unknown[]).length === 0 ? (
+            <li className="text-muted-foreground">Nothing found.</li>
+          ) : null}
+        </ul>
+      ) : name === "save_draft" && output?.ok ? (
+        <p className="text-sm text-muted-foreground">
+          Saved — you can pick this up any time.
+        </p>
       ) : (
         <p className="text-sm text-muted-foreground">Done.</p>
       )}
+
     </div>
   );
 }
@@ -830,7 +871,14 @@ export function AllmaChat({
             </div>
           ) : null}
 
-          <div className="input-glow-ring rounded-[2rem] border border-border/55 bg-card/75 backdrop-blur-xl">
+          <div
+            className={cn(
+              "composer-shell focus-within:composer-shell-focused",
+              recording && "composer-shell-recording",
+            )}
+          >
+            <div className="rounded-[calc(2rem-2px)] border border-border/40 bg-card/85 backdrop-blur-xl">
+
             <PromptInput
               onSubmit={(message, event) => {
                 event.preventDefault();
@@ -884,7 +932,9 @@ export function AllmaChat({
                 ) : null}
               </InputGroupAddon>
             </PromptInput>
+            </div>
           </div>
+
           <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">
             Police Integration Ready — not officially connected to police or emergency services
           </p>
