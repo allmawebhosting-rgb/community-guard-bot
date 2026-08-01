@@ -62,14 +62,8 @@ type ToolPart = {
   output?: unknown;
 };
 
-const SUGGESTION_CHIPS = [
-  { label: "📷 Upload photo", prompt: "I want to attach a photo as evidence." },
-  { label: "📍 Share location", prompt: "I want to share my current location." },
-  { label: "🏥 Find hospital", prompt: "Find the nearest hospital near me." },
-  { label: "👮 Find police station", prompt: "Find the nearest police station." },
-  { label: "📞 Emergency numbers", prompt: "Show me emergency contact numbers." },
-  { label: "📋 Generate report", prompt: "Please generate a full report from what I've told you." },
-];
+type Suggestion = { label: string; prompt: string };
+
 
 const ATTACHMENT_OPTIONS = [
   { id: "camera", icon: Camera, label: "Camera", accept: "image/*", capture: "environment" as const },
