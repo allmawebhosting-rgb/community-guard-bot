@@ -85,6 +85,8 @@
   --accent-foreground: oklch(0.28 0.06 250);
   --alert: oklch(0.72 0.16 62);
   --alert-foreground: oklch(0.2 0.05 60);
+  --gold: oklch(0.78 0.15 82);
+  --gold-foreground: oklch(0.22 0.05 60);
   --success: oklch(0.62 0.13 160);
   --success-foreground: oklch(0.99 0.005 160);
   --destructive: oklch(0.55 0.22 22);
