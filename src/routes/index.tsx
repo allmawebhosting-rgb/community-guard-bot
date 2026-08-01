@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/allma/app-shell";
 import { AllmaChat } from "@/components/allma/allma-chat";
-import { SosButton } from "@/components/allma/sos-button";
 import { useAuth } from "@/hooks/useAuth";
 import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { useQueryClient } from "@tanstack/react-query";
@@ -63,7 +62,6 @@ function Home() {
   return (
     <AppShell>
       <AllmaChat key={q ?? "guest"} threadId={null} initialPrompt={q} />
-      <SosButton />
     </AppShell>
   );
 }
