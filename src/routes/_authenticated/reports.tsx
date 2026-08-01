@@ -63,11 +63,12 @@ function ReportsScreen() {
                 Start a conversation and Allma will build the report with you.
               </p>
               <Link
-                to="/"
+                to="/chat"
                 className="mt-4 inline-flex rounded-full bg-gradient-to-br from-primary to-primary-glow px-4 py-2 text-[12.5px] font-semibold text-primary-foreground shadow-soft"
               >
                 Report an incident
               </Link>
+
             </div>
           ) : (
             reports.map((report) => (

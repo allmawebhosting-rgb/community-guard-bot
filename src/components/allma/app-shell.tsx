@@ -24,10 +24,10 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-type TabPath = "/" | "/alerts" | "/sos" | "/reports" | "/profile";
+type TabPath = "/chat" | "/alerts" | "/sos" | "/reports" | "/profile";
 
 const TABS: { label: string; to: TabPath; icon: typeof Home }[] = [
-  { label: "Home", to: "/", icon: Home },
+  { label: "Home", to: "/chat", icon: Home },
   { label: "Alerts", to: "/alerts", icon: Bell },
   { label: "Reports", to: "/reports", icon: FileText },
   { label: "Profile", to: "/profile", icon: UserRound },
@@ -35,14 +35,16 @@ const TABS: { label: string; to: TabPath; icon: typeof Home }[] = [
 
 function BottomTabs() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isHome = pathname === "/" || pathname.startsWith("/chat");
+  const isHome = pathname === "/chat" || pathname.startsWith("/chat/");
+
 
   return (
     <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl">
       <div className="mx-auto grid h-[4.5rem] w-full max-w-2xl grid-cols-5 items-center px-2 pb-[env(safe-area-inset-bottom)]">
         {TABS.slice(0, 2).map((tab) => (
-          <TabLink key={tab.to} tab={tab} active={tab.to === "/" ? isHome : pathname === tab.to} />
+          <TabLink key={tab.to} tab={tab} active={tab.to === "/chat" ? isHome : pathname === tab.to} />
         ))}
+
 
         <div className="relative grid place-items-center">
           <Link
@@ -93,8 +95,9 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const startPrompt = (prompt: string) => {
     onClose();
-    navigate({ to: "/", search: { q: prompt } });
+    navigate({ to: "/chat", search: { q: prompt } });
   };
+
 
   const newChat = async () => {
     if (!isAuthenticated) {

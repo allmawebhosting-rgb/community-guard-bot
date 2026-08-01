@@ -90,6 +90,98 @@ export const Route = createFileRoute("/api/chat")({
           messages: await convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(50),
           tools: {
+            ask_structured_question: tool({
+              description:
+                "Ask the user one structured question at a time with tappable options. Use during guided reporting flows so the user can pick an answer instead of typing. After the user picks, continue the conversation based on their answer.",
+              inputSchema: z.object({
+                step: z.number().describe("Current step number, e.g. 2"),
+                total_steps: z.number().describe("Total number of steps in the flow, e.g. 7"),
+                question: z.string().describe("The single question to ask the user"),
+                options: z
+                  .array(
+                    z.object({
+                      label: z.string().describe("Human-readable option label"),
+                      value: z.string().describe("Value to treat as the user's answer when selected"),
+                    }),
+                  )
+                  .describe("Tappable answer options"),
+                helper_text: z
+                  .string()
+                  .nullable()
+                  .describe("Optional short helper text shown below the question"),
+              }),
+              execute: async (input) => ({ ok: true, ...input }),
+            }),
+            request_media: tool({
+              description:
+                "Ask the user to upload a photo, video, audio, document or location. Use when evidence would help the report. The UI will show an upload card. If optional, the user can skip.",
+              inputSchema: z.object({
+                media_type: z
+                  .enum(["photo", "video", "audio", "document", "location"])
+                  .describe("Type of media requested"),
+                prompt: z
+                  .string()
+                  .describe("Friendly message asking for the media, e.g. 'Do you have a photo of the phone?'"),
+                optional: z.boolean().describe("Whether the user can skip this request"),
+              }),
+              execute: async (input) => ({ ok: true, ...input }),
+            }),
+            recommend_actions: tool({
+              description:
+                "Show a card of recommended next actions the user can tap. Use after detecting a case type to suggest practical steps (e.g. Block SIM, Call Police, Track IMEI).",
+              inputSchema: z.object({
+                title: z.string().describe("Title of the recommendations card"),
+                actions: z.array(
+                  z.object({
+                    label: z.string().describe("Short action label"),
+                    subtitle: z.string().describe("One-line explanation of the action"),
+                    icon: z
+                      .enum([
+                        "phone",
+                        "upload",
+                        "location",
+                        "block",
+                        "report",
+                        "search",
+                        "ambulance",
+                        "police",
+                        "money",
+                        "shield",
+                        "sim",
+                      ])
+                      .optional()
+                      .describe("Optional icon key for the action"),
+                  }),
+                ),
+              }),
+              execute: async (input) => ({ ok: true, ...input }),
+            }),
+            report_summary: tool({
+              description:
+                "Show a review card with all collected report details before filing. Use this AFTER collecting all details and BEFORE calling create_report. The user can confirm or ask to edit. Once confirmed, call create_report with the same fields.",
+              inputSchema: z.object({
+                report_type: z.enum([
+                  "crime",
+                  "emergency",
+                  "missing_person",
+                  "lost_item",
+                  "found_item",
+                  "other",
+                ]),
+                category: z.string().describe("Specific category"),
+                title: z.string().describe("Short headline"),
+                summary: z.string().describe("Two-sentence summary"),
+                narrative: z.string().describe("Full narrative"),
+                occurred_at_text: z.string().nullable(),
+                location_text: z.string().nullable(),
+                risk_level: z.enum(["low", "medium", "high", "critical"]),
+                is_anonymous: z.boolean(),
+                contact_name: z.string().nullable(),
+                contact_phone: z.string().nullable(),
+                extra_details_json: z.string().nullable(),
+              }),
+              execute: async (input) => ({ ok: true, ...input }),
+            }),
             create_report: tool({
               description:
                 "File a structured incident report after the user confirms. Use for crime, emergency, missing person, lost item or found item reports.",
@@ -211,6 +303,7 @@ export const Route = createFileRoute("/api/chat")({
               },
             }),
           },
+
         });
 
         const response = result.toUIMessageStreamResponse({
