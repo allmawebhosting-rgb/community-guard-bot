@@ -13,9 +13,10 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 glass border-b border-border/70">
       <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4">
-        <Link to="/" className="min-w-0">
+        <Link to="/chat" className="min-w-0">
           <BrandLockup />
         </Link>
+
 
         <div className="flex items-center gap-1.5">
           <Button
