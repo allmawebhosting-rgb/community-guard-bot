@@ -81,8 +81,8 @@ export function QuickActionGrid({
         Start with
       </p>
 
-      {/* Primary 2×2 grid */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Primary grid — 1 col on mobile, 2 cols on sm+ */}
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
         {PRIMARY_ACTIONS.map((action, index) => (
           <ActionCard key={action.id} action={action} index={index} onSelect={onSelect} baseDelay={0.45} />
         ))}
@@ -98,7 +98,7 @@ export function QuickActionGrid({
             transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2 sm:gap-3">
               {SECONDARY_ACTIONS.map((action, index) => (
                 <ActionCard key={action.id} action={action} index={index} onSelect={onSelect} baseDelay={0} />
               ))}
