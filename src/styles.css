@@ -232,6 +232,31 @@
   color: transparent;
 }
 
+@utility gold-text {
+  color: var(--color-gold);
+}
+
+/* Radial halo behind the assistant mascot */
+@utility mascot-halo {
+  background-image: radial-gradient(
+      circle at 50% 42%,
+      color-mix(in oklab, var(--primary) 55%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(circle at 50% 40%, color-mix(in oklab, var(--gold) 26%, transparent), transparent 42%);
+  filter: blur(6px);
+}
+
+/* Sweeping red-gold light streak backdrop */
+@utility signal-streak {
+  background-image: radial-gradient(
+      120% 60% at 10% 55%,
+      color-mix(in oklab, var(--primary) 24%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(90% 50% at 85% 20%, color-mix(in oklab, var(--gold) 14%, transparent), transparent 60%);
+}
+
 @utility shadow-soft {
   box-shadow: var(--shadow-soft);
 }
