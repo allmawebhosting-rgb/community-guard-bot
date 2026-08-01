@@ -328,10 +328,12 @@ export function AllmaChat({
                 </p>
               ) : null}
             </div>
-          )}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+            }
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      )}
+
 
       <div className="no-print sticky bottom-0 z-30 glass border-t border-border/60 px-4 pb-4 pt-3">
         <div className="mx-auto w-full max-w-3xl">
