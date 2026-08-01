@@ -188,9 +188,21 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     request_media: { icon: Upload, label: "Upload evidence", busy: "Preparing upload…" },
     recommend_actions: { icon: AlertCircle, label: "Recommended actions", busy: "Finding recommendations…" },
     report_summary: { icon: FileText, label: "Report summary", busy: "Preparing summary…" },
+    my_reports: { icon: FileText, label: "Your reports", busy: "Checking your reports…" },
+    match_reports: { icon: Search, label: "Possible matches", busy: "Looking for matches…" },
+    recall_history: { icon: Search, label: "Earlier conversations", busy: "Recalling earlier chats…" },
+    remember: { icon: Shield, label: "Saved", busy: "Noting that down…" },
+    save_draft: { icon: FileText, label: "Draft saved", busy: "Saving your draft…" },
+    get_draft: { icon: FileText, label: "Saved draft", busy: "Loading your draft…" },
   };
   const entry = meta[name] ?? { icon: FileText, label: name, busy: "Working…" };
   const Icon = entry.icon;
+
+  // Silent background tools — no card once they finish.
+  if (!running && (name === "remember" || name === "recall_history" || name === "get_draft")) {
+    return null;
+  }
+
 
   if (running) {
     return (
