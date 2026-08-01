@@ -53,11 +53,11 @@ export function AssistantHero({
           className="relative mt-3"
         >
           <h1 className="font-display text-[1.55rem] font-bold leading-tight tracking-tight sm:text-[2rem] lg:text-5xl">
-            <span className="brand-gradient-text">Ask Allma</span>{" "}
-            <span className="text-foreground">anything</span>
+            <span className="text-foreground">Hello, I'm </span>
+            <span className="brand-gradient-text">Allma Safety AI.</span>
           </h1>
-          <h2 className="brand-gradient-text font-display text-[1.55rem] font-bold leading-tight tracking-tight sm:text-[2rem] lg:text-5xl">
-            about your safety.
+          <h2 className="font-display text-[1.55rem] font-bold leading-tight tracking-tight text-foreground sm:text-[2rem] lg:text-5xl">
+            How can I help you today?
           </h2>
         </motion.div>
 
@@ -68,7 +68,7 @@ export function AssistantHero({
           transition={{ delay: 0.22, duration: 0.4 }}
           className="relative mt-2 hidden max-w-md px-2 text-sm leading-relaxed text-muted-foreground sm:block"
         >
-          Your community safety co-pilot — report incidents, raise an SOS and
+          Your AI safety assistant — report incidents, raise an SOS and
           find help nearby, all in one conversation.
         </motion.p>
       </div>

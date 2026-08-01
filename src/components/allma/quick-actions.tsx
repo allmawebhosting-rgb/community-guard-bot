@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { ChevronRight } from "lucide-react";
+import { motion } from "motion/react";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
@@ -68,8 +66,6 @@ export function QuickActionGrid({
   onSelect: (prompt: string) => void;
   className?: string;
 }) {
-  const [showAll, setShowAll] = useState(false);
-
   return (
     <div className={cn("space-y-2.5", className)}>
       {/* Section label */}
@@ -77,9 +73,9 @@ export function QuickActionGrid({
         Start with
       </p>
 
-      {/* Primary 2×2 square grid */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3">
-        {PRIMARY_ACTIONS.map((action, index) => (
+      {/* Full 2×5 grid — all 10 actions visible */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3">
+        {QUICK_ACTIONS.map((action, index) => (
           <SquareCard
             key={action.id}
             action={action}
@@ -88,49 +84,6 @@ export function QuickActionGrid({
             baseDelay={0.3}
           />
         ))}
-      </div>
-
-      {/* Secondary actions (expandable) */}
-      <AnimatePresence>
-        {showAll && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-2 gap-2 pt-2 sm:gap-3">
-              {SECONDARY_ACTIONS.map((action, index) => (
-                <SquareCard
-                  key={action.id}
-                  action={action}
-                  index={index}
-                  onSelect={onSelect}
-                  baseDelay={0}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Toggle */}
-      <div className="flex justify-center pt-0.5">
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.96 }}
-          onClick={() => setShowAll((prev) => !prev)}
-          className="flex items-center gap-1.5 rounded-full border border-border/50 bg-card px-4 py-1.5 text-[11px] font-medium text-muted-foreground shadow-soft transition-all hover:border-primary/40 hover:text-foreground"
-        >
-          {showAll ? "Show fewer" : `See all ${QUICK_ACTIONS.length} options`}
-          <ChevronRight
-            className={cn(
-              "h-3 w-3 transition-transform duration-300",
-              showAll && "rotate-90",
-            )}
-          />
-        </motion.button>
       </div>
     </div>
   );
