@@ -334,41 +334,53 @@
 
 @utility composer-shell {
   position: relative;
-  border-radius: 2rem;
-  padding: 1.5px;
+  border-radius: var(--composer-radius, 1.75rem);
+  padding: 1.25px;
   background: conic-gradient(
     from var(--allma-angle),
-    color-mix(in oklab, var(--primary) 70%, transparent),
-    color-mix(in oklab, var(--primary-glow) 75%, transparent),
-    color-mix(in oklab, var(--success) 55%, transparent),
-    color-mix(in oklab, var(--primary) 70%, transparent)
+    color-mix(in oklab, var(--primary) 62%, transparent),
+    color-mix(in oklab, var(--primary-glow) 58%, transparent) 28%,
+    color-mix(in oklab, var(--gold) 46%, transparent) 52%,
+    color-mix(in oklab, var(--primary-glow) 58%, transparent) 74%,
+    color-mix(in oklab, var(--primary) 62%, transparent)
   );
-  animation: allma-composer-spin 8s linear infinite;
-  box-shadow: 0 0 20px -6px color-mix(in oklab, var(--primary) 35%, transparent);
-  transition: box-shadow 260ms ease, padding 200ms ease;
+  animation: allma-composer-spin 14s linear infinite;
+  box-shadow: 0 10px 30px -18px color-mix(in oklab, var(--primary) 55%, transparent);
+  transition: box-shadow 320ms ease, filter 320ms ease;
 }
 
 @utility composer-shell-focused {
-  padding: 2.5px;
+  filter: saturate(125%) brightness(1.12);
   box-shadow:
-    0 0 0 4px color-mix(in oklab, var(--primary) 12%, transparent),
-    0 0 36px -4px color-mix(in oklab, var(--primary-glow) 55%, transparent);
+    0 0 0 3px color-mix(in oklab, var(--primary) 10%, transparent),
+    0 14px 40px -20px color-mix(in oklab, var(--primary-glow) 70%, transparent);
 }
 
 @utility composer-shell-recording {
   background: conic-gradient(
     from var(--allma-angle),
-    color-mix(in oklab, var(--destructive) 85%, transparent),
-    color-mix(in oklab, var(--destructive) 35%, transparent),
-    color-mix(in oklab, var(--destructive) 85%, transparent)
+    color-mix(in oklab, var(--destructive) 80%, transparent),
+    color-mix(in oklab, var(--destructive) 30%, transparent) 50%,
+    color-mix(in oklab, var(--destructive) 80%, transparent)
   );
-  animation: allma-composer-spin 2.4s linear infinite;
-  box-shadow: 0 0 28px -4px color-mix(in oklab, var(--destructive) 55%, transparent);
+  animation: allma-composer-spin 3.2s linear infinite;
+  box-shadow: 0 12px 34px -18px color-mix(in oklab, var(--destructive) 70%, transparent);
+}
+
+@utility composer-surface {
+  border-radius: calc(var(--composer-radius, 1.75rem) - 1.25px);
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .composer-shell { animation: none; }
+  .composer-shell {
+    animation: none;
+  }
 }
+
 
 
 /* Gradient input glow border */
