@@ -219,36 +219,45 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     const options = Array.isArray(output.options) ? output.options : [];
 
     return (
-      <div className="chat-card p-4">
-        <div className="mb-3">
-          <div className="mb-1.5 flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Step {step} of {total}</p>
-            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-border/60">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-primary-glow"
-                style={{ width: `${(step / total) * 100}%` }}
+      <div className="chat-card p-5">
+        <div className="mb-4">
+          <div className="mb-2.5 flex items-center gap-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Step {step}
+              <span className="text-muted-foreground/50"> / {total}</span>
+            </p>
+            <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-border/50">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-primary via-primary-glow to-gold"
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, (step / Math.max(total, 1)) * 100)}%` }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               />
             </div>
           </div>
-          <h4 className="text-sm font-semibold text-foreground">{question}</h4>
-          {helper ? <p className="mt-1 text-xs text-muted-foreground">{helper}</p> : null}
+          <h4 className="text-base font-semibold leading-snug tracking-[-0.01em] text-foreground">{question}</h4>
+          {helper ? <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{helper}</p> : null}
         </div>
         <div className="grid gap-2">
           {options.map((opt: { label: string; value: string }, index: number) => (
             <motion.button
               key={index}
               type="button"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={{ scale: 1.015 }}
+              whileTap={{ scale: 0.985 }}
               onClick={() => onSend(opt.value)}
-              className="group flex items-center justify-between rounded-2xl border border-border/50 bg-background/40 px-3.5 py-3 text-left text-sm text-foreground transition-all hover:border-primary/45 hover:bg-accent"
+              className="group flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-background/30 px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/[0.06]"
             >
               <span>{opt.label}</span>
-              <CheckCircle className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:text-primary group-hover:opacity-100" />
+              <CheckCircle className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
             </motion.button>
           ))}
         </div>
       </div>
+
     );
   }
 
@@ -755,22 +764,26 @@ export function AllmaChat({
                 </div>
               </motion.div>
             ) : null}
-            <div className="flex flex-col gap-4 pt-6">
+            <div className="flex flex-col gap-6 pt-6">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role}>
-                  <MessageContent className={message.role === "assistant" ? "rounded-[1.4rem] rounded-tl-sm bg-transparent px-0 py-0" : "rounded-[1.4rem] rounded-br-sm"}>
+                  <MessageContent className={message.role === "assistant" ? "rounded-none bg-transparent px-0 py-0" : "rounded-[1.4rem] rounded-br-sm"}>
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
                         return message.role === "assistant" ? (
-                          <MessageResponse key={index} className="chat-card px-4 py-3 text-[15px] leading-relaxed">
+                          <MessageResponse
+                            key={index}
+                            className="px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95"
+                          >
                             {part.text}
                           </MessageResponse>
                         ) : (
-                          <p key={index} className="whitespace-pre-wrap rounded-[1.3rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift">
+                          <p key={index} className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift">
                             {part.text}
                           </p>
                         );
                       }
+
                       if (part.type === "file") {
                         return part.mediaType?.startsWith("image/") ? (
                           <img
@@ -821,7 +834,7 @@ export function AllmaChat({
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => send(chip.prompt)}
-                              className="shrink-0 whitespace-nowrap rounded-full border border-border/50 bg-card/70 px-3.5 py-1.5 text-xs font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
+                              className="shrink-0 whitespace-nowrap rounded-full border border-border/40 bg-gradient-to-b from-card/85 to-card/55 px-4 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:text-foreground"
                             >
                               {chip.label}
                             </motion.button>

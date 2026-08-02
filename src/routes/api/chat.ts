@@ -106,6 +106,11 @@ export const Route = createFileRoute("/api/chat")({
           }${memoryBlock}`,
           messages: modelMessages,
           stopWhen: stepCountIs(50),
+          ...(modelId.startsWith("openai/gpt-5.6")
+            ? { providerOptions: { lovable: { reasoningEffort: "none" as const } } }
+            : {}),
+
+
 
 
           tools: {
@@ -508,10 +513,11 @@ export const Route = createFileRoute("/api/chat")({
         });
 
         const CHAT_MODELS = [
+          "openai/gpt-5.6-sol",
           "google/gemini-3.6-flash",
           "google/gemini-2.5-flash",
-          "openai/gpt-5.6-luna",
         ];
+
 
         let result: ReturnType<typeof buildStream> | null = null;
         let usedModel = CHAT_MODELS[0];
