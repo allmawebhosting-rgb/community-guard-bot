@@ -241,7 +241,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onSend(opt.value)}
-              className="group flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-2.5 text-left text-sm text-foreground transition-all hover:border-primary/50 hover:bg-accent"
+              className="group flex items-center justify-between rounded-2xl border border-border/50 bg-background/40 px-3.5 py-3 text-left text-sm text-foreground transition-all hover:border-primary/45 hover:bg-accent"
             >
               <span>{opt.label}</span>
               <CheckCircle className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:text-primary group-hover:opacity-100" />
@@ -276,7 +276,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
             <button
               type="button"
               onClick={() => onSend("Skip for now")}
-              className="rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent"
+              className="rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
             >
               Skip for now
             </button>
@@ -310,7 +310,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onSend(action.label)}
-                className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/40 p-3 text-left transition-all hover:border-primary/50 hover:bg-accent"
+                className="flex items-start gap-3 rounded-2xl border border-border/50 bg-background/40 p-3.5 text-left transition-all hover:border-primary/45 hover:bg-accent"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <ActionIcon className="h-4 w-4 text-primary" />
@@ -347,7 +347,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
         </div>
         <h4 className="mb-1 text-sm font-semibold text-foreground">{summary.title}</h4>
         <p className="mb-3 text-xs text-muted-foreground">{summary.summary}</p>
-        <div className="mb-3 space-y-1.5 rounded-xl border border-border/50 bg-background/40 p-3">
+        <div className="mb-3 space-y-1.5 rounded-2xl border border-border/50 bg-background/40 p-3.5">
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Category</span>
             <span className="font-medium text-foreground">{summary.category}</span>
@@ -381,7 +381,7 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
           <button
             type="button"
             onClick={() => onSend("I need to edit this report")}
-            className="rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent"
+            className="rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
           >
             Edit
           </button>
@@ -711,7 +711,7 @@ export function AllmaChat({
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-4 rounded-[1.5rem] border border-border/60 bg-card/75 p-4 shadow-soft backdrop-blur-sm"
+                className="chat-card mt-4 p-4"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div>
@@ -821,7 +821,7 @@ export function AllmaChat({
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => send(chip.prompt)}
-                              className="shrink-0 whitespace-nowrap rounded-full border border-border/55 bg-card/70 px-3.5 py-1.5 text-xs font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
+                              className="shrink-0 whitespace-nowrap rounded-full border border-border/50 bg-card/70 px-3.5 py-1.5 text-xs font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
                             >
                               {chip.label}
                             </motion.button>
