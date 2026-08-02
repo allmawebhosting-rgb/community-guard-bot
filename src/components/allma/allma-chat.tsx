@@ -834,7 +834,7 @@ export function AllmaChat({
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => send(chip.prompt)}
-                              className="shrink-0 whitespace-nowrap rounded-full border border-border/50 bg-card/70 px-3.5 py-1.5 text-xs font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
+                              className="shrink-0 whitespace-nowrap rounded-full border border-border/40 bg-gradient-to-b from-card/85 to-card/55 px-4 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:text-foreground"
                             >
                               {chip.label}
                             </motion.button>
