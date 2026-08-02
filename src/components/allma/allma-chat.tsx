@@ -764,22 +764,26 @@ export function AllmaChat({
                 </div>
               </motion.div>
             ) : null}
-            <div className="flex flex-col gap-4 pt-6">
+            <div className="flex flex-col gap-6 pt-6">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role}>
-                  <MessageContent className={message.role === "assistant" ? "rounded-[1.4rem] rounded-tl-sm bg-transparent px-0 py-0" : "rounded-[1.4rem] rounded-br-sm"}>
+                  <MessageContent className={message.role === "assistant" ? "rounded-none bg-transparent px-0 py-0" : "rounded-[1.4rem] rounded-br-sm"}>
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
                         return message.role === "assistant" ? (
-                          <MessageResponse key={index} className="chat-card px-4 py-3 text-[15px] leading-relaxed">
+                          <MessageResponse
+                            key={index}
+                            className="px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95"
+                          >
                             {part.text}
                           </MessageResponse>
                         ) : (
-                          <p key={index} className="whitespace-pre-wrap rounded-[1.3rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift">
+                          <p key={index} className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift">
                             {part.text}
                           </p>
                         );
                       }
+
                       if (part.type === "file") {
                         return part.mediaType?.startsWith("image/") ? (
                           <img
