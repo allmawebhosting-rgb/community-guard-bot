@@ -106,6 +106,11 @@ export const Route = createFileRoute("/api/chat")({
           }${memoryBlock}`,
           messages: modelMessages,
           stopWhen: stepCountIs(50),
+          ...(modelId.startsWith("openai/gpt-5.6")
+            ? { providerOptions: { lovable: { reasoningEffort: "none" as const } } }
+            : {}),
+
+
 
 
           tools: {
