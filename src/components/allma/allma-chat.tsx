@@ -897,8 +897,7 @@ export function AllmaChat({
               recording && "composer-shell-recording",
             )}
           >
-            <div className="rounded-[calc(2rem-2px)] border border-border/40 bg-card/85 backdrop-blur-xl">
-
+            <div className="composer-surface">
             <PromptInput
               onSubmit={(message, event) => {
                 event.preventDefault();
@@ -908,8 +907,9 @@ export function AllmaChat({
                 setComposerText("");
                 event.currentTarget.reset();
               }}
-              className="rounded-[2rem] border-0 bg-transparent shadow-none"
+              className="rounded-[inherit] border-0 bg-transparent shadow-none ring-0 outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent"
             >
+
               <InputGroupAddon align="inline-start" className="pl-2">
                 {/* Attachment menu trigger */}
                 <motion.button
