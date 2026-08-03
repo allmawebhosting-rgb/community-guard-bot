@@ -44,12 +44,91 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          details: Json
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      case_notes: {
+        Row: {
+          author_kind: string
+          body: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          officer_id: string | null
+          report_id: string
+        }
+        Insert: {
+          author_kind?: string
+          body: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          officer_id?: string | null
+          report_id: string
+        }
+        Update: {
+          author_kind?: string
+          body?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          officer_id?: string | null
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_notes_officer_id_fkey"
+            columns: ["officer_id"]
+            isOneToOne: false
+            referencedRelation: "officer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_notes_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_alerts: {
         Row: {
           alert_type: string
           area: string | null
           body: string
           created_at: string
+          created_by: string | null
           expires_at: string | null
           id: string
           is_published: boolean
@@ -64,6 +143,7 @@ export type Database = {
           area?: string | null
           body: string
           created_at?: string
+          created_by?: string | null
           expires_at?: string | null
           id?: string
           is_published?: boolean
@@ -78,6 +158,7 @@ export type Database = {
           area?: string | null
           body?: string
           created_at?: string
+          created_by?: string | null
           expires_at?: string | null
           id?: string
           is_published?: boolean
@@ -87,7 +168,88 @@ export type Database = {
           starts_at?: string
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "community_alerts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "officer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispatches: {
+        Row: {
+          assigned_by: string | null
+          completed_at: string | null
+          created_at: string
+          distance_km: number | null
+          en_route_at: string | null
+          eta_minutes: number | null
+          id: string
+          note: string | null
+          notified_at: string | null
+          officer_id: string
+          on_scene_at: string | null
+          report_id: string
+          status: Database["public"]["Enums"]["dispatch_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          distance_km?: number | null
+          en_route_at?: string | null
+          eta_minutes?: number | null
+          id?: string
+          note?: string | null
+          notified_at?: string | null
+          officer_id: string
+          on_scene_at?: string | null
+          report_id: string
+          status?: Database["public"]["Enums"]["dispatch_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          distance_km?: number | null
+          en_route_at?: string | null
+          eta_minutes?: number | null
+          id?: string
+          note?: string | null
+          notified_at?: string | null
+          officer_id?: string
+          on_scene_at?: string | null
+          report_id?: string
+          status?: Database["public"]["Enums"]["dispatch_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatches_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "officer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatches_officer_id_fkey"
+            columns: ["officer_id"]
+            isOneToOne: false
+            referencedRelation: "officer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatches_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       emergency_contacts: {
         Row: {
@@ -155,6 +317,68 @@ export type Database = {
         }
         Relationships: []
       }
+      lost_found_items: {
+        Row: {
+          claimed_by: string | null
+          created_at: string
+          description: string | null
+          district: string | null
+          id: string
+          identifier: string | null
+          item_type: string
+          kind: string
+          location_text: string | null
+          matched_item_id: string | null
+          photo_url: string | null
+          released_at: string | null
+          report_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          claimed_by?: string | null
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          id?: string
+          identifier?: string | null
+          item_type: string
+          kind?: string
+          location_text?: string | null
+          matched_item_id?: string | null
+          photo_url?: string | null
+          released_at?: string | null
+          report_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          claimed_by?: string | null
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          id?: string
+          identifier?: string | null
+          item_type?: string
+          kind?: string
+          location_text?: string | null
+          matched_item_id?: string | null
+          photo_url?: string | null
+          released_at?: string | null
+          report_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_items_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string
@@ -193,6 +417,68 @@ export type Database = {
           },
         ]
       }
+      missing_persons: {
+        Row: {
+          age: number | null
+          created_at: string
+          description: string | null
+          district: string | null
+          full_name: string
+          gender: string | null
+          id: string
+          last_seen_at: string | null
+          last_seen_location: string | null
+          latitude: number | null
+          longitude: number | null
+          photo_url: string | null
+          report_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          full_name: string
+          gender?: string | null
+          id?: string
+          last_seen_at?: string | null
+          last_seen_location?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          photo_url?: string | null
+          report_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          age?: number | null
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          full_name?: string
+          gender?: string | null
+          id?: string
+          last_seen_at?: string | null
+          last_seen_location?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          photo_url?: string | null
+          report_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missing_persons_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -223,6 +509,176 @@ export type Database = {
           link?: string | null
           title?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      officer_messages: {
+        Row: {
+          body: string
+          channel: string
+          created_at: string
+          id: string
+          report_id: string | null
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          channel?: string
+          created_at?: string
+          id?: string
+          report_id?: string | null
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          report_id?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "officer_messages_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "officer_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "officer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      officer_profiles: {
+        Row: {
+          badge_number: string | null
+          created_at: string
+          duty_status: Database["public"]["Enums"]["duty_status"]
+          force_id: string | null
+          full_name: string
+          id: string
+          jurisdiction_area: string | null
+          jurisdiction_level: string | null
+          last_seen_at: string | null
+          notification_prefs: Json
+          official_email: string | null
+          onboarding_completed: boolean
+          onboarding_step: number
+          phone: string | null
+          photo_url: string | null
+          rank: Database["public"]["Enums"]["officer_rank"] | null
+          station_id: string | null
+          status: Database["public"]["Enums"]["officer_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          badge_number?: string | null
+          created_at?: string
+          duty_status?: Database["public"]["Enums"]["duty_status"]
+          force_id?: string | null
+          full_name?: string
+          id?: string
+          jurisdiction_area?: string | null
+          jurisdiction_level?: string | null
+          last_seen_at?: string | null
+          notification_prefs?: Json
+          official_email?: string | null
+          onboarding_completed?: boolean
+          onboarding_step?: number
+          phone?: string | null
+          photo_url?: string | null
+          rank?: Database["public"]["Enums"]["officer_rank"] | null
+          station_id?: string | null
+          status?: Database["public"]["Enums"]["officer_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          badge_number?: string | null
+          created_at?: string
+          duty_status?: Database["public"]["Enums"]["duty_status"]
+          force_id?: string | null
+          full_name?: string
+          id?: string
+          jurisdiction_area?: string | null
+          jurisdiction_level?: string | null
+          last_seen_at?: string | null
+          notification_prefs?: Json
+          official_email?: string | null
+          onboarding_completed?: boolean
+          onboarding_step?: number
+          phone?: string | null
+          photo_url?: string | null
+          rank?: Database["public"]["Enums"]["officer_rank"] | null
+          station_id?: string | null
+          status?: Database["public"]["Enums"]["officer_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "officer_profiles_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "police_stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      police_stations: {
+        Row: {
+          code: string | null
+          coverage_area: string | null
+          created_at: string
+          district: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          parish: string | null
+          phone: string | null
+          region: string
+          sub_county: string | null
+          updated_at: string
+          village: string | null
+        }
+        Insert: {
+          code?: string | null
+          coverage_area?: string | null
+          created_at?: string
+          district: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          parish?: string | null
+          phone?: string | null
+          region: string
+          sub_county?: string | null
+          updated_at?: string
+          village?: string | null
+        }
+        Update: {
+          code?: string | null
+          coverage_area?: string | null
+          created_at?: string
+          district?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          parish?: string | null
+          phone?: string | null
+          region?: string
+          sub_county?: string | null
+          updated_at?: string
+          village?: string | null
         }
         Relationships: []
       }
@@ -328,75 +784,119 @@ export type Database = {
       }
       reports: {
         Row: {
+          ai_recommended_actions: Json
+          ai_suggested_category: string | null
+          ai_summary: string | null
+          assigned_officer_id: string | null
           category: string | null
           contact_name: string | null
           contact_phone: string | null
           created_at: string
           details: Json
+          district: string | null
           id: string
           is_anonymous: boolean
+          is_possible_duplicate: boolean
           latitude: number | null
           location_text: string | null
           longitude: number | null
           narrative: string | null
           occurred_at: string | null
+          priority: Database["public"]["Enums"]["incident_priority"]
           reference: string
           report_type: string
+          resolved_at: string | null
           risk_level: string
+          station_id: string | null
           status: string
           summary: string | null
           thread_id: string | null
           title: string
           updated_at: string
           user_id: string | null
+          verified_at: string | null
         }
         Insert: {
+          ai_recommended_actions?: Json
+          ai_suggested_category?: string | null
+          ai_summary?: string | null
+          assigned_officer_id?: string | null
           category?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
           details?: Json
+          district?: string | null
           id?: string
           is_anonymous?: boolean
+          is_possible_duplicate?: boolean
           latitude?: number | null
           location_text?: string | null
           longitude?: number | null
           narrative?: string | null
           occurred_at?: string | null
+          priority?: Database["public"]["Enums"]["incident_priority"]
           reference?: string
           report_type: string
+          resolved_at?: string | null
           risk_level?: string
+          station_id?: string | null
           status?: string
           summary?: string | null
           thread_id?: string | null
           title: string
           updated_at?: string
           user_id?: string | null
+          verified_at?: string | null
         }
         Update: {
+          ai_recommended_actions?: Json
+          ai_suggested_category?: string | null
+          ai_summary?: string | null
+          assigned_officer_id?: string | null
           category?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
           details?: Json
+          district?: string | null
           id?: string
           is_anonymous?: boolean
+          is_possible_duplicate?: boolean
           latitude?: number | null
           location_text?: string | null
           longitude?: number | null
           narrative?: string | null
           occurred_at?: string | null
+          priority?: Database["public"]["Enums"]["incident_priority"]
           reference?: string
           report_type?: string
+          resolved_at?: string | null
           risk_level?: string
+          station_id?: string | null
           status?: string
           summary?: string | null
           thread_id?: string | null
           title?: string
           updated_at?: string
           user_id?: string | null
+          verified_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_assigned_officer_id_fkey"
+            columns: ["assigned_officer_id"]
+            isOneToOne: false
+            referencedRelation: "officer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "police_stations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_thread_id_fkey"
             columns: ["thread_id"]
@@ -469,9 +969,47 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_command_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_verified_officer: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "officer" | "user"
+      dispatch_status:
+        | "assigned"
+        | "notified"
+        | "en_route"
+        | "on_scene"
+        | "completed"
+        | "reassigned"
+        | "cancelled"
+      duty_status:
+        | "offline"
+        | "available"
+        | "on_duty"
+        | "en_route"
+        | "on_scene"
+        | "unavailable"
+      incident_priority: "critical" | "high" | "medium" | "low"
+      officer_rank:
+        | "inspector_general"
+        | "deputy_inspector_general"
+        | "director"
+        | "regional_commander"
+        | "district_commander"
+        | "division_commander"
+        | "station_commander"
+        | "operations_officer"
+        | "investigator"
+        | "cid_officer"
+        | "traffic_officer"
+        | "patrol_officer"
+        | "dispatch_officer"
+        | "community_liaison_officer"
+        | "call_centre_officer"
+        | "evidence_officer"
+        | "read_only"
+        | "system_administrator"
+      officer_status: "pending" | "verified" | "suspended" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -600,6 +1138,45 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "officer", "user"],
+      dispatch_status: [
+        "assigned",
+        "notified",
+        "en_route",
+        "on_scene",
+        "completed",
+        "reassigned",
+        "cancelled",
+      ],
+      duty_status: [
+        "offline",
+        "available",
+        "on_duty",
+        "en_route",
+        "on_scene",
+        "unavailable",
+      ],
+      incident_priority: ["critical", "high", "medium", "low"],
+      officer_rank: [
+        "inspector_general",
+        "deputy_inspector_general",
+        "director",
+        "regional_commander",
+        "district_commander",
+        "division_commander",
+        "station_commander",
+        "operations_officer",
+        "investigator",
+        "cid_officer",
+        "traffic_officer",
+        "patrol_officer",
+        "dispatch_officer",
+        "community_liaison_officer",
+        "call_centre_officer",
+        "evidence_officer",
+        "read_only",
+        "system_administrator",
+      ],
+      officer_status: ["pending", "verified", "suspended", "rejected"],
     },
   },
 } as const

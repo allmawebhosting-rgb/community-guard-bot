@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, Moon, Sun, UserRound } from "lucide-react";
+import { LayoutDashboard, LogOut, Moon, Shield, Sun, UserRound } from "lucide-react";
 import { BrandLockup } from "@/components/allma/brand";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,6 +30,11 @@ export function AppHeader() {
 
           {isAuthenticated ? (
             <>
+              <Button variant="ghost" size="icon" aria-label="Police command center" asChild>
+                <Link to="/police">
+                  <Shield className="h-4 w-4" />
+                </Link>
+              </Button>
               <Button variant="ghost" size="icon" aria-label="Dashboard" asChild>
                 <Link to="/dashboard">
                   <LayoutDashboard className="h-4 w-4" />
