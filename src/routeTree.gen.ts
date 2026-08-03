@@ -26,6 +26,7 @@ import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authent
 import { Route as AuthenticatedPoliceIndexRouteImport } from './routes/_authenticated/police.index'
 import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
 import { Route as AuthenticatedPoliceMapRouteImport } from './routes/_authenticated/police.map'
+import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authenticated/police.officers'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -114,6 +115,12 @@ const AuthenticatedPoliceMapRoute = AuthenticatedPoliceMapRouteImport.update({
   path: '/map',
   getParentRoute: () => AuthenticatedPoliceRoute,
 } as any)
+const AuthenticatedPoliceOfficersRoute =
+  AuthenticatedPoliceOfficersRouteImport.update({
+    id: '/officers',
+    path: '/officers',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
+  '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
 }
@@ -147,6 +155,7 @@ export interface FileRoutesByTo {
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
+  '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
 }
@@ -167,6 +176,7 @@ export interface FileRoutesById {
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/_authenticated/police/map': typeof AuthenticatedPoliceMapRoute
+  '/_authenticated/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
 }
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/chat/$threadId'
     | '/police/incidents'
     | '/police/map'
+    | '/police/officers'
     | '/chat/'
     | '/police/'
   fileRoutesByTo: FileRoutesByTo
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/chat/$threadId'
     | '/police/incidents'
     | '/police/map'
+    | '/police/officers'
     | '/chat'
     | '/police'
   id:
@@ -223,6 +235,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/police/incidents'
     | '/_authenticated/police/map'
+    | '/_authenticated/police/officers'
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
   fileRoutesById: FileRoutesById
@@ -359,18 +372,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceMapRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/officers': {
+      id: '/_authenticated/police/officers'
+      path: '/officers'
+      fullPath: '/police/officers'
+      preLoaderRoute: typeof AuthenticatedPoliceOfficersRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
   }
 }
 
 interface AuthenticatedPoliceRouteChildren {
   AuthenticatedPoliceIncidentsRoute: typeof AuthenticatedPoliceIncidentsRoute
   AuthenticatedPoliceMapRoute: typeof AuthenticatedPoliceMapRoute
+  AuthenticatedPoliceOfficersRoute: typeof AuthenticatedPoliceOfficersRoute
   AuthenticatedPoliceIndexRoute: typeof AuthenticatedPoliceIndexRoute
 }
 
 const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
   AuthenticatedPoliceIncidentsRoute: AuthenticatedPoliceIncidentsRoute,
   AuthenticatedPoliceMapRoute: AuthenticatedPoliceMapRoute,
+  AuthenticatedPoliceOfficersRoute: AuthenticatedPoliceOfficersRoute,
   AuthenticatedPoliceIndexRoute: AuthenticatedPoliceIndexRoute,
 }
 
