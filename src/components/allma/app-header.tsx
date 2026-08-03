@@ -30,6 +30,11 @@ export function AppHeader() {
 
           {isAuthenticated ? (
             <>
+              <Button variant="ghost" size="icon" aria-label="Police command center" asChild>
+                <Link to="/police">
+                  <Shield className="h-4 w-4" />
+                </Link>
+              </Button>
               <Button variant="ghost" size="icon" aria-label="Dashboard" asChild>
                 <Link to="/dashboard">
                   <LayoutDashboard className="h-4 w-4" />

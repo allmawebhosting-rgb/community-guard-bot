@@ -27,6 +27,7 @@ import { Route as AuthenticatedPoliceIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
 import { Route as AuthenticatedPoliceMapRouteImport } from './routes/_authenticated/police.map'
 import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authenticated/police.officers'
+import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -121,6 +122,12 @@ const AuthenticatedPoliceOfficersRoute =
     path: '/officers',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const AuthenticatedPoliceCasesCaseIdRoute =
+  AuthenticatedPoliceCasesCaseIdRouteImport.update({
+    id: '/cases/$caseId',
+    path: '/cases/$caseId',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
+  '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -158,6 +166,7 @@ export interface FileRoutesByTo {
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
+  '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,6 +188,7 @@ export interface FileRoutesById {
   '/_authenticated/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
+  '/_authenticated/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/police/officers'
     | '/chat/'
     | '/police/'
+    | '/police/cases/$caseId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '/police/officers'
     | '/chat'
     | '/police'
+    | '/police/cases/$caseId'
   id:
     | '__root__'
     | '/'
@@ -238,6 +250,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police/officers'
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
+    | '/_authenticated/police/cases/$caseId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -379,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceOfficersRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/cases/$caseId': {
+      id: '/_authenticated/police/cases/$caseId'
+      path: '/cases/$caseId'
+      fullPath: '/police/cases/$caseId'
+      preLoaderRoute: typeof AuthenticatedPoliceCasesCaseIdRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
   }
 }
 
@@ -387,6 +407,7 @@ interface AuthenticatedPoliceRouteChildren {
   AuthenticatedPoliceMapRoute: typeof AuthenticatedPoliceMapRoute
   AuthenticatedPoliceOfficersRoute: typeof AuthenticatedPoliceOfficersRoute
   AuthenticatedPoliceIndexRoute: typeof AuthenticatedPoliceIndexRoute
+  AuthenticatedPoliceCasesCaseIdRoute: typeof AuthenticatedPoliceCasesCaseIdRoute
 }
 
 const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
@@ -394,6 +415,7 @@ const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
   AuthenticatedPoliceMapRoute: AuthenticatedPoliceMapRoute,
   AuthenticatedPoliceOfficersRoute: AuthenticatedPoliceOfficersRoute,
   AuthenticatedPoliceIndexRoute: AuthenticatedPoliceIndexRoute,
+  AuthenticatedPoliceCasesCaseIdRoute: AuthenticatedPoliceCasesCaseIdRoute,
 }
 
 const AuthenticatedPoliceRouteWithChildren =
