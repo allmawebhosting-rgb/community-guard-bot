@@ -23,6 +23,7 @@ import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
+import { Route as AuthenticatedPoliceIndexRouteImport } from './routes/_authenticated/police.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +95,12 @@ const AuthenticatedChatThreadIdRoute =
     path: '/chat/$threadId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPoliceIndexRoute =
+  AuthenticatedPoliceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,13 +109,14 @@ export interface FileRoutesByFullPath {
   '/nearby': typeof NearbyRoute
   '/sos': typeof SosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/police': typeof AuthenticatedPoliceRoute
+  '/police': typeof AuthenticatedPoliceRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
+  '/police/': typeof AuthenticatedPoliceIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -117,13 +125,13 @@ export interface FileRoutesByTo {
   '/nearby': typeof NearbyRoute
   '/sos': typeof SosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/police': typeof AuthenticatedPoliceRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/chat': typeof AuthenticatedChatIndexRoute
+  '/police': typeof AuthenticatedPoliceIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,13 +142,14 @@ export interface FileRoutesById {
   '/nearby': typeof NearbyRoute
   '/sos': typeof SosRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/police': typeof AuthenticatedPoliceRoute
+  '/_authenticated/police': typeof AuthenticatedPoliceRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
+  '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/api/transcribe'
     | '/chat/$threadId'
     | '/chat/'
+    | '/police/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,13 +176,13 @@ export interface FileRouteTypes {
     | '/nearby'
     | '/sos'
     | '/dashboard'
-    | '/police'
     | '/profile'
     | '/reports'
     | '/api/chat'
     | '/api/transcribe'
     | '/chat/$threadId'
     | '/chat'
+    | '/police'
   id:
     | '__root__'
     | '/'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/api/transcribe'
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/chat/'
+    | '/_authenticated/police/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -302,12 +313,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/police/': {
+      id: '/_authenticated/police/'
+      path: '/'
+      fullPath: '/police/'
+      preLoaderRoute: typeof AuthenticatedPoliceIndexRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
   }
 }
 
+interface AuthenticatedPoliceRouteChildren {
+  AuthenticatedPoliceIndexRoute: typeof AuthenticatedPoliceIndexRoute
+}
+
+const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
+  AuthenticatedPoliceIndexRoute: AuthenticatedPoliceIndexRoute,
+}
+
+const AuthenticatedPoliceRouteWithChildren =
+  AuthenticatedPoliceRoute._addFileChildren(AuthenticatedPoliceRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedPoliceRoute: typeof AuthenticatedPoliceRoute
+  AuthenticatedPoliceRoute: typeof AuthenticatedPoliceRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
@@ -316,7 +345,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedPoliceRoute: AuthenticatedPoliceRoute,
+  AuthenticatedPoliceRoute: AuthenticatedPoliceRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
