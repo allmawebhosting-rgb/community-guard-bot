@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as NearbyRouteImport } from './routes/nearby'
 import { Route as SosRouteImport } from './routes/sos'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedPoliceRouteImport } from './routes/_authenticated/police'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
@@ -57,6 +58,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPoliceRoute = AuthenticatedPoliceRouteImport.update({
+  id: '/police',
+  path: '/police',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/nearby': typeof NearbyRoute
   '/sos': typeof SosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/police': typeof AuthenticatedPoliceRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/nearby': typeof NearbyRoute
   '/sos': typeof SosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/police': typeof AuthenticatedPoliceRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/nearby': typeof NearbyRoute
   '/sos': typeof SosRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/police': typeof AuthenticatedPoliceRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/nearby'
     | '/sos'
     | '/dashboard'
+    | '/police'
     | '/profile'
     | '/reports'
     | '/api/chat'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/nearby'
     | '/sos'
     | '/dashboard'
+    | '/police'
     | '/profile'
     | '/reports'
     | '/api/chat'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/nearby'
     | '/sos'
     | '/_authenticated/dashboard'
+    | '/_authenticated/police'
     | '/_authenticated/profile'
     | '/_authenticated/reports'
     | '/api/chat'
@@ -241,6 +253,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/police': {
+      id: '/_authenticated/police'
+      path: '/police'
+      fullPath: '/police'
+      preLoaderRoute: typeof AuthenticatedPoliceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
       path: '/profile'
@@ -288,6 +307,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedPoliceRoute: typeof AuthenticatedPoliceRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
@@ -296,6 +316,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedPoliceRoute: AuthenticatedPoliceRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
