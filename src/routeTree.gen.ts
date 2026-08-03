@@ -24,6 +24,7 @@ import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
 import { Route as AuthenticatedPoliceIndexRouteImport } from './routes/_authenticated/police.index'
+import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -101,6 +102,12 @@ const AuthenticatedPoliceIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const AuthenticatedPoliceIncidentsRoute =
+  AuthenticatedPoliceIncidentsRouteImport.update({
+    id: '/incidents',
+    path: '/incidents',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
 }
@@ -130,6 +138,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
 }
@@ -148,6 +157,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/_authenticated/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
 }
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/chat/$threadId'
+    | '/police/incidents'
     | '/chat/'
     | '/police/'
   fileRoutesByTo: FileRoutesByTo
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/chat/$threadId'
+    | '/police/incidents'
     | '/chat'
     | '/police'
   id:
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/_authenticated/chat/$threadId'
+    | '/_authenticated/police/incidents'
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
   fileRoutesById: FileRoutesById
@@ -320,14 +333,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceIndexRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/incidents': {
+      id: '/_authenticated/police/incidents'
+      path: '/incidents'
+      fullPath: '/police/incidents'
+      preLoaderRoute: typeof AuthenticatedPoliceIncidentsRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
   }
 }
 
 interface AuthenticatedPoliceRouteChildren {
+  AuthenticatedPoliceIncidentsRoute: typeof AuthenticatedPoliceIncidentsRoute
   AuthenticatedPoliceIndexRoute: typeof AuthenticatedPoliceIndexRoute
 }
 
 const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
+  AuthenticatedPoliceIncidentsRoute: AuthenticatedPoliceIncidentsRoute,
   AuthenticatedPoliceIndexRoute: AuthenticatedPoliceIndexRoute,
 }
 
