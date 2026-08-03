@@ -793,6 +793,7 @@ export type Database = {
           contact_phone: string | null
           created_at: string
           details: Json
+          district: string | null
           id: string
           is_anonymous: boolean
           is_possible_duplicate: boolean
@@ -825,6 +826,7 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           details?: Json
+          district?: string | null
           id?: string
           is_anonymous?: boolean
           is_possible_duplicate?: boolean
@@ -857,6 +859,7 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           details?: Json
+          district?: string | null
           id?: string
           is_anonymous?: boolean
           is_possible_duplicate?: boolean
