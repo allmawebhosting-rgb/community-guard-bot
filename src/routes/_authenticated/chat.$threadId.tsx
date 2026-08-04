@@ -8,9 +8,8 @@ import { AllmaChat } from "@/components/allma/allma-chat";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === "string" ? search.q : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { q?: string } =>
+    typeof search.q === "string" ? { q: search.q } : {},
   head: () => ({
     meta: [
       { title: "Conversation — Allma Safety AI" },
