@@ -24,6 +24,7 @@ import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
 import { Route as AuthenticatedPoliceIndexRouteImport } from './routes/_authenticated/police.index'
+import { Route as AuthenticatedPoliceAlertsRouteImport } from './routes/_authenticated/police.alerts'
 import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
 import { Route as AuthenticatedPoliceMapRouteImport } from './routes/_authenticated/police.map'
 import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authenticated/police.officers'
@@ -105,6 +106,12 @@ const AuthenticatedPoliceIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const AuthenticatedPoliceAlertsRoute =
+  AuthenticatedPoliceAlertsRouteImport.update({
+    id: '/alerts',
+    path: '/alerts',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 const AuthenticatedPoliceIncidentsRoute =
   AuthenticatedPoliceIncidentsRouteImport.update({
     id: '/incidents',
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
@@ -161,6 +169,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
@@ -183,6 +192,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/_authenticated/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/_authenticated/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/_authenticated/police/map': typeof AuthenticatedPoliceMapRoute
   '/_authenticated/police/officers': typeof AuthenticatedPoliceOfficersRoute
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/chat/$threadId'
+    | '/police/alerts'
     | '/police/incidents'
     | '/police/map'
     | '/police/officers'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/chat/$threadId'
+    | '/police/alerts'
     | '/police/incidents'
     | '/police/map'
     | '/police/officers'
@@ -245,6 +257,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/_authenticated/chat/$threadId'
+    | '/_authenticated/police/alerts'
     | '/_authenticated/police/incidents'
     | '/_authenticated/police/map'
     | '/_authenticated/police/officers'
@@ -371,6 +384,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceIndexRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/alerts': {
+      id: '/_authenticated/police/alerts'
+      path: '/alerts'
+      fullPath: '/police/alerts'
+      preLoaderRoute: typeof AuthenticatedPoliceAlertsRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
     '/_authenticated/police/incidents': {
       id: '/_authenticated/police/incidents'
       path: '/incidents'
@@ -403,6 +423,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedPoliceRouteChildren {
+  AuthenticatedPoliceAlertsRoute: typeof AuthenticatedPoliceAlertsRoute
   AuthenticatedPoliceIncidentsRoute: typeof AuthenticatedPoliceIncidentsRoute
   AuthenticatedPoliceMapRoute: typeof AuthenticatedPoliceMapRoute
   AuthenticatedPoliceOfficersRoute: typeof AuthenticatedPoliceOfficersRoute
@@ -411,6 +432,7 @@ interface AuthenticatedPoliceRouteChildren {
 }
 
 const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
+  AuthenticatedPoliceAlertsRoute: AuthenticatedPoliceAlertsRoute,
   AuthenticatedPoliceIncidentsRoute: AuthenticatedPoliceIncidentsRoute,
   AuthenticatedPoliceMapRoute: AuthenticatedPoliceMapRoute,
   AuthenticatedPoliceOfficersRoute: AuthenticatedPoliceOfficersRoute,
@@ -455,3 +477,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

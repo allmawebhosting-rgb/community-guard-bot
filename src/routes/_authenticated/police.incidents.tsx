@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,9 +20,21 @@ export const Route = createFileRoute("/_authenticated/police/incidents")({
 const FILTERS = ["all", "critical", "high", "medium", "low"] as const;
 
 function IncidentsPage() {
+  const qc = useQueryClient();
   const { data: incidents = [] } = useQuery(incidentsQuery);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [q, setQ] = useState("");
+
+  // Real-time: push new/updated incidents in without page refresh
+  useEffect(() => {
+    const channel = supabase
+      .channel("police-incidents-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reports" }, () => {
+        qc.invalidateQueries({ queryKey: ["police", "incidents"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
 
   const rows = incidents.filter((i) => {
     if (filter !== "all" && i.priority !== filter) return false;

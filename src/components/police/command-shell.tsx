@@ -6,6 +6,7 @@ import {
   ListFilter,
   LogOut,
   Map,
+  Megaphone,
   Shield,
   Users,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const NAV = [
   { to: "/police/incidents", label: "Incidents", icon: ListFilter, exact: false },
   { to: "/police/map", label: "Live map", icon: Map, exact: false },
   { to: "/police/officers", label: "Officers", icon: Users, exact: false },
+  { to: "/police/alerts", label: "Alerts", icon: Megaphone, exact: false },
 ] as const;
 
 export function CommandShell({
@@ -131,7 +133,7 @@ export function CommandShell({
 
       {/* Mobile nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl lg:hidden">
-        <div className="grid grid-cols-4 px-2 pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-5 px-2 pb-[env(safe-area-inset-bottom)]">
           {NAV.map((item) => {
             const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
             return (

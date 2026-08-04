@@ -186,6 +186,78 @@ export const officersQuery = queryOptions({
   },
 });
 
+export type DispatchStatus = Database["public"]["Enums"]["dispatch_status"];
+export type DutyStatusValue = Database["public"]["Enums"]["duty_status"];
+export type CommunityAlert = Database["public"]["Tables"]["community_alerts"]["Row"];
+export type AuditEntry = Database["public"]["Tables"]["audit_log"]["Row"];
+
+export const DISPATCH_STATUS_FLOW: DispatchStatus[] = [
+  "assigned",
+  "notified",
+  "en_route",
+  "on_scene",
+  "completed",
+  "cancelled",
+];
+
+export const DUTY_STATUSES: { value: DutyStatusValue; label: string }[] = [
+  { value: "available", label: "Available" },
+  { value: "on_duty", label: "On duty" },
+  { value: "offline", label: "Offline" },
+  { value: "on_leave", label: "On leave" },
+];
+
+export function dispatchStatusLabel(s: string) {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function dutyStatusLabel(s: string) {
+  return DUTY_STATUSES.find((d) => d.value === s)?.label ?? s;
+}
+
+export function dispatchesForCaseQuery(reportId: string) {
+  return queryOptions({
+    queryKey: ["police", "dispatches", reportId],
+    queryFn: async (): Promise<(Dispatch & { officer: OfficerProfile | null })[]> => {
+      const { data, error } = await supabase
+        .from("dispatches")
+        .select("*, officer:officer_id(id, full_name, badge_number, rank, duty_status)")
+        .eq("report_id", reportId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as (Dispatch & { officer: OfficerProfile | null })[];
+    },
+  });
+}
+
+export const alertsAdminQuery = queryOptions({
+  queryKey: ["police", "alerts"],
+  queryFn: async (): Promise<CommunityAlert[]> => {
+    const { data, error } = await supabase
+      .from("community_alerts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export function auditLogQuery(limit = 50) {
+  return queryOptions({
+    queryKey: ["police", "audit", limit],
+    queryFn: async (): Promise<AuditEntry[]> => {
+      const { data, error } = await supabase
+        .from("audit_log")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export async function logAudit(action: string, entityType?: string, entityId?: string, details: Record<string, unknown> = {}) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return;
