@@ -47,7 +47,7 @@ function AuditPage() {
     : entries;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5">
+    <div className="w-full space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-xl font-semibold">Audit Log</h1>

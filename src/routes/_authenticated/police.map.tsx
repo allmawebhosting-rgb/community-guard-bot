@@ -15,7 +15,7 @@ function LiveMapPage() {
   const pins = incidents.filter((i) => i.latitude != null && i.longitude != null);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="premium-surface relative overflow-hidden rounded-3xl border border-border/55 shadow-lift">
         <div className="signal-streak relative aspect-4/3 w-full sm:aspect-video">
           <div

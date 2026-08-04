@@ -164,7 +164,7 @@ function CaseDetail() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4">
+    <div className="w-full space-y-4">
       <Link
         to="/police/incidents"
         className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"

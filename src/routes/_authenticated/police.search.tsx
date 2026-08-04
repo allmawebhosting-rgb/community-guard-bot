@@ -78,7 +78,7 @@ function SearchPage() {
   const totalResults = filteredIncidents.length + filteredMissing.length + filteredLost.length;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5">
+    <div className="w-full space-y-5">
       <div>
         <h1 className="font-display text-xl font-semibold">Report Search</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">Search across all incidents, missing persons, and lost &amp; found</p>

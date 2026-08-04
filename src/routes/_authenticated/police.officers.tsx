@@ -57,7 +57,7 @@ function OfficersPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-2">
+    <div className="w-full space-y-3">
       {officers.map((officer) => {
         const station = stations.find((s) => s.id === officer.station_id);
         return (

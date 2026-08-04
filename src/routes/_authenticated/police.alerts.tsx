@@ -115,7 +115,7 @@ function AlertsPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-center justify-between">
         <div />
         <Button className="rounded-full" onClick={() => setShowForm((v) => !v)}>

@@ -76,7 +76,7 @@ function DispatchPage() {
   });
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[1.3fr_1fr]">
+    <div className="grid w-full gap-4 lg:grid-cols-[1.3fr_1fr]">
       <section className="premium-surface rounded-3xl border border-border/55 p-4 shadow-soft">
         <h2 className="mb-3 font-display text-sm font-semibold">Dispatch queue</h2>
         <div className="space-y-2">
