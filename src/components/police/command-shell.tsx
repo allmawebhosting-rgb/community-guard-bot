@@ -6,7 +6,10 @@ import {
   ListFilter,
   LogOut,
   Map,
+  Megaphone,
+  Radio,
   Shield,
+  UserSearch,
   Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,8 +22,18 @@ const NAV = [
   { to: "/police", label: "Command", icon: LayoutDashboard, exact: true },
   { to: "/police/incidents", label: "Incidents", icon: ListFilter, exact: false },
   { to: "/police/map", label: "Live map", icon: Map, exact: false },
+  { to: "/police/dispatch", label: "Dispatch", icon: Radio, exact: false },
+  { to: "/police/persons", label: "Persons", icon: UserSearch, exact: false },
+  { to: "/police/alerts", label: "Alerts", icon: Megaphone, exact: false },
+  { to: "/police/comms", label: "Comms", icon: Activity, exact: false },
   { to: "/police/officers", label: "Officers", icon: Users, exact: false },
 ] as const;
+
+const MOBILE_NAV = NAV.filter((item) =>
+  ["/police", "/police/incidents", "/police/dispatch", "/police/comms", "/police/officers"].includes(
+    item.to,
+  ),
+);
 
 export function CommandShell({
   officer,
@@ -55,7 +68,7 @@ export function CommandShell({
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
           {NAV.map((item) => {
             const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
             return (
@@ -131,8 +144,8 @@ export function CommandShell({
 
       {/* Mobile nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl lg:hidden">
-        <div className="grid grid-cols-4 px-2 pb-[env(safe-area-inset-bottom)]">
-          {NAV.map((item) => {
+        <div className="grid grid-cols-5 px-2 pb-[env(safe-area-inset-bottom)]">
+          {MOBILE_NAV.map((item) => {
             const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
             return (
               <Link
