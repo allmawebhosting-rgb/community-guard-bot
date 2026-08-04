@@ -1,0 +1,367 @@
+==================================================
+
+NEXT GENERATION SOS EXPERIENCE (DEMO MODE)
+
+==================================================
+
+For this demo, tapping the SOS button immediately starts an emergency session.
+
+No long press is required.
+
+As soon as the SOS button is tapped:
+
+• Start emergency mode.
+
+• Display beautiful transition animations.
+
+• Show a full-screen emergency interface.
+
+• Automatically request location permission.
+
+• Begin tracking the user's live location once permission is granted.
+
+--------------------------------------------------
+
+STEP 1
+
+Display:
+
+🚨 Emergency Mode Activated
+
+Please stay calm.
+
+I'm here to help.
+
+I'm finding the nearest responders based on your location.
+
+Show animated loading while location is being detected.
+
+--------------------------------------------------
+
+STEP 2
+
+Automatically detect:
+
+Current Address
+
+Village
+
+District
+
+Region
+
+GPS Coordinates
+
+Display an animated map with the user's live location.
+
+Continue updating the location during the emergency session.
+
+--------------------------------------------------
+
+STEP 3
+
+AI immediately says:
+
+"I have your location.
+
+Now I need to understand what happened so I can recommend the appropriate response.
+
+Please choose the emergency type."
+
+Large animated cards:
+
+🚔 Crime
+
+🚑 Medical Emergency
+
+🔥 Fire
+
+⚔ Attack
+
+🚗 Road Accident
+
+👤 Missing Person
+
+🏠 Domestic Violence
+
+⚡ Other Emergency
+
+--------------------------------------------------
+
+STEP 4
+
+Once the category is selected the AI asks ONE question at a time.
+
+Never ask multiple questions.
+
+Examples:
+
+Crime
+
+"Is the suspect still nearby?"
+
+↓
+
+Wait
+
+↓
+
+"Is anyone injured?"
+
+↓
+
+Wait
+
+↓
+
+"What happened?"
+
+Medical
+
+"Is the person conscious?"
+
+↓
+
+Wait
+
+↓
+
+"Are they breathing?"
+
+↓
+
+Wait
+
+↓
+
+"How old is the patient?"
+
+Fire
+
+"Is anyone trapped?"
+
+↓
+
+Wait
+
+↓
+
+"Is the fire spreading?"
+
+↓
+
+Wait
+
+↓
+
+"What type of building is it?"
+
+--------------------------------------------------
+
+STEP 5
+
+After each answer
+
+The AI updates
+
+Incident Summary
+
+Priority
+
+Timeline
+
+Location
+
+Evidence
+
+--------------------------------------------------
+
+STEP 6
+
+The AI should naturally ask for evidence when appropriate.
+
+Example
+
+"If it is safe to do so, you can attach a photo, video or voice recording to help explain the situation."
+
+Buttons
+
+📷 Camera
+
+🖼 Gallery
+
+🎥 Video
+
+🎤 Voice
+
+📄 Document
+
+📍 Current Location
+
+Skip
+
+--------------------------------------------------
+
+STEP 7
+
+OFFICERS ON DUTY (DEMO ONLY)
+
+Show a beautiful "Nearest Responders" card.
+
+Use fictional names and the same demo contact number for every officer.
+
+Officer 1
+
+Inspector Sarah N.
+
+📍 Central Police Station
+
+📞 +256 774 620 951
+
+Status
+
+Available
+
+ETA
+
+4 Minutes
+
+--------------------------------
+
+Officer 2
+
+Sergeant David K.
+
+📍 East Division
+
+📞 +256 774 620 951
+
+Status
+
+Patrolling
+
+ETA
+
+6 Minutes
+
+--------------------------------
+
+Officer 3
+
+Corporal Grace A.
+
+📍 North Patrol Unit
+
+📞 +256 774 620 951
+
+Status
+
+Available
+
+ETA
+
+8 Minutes
+
+Display a small label:
+
+"Demo data only."
+
+--------------------------------------------------
+
+STEP 8
+
+The AI says
+
+"I've prepared your emergency report.
+
+Please review the summary below."
+
+Display
+
+Emergency Type
+
+Priority
+
+Current Location
+
+Description
+
+Evidence
+
+Recommended Responders
+
+Buttons
+
+Edit
+
+Submit
+
+Cancel
+
+--------------------------------------------------
+
+STEP 9
+
+After submission
+
+Display
+
+✅ Emergency Report Submitted
+
+Reference Number
+
+ASA-2026-000125
+
+The nearest responding team has been notified.
+
+Remain in this chat for updates.
+
+--------------------------------------------------
+
+LIVE EMERGENCY SCREEN
+
+Display:
+
+🗺 Live Map
+
+📍 Your Live Location
+
+🚔 Demo Responders
+
+📞 Call Demo Officer
+
+💬 Continue Chat
+
+📷 Upload More Evidence
+
+📍 Share Updated Location
+
+Emergency Timeline
+
+--------------------------------------------------
+
+UI
+
+The entire SOS experience should feel premium.
+
+Dark mode.
+
+Glassmorphism.
+
+Smooth animations.
+
+Streaming AI messages.
+
+Beautiful emergency cards.
+
+Large readable typography.
+
+Animated Uganda-inspired gradients using black, yellow and red.
+
+Everything should feel reassuring, modern and easy to use during a stressful situation.
+
+IMPORTANT:
+
+This is DEMO MODE.
+
+All officer names, statuses and phone numbers are sample data and must be easy to replace with real integration in the future.
