@@ -186,6 +186,113 @@ export const officersQuery = queryOptions({
   },
 });
 
+export type MissingPerson = Database["public"]["Tables"]["missing_persons"]["Row"];
+export type LostFoundItem = Database["public"]["Tables"]["lost_found_items"]["Row"];
+export type CommunityAlert = Database["public"]["Tables"]["community_alerts"]["Row"];
+export type OfficerMessage = Database["public"]["Tables"]["officer_messages"]["Row"];
+export type Evidence = Database["public"]["Tables"]["report_evidence"]["Row"];
+
+export const dispatchesQuery = queryOptions({
+  queryKey: ["police", "dispatches"],
+  queryFn: async (): Promise<Dispatch[]> => {
+    const { data, error } = await supabase
+      .from("dispatches")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export function caseDispatchesQuery(reportId: string) {
+  return queryOptions({
+    queryKey: ["police", "dispatches", reportId],
+    queryFn: async (): Promise<Dispatch[]> => {
+      const { data, error } = await supabase
+        .from("dispatches")
+        .select("*")
+        .eq("report_id", reportId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function evidenceQuery(reportId: string) {
+  return queryOptions({
+    queryKey: ["police", "evidence", reportId],
+    queryFn: async (): Promise<Evidence[]> => {
+      const { data, error } = await supabase
+        .from("report_evidence")
+        .select("*")
+        .eq("report_id", reportId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export const missingPersonsQuery = queryOptions({
+  queryKey: ["police", "missing"],
+  queryFn: async (): Promise<MissingPerson[]> => {
+    const { data, error } = await supabase
+      .from("missing_persons")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export const lostFoundQuery = queryOptions({
+  queryKey: ["police", "lostfound"],
+  queryFn: async (): Promise<LostFoundItem[]> => {
+    const { data, error } = await supabase
+      .from("lost_found_items")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export const communityAlertsQuery = queryOptions({
+  queryKey: ["police", "alerts"],
+  queryFn: async (): Promise<CommunityAlert[]> => {
+    const { data, error } = await supabase
+      .from("community_alerts")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export const officerMessagesQuery = queryOptions({
+  queryKey: ["police", "comms"],
+  queryFn: async (): Promise<OfficerMessage[]> => {
+    const { data, error } = await supabase
+      .from("officer_messages")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export const DUTY_META: Record<string, { label: string; chip: string }> = {
+  available: { label: "Available", chip: "border-success/40 bg-success/12 text-success" },
+  on_duty: { label: "On duty", chip: "border-success/40 bg-success/12 text-success" },
+  en_route: { label: "En route", chip: "border-gold/40 bg-gold/12 text-gold" },
+  on_scene: { label: "On scene", chip: "border-alert/40 bg-alert/12 text-alert" },
+  unavailable: { label: "Unavailable", chip: "border-border/50 bg-secondary/40 text-muted-foreground" },
+  offline: { label: "Offline", chip: "border-border/50 bg-secondary/40 text-muted-foreground" },
+};
+
 export async function logAudit(action: string, entityType?: string, entityId?: string, details: Record<string, unknown> = {}) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return;
