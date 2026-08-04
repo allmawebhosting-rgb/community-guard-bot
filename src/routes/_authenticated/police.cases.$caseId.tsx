@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CaseSidePanels } from "@/components/police/case-side-panels";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -132,6 +133,8 @@ function CaseDetail() {
           ))}
         </div>
       </section>
+
+      <CaseSidePanels caseId={caseId} />
 
       <section className="premium-surface rounded-3xl border border-border/55 p-5 shadow-soft">
         <h2 className="font-display text-sm font-semibold">Case notes</h2>
