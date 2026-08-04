@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { Check, Loader2, MapPin, Phone, ShieldAlert } from "lucide-react";
+import { Check, Loader2, MapPin, Phone, ShieldAlert, Siren } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/allma/app-shell";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,10 +48,7 @@ function SosScreen() {
   function tick() {
     const value = Math.min(1, (performance.now() - start.current) / HOLD_MS);
     setProgress(value);
-    if (value >= 1) {
-      void activate();
-      return;
-    }
+    if (value >= 1) { void activate(); return; }
     raf.current = requestAnimationFrame(tick);
   }
 
@@ -93,7 +90,6 @@ function SosScreen() {
     setProgress(1);
     const position = await requestLocation();
     if (!user) return;
-
     setSaving(true);
     const { data, error } = await supabase
       .from("reports")
@@ -114,101 +110,142 @@ function SosScreen() {
       .select("reference")
       .single();
     setSaving(false);
-
-    if (error) {
-      toast.error("SOS active, but the report could not be stored.");
-      return;
-    }
+    if (error) { toast.error("SOS active, but the report could not be stored."); return; }
     setReference(data.reference);
   }
 
   return (
     <AppShell title="Emergency SOS">
-      <div className="flex flex-1 flex-col items-center px-5 pt-6">
-        <span className="flex items-center gap-2 rounded-full border border-primary/40 bg-primary/12 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
-          <ShieldAlert className="h-3.5 w-3.5" />
-          {active ? "SOS active" : "Hold to activate"}
-        </span>
+      <div className="mx-auto w-full max-w-6xl px-5 pt-6 pb-6 lg:px-10 lg:pt-10">
 
-        <h1 className="mt-4 text-center font-display text-[1.9rem] font-black leading-tight tracking-[-0.03em]">
-          {active ? "Help is being alerted" : "Emergency SOS"}
-        </h1>
-        <p className="mt-2 max-w-sm text-center text-[13px] leading-relaxed text-muted-foreground">
-          {active
-            ? "Call an official emergency line now and stay somewhere safe."
-            : "Press and hold the button for 2 seconds. Allma will capture your location and log an emergency report."}
-        </p>
-
-        <motion.button
-          type="button"
-          aria-label="Hold to activate emergency SOS"
-          onPointerDown={beginHold}
-          onPointerUp={endHold}
-          onPointerLeave={endHold}
-          animate={active ? { scale: [1, 1.04, 1] } : { scale: 1 }}
-          transition={active ? { repeat: Infinity, duration: 1.6 } : { duration: 0.2 }}
-          className="relative mt-8 grid h-56 w-56 select-none place-items-center rounded-full"
-          style={{ touchAction: "none" }}
-        >
-          <span
-            aria-hidden
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `conic-gradient(var(--color-primary) ${progress * 360}deg, color-mix(in oklab, var(--color-primary) 14%, transparent) 0deg)`,
-            }}
-          />
-          <span
-            aria-hidden
-            className="absolute inset-[9px] rounded-full border border-gold/30 bg-background"
-          />
-          <span className="relative z-10 grid h-36 w-36 place-items-center rounded-full bg-gradient-to-br from-primary to-primary-glow text-center shadow-lift">
-            <span className="font-display text-2xl font-black tracking-[0.14em] text-primary-foreground">SOS</span>
+        {/* Page header */}
+        <div className="mb-8 flex items-center gap-3">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/12">
+            <Siren className="h-6 w-6 text-primary" />
           </span>
-        </motion.button>
-
-        <div className="mt-8 w-full max-w-md space-y-2">
-          {EMERGENCY_NUMBERS.map((entry) => (
-            <a
-              key={`${entry.label}-${entry.number}`}
-              href={`tel:${entry.number}`}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/80 p-3 backdrop-blur-sm transition-colors hover:border-primary/40 hover:bg-accent"
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-semibold">{entry.label}</span>
-                <span className="block truncate text-[11px] text-muted-foreground">{entry.description}</span>
-              </span>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[13px] font-bold text-primary-foreground">
-                <Phone className="h-3.5 w-3.5" />
-                {entry.number}
-              </span>
-            </a>
-          ))}
+          <div>
+            <h1 className="font-display text-2xl font-black tracking-[-0.03em] lg:text-3xl">Emergency SOS</h1>
+            <p className="text-[12px] text-muted-foreground lg:text-[13px]">Hold the button to activate — your location is captured and help is alerted</p>
+          </div>
         </div>
 
-        {active && (
-          <div className="mt-4 w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-3 text-[11.5px] text-muted-foreground">
-            <p className="flex items-center gap-2">
-              <MapPin className="h-3.5 w-3.5 text-primary" />
-              {locating
-                ? "Getting your location…"
-                : coords
-                  ? `Location captured: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`
-                  : "Location unavailable"}
-            </p>
-            <p className="mt-2 flex items-center gap-2">
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5 text-success" />}
-              {!user
-                ? "Sign in to store this emergency on your account."
-                : saving
-                  ? "Saving emergency report…"
-                  : reference
-                    ? `Emergency report saved as ${reference}`
-                    : "Emergency report not saved."}
-            </p>
-          </div>
-        )}
+        {/* Desktop 2-column / mobile stacked */}
+        <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
 
-        <p className="mt-5 max-w-md text-center text-[10px] leading-relaxed text-muted-foreground/55">{DISCLAIMER}</p>
+          {/* Left: SOS button */}
+          <div className="flex flex-col items-center">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-[2.5rem] border border-primary/20 bg-gradient-to-b from-primary/8 to-transparent p-10 text-center">
+              <div className="absolute inset-0 hero-glow opacity-50" />
+
+              <span className="relative inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/12 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                {active ? "SOS active" : "Hold to activate"}
+              </span>
+
+              <p className="relative mt-4 text-[13px] leading-relaxed text-muted-foreground">
+                {active
+                  ? "Call an official emergency line now and stay somewhere safe."
+                  : "Press and hold the button for 2 seconds. Allma will capture your location and log an emergency report."}
+              </p>
+
+              <motion.button
+                type="button"
+                aria-label="Hold to activate emergency SOS"
+                onPointerDown={beginHold}
+                onPointerUp={endHold}
+                onPointerLeave={endHold}
+                animate={active ? { scale: [1, 1.04, 1] } : { scale: 1 }}
+                transition={active ? { repeat: Infinity, duration: 1.6 } : { duration: 0.2 }}
+                className="relative mx-auto mt-8 grid h-56 w-56 select-none place-items-center rounded-full"
+                style={{ touchAction: "none" }}
+              >
+                <span
+                  aria-hidden
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: `conic-gradient(var(--color-primary) ${progress * 360}deg, color-mix(in oklab, var(--color-primary) 14%, transparent) 0deg)`,
+                  }}
+                />
+                <span aria-hidden className="absolute inset-[9px] rounded-full border border-gold/30 bg-background" />
+                <span className="relative z-10 grid h-36 w-36 place-items-center rounded-full bg-gradient-to-br from-primary to-primary-glow text-center shadow-lift">
+                  <span className="font-display text-2xl font-black tracking-[0.14em] text-primary-foreground">SOS</span>
+                </span>
+              </motion.button>
+
+              {active && (
+                <div className="relative mt-6 rounded-2xl border border-border/60 bg-card/70 p-3 text-left text-[11.5px] text-muted-foreground">
+                  <p className="flex items-center gap-2">
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                    {locating
+                      ? "Getting your location…"
+                      : coords
+                        ? `Location: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`
+                        : "Location unavailable"}
+                  </p>
+                  <p className="mt-2 flex items-center gap-2">
+                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5 text-success" />}
+                    {!user
+                      ? "Sign in to store this emergency on your account."
+                      : saving
+                        ? "Saving emergency report…"
+                        : reference
+                          ? `Report saved — ref: ${reference}`
+                          : "Report not saved."}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <p className="mt-4 max-w-sm text-center text-[10px] leading-relaxed text-muted-foreground/55">{DISCLAIMER}</p>
+          </div>
+
+          {/* Right: Emergency numbers */}
+          <div>
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+              Emergency numbers
+            </p>
+            <div className="space-y-2.5">
+              {EMERGENCY_NUMBERS.map((entry) => (
+                <a
+                  key={`${entry.label}-${entry.number}`}
+                  href={`tel:${entry.number}`}
+                  className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card/80 p-4 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-accent hover:-translate-y-0.5 hover:shadow-lift"
+                >
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/10 transition-transform group-hover:scale-105">
+                    <Phone className="h-5 w-5 text-primary" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-bold leading-tight">{entry.label}</span>
+                    <span className="block text-[11.5px] text-muted-foreground">{entry.description}</span>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-gradient-to-br from-primary to-primary-glow px-4 py-2 font-display text-[15px] font-black tracking-wide text-primary-foreground shadow-soft">
+                    {entry.number}
+                  </span>
+                </a>
+              ))}
+            </div>
+
+            {/* Tips card */}
+            <div className="mt-6 rounded-2xl border border-gold/25 bg-gold/5 p-5">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold">
+                Stay safe
+              </p>
+              <ul className="space-y-2 text-[13px] text-muted-foreground">
+                {[
+                  "Move to a safe location before activating SOS",
+                  "Call emergency services as well — Allma supplements, not replaces",
+                  "Share your location with a trusted contact",
+                  "Keep your phone charged in case of emergencies",
+                ].map((tip) => (
+                  <li key={tip} className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gold/70" />
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
     </AppShell>
   );
