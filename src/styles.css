@@ -207,6 +207,16 @@
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
   }
+
+  /*
+   * Prevent iOS Safari from zooming the page when an input is focused.
+   * Safari zooms whenever font-size < 16px on a focused form element.
+   */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
 }
 
 @utility glass {
