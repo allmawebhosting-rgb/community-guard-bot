@@ -2,12 +2,17 @@ import { type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  BarChart2,
+  Bot,
+  ClipboardList,
   LayoutDashboard,
   ListFilter,
   LogOut,
   Map,
   Megaphone,
   Radio,
+  Search,
+  Settings,
   Shield,
   UserSearch,
   Users,
@@ -19,14 +24,19 @@ import { rankLabel, type OfficerProfile } from "@/lib/police";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/police",           label: "Command",   icon: LayoutDashboard, exact: true },
-  { to: "/police/incidents", label: "Incidents", icon: ListFilter,      exact: false },
-  { to: "/police/map",       label: "Live map",  icon: Map,             exact: false },
-  { to: "/police/dispatch",  label: "Dispatch",  icon: Radio,           exact: false },
-  { to: "/police/persons",   label: "Persons",   icon: UserSearch,      exact: false },
-  { to: "/police/alerts",    label: "Alerts",    icon: Megaphone,       exact: false },
-  { to: "/police/comms",     label: "Comms",     icon: Activity,        exact: false },
-  { to: "/police/officers",  label: "Officers",  icon: Users,           exact: false },
+  { to: "/police",            label: "Command",    icon: LayoutDashboard, exact: true },
+  { to: "/police/incidents",  label: "Incidents",  icon: ListFilter,      exact: false },
+  { to: "/police/map",        label: "Live Map",   icon: Map,             exact: false },
+  { to: "/police/dispatch",   label: "Dispatch",   icon: Radio,           exact: false },
+  { to: "/police/persons",    label: "Persons",    icon: UserSearch,      exact: false },
+  { to: "/police/alerts",     label: "Alerts",     icon: Megaphone,       exact: false },
+  { to: "/police/comms",      label: "Comms",      icon: Activity,        exact: false },
+  { to: "/police/officers",   label: "Officers",   icon: Users,           exact: false },
+  { to: "/police/analytics",  label: "Analytics",  icon: BarChart2,       exact: false },
+  { to: "/police/search",     label: "Search",     icon: Search,          exact: false },
+  { to: "/police/ai",         label: "AI Assistant", icon: Bot,           exact: false },
+  { to: "/police/audit",      label: "Audit Log",  icon: ClipboardList,   exact: false },
+  { to: "/police/settings",   label: "Settings",   icon: Settings,        exact: false },
 ] as const;
 
 const MOBILE_NAV = NAV.filter((item) =>

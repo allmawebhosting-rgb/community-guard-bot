@@ -1,0 +1,887 @@
+ALLMA SAFETY AI – POLICE COMMAND CENTER (MASTER PROMPT)
+
+Build a world-class Police Command Center for Allma Safety AI.
+
+This is NOT an admin dashboard.
+
+This is an AI-powered police operating system that allows authorized police officers to receive reports, verify incidents, dispatch officers, communicate with citizens, investigate cases, manage evidence, and monitor crime across Uganda in real time.
+
+The experience should feel like Apple Intelligence, Linear, Arc Browser, Notion, Google Maps, Tesla UI, and modern emergency dispatch software combined.
+
+The interface must be premium, modern, minimal, responsive, lightning-fast, and built for both desktop and mobile.
+
+====================================================
+
+DESIGN PHILOSOPHY
+
+• Premium
+
+• Professional
+
+• AI First
+
+• Minimal
+
+• Fast
+
+• Secure
+
+• Beautiful
+
+• Modern
+
+• Glassmorphism
+
+• Real-time
+
+• Mobile + Desktop
+
+• Command Center Feel
+
+Default Theme:
+
+Dark Mode
+
+Use elegant Uganda-inspired animated gradients using:
+
+Black
+
+Yellow
+
+Red
+
+Avoid showing the flag directly.
+
+The colors should softly glow across the interface.
+
+====================================================
+
+OFFICER AUTHENTICATION
+
+Secure Login
+
+Officer Number
+
+Police Email
+
+Password
+
+Two Factor Authentication
+
+Remember Device
+
+Forgot Password
+
+Biometric Login (mobile)
+
+Session Management
+
+====================================================
+
+FIRST TIME OFFICER ONBOARDING
+
+When an officer logs in for the first time, guide them through a premium step-by-step onboarding.
+
+Step 1
+
+Welcome Officer
+
+Display:
+
+Welcome to Allma Safety AI Command Center.
+
+This system helps officers receive reports, dispatch units, investigate cases and communicate with citizens.
+
+Continue
+
+----------------------------------------------------
+
+Step 2
+
+Officer Information
+
+Full Name
+
+Badge Number
+
+Rank
+
+Police Force ID
+
+Phone Number
+
+Official Email
+
+Profile Photo
+
+----------------------------------------------------
+
+Step 3
+
+Select Rank / Access Level
+
+Dropdown
+
+Inspector General
+
+Deputy Inspector General
+
+Director
+
+Regional Commander
+
+District Commander
+
+Division Commander
+
+Station Commander
+
+Operations Officer
+
+Investigator
+
+CID Officer
+
+Traffic Officer
+
+Patrol Officer
+
+Dispatch Officer
+
+Community Liaison Officer
+
+Call Centre Officer
+
+Evidence Officer
+
+Read Only
+
+System Administrator
+
+----------------------------------------------------
+
+Step 4
+
+Select Police Station
+
+Searchable dropdown.
+
+Search by:
+
+Station Name
+
+District
+
+Region
+
+GPS
+
+Or
+
+Register new station (Admin only)
+
+----------------------------------------------------
+
+Step 5
+
+Station Information
+
+Station Name
+
+District
+
+Region
+
+Sub County
+
+Parish
+
+Village
+
+GPS Coordinates
+
+Coverage Area
+
+Station Phone
+
+----------------------------------------------------
+
+Step 6
+
+Jurisdiction
+
+Select operational area.
+
+Region
+
+District
+
+Division
+
+Station Coverage
+
+Automatically restrict dashboard permissions based on jurisdiction.
+
+----------------------------------------------------
+
+Step 7
+
+Notification Preferences
+
+Desktop Notifications
+
+SMS
+
+Email
+
+Push Notifications
+
+Critical Alerts
+
+Emergency Only
+
+All Reports
+
+----------------------------------------------------
+
+Step 8
+
+Complete Setup
+
+Dashboard loads.
+
+====================================================
+
+ROLE BASED ACCESS
+
+Administrator
+
+Inspector General
+
+Regional Commander
+
+District Commander
+
+Station Commander
+
+Dispatch Officer
+
+Investigator
+
+Traffic Police
+
+Community Officer
+
+Evidence Officer
+
+Read Only
+
+Each role only sees data they are authorized to access.
+
+====================================================
+
+HOME DASHBOARD
+
+Modern command center.
+
+Large summary cards.
+
+Today's Reports
+
+Critical Incidents
+
+Emergency SOS
+
+Missing Persons
+
+Lost Property
+
+Road Accidents
+
+Officers Online
+
+Cases Under Investigation
+
+Resolved Cases
+
+Average Response Time
+
+Crime Heat Index
+
+Beautiful charts.
+
+Animated counters.
+
+====================================================
+
+LIVE INCIDENT MAP
+
+Interactive Map.
+
+Google Maps or OpenStreetMap.
+
+Real-time updates.
+
+Icons
+
+🚨 Emergency
+
+🚔 Crime
+
+🔥 Fire
+
+🚑 Medical
+
+🚗 Accident
+
+👤 Missing Person
+
+🎒 Lost Property
+
+Different colors for priority.
+
+Cluster nearby incidents.
+
+Heatmap view.
+
+Satellite View.
+
+Street View.
+
+Navigation.
+
+Directions.
+
+Distance.
+
+ETA.
+
+====================================================
+
+LIVE INCIDENT FEED
+
+Newest reports appear instantly.
+
+Each report card displays
+
+Incident Number
+
+Category
+
+Reporter
+
+Location
+
+Time
+
+Priority
+
+Status
+
+Photo Preview
+
+AI Summary
+
+Buttons
+
+Open
+
+Assign
+
+Navigate
+
+Call
+
+Chat
+
+Close
+
+====================================================
+
+AI INCIDENT ANALYSIS
+
+AI automatically analyzes every report.
+
+Determine:
+
+Incident Category
+
+Priority
+
+Risk Level
+
+Evidence Quality
+
+Duplicate Reports
+
+Nearby Related Reports
+
+Suggested Officer
+
+Suggested Department
+
+Recommended Actions
+
+Possible False Report
+
+Generate AI Summary
+
+====================================================
+
+CASE DETAILS
+
+Beautiful case page.
+
+Display
+
+Case Number
+
+Status
+
+Priority
+
+Timeline
+
+Reporter
+
+Evidence
+
+Photos
+
+Videos
+
+Voice Notes
+
+Documents
+
+GPS
+
+Address
+
+Map
+
+Witnesses
+
+Officer Notes
+
+AI Notes
+
+History
+
+====================================================
+
+OFFICER DISPATCH
+
+Assign nearest available officer.
+
+Display
+
+Officer Photo
+
+Rank
+
+Station
+
+Distance
+
+Availability
+
+Current Cases
+
+Estimated Arrival
+
+Buttons
+
+Assign
+
+Notify
+
+Track
+
+Reassign
+
+====================================================
+
+CASE STATUS
+
+New
+
+Pending Verification
+
+Verified
+
+Assigned
+
+Officer En Route
+
+On Scene
+
+Investigating
+
+Waiting Evidence
+
+Resolved
+
+Closed
+
+Rejected
+
+Archived
+
+Citizen automatically receives updates.
+
+====================================================
+
+MISSING PERSON CENTER
+
+Photo
+
+Name
+
+Age
+
+Gender
+
+Last Seen
+
+Map
+
+Timeline
+
+Recent Sightings
+
+AI Similar Matches
+
+Poster Generator
+
+Search
+
+Filters
+
+====================================================
+
+LOST & FOUND CENTER
+
+Lost Items
+
+Found Items
+
+AI Matching
+
+Verification
+
+Claim Requests
+
+Release History
+
+====================================================
+
+COMMUNITY ALERT CENTER
+
+Police can publish:
+
+Crime Alerts
+
+Flood Warnings
+
+Storm Alerts
+
+Road Closures
+
+Wanted Notices
+
+Missing Person Alerts
+
+Public Notices
+
+Push instantly to citizens.
+
+====================================================
+
+OFFICER DIRECTORY
+
+Search officers.
+
+Profile
+
+Photo
+
+Rank
+
+Station
+
+Status
+
+Current Assignment
+
+Performance
+
+Availability
+
+====================================================
+
+POLICE STATIONS
+
+Manage stations.
+
+Station Details
+
+Officers
+
+Coverage Area
+
+Emergency Contacts
+
+Map
+
+====================================================
+
+REPORT SEARCH
+
+Search by
+
+Case Number
+
+National ID
+
+Phone
+
+IMEI
+
+Passport
+
+Vehicle
+
+Motorcycle
+
+Reporter
+
+Officer
+
+District
+
+GPS
+
+Keywords
+
+====================================================
+
+ANALYTICS
+
+Crime Trends
+
+District Comparison
+
+Response Time
+
+Officer Performance
+
+Cases by Category
+
+Cases by Month
+
+Heat Maps
+
+Hotspot Detection
+
+AI Insights
+
+====================================================
+
+NOTIFICATIONS
+
+Live notifications.
+
+Critical alerts.
+
+Emergency banners.
+
+Sound alerts.
+
+Push notifications.
+
+====================================================
+
+COMMUNICATION
+
+Secure chat between officers.
+
+Internal notes.
+
+Citizen messaging (where appropriate).
+
+Broadcast announcements.
+
+====================================================
+
+AI POLICE ASSISTANT
+
+Built into dashboard.
+
+Examples
+
+Summarize this case.
+
+Translate witness statement.
+
+Generate investigation notes.
+
+Suggest next actions.
+
+Find similar incidents.
+
+Detect patterns.
+
+Recommend officer.
+
+Highlight missing evidence.
+
+Generate investigation timeline.
+
+====================================================
+
+EVIDENCE MANAGEMENT
+
+Upload
+
+Photos
+
+Videos
+
+Voice
+
+Documents
+
+CCTV
+
+Evidence Log
+
+Chain of Custody
+
+====================================================
+
+AUDIT LOG
+
+Track every action.
+
+Login
+
+View
+
+Edit
+
+Assign
+
+Close
+
+Delete
+
+Export
+
+====================================================
+
+SETTINGS
+
+Departments
+
+Permissions
+
+Ranks
+
+Stations
+
+Emergency Numbers
+
+Districts
+
+Categories
+
+AI Settings
+
+Notification Settings
+
+====================================================
+
+SECURITY
+
+Role Based Access Control
+
+Encrypted Data
+
+Secure Authentication
+
+Audit Trail
+
+Automatic Session Timeout
+
+Permission Checks
+
+====================================================
+
+REAL-TIME
+
+Supabase Realtime
+
+Live reports
+
+Live map
+
+Live officer locations
+
+Live notifications
+
+Live dashboard updates
+
+====================================================
+
+ANIMATIONS
+
+Framer Motion
+
+Fade
+
+Scale
+
+Slide
+
+Spring
+
+Ripple
+
+Shared Layout
+
+Skeleton Loading
+
+Glass Effects
+
+Premium transitions
+
+60 FPS
+
+====================================================
+
+FINAL EXPERIENCE
+
+This should not feel like a traditional police management system.
+
+It should feel like the future of law enforcement technology in Uganda.
+
+Every officer should immediately know:
+
+• What is happening
+
+• Where it is happening
+
+• How urgent it is
+
+• Who should respond
+
+• What evidence is available
+
+• What AI recommends next
+
+The dashboard should enable the complete workflow:
+
+Citizen Report → AI Analysis → Verification → Officer Assignment → Dispatch → Investigation → Evidence Collection → Resolution → Citizen Notification → Case Archive
+
+Every screen should be premium, intelligent, beautifully animated, and optimized for speed, making Allma Safety AI feel like a next-generation command center built for Uganda.

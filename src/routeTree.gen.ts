@@ -24,13 +24,18 @@ import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
 import { Route as AuthenticatedPoliceIndexRouteImport } from './routes/_authenticated/police.index'
+import { Route as AuthenticatedPoliceAiRouteImport } from './routes/_authenticated/police.ai'
 import { Route as AuthenticatedPoliceAlertsRouteImport } from './routes/_authenticated/police.alerts'
+import { Route as AuthenticatedPoliceAnalyticsRouteImport } from './routes/_authenticated/police.analytics'
+import { Route as AuthenticatedPoliceAuditRouteImport } from './routes/_authenticated/police.audit'
 import { Route as AuthenticatedPoliceCommsRouteImport } from './routes/_authenticated/police.comms'
 import { Route as AuthenticatedPoliceDispatchRouteImport } from './routes/_authenticated/police.dispatch'
 import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
 import { Route as AuthenticatedPoliceMapRouteImport } from './routes/_authenticated/police.map'
 import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authenticated/police.officers'
 import { Route as AuthenticatedPolicePersonsRouteImport } from './routes/_authenticated/police.persons'
+import { Route as AuthenticatedPoliceSearchRouteImport } from './routes/_authenticated/police.search'
+import { Route as AuthenticatedPoliceSettingsRouteImport } from './routes/_authenticated/police.settings'
 import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -109,10 +114,27 @@ const AuthenticatedPoliceIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const AuthenticatedPoliceAiRoute = AuthenticatedPoliceAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => AuthenticatedPoliceRoute,
+} as any)
 const AuthenticatedPoliceAlertsRoute =
   AuthenticatedPoliceAlertsRouteImport.update({
     id: '/alerts',
     path: '/alerts',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
+const AuthenticatedPoliceAnalyticsRoute =
+  AuthenticatedPoliceAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
+const AuthenticatedPoliceAuditRoute =
+  AuthenticatedPoliceAuditRouteImport.update({
+    id: '/audit',
+    path: '/audit',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
 const AuthenticatedPoliceCommsRoute =
@@ -150,6 +172,18 @@ const AuthenticatedPolicePersonsRoute =
     path: '/persons',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const AuthenticatedPoliceSearchRoute =
+  AuthenticatedPoliceSearchRouteImport.update({
+    id: '/search',
+    path: '/search',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
+const AuthenticatedPoliceSettingsRoute =
+  AuthenticatedPoliceSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 const AuthenticatedPoliceCasesCaseIdRoute =
   AuthenticatedPoliceCasesCaseIdRouteImport.update({
     id: '/cases/$caseId',
@@ -170,13 +204,18 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/police/ai': typeof AuthenticatedPoliceAiRoute
   '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
+  '/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
+  '/police/audit': typeof AuthenticatedPoliceAuditRoute
   '/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
+  '/police/search': typeof AuthenticatedPoliceSearchRoute
+  '/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -193,13 +232,18 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/police/ai': typeof AuthenticatedPoliceAiRoute
   '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
+  '/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
+  '/police/audit': typeof AuthenticatedPoliceAuditRoute
   '/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
+  '/police/search': typeof AuthenticatedPoliceSearchRoute
+  '/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -219,13 +263,18 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/_authenticated/police/ai': typeof AuthenticatedPoliceAiRoute
   '/_authenticated/police/alerts': typeof AuthenticatedPoliceAlertsRoute
+  '/_authenticated/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
+  '/_authenticated/police/audit': typeof AuthenticatedPoliceAuditRoute
   '/_authenticated/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/_authenticated/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/_authenticated/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/_authenticated/police/map': typeof AuthenticatedPoliceMapRoute
   '/_authenticated/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/_authenticated/police/persons': typeof AuthenticatedPolicePersonsRoute
+  '/_authenticated/police/search': typeof AuthenticatedPoliceSearchRoute
+  '/_authenticated/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
   '/_authenticated/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -245,13 +294,18 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/chat/$threadId'
+    | '/police/ai'
     | '/police/alerts'
+    | '/police/analytics'
+    | '/police/audit'
     | '/police/comms'
     | '/police/dispatch'
     | '/police/incidents'
     | '/police/map'
     | '/police/officers'
     | '/police/persons'
+    | '/police/search'
+    | '/police/settings'
     | '/chat/'
     | '/police/'
     | '/police/cases/$caseId'
@@ -268,13 +322,18 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/chat/$threadId'
+    | '/police/ai'
     | '/police/alerts'
+    | '/police/analytics'
+    | '/police/audit'
     | '/police/comms'
     | '/police/dispatch'
     | '/police/incidents'
     | '/police/map'
     | '/police/officers'
     | '/police/persons'
+    | '/police/search'
+    | '/police/settings'
     | '/chat'
     | '/police'
     | '/police/cases/$caseId'
@@ -293,13 +352,18 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/transcribe'
     | '/_authenticated/chat/$threadId'
+    | '/_authenticated/police/ai'
     | '/_authenticated/police/alerts'
+    | '/_authenticated/police/analytics'
+    | '/_authenticated/police/audit'
     | '/_authenticated/police/comms'
     | '/_authenticated/police/dispatch'
     | '/_authenticated/police/incidents'
     | '/_authenticated/police/map'
     | '/_authenticated/police/officers'
     | '/_authenticated/police/persons'
+    | '/_authenticated/police/search'
+    | '/_authenticated/police/settings'
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
     | '/_authenticated/police/cases/$caseId'
@@ -423,11 +487,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceIndexRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/ai': {
+      id: '/_authenticated/police/ai'
+      path: '/ai'
+      fullPath: '/police/ai'
+      preLoaderRoute: typeof AuthenticatedPoliceAiRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
     '/_authenticated/police/alerts': {
       id: '/_authenticated/police/alerts'
       path: '/alerts'
       fullPath: '/police/alerts'
       preLoaderRoute: typeof AuthenticatedPoliceAlertsRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
+    '/_authenticated/police/analytics': {
+      id: '/_authenticated/police/analytics'
+      path: '/analytics'
+      fullPath: '/police/analytics'
+      preLoaderRoute: typeof AuthenticatedPoliceAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
+    '/_authenticated/police/audit': {
+      id: '/_authenticated/police/audit'
+      path: '/audit'
+      fullPath: '/police/audit'
+      preLoaderRoute: typeof AuthenticatedPoliceAuditRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
     '/_authenticated/police/comms': {
@@ -472,6 +557,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPolicePersonsRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/search': {
+      id: '/_authenticated/police/search'
+      path: '/search'
+      fullPath: '/police/search'
+      preLoaderRoute: typeof AuthenticatedPoliceSearchRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
+    '/_authenticated/police/settings': {
+      id: '/_authenticated/police/settings'
+      path: '/settings'
+      fullPath: '/police/settings'
+      preLoaderRoute: typeof AuthenticatedPoliceSettingsRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
     '/_authenticated/police/cases/$caseId': {
       id: '/_authenticated/police/cases/$caseId'
       path: '/cases/$caseId'
@@ -483,25 +582,35 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedPoliceRouteChildren {
+  AuthenticatedPoliceAiRoute: typeof AuthenticatedPoliceAiRoute
   AuthenticatedPoliceAlertsRoute: typeof AuthenticatedPoliceAlertsRoute
+  AuthenticatedPoliceAnalyticsRoute: typeof AuthenticatedPoliceAnalyticsRoute
+  AuthenticatedPoliceAuditRoute: typeof AuthenticatedPoliceAuditRoute
   AuthenticatedPoliceCommsRoute: typeof AuthenticatedPoliceCommsRoute
   AuthenticatedPoliceDispatchRoute: typeof AuthenticatedPoliceDispatchRoute
   AuthenticatedPoliceIncidentsRoute: typeof AuthenticatedPoliceIncidentsRoute
   AuthenticatedPoliceMapRoute: typeof AuthenticatedPoliceMapRoute
   AuthenticatedPoliceOfficersRoute: typeof AuthenticatedPoliceOfficersRoute
   AuthenticatedPolicePersonsRoute: typeof AuthenticatedPolicePersonsRoute
+  AuthenticatedPoliceSearchRoute: typeof AuthenticatedPoliceSearchRoute
+  AuthenticatedPoliceSettingsRoute: typeof AuthenticatedPoliceSettingsRoute
   AuthenticatedPoliceIndexRoute: typeof AuthenticatedPoliceIndexRoute
   AuthenticatedPoliceCasesCaseIdRoute: typeof AuthenticatedPoliceCasesCaseIdRoute
 }
 
 const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
+  AuthenticatedPoliceAiRoute: AuthenticatedPoliceAiRoute,
   AuthenticatedPoliceAlertsRoute: AuthenticatedPoliceAlertsRoute,
+  AuthenticatedPoliceAnalyticsRoute: AuthenticatedPoliceAnalyticsRoute,
+  AuthenticatedPoliceAuditRoute: AuthenticatedPoliceAuditRoute,
   AuthenticatedPoliceCommsRoute: AuthenticatedPoliceCommsRoute,
   AuthenticatedPoliceDispatchRoute: AuthenticatedPoliceDispatchRoute,
   AuthenticatedPoliceIncidentsRoute: AuthenticatedPoliceIncidentsRoute,
   AuthenticatedPoliceMapRoute: AuthenticatedPoliceMapRoute,
   AuthenticatedPoliceOfficersRoute: AuthenticatedPoliceOfficersRoute,
   AuthenticatedPolicePersonsRoute: AuthenticatedPolicePersonsRoute,
+  AuthenticatedPoliceSearchRoute: AuthenticatedPoliceSearchRoute,
+  AuthenticatedPoliceSettingsRoute: AuthenticatedPoliceSettingsRoute,
   AuthenticatedPoliceIndexRoute: AuthenticatedPoliceIndexRoute,
   AuthenticatedPoliceCasesCaseIdRoute: AuthenticatedPoliceCasesCaseIdRoute,
 }
