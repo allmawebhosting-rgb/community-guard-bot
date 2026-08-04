@@ -42,39 +42,8 @@ function PoliceLayout() {
     );
   }
 
-  if (!officer || !officer.onboarding_completed) {
-    return <OnboardingWizard userId={user.id} email={user.email ?? ""} />;
-  }
-
-  if (officer.status !== "verified") {
-    return (
-      <div className="signal-streak grid min-h-screen place-items-center px-4">
-        <div className="premium-surface w-full max-w-md rounded-3xl border border-border/60 p-7 text-center shadow-lift">
-          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-gold/40 bg-gold/12">
-            {officer.status === "pending" ? (
-              <ShieldCheck className="h-5 w-5 text-gold" />
-            ) : (
-              <ShieldAlert className="h-5 w-5 text-primary" />
-            )}
-          </div>
-          <h1 className="font-display text-lg font-semibold">
-            {officer.status === "pending" ? "Awaiting command verification" : "Access restricted"}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {officer.status === "pending"
-              ? `Badge ${officer.badge_number} has been submitted. A commanding officer must verify your credentials before command access is granted.`
-              : "Your command access has been suspended or rejected. Contact your commanding officer."}
-          </p>
-          <Button variant="outline" className="mt-5 rounded-full" asChild>
-            <Link to="/chat">Back to the citizen app</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <CommandShell officer={officer}>
+    <CommandShell officer={officer ?? null}>
       <Outlet />
     </CommandShell>
   );

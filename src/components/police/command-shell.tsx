@@ -39,14 +39,15 @@ export function CommandShell({
   officer,
   children,
 }: {
-  officer: OfficerProfile;
+  officer: OfficerProfile | null;
   children: ReactNode;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const initials = officer.full_name
+  const fullName = officer?.full_name ?? "Officer";
+  const initials = fullName
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -95,8 +96,8 @@ export function CommandShell({
               {initials || "UP"}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium">{officer.full_name}</p>
-              <p className="truncate text-[10px] text-muted-foreground">{rankLabel(officer.rank)}</p>
+              <p className="truncate text-xs font-medium">{fullName}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{rankLabel(officer?.rank)}</p>
             </div>
             <Button
               variant="ghost"
@@ -121,11 +122,11 @@ export function CommandShell({
           <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-6">
             <div className="min-w-0">
               <p className="font-display text-sm font-semibold tracking-tight">
-                {officer.jurisdiction_level ?? "Station"} command ·{" "}
-                <span className="text-muted-foreground">{officer.jurisdiction_area ?? "Uganda"}</span>
+                {officer?.jurisdiction_level ?? "Station"} command ·{" "}
+                <span className="text-muted-foreground">{officer?.jurisdiction_area ?? "Uganda"}</span>
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Badge {officer.badge_number ?? "—"} · {rankLabel(officer.rank)}
+                Badge {officer?.badge_number ?? "—"} · {rankLabel(officer?.rank)}
               </p>
             </div>
             <div className="flex items-center gap-2">
