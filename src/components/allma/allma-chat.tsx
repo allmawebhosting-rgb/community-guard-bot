@@ -8,10 +8,13 @@ import {
   Camera,
   CheckCircle,
   CheckCircle2,
+  Clock,
   CreditCard,
+  ExternalLink,
   FileText,
   Flame,
   HelpCircle,
+  Hospital,
   Loader2,
   MapPin,
   Megaphone,
@@ -22,6 +25,7 @@ import {
   Search,
   Shield,
   ShieldAlert,
+  Siren,
   Upload,
   User,
   Video,
@@ -169,7 +173,17 @@ const ACTION_ICONS: Record<string, typeof FileText> = {
   sim: CreditCard,
 };
 
-function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => void }) {
+function ToolCard({
+  part,
+  onSend,
+  onOpenAttach,
+  onShareLocation,
+}: {
+  part: ToolPart;
+  onSend: (text: string) => void;
+  onOpenAttach?: () => void;
+  onShareLocation?: () => void;
+}) {
   const name = part.type.replace(/^tool-/, "");
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
@@ -188,6 +202,8 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     remember: { icon: Shield, label: "Saved", busy: "Noting that down…" },
     save_draft: { icon: FileText, label: "Draft saved", busy: "Saving your draft…" },
     get_draft: { icon: FileText, label: "Saved draft", busy: "Loading your draft…" },
+    location_intelligence: { icon: MapPin, label: "Location intelligence", busy: "Identifying responsible station…" },
+    case_timeline: { icon: Clock, label: "Case timeline", busy: "Building timeline…" },
   };
   const entry = meta[name] ?? { icon: FileText, label: name, busy: "Working…" };
   const Icon = entry.icon;
@@ -266,6 +282,15 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     const prompt = String(output.prompt ?? "Please upload a photo or file.");
     const optional = Boolean(output.optional);
 
+    const MEDIA_BUTTONS = [
+      { id: "camera", icon: Camera, label: "Camera", action: () => onOpenAttach?.() },
+      { id: "gallery", icon: Paperclip, label: "Gallery", action: () => onOpenAttach?.() },
+      { id: "video", icon: Video, label: "Video", action: () => onOpenAttach?.() },
+      { id: "voice", icon: FileAudio, label: "Voice", action: () => onOpenAttach?.() },
+      { id: "document", icon: FileIcon, label: "Document", action: () => onOpenAttach?.() },
+      { id: "location", icon: Navigation, label: "Location", action: () => { onShareLocation?.(); } },
+    ];
+
     return (
       <div className="chat-card p-4">
         <div className="mb-3 flex items-center gap-3">
@@ -273,31 +298,42 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
             <Upload className="h-5 w-5 text-primary" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-foreground">{mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} requested</p>
-            <p className="text-xs text-muted-foreground">{prompt}</p>
+            <p className="text-sm font-semibold text-foreground">Evidence requested</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{prompt}</p>
           </div>
         </div>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Tap the <Plus className="mx-0.5 inline h-3.5 w-3.5" /> button in the composer to attach a file.
-        </p>
-        <div className="flex gap-2">
-          {optional ? (
-            <button
-              type="button"
-              onClick={() => onSend("Skip for now")}
-              className="rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
-            >
-              Skip for now
-            </button>
-          ) : null}
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          {MEDIA_BUTTONS.map((btn, i) => {
+            const BtnIcon = btn.icon;
+            return (
+              <motion.button
+                key={btn.id}
+                type="button"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.25 }}
+                whileHover={{ scale: 1.03, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={btn.action}
+                className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/50 bg-background/40 py-3 text-center transition-all hover:border-primary/40 hover:bg-accent"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                  <BtnIcon className="h-4 w-4 text-primary" />
+                </span>
+                <span className="text-[10px] font-medium text-muted-foreground">{btn.label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+        {optional ? (
           <button
             type="button"
-            onClick={() => onSend("I want to upload a file")}
-            className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90"
+            onClick={() => onSend("Skip for now")}
+            className="w-full rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
           >
-            Continue
+            Skip for now
           </button>
-        </div>
+        ) : null}
       </div>
     );
   }
@@ -406,59 +442,261 @@ function ToolCard({ part, onSend }: { part: ToolPart; onSend: (text: string) => 
     );
   }
 
+  // ── location_intelligence card ──────────────────────────────
+  if (name === "location_intelligence" && output?.ok) {
+    const area = String(output.area ?? "");
+    const policeStation = output.police_station as Record<string, unknown> | null;
+    const hospital = output.hospital as Record<string, unknown> | null;
+    const fireStation = output.fire_station as Record<string, unknown> | null;
+
+    type FacilityCardProps = {
+      icon: typeof MapPin;
+      iconColor: string;
+      iconBg: string;
+      label: string;
+      name: string;
+      address: string;
+      distanceKm: string;
+      estimatedMinutes: number;
+      phone?: string;
+      status?: string;
+    };
+    const FacilityCard = ({ icon: FIcon, iconColor, iconBg, label, name: facName, address, distanceKm, estimatedMinutes, phone, status }: FacilityCardProps) => (
+      <div className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
+              <FIcon className={`h-4 w-4 ${iconColor}`} />
+            </span>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+              <p className="text-sm font-semibold text-foreground leading-tight">{facName}</p>
+            </div>
+          </div>
+          {status ? (
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              {status}
+            </span>
+          ) : null}
+        </div>
+        {address ? <p className="mb-2 text-xs text-muted-foreground">{address}</p> : null}
+        <div className="mb-2.5 flex gap-3 text-xs">
+          <span className="flex items-center gap-1 text-foreground font-medium">
+            <MapPin className="h-3 w-3 text-primary" />{distanceKm} km
+          </span>
+          <span className="flex items-center gap-1 text-foreground font-medium">
+            <Clock className="h-3 w-3 text-primary" />{estimatedMinutes} min
+          </span>
+        </div>
+        {phone ? (
+          <a
+            href={`tel:${phone}`}
+            className="flex items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90"
+          >
+            <Phone className="h-3.5 w-3.5" /> Call {facName}
+          </a>
+        ) : null}
+      </div>
+    );
+
+    return (
+      <div className="chat-card p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-primary" />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Location Intelligence · {area}
+          </p>
+        </div>
+        {policeStation ? (
+          <p className="mb-3 text-sm text-foreground">
+            This incident falls under <span className="font-semibold">{String(policeStation.name ?? "a local station")}</span>.
+          </p>
+        ) : null}
+        <div className="space-y-2">
+          {policeStation ? (
+            <FacilityCard
+              icon={Siren}
+              iconColor="text-blue-600 dark:text-blue-400"
+              iconBg="bg-blue-500/10"
+              label="Responsible Station"
+              name={String(policeStation.name ?? "Police Station")}
+              address={String(policeStation.address ?? policeStation.district ?? "")}
+              distanceKm={String(policeStation.distance_km ?? "—")}
+              estimatedMinutes={Number(policeStation.estimated_minutes ?? 0)}
+              phone={policeStation.phone ? String(policeStation.phone) : undefined}
+              status={String(policeStation.status ?? "Available")}
+            />
+          ) : null}
+          {hospital ? (
+            <FacilityCard
+              icon={Hospital}
+              iconColor="text-emerald-600 dark:text-emerald-400"
+              iconBg="bg-emerald-500/10"
+              label="Nearest Hospital"
+              name={String(hospital.name ?? "Hospital")}
+              address={String(hospital.address ?? hospital.district ?? "")}
+              distanceKm={String(hospital.distance_km ?? "—")}
+              estimatedMinutes={Number(hospital.estimated_minutes ?? 0)}
+              phone={hospital.phone ? String(hospital.phone) : undefined}
+            />
+          ) : null}
+          {fireStation ? (
+            <FacilityCard
+              icon={Flame}
+              iconColor="text-orange-600 dark:text-orange-400"
+              iconBg="bg-orange-500/10"
+              label="Nearest Fire Station"
+              name={String(fireStation.name ?? "Fire Station")}
+              address={String(fireStation.address ?? fireStation.district ?? "")}
+              distanceKm={String(fireStation.distance_km ?? "—")}
+              estimatedMinutes={Number(fireStation.estimated_minutes ?? 0)}
+              phone={fireStation.phone ? String(fireStation.phone) : undefined}
+            />
+          ) : null}
+          {!policeStation && !hospital && !fireStation ? (
+            <p className="text-sm text-muted-foreground">No facilities found for this area yet. You can search by a different area or call the national emergency line: 999 / 112.</p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  // ── case_timeline card ───────────────────────────────────────
+  if (name === "case_timeline" && output?.ok) {
+    const events = Array.isArray(output.events) ? (output.events as Array<{ label: string }>) : [];
+    const generatedAt = output.generated_at ? new Date(String(output.generated_at)) : new Date();
+
+    const baseTime = new Date(generatedAt.getTime() - events.length * 90000);
+
+    return (
+      <div className="chat-card p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Case Timeline</p>
+        </div>
+        <div className="relative pl-5">
+          <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border/60" />
+          {events.map((evt, i) => {
+            const t = new Date(baseTime.getTime() + i * 90000);
+            const hh = String(t.getHours()).padStart(2, "0");
+            const mm = String(t.getMinutes()).padStart(2, "0");
+            const isLast = i === events.length - 1;
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.07, duration: 0.3 }}
+                className="relative mb-3 last:mb-0"
+              >
+                <span className={cn(
+                  "absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2",
+                  isLast
+                    ? "border-primary bg-primary"
+                    : "border-border/60 bg-background"
+                )} />
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">{hh}:{mm}</span>
+                  <span className={cn("text-[13px]", isLast ? "font-semibold text-foreground" : "text-foreground/80")}>
+                    {evt.label}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="chat-card p-3.5">
       <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         <Icon className="h-3.5 w-3.5 text-primary" /> {entry.label}
       </p>
       {name === "create_report" && output?.ok ? (
-        <div className="space-y-1 text-sm">
-          <p className="font-semibold text-foreground">{String(output.title ?? "Report filed")}</p>
-          <p className="text-muted-foreground">
-            Reference <span className="font-mono text-foreground">{String(output.reference)}</span>{" "}
-            · status {String(output.status)} · risk {String(output.risk_level)}
-          </p>
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <p className="text-sm font-semibold text-foreground">{String(output.title ?? "Report filed successfully")}</p>
+          </div>
+          <div className="mb-3 rounded-2xl border border-border/50 bg-background/40 p-3.5 space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Reference number</span>
+              <span className="font-mono font-semibold text-foreground">{String(output.reference)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Status</span>
+              <span className="capitalize font-medium text-foreground">{String(output.status)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Risk level</span>
+              <span className={cn(
+                "capitalize font-semibold",
+                output.risk_level === "critical" ? "text-destructive" :
+                output.risk_level === "high" ? "text-orange-500" :
+                output.risk_level === "medium" ? "text-yellow-500" :
+                "text-emerald-500"
+              )}>{String(output.risk_level)}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+            The responsible station has been notified. Keep your reference number safe.
+          </div>
         </div>
       ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
-        <ul className="space-y-2 text-sm">
+        <div className="space-y-2.5">
           {(output.facilities as Array<Record<string, unknown>>).map((facility, index) => (
-            <li key={index} className="flex items-start justify-between gap-3">
-              <span>
-                <span className="block font-medium">{String(facility.name)}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {String(facility.address ?? facility.district ?? "")}
-                </span>
-              </span>
+            <div key={index} className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{String(facility.name)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {String(facility.address ?? facility.district ?? "")}
+                  </p>
+                </div>
+                {facility.phone ? (
+                  <a
+                    href={`tel:${facility.phone}`}
+                    className="flex shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90"
+                  >
+                    <Phone className="h-3 w-3" /> Call
+                  </a>
+                ) : null}
+              </div>
               {facility.phone ? (
-                <a
-                  href={`tel:${facility.phone}`}
-                  className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
-                >
-                  Call
-                </a>
+                <p className="text-xs text-muted-foreground font-mono">{String(facility.phone)}</p>
               ) : null}
-            </li>
+            </div>
           ))}
-        </ul>
+          {(output.facilities as unknown[]).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No facilities found for this area. Try a different area name.</p>
+          ) : null}
+        </div>
       ) : name === "list_alerts" && Array.isArray(output?.alerts) ? (
         <ul className="space-y-2 text-sm">
           {(output.alerts as Array<Record<string, unknown>>).map((alert, index) => (
-            <li key={index}>
-              <span className="font-medium">{String(alert.title)}</span>
-              <span className="block text-xs text-muted-foreground">
+            <li key={index} className="rounded-xl border border-border/50 bg-background/30 p-3">
+              <span className="block font-medium text-foreground">{String(alert.title)}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">
                 {String(alert.area ?? "")} · {String(alert.severity)}
               </span>
+              {alert.body ? <span className="block text-xs text-muted-foreground mt-1">{String(alert.body)}</span> : null}
             </li>
           ))}
+          {(output.alerts as unknown[]).length === 0 ? (
+            <li className="text-muted-foreground">No active alerts for this area.</li>
+          ) : null}
         </ul>
       ) : (name === "my_reports" && Array.isArray(output?.reports)) ||
         (name === "match_reports" && Array.isArray(output?.matches)) ? (
         <ul className="space-y-2 text-sm">
           {((output.reports ?? output.matches) as Array<Record<string, unknown>>).map(
             (row, index) => (
-              <li key={index} className="flex items-start justify-between gap-3">
+              <li key={index} className="flex items-start justify-between gap-3 rounded-xl border border-border/50 bg-background/30 p-3">
                 <span>
-                  <span className="block font-medium">{String(row.title ?? "Report")}</span>
+                  <span className="block font-medium text-foreground">{String(row.title ?? "Report")}</span>
                   <span className="block font-mono text-xs text-muted-foreground">
                     {String(row.reference ?? "")}
                   </span>
@@ -802,7 +1040,15 @@ export function AllmaChat({
                         );
                       }
                       if (part.type.startsWith("tool-")) {
-                        return <ToolCard key={index} part={part as ToolPart} onSend={send} />;
+                        return (
+                          <ToolCard
+                            key={index}
+                            part={part as ToolPart}
+                            onSend={send}
+                            onOpenAttach={() => setAttachSheetOpen(true)}
+                            onShareLocation={shareLocation}
+                          />
+                        );
                       }
 
                       return null;
