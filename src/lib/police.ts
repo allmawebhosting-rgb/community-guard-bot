@@ -12,6 +12,16 @@ export type Incident = Database["public"]["Tables"]["reports"]["Row"];
 export type CaseNote = Database["public"]["Tables"]["case_notes"]["Row"];
 export type Dispatch = Database["public"]["Tables"]["dispatches"]["Row"];
 
+// Extended types
+export type DispatchStatus = Database["public"]["Enums"]["dispatch_status"];
+export type DutyStatusValue = Database["public"]["Enums"]["duty_status"];
+export type CommunityAlert = Database["public"]["Tables"]["community_alerts"]["Row"];
+export type AuditEntry = Database["public"]["Tables"]["audit_log"]["Row"];
+export type MissingPerson = Database["public"]["Tables"]["missing_persons"]["Row"];
+export type LostFoundItem = Database["public"]["Tables"]["lost_found_items"]["Row"];
+export type OfficerMessage = Database["public"]["Tables"]["officer_messages"]["Row"];
+export type Evidence = Database["public"]["Tables"]["report_evidence"]["Row"];
+
 export const RANKS: { value: OfficerRank; label: string; group: string }[] = [
   { value: "inspector_general", label: "Inspector General of Police", group: "National command" },
   { value: "deputy_inspector_general", label: "Deputy Inspector General", group: "National command" },
@@ -106,6 +116,42 @@ export function timeAgo(iso: string | null) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+/* ── Dispatch & duty helpers ─────────────────────────────────────── */
+
+export const DISPATCH_STATUS_FLOW: DispatchStatus[] = [
+  "assigned",
+  "notified",
+  "en_route",
+  "on_scene",
+  "completed",
+  "cancelled",
+];
+
+export const DUTY_STATUSES: { value: DutyStatusValue; label: string }[] = [
+  { value: "available", label: "Available" },
+  { value: "on_duty", label: "On duty" },
+  { value: "offline", label: "Offline" },
+  { value: "on_leave", label: "On leave" },
+];
+
+export const DUTY_META: Record<string, { label: string; chip: string }> = {
+  available:   { label: "Available",   chip: "border-success/40 bg-success/12 text-success" },
+  on_duty:     { label: "On duty",     chip: "border-success/40 bg-success/12 text-success" },
+  en_route:    { label: "En route",    chip: "border-gold/40 bg-gold/12 text-gold" },
+  on_scene:    { label: "On scene",    chip: "border-alert/40 bg-alert/12 text-alert" },
+  unavailable: { label: "Unavailable", chip: "border-border/50 bg-secondary/40 text-muted-foreground" },
+  offline:     { label: "Offline",     chip: "border-border/50 bg-secondary/40 text-muted-foreground" },
+  on_leave:    { label: "On leave",    chip: "border-gold/40 bg-gold/12 text-gold" },
+};
+
+export function dispatchStatusLabel(s: string) {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function dutyStatusLabel(s: string) {
+  return DUTY_STATUSES.find((d) => d.value === s)?.label ?? s;
+}
+
 /* ── queries ───────────────────────────────────────────────────────── */
 
 export const myOfficerQuery = queryOptions({
@@ -186,35 +232,21 @@ export const officersQuery = queryOptions({
   },
 });
 
-export type DispatchStatus = Database["public"]["Enums"]["dispatch_status"];
-export type DutyStatusValue = Database["public"]["Enums"]["duty_status"];
-export type CommunityAlert = Database["public"]["Tables"]["community_alerts"]["Row"];
-export type AuditEntry = Database["public"]["Tables"]["audit_log"]["Row"];
+/** All active dispatches (for the dispatch board). */
+export const dispatchesQuery = queryOptions({
+  queryKey: ["police", "dispatches"],
+  queryFn: async (): Promise<Dispatch[]> => {
+    const { data, error } = await supabase
+      .from("dispatches")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return data ?? [];
+  },
+});
 
-export const DISPATCH_STATUS_FLOW: DispatchStatus[] = [
-  "assigned",
-  "notified",
-  "en_route",
-  "on_scene",
-  "completed",
-  "cancelled",
-];
-
-export const DUTY_STATUSES: { value: DutyStatusValue; label: string }[] = [
-  { value: "available", label: "Available" },
-  { value: "on_duty", label: "On duty" },
-  { value: "offline", label: "Offline" },
-  { value: "on_leave", label: "On leave" },
-];
-
-export function dispatchStatusLabel(s: string) {
-  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-export function dutyStatusLabel(s: string) {
-  return DUTY_STATUSES.find((d) => d.value === s)?.label ?? s;
-}
-
+/** Dispatches for a single case, with officer join (for case detail). */
 export function dispatchesForCaseQuery(reportId: string) {
   return queryOptions({
     queryKey: ["police", "dispatches", reportId],
@@ -230,14 +262,84 @@ export function dispatchesForCaseQuery(reportId: string) {
   });
 }
 
-export const alertsAdminQuery = queryOptions({
+/** Dispatches for a single case, simple (no join — for CaseSidePanels). */
+export function caseDispatchesQuery(reportId: string) {
+  return queryOptions({
+    queryKey: ["police", "dispatches", reportId],
+    queryFn: async (): Promise<Dispatch[]> => {
+      const { data, error } = await supabase
+        .from("dispatches")
+        .select("*")
+        .eq("report_id", reportId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function evidenceQuery(reportId: string) {
+  return queryOptions({
+    queryKey: ["police", "evidence", reportId],
+    queryFn: async (): Promise<Evidence[]> => {
+      const { data, error } = await supabase
+        .from("report_evidence")
+        .select("*")
+        .eq("report_id", reportId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export const missingPersonsQuery = queryOptions({
+  queryKey: ["police", "missing"],
+  queryFn: async (): Promise<MissingPerson[]> => {
+    const { data, error } = await supabase
+      .from("missing_persons")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export const lostFoundQuery = queryOptions({
+  queryKey: ["police", "lostfound"],
+  queryFn: async (): Promise<LostFoundItem[]> => {
+    const { data, error } = await supabase
+      .from("lost_found_items")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export const communityAlertsQuery = queryOptions({
   queryKey: ["police", "alerts"],
   queryFn: async (): Promise<CommunityAlert[]> => {
     const { data, error } = await supabase
       .from("community_alerts")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+/** Alias for communityAlertsQuery — kept for backward compatibility. */
+export const alertsAdminQuery = communityAlertsQuery;
+
+export const officerMessagesQuery = queryOptions({
+  queryKey: ["police", "comms"],
+  queryFn: async (): Promise<OfficerMessage[]> => {
+    const { data, error } = await supabase
+      .from("officer_messages")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(200);
     if (error) throw error;
     return data ?? [];
   },

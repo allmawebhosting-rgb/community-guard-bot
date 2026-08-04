@@ -1031,3 +1031,4 @@ export function AllmaChat({
     </div>
   );
 }
+

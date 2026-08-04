@@ -7,9 +7,8 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/chat/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === "string" ? search.q : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { q?: string } =>
+    typeof search.q === "string" ? { q: search.q } : {},
   head: () => ({
     meta: [
       { title: "Allma Safety AI — Chat" },

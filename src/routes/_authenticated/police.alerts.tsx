@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { alertsAdminQuery, logAudit, timeAgo } from "@/lib/police";
+import { communityAlertsQuery, logAudit, timeAgo } from "@/lib/police";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/police/alerts")({
@@ -19,9 +19,9 @@ const ALERT_TYPES = ["safety", "weather", "crime", "missing_person", "road_closu
 const SEVERITIES = ["info", "warning", "critical"] as const;
 
 const SEVERITY_META: Record<string, { chip: string; dot: string }> = {
-  info:     { chip: "border-success/40 bg-success/12 text-success",   dot: "bg-success" },
-  warning:  { chip: "border-gold/40 bg-gold/12 text-gold",             dot: "bg-gold" },
-  critical: { chip: "border-primary/45 bg-primary/12 text-primary",   dot: "bg-primary" },
+  info:     { chip: "border-success/40 bg-success/12 text-success",  dot: "bg-success" },
+  warning:  { chip: "border-gold/40 bg-gold/12 text-gold",            dot: "bg-gold" },
+  critical: { chip: "border-primary/45 bg-primary/12 text-primary",  dot: "bg-primary" },
 };
 
 type AlertDraft = {
@@ -46,7 +46,7 @@ const BLANK: AlertDraft = {
 
 function AlertsPage() {
   const qc = useQueryClient();
-  const { data: alerts = [] } = useQuery(alertsAdminQuery);
+  const { data: alerts = [] } = useQuery(communityAlertsQuery);
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState<AlertDraft>(BLANK);
 
@@ -215,7 +215,7 @@ function AlertsPage() {
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
               <Button
                 className="rounded-full"
                 disabled={createAlert.isPending || !draft.title.trim() || !draft.body.trim()}
@@ -223,8 +223,8 @@ function AlertsPage() {
               >
                 Create alert
               </Button>
-              <p className="flex items-center text-[11px] text-muted-foreground">
-                Alert will be saved as a draft. Publish it to make it visible to citizens.
+              <p className="text-[11px] text-muted-foreground">
+                Saved as draft. Publish to make it visible to citizens.
               </p>
             </div>
           </div>

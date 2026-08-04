@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Navigation, Radio, UserCheck, Zap } from "luci
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { CaseSidePanels } from "@/components/police/case-side-panels";
 import {
   caseNotesQuery,
   dispatchesForCaseQuery,
@@ -28,17 +29,14 @@ export const Route = createFileRoute("/_authenticated/police/cases/$caseId")({
   component: CaseDetail,
 });
 
-const DISPATCH_STATUS_META: Record<
-  string,
-  { dot: string; chip: string }
-> = {
-  assigned:   { dot: "bg-gold",     chip: "border-gold/40 bg-gold/12 text-gold" },
-  notified:   { dot: "bg-primary",  chip: "border-primary/40 bg-primary/12 text-primary" },
-  en_route:   { dot: "bg-alert",    chip: "border-alert/40 bg-alert/12 text-alert" },
-  on_scene:   { dot: "bg-success",  chip: "border-success/40 bg-success/12 text-success" },
-  completed:  { dot: "bg-success",  chip: "border-success/40 bg-success/12 text-success" },
-  reassigned: { dot: "bg-muted-foreground", chip: "border-border bg-secondary/40 text-muted-foreground" },
-  cancelled:  { dot: "bg-muted-foreground", chip: "border-border bg-secondary/40 text-muted-foreground" },
+const DISPATCH_STATUS_META: Record<string, { dot: string; chip: string }> = {
+  assigned:   { dot: "bg-gold",              chip: "border-gold/40 bg-gold/12 text-gold" },
+  notified:   { dot: "bg-primary",           chip: "border-primary/40 bg-primary/12 text-primary" },
+  en_route:   { dot: "bg-alert",             chip: "border-alert/40 bg-alert/12 text-alert" },
+  on_scene:   { dot: "bg-success",           chip: "border-success/40 bg-success/12 text-success" },
+  completed:  { dot: "bg-success",           chip: "border-success/40 bg-success/12 text-success" },
+  reassigned: { dot: "bg-muted-foreground",  chip: "border-border bg-secondary/40 text-muted-foreground" },
+  cancelled:  { dot: "bg-muted-foreground",  chip: "border-border bg-secondary/40 text-muted-foreground" },
 };
 
 function CaseDetail() {
@@ -53,7 +51,7 @@ function CaseDetail() {
   const [dispatchNote, setDispatchNote] = useState("");
   const [showDispatchForm, setShowDispatchForm] = useState(false);
 
-  // Real-time: re-fetch incident + dispatches when either change
+  // Real-time: re-fetch when incident, dispatches, or notes change
   useEffect(() => {
     const channel = supabase
       .channel(`case-${caseId}`)
@@ -122,10 +120,7 @@ function CaseDetail() {
         note: dispatchNote.trim() || null,
       });
       if (error) throw error;
-      await supabase
-        .from("reports")
-        .update({ status: "dispatched" })
-        .eq("id", caseId);
+      await supabase.from("reports").update({ status: "dispatched" }).eq("id", caseId);
       await supabase.from("report_status_history").insert({ report_id: caseId, status: "dispatched" });
       await logAudit("officer_dispatched", "reports", caseId, { officer_id: dispatchOfficerId });
     },
@@ -164,7 +159,6 @@ function CaseDetail() {
   const actions = Array.isArray(incident.ai_recommended_actions)
     ? (incident.ai_recommended_actions as unknown[]).map(String)
     : [];
-
   const availableOfficers = officers.filter(
     (o) => o.status === "verified" && (o.duty_status === "available" || o.duty_status === "on_duty"),
   );
@@ -235,11 +229,7 @@ function CaseDetail() {
         <div className="flex items-center justify-between">
           <h2 className="font-display text-sm font-semibold">Dispatch</h2>
           {!showDispatchForm && (
-            <Button
-              size="sm"
-              className="rounded-full"
-              onClick={() => setShowDispatchForm(true)}
-            >
+            <Button size="sm" className="rounded-full" onClick={() => setShowDispatchForm(true)}>
               <Zap className="mr-1.5 h-3.5 w-3.5" /> Dispatch officer
             </Button>
           )}
@@ -360,6 +350,9 @@ function CaseDetail() {
           })}
         </div>
       </section>
+
+      {/* Evidence locker + additional panels */}
+      <CaseSidePanels caseId={caseId} />
 
       {/* Case notes */}
       <section className="premium-surface rounded-3xl border border-border/55 p-5 shadow-soft">
