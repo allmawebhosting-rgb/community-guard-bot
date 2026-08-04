@@ -2,9 +2,6 @@ import { motion } from "motion/react";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-const PRIMARY_ACTIONS = QUICK_ACTIONS.slice(0, 4);
-const SECONDARY_ACTIONS = QUICK_ACTIONS.slice(4);
-
 function SquareCard({
   action,
   index,
@@ -30,13 +27,16 @@ function SquareCard({
       whileTap={{ scale: 0.95 }}
       onClick={() => onSelect(action.prompt)}
       className={cn(
-        "group flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[1.5rem] border border-border/55 bg-card/80 p-3 text-center shadow-soft transition-all duration-200 backdrop-blur-sm",
+        "group flex flex-col items-center justify-center gap-2 rounded-[1.5rem] border border-border/55 bg-card/80 p-3 text-center shadow-soft transition-all duration-200 backdrop-blur-sm",
         "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent/55 hover:shadow-lift",
+        // desktop: allow horizontal layout
+        "lg:flex-row lg:items-center lg:justify-start lg:gap-3 lg:rounded-2xl lg:px-4 lg:py-3 lg:text-left",
       )}
     >
       <span
         className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-2xl text-2xl shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md",
+          "flex h-12 w-12 items-center justify-center rounded-2xl text-2xl shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md shrink-0",
+          "lg:h-10 lg:w-10 lg:rounded-xl lg:text-xl",
           action.iconColor,
         )}
         aria-hidden
@@ -44,11 +44,11 @@ function SquareCard({
         {action.emoji}
       </span>
 
-      <span className="w-full space-y-0.5">
-        <span className="block text-[12px] font-bold leading-tight text-foreground">
+      <span className="w-full space-y-0.5 lg:text-left">
+        <span className="block text-[12px] font-bold leading-tight text-foreground lg:text-[13px]">
           {action.label}
         </span>
-        <span className="hidden text-[10.5px] leading-snug text-muted-foreground sm:block">
+        <span className="hidden text-[10.5px] leading-snug text-muted-foreground sm:block lg:text-[11px]">
           {action.description}
         </span>
       </span>
@@ -65,13 +65,12 @@ export function QuickActionGrid({
 }) {
   return (
     <div className={cn("space-y-2.5", className)}>
-      {/* Section label */}
-      <p className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/50">
+      <p className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/50 lg:text-left">
         Start with
       </p>
 
-      {/* Full 2×5 grid — all 10 actions visible */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3">
+      {/* Mobile: 2-col square grid | Desktop: 2-col list */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-2 lg:gap-2">
         {QUICK_ACTIONS.map((action, index) => (
           <SquareCard
             key={action.id}

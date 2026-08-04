@@ -947,13 +947,13 @@ export function AllmaChat({
 
       {isEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-4xl px-4 pb-6">
+          <div className="mx-auto w-full px-0 pb-6 lg:px-0">
             <AssistantHero onSelect={send} />
           </div>
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1">
-          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6">
+          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6 lg:px-8">
             {activeCase ? (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
@@ -1109,7 +1109,7 @@ export function AllmaChat({
         </Conversation>
       )}
 
-      <div className="no-print sticky bottom-[4.9rem] z-30 glass border-t border-border/60 px-4 pb-4 pt-3">
+      <div className="no-print sticky bottom-[4.9rem] z-30 glass border-t border-border/60 px-4 pb-4 pt-3 lg:bottom-0">
         <div className="mx-auto w-full max-w-3xl">
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">

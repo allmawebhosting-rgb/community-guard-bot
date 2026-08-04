@@ -9,8 +9,10 @@ import {
   MapPin,
   MessageSquare,
   Menu,
+  Moon,
   Plus,
   Siren,
+  Sun,
   UserRound,
   X,
 } from "lucide-react";
@@ -18,34 +20,34 @@ import { motion, AnimatePresence } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MascotAvatar } from "@/components/allma/mascot";
+import { BrandLockup } from "@/components/allma/brand";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/lib/theme";
 import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
 type TabPath = "/chat" | "/alerts" | "/sos" | "/reports" | "/profile";
 
-const TABS: { label: string; to: TabPath; icon: typeof Home }[] = [
+const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Home", to: "/chat", icon: Home },
   { label: "Alerts", to: "/alerts", icon: Bell },
   { label: "Reports", to: "/reports", icon: FileText },
   { label: "Profile", to: "/profile", icon: UserRound },
 ];
 
+/* ─── Mobile bottom tabs ───────────────────────────────────────────────── */
 function BottomTabs() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isHome = pathname === "/chat" || pathname.startsWith("/chat/");
 
-
   return (
-    <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl">
+    <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl lg:hidden">
       <div className="mx-auto grid h-[4.5rem] w-full max-w-2xl grid-cols-5 items-center px-2 pb-[env(safe-area-inset-bottom)]">
-        {TABS.slice(0, 2).map((tab) => (
+        {NAV_ITEMS.slice(0, 2).map((tab) => (
           <TabLink key={tab.to} tab={tab} active={tab.to === "/chat" ? isHome : pathname === tab.to} />
         ))}
-
-
         <div className="relative grid place-items-center">
           <Link
             to="/sos"
@@ -58,8 +60,7 @@ function BottomTabs() {
             SOS
           </Link>
         </div>
-
-        {TABS.slice(2).map((tab) => (
+        {NAV_ITEMS.slice(2).map((tab) => (
           <TabLink key={tab.to} tab={tab} active={pathname === tab.to} />
         ))}
       </div>
@@ -67,7 +68,7 @@ function BottomTabs() {
   );
 }
 
-function TabLink({ tab, active }: { tab: (typeof TABS)[number]; active: boolean }) {
+function TabLink({ tab, active }: { tab: (typeof NAV_ITEMS)[number]; active: boolean }) {
   const Icon = tab.icon;
   return (
     <Link
@@ -83,6 +84,200 @@ function TabLink({ tab, active }: { tab: (typeof TABS)[number]; active: boolean 
   );
 }
 
+/* ─── Desktop Sidebar ──────────────────────────────────────────────────── */
+function DesktopSidebar() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user, isAuthenticated, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { data: threads = [] } = useQuery({ ...threadsQueryOptions(), enabled: isAuthenticated });
+  const isHome = pathname === "/chat" || pathname.startsWith("/chat/");
+
+  const name = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "Guest";
+  const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+
+  const newChat = async () => {
+    if (!isAuthenticated) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    try {
+      const thread = await createThread();
+      await queryClient.invalidateQueries({ queryKey: ["threads"] });
+      navigate({ to: "/chat/$threadId", params: { threadId: thread.id } });
+    } catch {
+      toast.error("Could not start a new conversation.");
+    }
+  };
+
+  return (
+    <aside className="no-print hidden lg:flex lg:flex-col lg:w-[260px] lg:shrink-0 lg:border-r lg:border-border/60 lg:bg-sidebar lg:fixed lg:inset-y-0 lg:z-30 lg:overflow-hidden">
+      {/* Top: Brand */}
+      <div className="relative shrink-0 overflow-hidden px-5 pb-5 pt-5 border-b border-border/40">
+        <div className="signal-streak pointer-events-none absolute inset-0 opacity-60" />
+        <div className="relative">
+          <Link to="/chat">
+            <BrandLockup />
+          </Link>
+        </div>
+      </div>
+
+      {/* SOS Button */}
+      <div className="shrink-0 px-4 pt-4 pb-3">
+        <Link
+          to="/sos"
+          className={cn(
+            "sos-pulse flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-primary to-primary-glow py-3 font-display text-[13px] font-black tracking-[0.1em] text-primary-foreground shadow-lift transition-transform hover:scale-[1.02] active:scale-[0.98]",
+            pathname === "/sos" && "ring-2 ring-primary/50 ring-offset-2 ring-offset-sidebar",
+          )}
+        >
+          <Siren className="h-4 w-4" />
+          EMERGENCY SOS
+        </Link>
+      </div>
+
+      {/* Nav Links */}
+      <nav className="shrink-0 px-3 pb-3 space-y-0.5">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const active = item.to === "/chat" ? isHome : pathname === item.to;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-all",
+                active
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+              {item.label}
+              {active && (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+              )}
+            </Link>
+          );
+        })}
+        <Link
+          to="/nearby"
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-all",
+            pathname === "/nearby"
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
+        >
+          <MapPin className="h-4 w-4 shrink-0" />
+          Nearby Help
+          {pathname === "/nearby" && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+        </Link>
+      </nav>
+
+      {/* New chat + thread list */}
+      <div className="flex min-h-0 flex-1 flex-col border-t border-border/40 px-3 py-3 overflow-hidden">
+        <button
+          type="button"
+          onClick={newChat}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/50 py-2 text-[12.5px] font-semibold text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+        >
+          <Plus className="h-3.5 w-3.5" /> New conversation
+        </button>
+
+        <p className="mb-1.5 px-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/50">
+          Recent
+        </p>
+
+        <div className="min-h-0 flex-1 overflow-y-auto space-y-0.5 scrollbar-thin">
+          {!isAuthenticated ? (
+            <p className="px-2 pt-4 text-center text-[12px] text-muted-foreground/60">
+              Sign in to keep conversations
+            </p>
+          ) : threads.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 pt-6 text-center">
+              <MessageSquare className="h-6 w-6 text-muted-foreground/25" />
+              <p className="text-[12px] text-muted-foreground/60">No conversations yet</p>
+            </div>
+          ) : (
+            threads.slice(0, 20).map((thread) => (
+              <Link
+                key={thread.id}
+                to="/chat/$threadId"
+                params={{ threadId: thread.id }}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] transition-all group",
+                  pathname === `/chat/${thread.id}`
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                <span className="truncate">{thread.title}</span>
+              </Link>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Bottom: user + theme */}
+      <div className="shrink-0 border-t border-border/40 p-3">
+        {isAuthenticated ? (
+          <div className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-card/50 px-3 py-2.5">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary to-primary-glow text-[11px] font-bold text-primary-foreground">
+              {initials || "A"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[12.5px] font-semibold leading-tight">{name}</p>
+              <p className="text-[10px] text-muted-foreground">Community member</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Toggle theme"
+                onClick={toggleTheme}
+                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                aria-label="Sign out"
+                onClick={async () => {
+                  await signOut();
+                  navigate({ to: "/", replace: true });
+                }}
+                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button size="sm" className="flex-1 rounded-xl text-[12.5px]" asChild>
+              <Link to="/auth">
+                <UserRound className="mr-1.5 h-3.5 w-3.5" />
+                Sign in
+              </Link>
+            </Button>
+            <button
+              type="button"
+              aria-label="Toggle theme"
+              onClick={toggleTheme}
+              className="grid h-8 w-8 place-items-center rounded-xl border border-border/60 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+/* ─── Mobile side drawer ───────────────────────────────────────────────── */
 function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -97,7 +292,6 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
     onClose();
     navigate({ to: "/chat", search: { q: prompt } });
   };
-
 
   const newChat = async () => {
     if (!isAuthenticated) {
@@ -124,7 +318,7 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm lg:hidden"
             onClick={onClose}
           />
           <motion.aside
@@ -133,7 +327,7 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-sm flex-col border-r border-border/60 bg-sidebar"
+            className="fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-sm flex-col border-r border-border/60 bg-sidebar lg:hidden"
           >
             <div className="relative shrink-0 overflow-hidden px-5 pb-4 pt-5">
               <div className="signal-streak pointer-events-none absolute inset-0" />
@@ -273,47 +467,78 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
+/* ─── AppShell ─────────────────────────────────────────────────────────── */
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background">
+    <div className="relative flex min-h-screen bg-background">
       <div className="signal-streak pointer-events-none fixed inset-0 -z-10 opacity-70" />
 
-      <header className="no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto grid h-14 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4">
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open menu"
-            className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Menu className="h-[18px] w-[18px]" />
-          </button>
+      {/* Desktop persistent sidebar */}
+      <DesktopSidebar />
 
-          <div className="flex min-w-0 items-center justify-center gap-2.5">
-            <MascotAvatar className="h-8 w-8" />
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-[13px] font-semibold">{title ?? "Allma Safety AI"}</p>
-              <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <span className="online-pulse inline-block h-1.5 w-1.5 rounded-full bg-success" /> Online
-              </p>
+      {/* Content column — shifts right on desktop to clear the sidebar */}
+      <div className="flex min-h-screen flex-1 flex-col lg:ml-[260px]">
+        {/* Mobile-only header */}
+        <header className="no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl lg:hidden">
+          <div className="mx-auto grid h-14 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open menu"
+              className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Menu className="h-[18px] w-[18px]" />
+            </button>
+
+            <div className="flex min-w-0 items-center justify-center gap-2.5">
+              <MascotAvatar className="h-8 w-8" />
+              <div className="min-w-0 leading-tight">
+                <p className="truncate text-[13px] font-semibold">{title ?? "Allma Safety AI"}</p>
+                <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className="online-pulse inline-block h-1.5 w-1.5 rounded-full bg-success" /> Online
+                </p>
+              </div>
+            </div>
+
+            <Link
+              to="/sos"
+              aria-label="Emergency SOS"
+              className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Siren className="h-[18px] w-[18px] text-primary" />
+            </Link>
+          </div>
+        </header>
+
+        {/* Desktop top bar — branding strip + status */}
+        <header className="no-print sticky top-0 z-30 hidden border-b border-border/40 bg-background/80 backdrop-blur-xl lg:flex">
+          <div className="flex h-13 w-full items-center justify-between gap-4 px-6">
+            <div className="flex items-center gap-2.5">
+              <span className="online-pulse inline-block h-2 w-2 rounded-full bg-success" />
+              <span className="text-[13px] font-semibold text-foreground/80">{title ?? "Allma Safety AI"}</span>
+              <span className="text-[12px] text-muted-foreground">— Online & ready</span>
+            </div>
+            <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
+              <span className="flex items-center gap-1.5 rounded-full border border-border/50 bg-card/50 px-3 py-1">
+                🇺🇬 Uganda Coverage
+              </span>
+              <span className="flex items-center gap-1.5 rounded-full border border-border/50 bg-card/50 px-3 py-1">
+                🔒 End-to-end encrypted
+              </span>
             </div>
           </div>
+        </header>
 
-          <Link
-            to="/profile"
-            aria-label="Profile"
-            className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Siren className="h-[18px] w-[18px] text-primary" />
-          </Link>
-        </div>
-      </header>
+        {/* Main content — no max-w constraint; children control their own width */}
+        <main className="flex min-h-0 flex-1 flex-col pb-[5.5rem] lg:pb-0">{children}</main>
 
-      <main className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col pb-[5.5rem]">{children}</main>
+        {/* Mobile bottom tabs */}
+        <BottomTabs />
+      </div>
 
-      <BottomTabs />
+      {/* Mobile drawer */}
       <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </div>
   );
