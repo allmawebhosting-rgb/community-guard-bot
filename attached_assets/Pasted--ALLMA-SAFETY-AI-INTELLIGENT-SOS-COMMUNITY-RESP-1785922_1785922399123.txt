@@ -1,0 +1,285 @@
+==================================================
+
+ALLMA SAFETY AI – INTELLIGENT SOS COMMUNITY RESPONSE
+
+==================================================
+
+Enhance the SOS feature to intelligently coordinate nearby help while respecting privacy and emergency response best practices.
+
+==================================================
+
+SOS ACTIVATION
+
+The moment the user taps the SOS button:
+
+• Activate Emergency Mode immediately.
+
+• Display an emergency animation.
+
+• Request precise GPS location if permission has not already been granted.
+
+• Begin live location updates during the emergency session.
+
+AI says:
+
+"Emergency mode activated.
+
+I'm locating you and determining the fastest available assistance."
+
+==================================================
+
+AI ANALYSIS
+
+The AI automatically determines:
+
+• Emergency type
+
+• Current location
+
+• District
+
+• Village
+
+• Police jurisdiction
+
+• Nearby police station
+
+• Nearby hospital
+
+• Nearby fire station
+
+• Estimated response times
+
+==================================================
+
+SMART COMMUNITY RESPONSE
+
+After determining the emergency type, the AI searches for nearby Allma Safety AI users who have opted in to receive emergency notifications.
+
+Search radius is configurable based on the emergency.
+
+Medical
+
+500m
+
+Road Accident
+
+1km
+
+Fire
+
+2km
+
+Missing Person
+
+5km
+
+Only notify users who have enabled Community Emergency Alerts.
+
+==================================================
+
+AI DECISION ENGINE
+
+Before notifying anyone, determine:
+
+• Is this safe for community assistance?
+
+• Does this require only official responders?
+
+• Which nearby users are eligible?
+
+• Which verified responders are nearby?
+
+• Who is closest?
+
+• Who is available?
+
+Never notify users if doing so could increase danger.
+
+==================================================
+
+EMERGENCY NOTIFICATION
+
+Nearby users receive:
+
+🚨 Nearby Emergency
+
+Someone nearby may need urgent assistance.
+
+Emergency Type
+
+Approximate Distance
+
+General Area
+
+Time Reported
+
+Buttons
+
+✅ I Can Help
+
+📞 Call Emergency Services
+
+🚫 Can't Help
+
+More Details
+
+Do not reveal the reporting user's identity or exact address.
+
+==================================================
+
+IF A NEARBY USER ACCEPTS
+
+The AI asks:
+
+"Thank you for offering to help.
+
+Can you safely assist without putting yourself in danger?"
+
+If YES
+
+Display navigation.
+
+Share only the information necessary to assist.
+
+Keep both parties updated.
+
+==================================================
+
+LIVE HELP STATUS
+
+The person who activated SOS sees:
+
+Emergency Active
+
+Location Sharing Active
+
+Police Status
+
+Hospital Status
+
+Community Volunteers Responding
+
+Estimated Arrival Times
+
+Emergency Timeline
+
+==================================================
+
+RESPONDER CARD
+
+Show cards like:
+
+🚑 Community Responder
+
+Approximate Distance
+
+Estimated Arrival
+
+Status
+
+Accepted
+
+Travelling
+
+Arrived
+
+Completed
+
+Verified responders display a verification badge.
+
+==================================================
+
+LIVE CHAT
+
+The AI continues talking to the person throughout the emergency.
+
+Examples:
+
+"I've notified nearby assistance."
+
+"Official emergency services have been contacted."
+
+"A nearby verified responder has accepted."
+
+"Stay where you are if it is safe."
+
+"I'm updating your live location."
+
+The AI should continue asking one question at a time while providing reassurance and guidance.
+
+==================================================
+
+PRIVACY
+
+Protect all users.
+
+Never reveal:
+
+Exact GPS
+
+Phone numbers
+
+Names
+
+Personal details
+
+unless sharing is necessary for emergency coordination and consistent with the user's choices and applicable policies.
+
+==================================================
+
+ENDING THE EMERGENCY
+
+Once the emergency is resolved:
+
+Stop live location sharing.
+
+Stop nearby notifications.
+
+Generate an incident summary.
+
+Save the emergency report.
+
+Ask the user whether they need any additional assistance.
+
+==================================================
+
+UI
+
+Premium full-screen SOS experience.
+
+Animated Uganda-inspired gradients.
+
+Live map.
+
+Animated GPS pulse.
+
+Streaming AI messages.
+
+Beautiful responder cards.
+
+Live progress timeline.
+
+Glassmorphism.
+
+Smooth Framer Motion animations.
+
+The experience should feel calm, modern, and reassuring under pressure.
+
+==================================================
+
+GOAL
+
+The SOS feature should become an intelligent emergency coordination system that:
+
+• Locates the user.
+
+• Understands the emergency.
+
+• Guides the user one question at a time.
+
+• Coordinates with official responders.
+
+• Optionally alerts nearby opt-in community responders when appropriate.
+
+• Keeps the user informed until the emergency is resolved.

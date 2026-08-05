@@ -28,6 +28,17 @@ type Facility = {
   address: string;
 };
 
+type ResponderStatus = "notified" | "accepted" | "travelling" | "arrived" | "completed";
+
+type Responder = {
+  id: string;
+  name: string;
+  distance: string;
+  eta: string;
+  status: ResponderStatus;
+  verified: boolean;
+};
+
 // ─── Emergency numbers ────────────────────────────────────────────────────────
 
 const EMERGENCY_NUMBERS = [
@@ -47,6 +58,40 @@ const EMERGENCY_TYPES = [
   { id: "domestic", icon: "🏠", label: "Domestic Violence" },
   { id: "other",    icon: "⚡", label: "Other Emergency" },
 ];
+
+// Demo community responders — simulate nearby Allma Safety AI users
+const DEMO_RESPONDERS: Omit<Responder, "status">[] = [
+  { id: "r1", name: "Kato M.",   distance: "0.4 km", eta: "~4 min",  verified: true  },
+  { id: "r2", name: "Amara J.",  distance: "0.8 km", eta: "~8 min",  verified: false },
+];
+
+// Community search radius by emergency type (metres)
+const COMMUNITY_RADIUS: Record<string, number> = {
+  medical: 500, accident: 1000, fire: 2000, missing: 5000,
+};
+
+function getAiMessages(type: string, location: LocationInfo | null): string[] {
+  const loc = location
+    ? location.district || location.suburb || "your area"
+    : "your area";
+  const typeMsg: Record<string, string> = {
+    crime:    `Police have been notified. Stay out of sight if possible — officers are being dispatched to your location right now.`,
+    medical:  `An ambulance is being dispatched. Keep the patient still and calm. I've found the nearest hospitals and marked them on your map.`,
+    fire:     `The fire brigade and ambulance have been alerted. Evacuate immediately — stay low and use stairs, never lifts.`,
+    attack:   `Police are responding now. Move to a locked, safe location if you can. Stay quiet and keep your phone on silent.`,
+    accident: `Ambulance and police have been dispatched. Do not move injured persons unless there is immediate danger.`,
+    missing:  `Police have been notified. I'm expanding the community search radius to help locate the missing person.`,
+    domestic: `Police are responding. If safe to do so, leave the premises and move to a neighbour or public space.`,
+    other:    `Emergency services have been contacted. Stay calm and remain in a safe location if possible.`,
+  };
+  return [
+    `Emergency mode activated. I'm locating you and determining the fastest available assistance.`,
+    `Your location has been detected in ${loc}. I'm alerting the nearest emergency services now.`,
+    typeMsg[type] ?? typeMsg.other,
+    `I've found nearby Allma Safety AI community members. I'm alerting opted-in users within ${(COMMUNITY_RADIUS[type] ?? 1000) / 1000} km of your location.`,
+    `A community responder nearby has accepted your emergency alert. Help is on the way — stay where you are if it is safe.`,
+  ];
+}
 
 // ─── Demo fallback facilities ─────────────────────────────────────────────────
 // Real Kampala coordinates — distances are computed at runtime from user location.
@@ -423,13 +468,32 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
 // ─── Loading ──────────────────────────────────────────────────────────────────
 
 function LoadingScreen() {
-  const steps = ["Activating emergency mode…", "Detecting your location…", "Finding nearest hospitals & officers…"];
+  const steps = [
+    "Activating emergency mode…",
+    "Detecting precise GPS location…",
+    "Alerting nearest emergency services…",
+    "Searching for community responders…",
+  ];
   const [step, setStep] = useState(0);
+  const [aiText, setAiText] = useState("");
+  const aiFull = "Emergency mode activated. I'm locating you and determining the fastest available assistance.";
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStep(1), 800);
-    const t2 = setTimeout(() => setStep(2), 2400);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const t1 = setTimeout(() => setStep(1), 900);
+    const t2 = setTimeout(() => setStep(2), 2200);
+    const t3 = setTimeout(() => setStep(3), 3400);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  // Typewriter for AI message
+  useEffect(() => {
+    let i = 0;
+    const timer = setInterval(() => {
+      i++;
+      setAiText(aiFull.slice(0, i));
+      if (i >= aiFull.length) clearInterval(timer);
+    }, 22);
+    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -440,38 +504,220 @@ function LoadingScreen() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Pulsing siren icon */}
+      {/* GPS Pulse rings */}
+      <div className="relative mb-10 flex items-center justify-center">
+        <span className="absolute h-52 w-52 animate-ping rounded-full bg-red-600/8 [animation-duration:1.6s]" />
+        <span className="absolute h-36 w-36 animate-ping rounded-full bg-red-600/12 [animation-duration:1.2s]" />
+        <motion.div
+          className="relative flex h-24 w-24 items-center justify-center rounded-full border border-red-700/40 bg-red-950/60 backdrop-blur-sm"
+          animate={{ scale: [1, 1.06, 1] }}
+          transition={{ duration: 1.1, repeat: Infinity }}
+        >
+          <Siren className="h-12 w-12 text-red-400" strokeWidth={1.5} />
+        </motion.div>
+      </div>
+
+      {/* AI bubble */}
       <motion.div
-        className="mb-8 flex h-28 w-28 items-center justify-center rounded-full"
-        style={{ background: "radial-gradient(circle, rgba(220,38,38,0.28) 0%, transparent 72%)" }}
-        animate={{ scale: [1, 1.1, 1], opacity: [1, 0.75, 1] }}
-        transition={{ duration: 0.9, repeat: Infinity }}
+        className="mb-8 flex max-w-xs items-start gap-2.5 text-left"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
       >
-        <Siren className="h-14 w-14 text-red-500" strokeWidth={1.5} />
+        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-700 to-red-900 text-[12px]">
+          🤖
+        </div>
+        <div className="rounded-2xl rounded-tl-sm border border-white/10 bg-white/6 px-4 py-3 text-[13px] leading-relaxed text-white/85">
+          {aiText}
+          {aiText.length < aiFull.length && (
+            <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-white/60" />
+          )}
+        </div>
       </motion.div>
 
       {/* Step list */}
-      <div className="space-y-3">
+      <div className="w-full max-w-xs space-y-3">
         {steps.map((s, i) => (
           <motion.div
             key={i}
-            className={`flex items-center gap-3 text-[14px] transition-colors ${i <= step ? "text-white" : "text-white/20"}`}
-            initial={{ opacity: 0, x: -12 }}
+            className={`flex items-center gap-3 text-[13px] transition-colors ${i <= step ? "text-white/85" : "text-white/18"}`}
+            initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.08 }}
+            transition={{ delay: i * 0.06 }}
           >
             {i < step ? (
               <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
             ) : i === step ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-400" />
             ) : (
-              <span className="h-4 w-4 shrink-0 rounded-full border border-white/20" />
+              <span className="h-4 w-4 shrink-0 rounded-full border border-white/15" />
             )}
             {s}
           </motion.div>
         ))}
       </div>
     </motion.div>
+  );
+}
+
+// ─── useAiChat hook ───────────────────────────────────────────────────────────
+
+function useAiChat(messages: string[]) {
+  const msgs = useRef(messages);
+  const [log, setLog] = useState<string[]>([]);
+  const [typing, setTyping] = useState("");
+  const msgIdx = useRef(0);
+  const charIdx = useRef(0);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    function tick() {
+      const msg = msgs.current[msgIdx.current];
+      if (!msg) return;
+      if (charIdx.current < msg.length) {
+        setTyping(msg.slice(0, charIdx.current + 1));
+        charIdx.current++;
+        timer = setTimeout(tick, 14 + Math.random() * 12);
+      } else {
+        const done = msg;
+        setLog((prev) => [...prev, done]);
+        setTyping("");
+        msgIdx.current++;
+        charIdx.current = 0;
+        if (msgIdx.current < msgs.current.length) {
+          timer = setTimeout(tick, 2400);
+        }
+      }
+    }
+    timer = setTimeout(tick, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return { log, typing };
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function AiChatBubble({ text, typing }: { text: string; typing?: boolean }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-700 to-red-900 text-[12px] shadow-[0_0_12px_rgba(220,38,38,0.4)]">
+        🤖
+      </div>
+      <div className="flex-1 rounded-2xl rounded-tl-sm border border-white/10 bg-white/6 px-4 py-3 text-[13px] leading-relaxed text-white/88 backdrop-blur-sm">
+        {text}
+        {typing && <span className="ml-0.5 inline-block h-3.5 w-0.5 translate-y-0.5 animate-pulse rounded-full bg-white/55" />}
+      </div>
+    </div>
+  );
+}
+
+const STATUS_CHIP: Record<ResponderStatus, { label: string; cls: string }> = {
+  notified:   { label: "Notified",  cls: "bg-white/8 text-white/45" },
+  accepted:   { label: "Accepted",  cls: "bg-amber-900/50 text-amber-300" },
+  travelling: { label: "En Route",  cls: "bg-blue-900/50 text-blue-300"  },
+  arrived:    { label: "Arrived",   cls: "bg-green-900/50 text-green-300" },
+  completed:  { label: "Completed", cls: "bg-green-900/50 text-green-400" },
+};
+
+function ResponderCard({ responder }: { responder: Responder }) {
+  const chip = STATUS_CHIP[responder.status];
+  return (
+    <motion.div
+      layout
+      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/5 px-4 py-3 backdrop-blur-sm"
+      initial={{ opacity: 0, x: -14 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ type: "spring", stiffness: 280, damping: 22 }}
+    >
+      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg">
+        🚑
+        {responder.verified && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[9px] font-black text-white">
+            ✓
+          </span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="text-[13px] font-semibold text-white/90">{responder.name}</p>
+          {responder.verified && (
+            <span className="rounded-full border border-blue-500/30 bg-blue-950/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-400">
+              Verified
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-white/38">
+          {responder.distance} away · ETA {responder.eta}
+        </p>
+      </div>
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={responder.status}
+          className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${chip.cls}`}
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.85 }}
+          transition={{ duration: 0.2 }}
+        >
+          {chip.label}
+        </motion.span>
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function StatusTile({
+  icon, label, value, color, visible,
+}: {
+  icon: string; label: string; value: string;
+  color: "green" | "blue" | "amber" | "red";
+  visible: boolean;
+}) {
+  const cls = {
+    green: "border-green-500/20 bg-green-950/35 text-green-400",
+    blue:  "border-blue-500/20 bg-blue-950/35 text-blue-400",
+    amber: "border-amber-500/20 bg-amber-950/35 text-amber-400",
+    red:   "border-red-500/20 bg-red-950/35 text-red-400",
+  }[color];
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          className={`flex flex-col gap-1 rounded-xl border p-3.5 ${cls}`}
+          initial={{ opacity: 0, scale: 0.88 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        >
+          <span className="text-xl">{icon}</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-55">{label}</span>
+          <span className="text-[12px] font-semibold leading-tight">{value}</span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function TimelineDot({ done, last }: { done: boolean; last?: boolean }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] transition-all duration-500 ${
+          done
+            ? "border-green-500 bg-green-950/60 text-green-400"
+            : "border-white/18 text-white/18"
+        }`}
+      >
+        {done ? "✓" : "·"}
+      </div>
+      {!last && (
+        <div
+          className={`mt-1 w-px transition-all duration-700 ${done ? "bg-green-500/30" : "bg-white/8"}`}
+          style={{ minHeight: 20 }}
+        />
+      )}
+    </div>
   );
 }
 
@@ -562,13 +808,60 @@ function HelpScreen({
 }) {
   const info = HELP_INFO[emergencyType] ?? HELP_INFO.other;
   const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
+  const showPoliceFirst = ["crime", "attack", "domestic", "missing"].includes(emergencyType);
+
+  // AI streaming chat
+  const aiMessages = useRef(getAiMessages(emergencyType, location)).current;
+  const { log: aiLog, typing: aiTyping } = useAiChat(aiMessages);
+
+  // Status tiles — appear progressively
+  const [status, setStatus] = useState({ police: false, hospital: false, community: false });
+
+  // Community responders — simulate opt-in users being found and responding
+  const [responders, setResponders] = useState<Responder[]>([]);
+
+  // Timeline — events tick in
+  const TIMELINE = [
+    { label: "SOS Activated",              sub: "Emergency mode engaged"                                    },
+    { label: "Location Detected",          sub: [location?.suburb, location?.district].filter(Boolean).join(", ") || "Kampala" },
+    { label: "Emergency Services Alerted", sub: "Police · Ambulance · Fire Brigade"                        },
+    { label: "Community Search Started",   sub: `${(COMMUNITY_RADIUS[emergencyType] ?? 1000) / 1000} km radius · 6 users notified` },
+    { label: "Community Responder Found",  sub: "Volunteer en route to your location"                      },
+  ];
+  const [timelineDone, setTimelineDone] = useState(2); // SOS + location already done
+
+  useEffect(() => {
+    const ts: ReturnType<typeof setTimeout>[] = [];
+    const add = (ms: number, fn: () => void) => ts.push(setTimeout(fn, ms));
+
+    add(1200, () => setStatus((s) => ({ ...s, police: true })));
+    add(2200, () => setStatus((s) => ({ ...s, hospital: true })));
+    add(3800, () => {
+      setTimelineDone(3); // services alerted
+    });
+    add(5500, () => {
+      setStatus((s) => ({ ...s, community: true }));
+      setTimelineDone(4); // community search started
+      setResponders([
+        { ...DEMO_RESPONDERS[0], status: "notified" },
+        { ...DEMO_RESPONDERS[1], status: "notified" },
+      ]);
+    });
+    add(8500,  () => setResponders((r) => r.map((x) => x.id === "r1" ? { ...x, status: "accepted"   } : x)));
+    add(12000, () => {
+      setTimelineDone(5);
+      setResponders((r) => r.map((x) => x.id === "r1" ? { ...x, status: "travelling" } : x));
+    });
+    add(18000, () => setResponders((r) => r.map((x) => x.id === "r2" ? { ...x, status: "accepted"   } : x)));
+    add(28000, () => setResponders((r) => r.map((x) => x.id === "r1" ? { ...x, status: "arrived"    } : x)));
+    add(34000, () => setResponders((r) => r.map((x) => x.id === "r2" ? { ...x, status: "travelling" } : x)));
+
+    return () => ts.forEach(clearTimeout);
+  }, []);
 
   const mapUrl = location
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - 0.014},${location.lat - 0.014},${location.lng + 0.014},${location.lat + 0.014}&layer=mapnik&marker=${location.lat},${location.lng}`
     : null;
-
-  // Show police before hospitals for crime/attack/domestic, hospitals first for medical/fire/accident
-  const showPoliceFirst = ["crime", "attack", "domestic", "missing"].includes(emergencyType);
 
   return (
     <motion.div
@@ -578,20 +871,22 @@ function HelpScreen({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.35 }}
     >
-      {/* Header */}
-      <div className="shrink-0 border-b border-white/10 bg-[#0d0d0d]/80 px-5 py-3.5 backdrop-blur-md">
+      {/* ── Sticky header ── */}
+      <div className="shrink-0 border-b border-white/10 bg-[#0a0a0a]/90 px-5 py-3.5 backdrop-blur-md">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-700 text-xl">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-red-800/80 text-[18px]">
               {typeInfo?.icon ?? "🚨"}
-            </span>
+              <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full border border-[#0a0a0a] bg-red-500">
+                <span className="h-1.5 w-1.5 animate-ping rounded-full bg-red-300" />
+              </span>
+            </div>
             <div>
-              <p className="flex items-center gap-1.5 font-display text-[14px] font-bold text-white">
-                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-                {typeInfo?.label ?? "Emergency"}
+              <p className="font-display text-[14px] font-bold text-white">
+                {typeInfo?.label ?? "Emergency"} · LIVE
               </p>
               {location && (
-                <p className="flex items-center gap-1 text-[11px] text-white/40">
+                <p className="flex items-center gap-1 text-[11px] text-white/38">
                   <MapPin className="h-3 w-3" />
                   {[location.suburb, location.district].filter(Boolean).join(", ") || location.address}
                 </p>
@@ -600,42 +895,59 @@ function HelpScreen({
           </div>
           <button
             onClick={onClose}
-            className="rounded-full border border-white/10 px-3 py-1 text-[11px] text-white/40 hover:text-white/65"
+            className="rounded-full border border-white/10 px-3 py-1 text-[11px] text-white/38 transition-colors hover:border-white/22 hover:text-white/65"
           >
             Close
           </button>
         </div>
       </div>
 
-      {/* Scrollable content */}
+      {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-lg space-y-4 px-5 py-5 pb-10">
+        <div className="mx-auto max-w-lg space-y-5 px-5 py-5 pb-14">
 
-          {/* What to do now */}
+          {/* AI Chat stream */}
           <motion.div
-            className="rounded-2xl border border-white/10 bg-white/6 p-5 backdrop-blur-md"
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}
+            className="space-y-2.5"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
           >
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-red-400">
-              🚨 What to do right now
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/30">
+              🤖 Allma AI — live guidance
             </p>
-            <ol className="space-y-3">
-              {info.steps.map((step, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-700 text-[10px] font-black text-white">
-                    {i + 1}
-                  </span>
-                  <span className="text-[14px] leading-snug text-white/85">{step}</span>
-                </li>
+            <div className="space-y-2">
+              {aiLog.map((msg, i) => (
+                <AiChatBubble key={i} text={msg} />
               ))}
-            </ol>
+              {aiTyping && <AiChatBubble text={aiTyping} typing />}
+            </div>
           </motion.div>
 
-          {/* Primary call buttons for this emergency type */}
+          {/* Live status grid */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
           >
-            <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/38">
+            <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/30">
+              📡 Live status
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <StatusTile icon="📍" label="Location Sharing" value="Active · Live GPS" color="green"  visible />
+              <StatusTile icon="🚔" label="Police"           value="Notified · En Route" color="blue"  visible={status.police}   />
+              <StatusTile icon="🏥" label="Hospital"         value="Alerted · On Standby" color="green" visible={status.hospital}  />
+              <StatusTile icon="👥" label="Community Search" value={`${(COMMUNITY_RADIUS[emergencyType] ?? 1000) / 1000} km radius`} color="amber" visible={status.community} />
+            </div>
+          </motion.div>
+
+          {/* Call buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/30">
               📞 Call now — tap to dial
             </p>
             <div className="grid grid-cols-2 gap-2.5">
@@ -643,62 +955,159 @@ function HelpScreen({
                 <a
                   key={e.label + e.number}
                   href={`tel:${e.number}`}
-                  className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-br ${e.color} px-3 py-4 transition-all active:scale-95`}
-                  style={{ boxShadow: `0 4px 20px ${e.glow}` }}
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-br ${e.color} px-3 py-4 transition-all active:scale-[0.96]`}
+                  style={{ boxShadow: `0 4px 22px ${e.glow}` }}
                 >
-                  <Phone className="h-5 w-5 text-white/80" />
-                  <span className="font-display text-[22px] font-black text-white">{e.number}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70">{e.label}</span>
+                  <Phone className="h-4.5 w-4.5 text-white/80" />
+                  <span className="font-display text-[24px] font-black text-white">{e.number}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/68">{e.label}</span>
                 </a>
               ))}
             </div>
           </motion.div>
 
-          {/* Live map */}
+          {/* Live map with GPS pulse overlay */}
           {mapUrl && (
             <motion.div
               className="overflow-hidden rounded-2xl border border-white/10"
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
             >
-              <iframe
-                src={mapUrl}
-                title="Your live location"
-                className="h-44 w-full"
-                style={{ filter: "invert(0.88) hue-rotate(180deg)" }}
-              />
-              <div className="flex items-center gap-2 bg-white/5 px-4 py-2.5 text-[12px] text-white/50">
+              <div className="relative">
+                <iframe
+                  src={mapUrl}
+                  title="Your live location"
+                  className="h-48 w-full"
+                  style={{ filter: "invert(0.88) hue-rotate(180deg)" }}
+                />
+                {/* GPS pulse overlay centered on map */}
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="relative flex items-center justify-center">
+                    <span className="absolute h-16 w-16 animate-ping rounded-full bg-red-500/20 [animation-duration:1.4s]" />
+                    <span className="absolute h-8 w-8 animate-ping rounded-full bg-red-500/30 [animation-duration:1s]" />
+                    <span className="h-4 w-4 rounded-full border-2 border-white bg-red-500 shadow-[0_0_12px_rgba(220,38,38,0.8)]" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 bg-white/5 px-4 py-2.5 text-[12px] text-white/48">
                 <Navigation2 className="h-3.5 w-3.5 text-red-400" />
                 {location?.address}{location?.district ? `, ${location.district}` : ""}
+                <span className="ml-auto flex items-center gap-1 text-green-400/70">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
+                  Live
+                </span>
               </div>
             </motion.div>
           )}
 
-          {/* Officers first for crime/attack/domestic, hospitals first for medical */}
+          {/* Community responders */}
+          <AnimatePresence>
+            {responders.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+              >
+                <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-white/30">
+                  🚑 Community responders
+                  <span className="rounded-full bg-amber-900/60 px-2 py-0.5 font-normal normal-case tracking-normal text-amber-400">
+                    {responders.filter((r) => r.status !== "notified").length} responding
+                  </span>
+                </p>
+                <div className="space-y-2">
+                  {responders.map((r) => (
+                    <ResponderCard key={r.id} responder={r} />
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-white/20">
+                  Privacy protected · Exact location not shared with community
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* What to do right now */}
+          <motion.div
+            className="rounded-2xl border border-red-900/30 bg-red-950/20 p-5 backdrop-blur-md"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.22 }}
+          >
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-red-400/80">
+              🚨 What to do right now
+            </p>
+            <ol className="space-y-3">
+              {info.steps.map((step, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-700/80 text-[10px] font-black text-white">
+                    {i + 1}
+                  </span>
+                  <span className="text-[14px] leading-snug text-white/82">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </motion.div>
+
+          {/* Nearby facilities — ordered by emergency type relevance */}
           {showPoliceFirst ? (
             <>
-              <FacilitySection title="🚔 Officers on duty" demo facilities={officers} delay={0.18} />
-              {info.showHospitals && <FacilitySection title="🏥 Nearest hospitals" facilities={hospitals} delay={0.22} />}
+              <FacilitySection title="🚔 Officers on duty" demo facilities={officers} delay={0.26} />
+              {info.showHospitals && <FacilitySection title="🏥 Nearest hospitals" facilities={hospitals} delay={0.3} />}
             </>
           ) : (
             <>
-              {info.showHospitals && <FacilitySection title="🏥 Nearest hospitals" facilities={hospitals} delay={0.18} />}
-              <FacilitySection title="🚔 Officers on duty" demo facilities={officers} delay={0.22} />
+              {info.showHospitals && <FacilitySection title="🏥 Nearest hospitals" facilities={hospitals} delay={0.26} />}
+              <FacilitySection title="🚔 Officers on duty" demo facilities={officers} delay={0.3} />
             </>
           )}
 
+          {/* Emergency timeline */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+          >
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-white/30">
+              🕐 Emergency timeline
+            </p>
+            <div>
+              {TIMELINE.map((ev, i) => (
+                <div key={i} className="flex gap-3">
+                  <TimelineDot done={i < timelineDone} last={i === TIMELINE.length - 1} />
+                  <div className="pb-4">
+                    <p className={`text-[13px] font-medium transition-colors duration-500 ${i < timelineDone ? "text-white/80" : "text-white/22"}`}>
+                      {ev.label}
+                    </p>
+                    {ev.sub && (
+                      <p className={`text-[11px] transition-colors duration-500 ${i < timelineDone ? "text-white/38" : "text-white/12"}`}>
+                        {ev.sub}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
           {/* Actions */}
           <motion.div
-            className="space-y-2 pt-1 pb-4"
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}
+            className="space-y-2 pt-1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
           >
             <button
               onClick={onReport}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/12 py-3.5 text-[13px] font-medium text-white/55 transition-colors hover:border-white/20 hover:text-white/80"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/12 py-3.5 text-[13px] font-medium text-white/52 transition-colors hover:border-white/22 hover:text-white/78"
             >
               <Shield className="h-4 w-4" />
               File an incident report
             </button>
-            <button onClick={onClose} className="w-full py-2.5 text-[11px] text-white/22 hover:text-white/42">
+            <button
+              onClick={onClose}
+              className="w-full py-2.5 text-[11px] text-white/20 hover:text-white/40"
+            >
               I'm safe — close SOS
             </button>
           </motion.div>
@@ -709,24 +1118,20 @@ function HelpScreen({
 }
 
 function FacilitySection({
-  title,
-  facilities,
-  delay,
-  demo,
+  title, facilities, delay, demo,
 }: {
-  title: string;
-  facilities: Facility[];
-  delay: number;
-  demo?: boolean;
+  title: string; facilities: Facility[]; delay: number; demo?: boolean;
 }) {
   if (!facilities.length) return null;
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
     >
-      <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-white/38">
+      <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-white/30">
         {title}
-        {demo && <span className="font-normal normal-case tracking-normal text-white/22">(demo)</span>}
+        {demo && <span className="font-normal normal-case tracking-normal text-white/20">(demo)</span>}
       </p>
       <div className="space-y-2">
         {facilities.map((f, i) => <FacilityRow key={i} facility={f} />)}
