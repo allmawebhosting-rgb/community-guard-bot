@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = "idle" | "loading" | "help" | "report" | "submitted";
+type Phase = "idle" | "type-select" | "loading" | "help" | "report" | "submitted";
 
 type LocationInfo = {
   address: string;
@@ -35,6 +35,17 @@ const EMERGENCY_NUMBERS = [
   { label: "Ambulance",         number: "911", color: "from-green-700 to-green-800", glow: "rgba(34,197,94,0.35)"  },
   { label: "Fire Brigade",      number: "112", color: "from-orange-700 to-red-800",  glow: "rgba(234,88,12,0.35)"  },
   { label: "General Emergency", number: "112", color: "from-gray-700 to-gray-800",   glow: "rgba(156,163,175,0.2)" },
+];
+
+const EMERGENCY_TYPES = [
+  { id: "crime",    icon: "🚔", label: "Crime / Theft" },
+  { id: "medical",  icon: "🚑", label: "Medical Emergency" },
+  { id: "fire",     icon: "🔥", label: "Fire" },
+  { id: "attack",   icon: "⚔️",  label: "Attack / Violence" },
+  { id: "accident", icon: "🚗", label: "Road Accident" },
+  { id: "missing",  icon: "👤", label: "Missing Person" },
+  { id: "domestic", icon: "🏠", label: "Domestic Violence" },
+  { id: "other",    icon: "⚡", label: "Other Emergency" },
 ];
 
 // ─── Demo fallback facilities ─────────────────────────────────────────────────
@@ -131,6 +142,7 @@ export function SOSExperience() {
   const { user } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("idle");
+  const [emergencyType, setEmergencyType] = useState("other");
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [hospitals, setHospitals] = useState<Facility[]>([]);
   const [officers, setOfficers] = useState<Facility[]>([]);
@@ -139,20 +151,22 @@ export function SOSExperience() {
   const [reference, setReference] = useState<string | null>(null);
   const activated = useRef(false);
 
-  async function activate() {
+  // Step 1: tap SOS → go straight to type selection
+  function handleSosPress() {
+    setPhase("type-select");
+  }
+
+  // Step 2: type chosen → start loading location + facilities
+  async function handleTypeSelect(type: string) {
     if (activated.current) return;
     activated.current = true;
+    setEmergencyType(type);
     setPhase("loading");
 
     // Get location
     let loc: LocationInfo | null = null;
-    try {
-      loc = await getLocation();
-    } catch {
-      loc = null;
-    }
+    try { loc = await getLocation(); } catch { loc = null; }
 
-    // Use demo location as fallback
     const finalLoc: LocationInfo = loc ?? {
       address: "Kampala Road", suburb: "Nakasero",
       district: "Kampala Central", lat: 0.3476, lng: 32.5825,
@@ -161,10 +175,8 @@ export function SOSExperience() {
 
     // Fetch nearby facilities in parallel, with demo fallback
     const [realHospitals, realPolice] = await Promise.all([
-      fetchOverpass(finalLoc.lat, finalLoc.lng, "hospital")
-        .catch(() => [] as Facility[]),
-      fetchOverpass(finalLoc.lat, finalLoc.lng, "police")
-        .catch(() => [] as Facility[]),
+      fetchOverpass(finalLoc.lat, finalLoc.lng, "hospital").catch(() => [] as Facility[]),
+      fetchOverpass(finalLoc.lat, finalLoc.lng, "police").catch(() => [] as Facility[]),
     ]);
 
     setHospitals(
@@ -213,11 +225,13 @@ export function SOSExperience() {
         }}
       />
       <AnimatePresence mode="wait">
-        {phase === "idle"      && <IdleScreen      key="idle"      onActivate={activate} />}
-        {phase === "loading"   && <LoadingScreen   key="loading"   />}
-        {phase === "help"      && (
+        {phase === "idle"        && <IdleScreen        key="idle"        onActivate={handleSosPress} />}
+        {phase === "type-select" && <TypeSelectScreen  key="type-select" onSelect={handleTypeSelect} />}
+        {phase === "loading"     && <LoadingScreen     key="loading"     />}
+        {phase === "help"        && (
           <HelpScreen
             key="help"
+            emergencyType={emergencyType}
             location={location}
             hospitals={hospitals}
             officers={officers}
@@ -357,6 +371,55 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
   );
 }
 
+// ─── Type Select ─────────────────────────────────────────────────────────────
+
+function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
+  return (
+    <motion.div
+      className="flex h-full flex-col overflow-y-auto px-5 pt-12 pb-10"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ duration: 0.28 }}
+    >
+      <div className="mx-auto w-full max-w-sm">
+        <motion.div
+          className="mb-6"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.06 }}
+        >
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.24em] text-red-500/70">
+            Emergency SOS
+          </p>
+          <h2 className="font-display text-2xl font-black text-white">
+            What's happening?
+          </h2>
+        </motion.div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {EMERGENCY_TYPES.map((et, i) => (
+            <motion.button
+              key={et.id}
+              onClick={() => onSelect(et.id)}
+              className="group flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-center backdrop-blur-md transition-all hover:border-red-700/60 hover:bg-red-950/40 active:scale-95"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 + i * 0.04 }}
+              whileTap={{ scale: 0.94 }}
+            >
+              <span className="text-4xl">{et.icon}</span>
+              <span className="text-[13px] font-semibold leading-tight text-white/85 group-hover:text-white">
+                {et.label}
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Loading ──────────────────────────────────────────────────────────────────
 
 function LoadingScreen() {
@@ -414,22 +477,98 @@ function LoadingScreen() {
 
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
+const HELP_INFO: Record<string, { steps: string[]; primaryCalls: typeof EMERGENCY_NUMBERS; showHospitals: boolean }> = {
+  crime: {
+    steps: ["Move to a safe location away from the suspect immediately.", "Do not confront or chase — your safety first.", "Note the suspect's appearance, direction, or vehicle if safe."],
+    primaryCalls: [
+      { label: "Police",            number: "999", color: "from-blue-700 to-blue-800",   glow: "rgba(59,130,246,0.35)" },
+      { label: "General Emergency", number: "112", color: "from-gray-700 to-gray-800",   glow: "rgba(156,163,175,0.2)" },
+    ],
+    showHospitals: false,
+  },
+  medical: {
+    steps: ["Keep the person still and calm — do not move them unless in danger.", "Check if they are breathing. Start CPR if trained and they are not.", "Do not give food, water, or medication unless instructed by a dispatcher."],
+    primaryCalls: [
+      { label: "Ambulance",         number: "911", color: "from-green-700 to-green-800", glow: "rgba(34,197,94,0.35)"  },
+      { label: "General Emergency", number: "112", color: "from-gray-700 to-gray-800",   glow: "rgba(156,163,175,0.2)" },
+    ],
+    showHospitals: true,
+  },
+  fire: {
+    steps: ["Evacuate everyone immediately — do not attempt to fight the fire yourself.", "Stay low under smoke and use stairs, never lifts.", "Once outside move far away and do not re-enter for any reason."],
+    primaryCalls: [
+      { label: "Fire Brigade",      number: "112", color: "from-orange-700 to-red-800",  glow: "rgba(234,88,12,0.35)"  },
+      { label: "Ambulance",         number: "911", color: "from-green-700 to-green-800", glow: "rgba(34,197,94,0.35)"  },
+    ],
+    showHospitals: true,
+  },
+  attack: {
+    steps: ["Get to a safe locked location immediately and stay quiet.", "Keep your phone on silent and stay on the line with police.", "Do not try to negotiate — wait for officers to arrive."],
+    primaryCalls: [
+      { label: "Police",            number: "999", color: "from-blue-700 to-blue-800",   glow: "rgba(59,130,246,0.35)" },
+      { label: "General Emergency", number: "112", color: "from-gray-700 to-gray-800",   glow: "rgba(156,163,175,0.2)" },
+    ],
+    showHospitals: false,
+  },
+  accident: {
+    steps: ["Turn on hazard lights and move vehicles off the road if it is safe to do so.", "Do not move injured persons unless there is immediate danger.", "Keep bystanders away and secure the scene until help arrives."],
+    primaryCalls: [
+      { label: "Ambulance",         number: "911", color: "from-green-700 to-green-800", glow: "rgba(34,197,94,0.35)"  },
+      { label: "Police",            number: "999", color: "from-blue-700 to-blue-800",   glow: "rgba(59,130,246,0.35)" },
+    ],
+    showHospitals: true,
+  },
+  missing: {
+    steps: ["Check the immediate area and all places the person usually visits.", "Gather a recent photo and clothing description before calling police.", "Report immediately — there is no minimum wait time for missing persons."],
+    primaryCalls: [
+      { label: "Police",            number: "999", color: "from-blue-700 to-blue-800",   glow: "rgba(59,130,246,0.35)" },
+      { label: "General Emergency", number: "112", color: "from-gray-700 to-gray-800",   glow: "rgba(156,163,175,0.2)" },
+    ],
+    showHospitals: false,
+  },
+  domestic: {
+    steps: ["Leave the house and go to a neighbour or public place if you can.", "Take children with you if possible — your safety is the priority.", "Do not try to reason or negotiate with the aggressor."],
+    primaryCalls: [
+      { label: "Police",            number: "999", color: "from-blue-700 to-blue-800",   glow: "rgba(59,130,246,0.35)" },
+      { label: "General Emergency", number: "112", color: "from-gray-700 to-gray-800",   glow: "rgba(156,163,175,0.2)" },
+    ],
+    showHospitals: false,
+  },
+  other: {
+    steps: ["Stay calm and move to a safe location if needed.", "Call the appropriate emergency service below.", "Stay on the line and follow the dispatcher's instructions."],
+    primaryCalls: [
+      { label: "General Emergency", number: "112", color: "from-gray-700 to-gray-800",   glow: "rgba(156,163,175,0.2)" },
+      { label: "Police",            number: "999", color: "from-blue-700 to-blue-800",   glow: "rgba(59,130,246,0.35)" },
+      { label: "Ambulance",         number: "911", color: "from-green-700 to-green-800", glow: "rgba(34,197,94,0.35)"  },
+    ],
+    showHospitals: true,
+  },
+};
+
 function HelpScreen({
+  emergencyType,
   location,
   hospitals,
   officers,
   onReport,
   onClose,
 }: {
+  emergencyType: string;
   location: LocationInfo | null;
   hospitals: Facility[];
   officers: Facility[];
   onReport: () => void;
   onClose: () => void;
 }) {
+  const info = HELP_INFO[emergencyType] ?? HELP_INFO.other;
+  const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
+
   const mapUrl = location
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - 0.014},${location.lat - 0.014},${location.lng + 0.014},${location.lat + 0.014}&layer=mapnik&marker=${location.lat},${location.lng}`
     : null;
+
+  // Show police before hospitals for crime/attack/domestic, hospitals first for medical/fire/accident
+  const showPoliceFirst = ["crime", "attack", "domestic", "missing"].includes(emergencyType);
 
   return (
     <motion.div
@@ -443,13 +582,13 @@ function HelpScreen({
       <div className="shrink-0 border-b border-white/10 bg-[#0d0d0d]/80 px-5 py-3.5 backdrop-blur-md">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-700">
-              <Siren className="h-4 w-4 text-white" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-700 text-xl">
+              {typeInfo?.icon ?? "🚨"}
             </span>
             <div>
               <p className="flex items-center gap-1.5 font-display text-[14px] font-bold text-white">
                 <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-                Emergency Active
+                {typeInfo?.label ?? "Emergency"}
               </p>
               {location && (
                 <p className="flex items-center gap-1 text-[11px] text-white/40">
@@ -472,38 +611,35 @@ function HelpScreen({
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-lg space-y-4 px-5 py-5 pb-10">
 
-          {/* Live map */}
-          {mapUrl && (
-            <motion.div
-              className="overflow-hidden rounded-2xl border border-white/10"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.04 }}
-            >
-              <iframe
-                src={mapUrl}
-                title="Your live location"
-                className="h-44 w-full"
-                style={{ filter: "invert(0.88) hue-rotate(180deg)" }}
-              />
-              <div className="flex items-center gap-2 bg-white/5 px-4 py-2.5 text-[12px] text-white/50">
-                <Navigation2 className="h-3.5 w-3.5 text-red-400" />
-                {location?.address}{location?.district ? `, ${location.district}` : ""}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Emergency call buttons */}
+          {/* What to do now */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
+            className="rounded-2xl border border-white/10 bg-white/6 p-5 backdrop-blur-md"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}
+          >
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-red-400">
+              🚨 What to do right now
+            </p>
+            <ol className="space-y-3">
+              {info.steps.map((step, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-700 text-[10px] font-black text-white">
+                    {i + 1}
+                  </span>
+                  <span className="text-[14px] leading-snug text-white/85">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </motion.div>
+
+          {/* Primary call buttons for this emergency type */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }}
           >
             <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/38">
-              📞 Emergency numbers — tap to call
+              📞 Call now — tap to dial
             </p>
             <div className="grid grid-cols-2 gap-2.5">
-              {EMERGENCY_NUMBERS.map((e) => (
+              {info.primaryCalls.map((e) => (
                 <a
                   key={e.label + e.number}
                   href={`tel:${e.number}`}
@@ -518,49 +654,42 @@ function HelpScreen({
             </div>
           </motion.div>
 
-          {/* Nearby hospitals */}
-          {hospitals.length > 0 && (
+          {/* Live map */}
+          {mapUrl && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.13 }}
+              className="overflow-hidden rounded-2xl border border-white/10"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}
             >
-              <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/38">
-                🏥 Nearest hospitals
-              </p>
-              <div className="space-y-2">
-                {hospitals.map((h, i) => (
-                  <FacilityRow key={i} facility={h} />
-                ))}
+              <iframe
+                src={mapUrl}
+                title="Your live location"
+                className="h-44 w-full"
+                style={{ filter: "invert(0.88) hue-rotate(180deg)" }}
+              />
+              <div className="flex items-center gap-2 bg-white/5 px-4 py-2.5 text-[12px] text-white/50">
+                <Navigation2 className="h-3.5 w-3.5 text-red-400" />
+                {location?.address}{location?.district ? `, ${location.district}` : ""}
               </div>
             </motion.div>
           )}
 
-          {/* Officers on duty */}
-          {officers.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.18 }}
-            >
-              <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-white/38">
-                🚔 Officers on duty
-                <span className="font-normal normal-case tracking-normal text-white/22">(demo)</span>
-              </p>
-              <div className="space-y-2">
-                {officers.map((o, i) => (
-                  <FacilityRow key={i} facility={o} />
-                ))}
-              </div>
-            </motion.div>
+          {/* Officers first for crime/attack/domestic, hospitals first for medical */}
+          {showPoliceFirst ? (
+            <>
+              <FacilitySection title="🚔 Officers on duty" demo facilities={officers} delay={0.18} />
+              {info.showHospitals && <FacilitySection title="🏥 Nearest hospitals" facilities={hospitals} delay={0.22} />}
+            </>
+          ) : (
+            <>
+              {info.showHospitals && <FacilitySection title="🏥 Nearest hospitals" facilities={hospitals} delay={0.18} />}
+              <FacilitySection title="🚔 Officers on duty" demo facilities={officers} delay={0.22} />
+            </>
           )}
 
-          {/* File report */}
+          {/* Actions */}
           <motion.div
-            className="space-y-2 pt-2"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.22 }}
+            className="space-y-2 pt-1 pb-4"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}
           >
             <button
               onClick={onReport}
@@ -569,14 +698,38 @@ function HelpScreen({
               <Shield className="h-4 w-4" />
               File an incident report
             </button>
-            <button
-              onClick={onClose}
-              className="w-full py-2.5 text-[11px] text-white/22 hover:text-white/42"
-            >
+            <button onClick={onClose} className="w-full py-2.5 text-[11px] text-white/22 hover:text-white/42">
               I'm safe — close SOS
             </button>
           </motion.div>
         </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function FacilitySection({
+  title,
+  facilities,
+  delay,
+  demo,
+}: {
+  title: string;
+  facilities: Facility[];
+  delay: number;
+  demo?: boolean;
+}) {
+  if (!facilities.length) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
+    >
+      <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-white/38">
+        {title}
+        {demo && <span className="font-normal normal-case tracking-normal text-white/22">(demo)</span>}
+      </p>
+      <div className="space-y-2">
+        {facilities.map((f, i) => <FacilityRow key={i} facility={f} />)}
       </div>
     </motion.div>
   );
