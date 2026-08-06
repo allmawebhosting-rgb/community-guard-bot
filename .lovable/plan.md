@@ -45,3 +45,13 @@ Make both layouts render the same content, only arranged differently.
 - Sections become small local components taking the existing props/state, rendered from both branches — no duplicated markup, so the two layouts can't drift again.
 - Mobile column keeps `max-w-lg` centering and the existing spacing scale; touch targets on call buttons stay at least 44px tall.
 - Grids that are 2-up in the narrow sidebar stay 2-up on mobile with `min-w-0` so the phone numbers don't clip.
+
+## Also: existing build errors to clear first
+
+The project currently fails typecheck in the police command center (unrelated to SOS, but blocking a clean build). Fix in the same pass:
+
+- `src/components/police/command-shell.tsx` — nav groups are inferred as mismatched readonly tuples, making `item` `unknown`; give the nav config an explicit item type.
+- `src/lib/police.ts` — `"on_leave"` isn't a valid duty status; use one of the real enum values.
+- `src/routes/_authenticated/police.ai.tsx` — uses the old `useChat` API (`input`, `setInput`, `handleSubmit`, `isLoading`, `reload`, `api`, `message.content`); port to the current transport/parts API used by the citizen chat.
+- `src/routes/_authenticated/police.cases.$caseId.tsx` — typed insert payload instead of `Record<string, unknown>`.
+- `src/routes/_authenticated/police.search.tsx` — field names don't match the schema (`description`, `item_name`, `location_found`, `type`); map to the actual columns.
