@@ -298,6 +298,7 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, isAuthenticated, signOut } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: threads = [] } = useQuery({ ...threadsQueryOptions(), enabled: isAuthenticated && open });
   const [tab, setTab] = useState<"menu" | "chats">("menu");
 
