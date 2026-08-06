@@ -490,7 +490,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
       </div>
 
       {/* Main area — side by side on desktop */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 lg:flex-row lg:justify-center lg:gap-24">
+      <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-8 lg:flex-row lg:justify-center lg:gap-24 lg:py-0">
         {/* Left: button */}
         <div className="flex flex-col items-center text-center">
           <motion.p
