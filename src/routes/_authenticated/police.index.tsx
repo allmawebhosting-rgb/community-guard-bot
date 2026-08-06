@@ -5,10 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   AlertTriangle, ArrowUpRight, CheckCircle2, Clock,
   Siren, Users, UserSearch, Package, Car, Flame, TrendingUp,
+  BrainCircuit, ChevronRight, ShieldCheck, Sparkles,
 } from "lucide-react";
 import {
   incidentsQuery, officersQuery, missingPersonsQuery, lostFoundQuery, safetyActivityQuery,
-  PRIORITY_META, statusLabel, timeAgo, type IncidentPriority,
+  PRIORITY_META, statusLabel, timeAgo, type IncidentPriority, myOfficerQuery,
 } from "@/lib/police";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/police/")({
 
 function CommandDashboard() {
   const qc = useQueryClient();
+  const { data: officer } = useQuery(myOfficerQuery);
   const { data: incidents = [] } = useQuery(incidentsQuery);
   const { data: officers = [] } = useQuery(officersQuery);
   const { data: missing = [] } = useQuery(missingPersonsQuery);
@@ -52,6 +54,10 @@ function CommandDashboard() {
   const investigating = open.filter(
     (i) => ["assigned", "under_review", "dispatched"].includes(i.status),
   );
+  const recentlyReported = [...open]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 4);
+  const firstName = officer?.full_name?.split(" ").filter(Boolean)[0] ?? "Officer";
 
   const avgResponse = (() => {
     const resolved = incidents.filter((i) => i.resolved_at && i.created_at);
@@ -101,6 +107,47 @@ function CommandDashboard() {
           {new Date().toLocaleDateString("en-UG", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </span>
       </div>
+
+      {/* Allma officer briefing */}
+      <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-primary/25 bg-[radial-gradient(circle_at_82%_15%,hsl(var(--gold)/.2),transparent_27%),linear-gradient(135deg,hsl(var(--primary)/.2),hsl(var(--card)/.96)_62%)] p-5 shadow-lift lg:p-7">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border border-gold/20 bg-gold/[0.04] blur-[1px]" />
+        <div className="pointer-events-none absolute bottom-0 right-16 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="mb-5 flex items-center gap-2">
+              <div className="grid h-9 w-9 place-items-center rounded-2xl border border-primary/30 bg-background/45 shadow-soft backdrop-blur">
+                <Sparkles className="h-4 w-4 text-gold" />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">Allma intelligence brief</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Your command center is ready</p>
+              </div>
+            </div>
+            <h2 className="max-w-xl font-display text-2xl font-black tracking-[-0.04em] text-foreground sm:text-3xl lg:text-[2.55rem]">
+              Welcome back, {firstName}.
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              I’ve reviewed the command queue. Start with the cases that need immediate attention, then move through the latest citizen reports.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <Link
+                to="/police/ai"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-lift transition hover:-translate-y-0.5"
+              >
+                <BrainCircuit className="h-3.5 w-3.5" /> Ask Allma
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-success/25 bg-success/10 px-3.5 py-2 text-[11px] font-medium text-success">
+                <ShieldCheck className="h-3.5 w-3.5" /> Secure officer view
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:min-w-[270px]">
+            <BriefMetric label="Needs attention" value={critical.length} tone="critical" />
+            <BriefMetric label="Newly reported" value={recentlyReported.length} tone="reported" />
+          </div>
+        </div>
+      </section>
 
       <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3">
         <Siren className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -241,6 +288,26 @@ function CommandDashboard() {
         </div>
       </div>
 
+      {/* Priority briefing lanes */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <PriorityLane
+          title="Critical cases"
+          description="Immediate review recommended"
+          icon={Siren}
+          tone="critical"
+          incidents={critical.slice(0, 4)}
+          empty="No critical cases in the open queue."
+        />
+        <PriorityLane
+          title="Latest reports"
+          description="Most recent citizen submissions"
+          icon={AlertTriangle}
+          tone="reported"
+          incidents={recentlyReported}
+          empty="No reports have arrived yet."
+        />
+      </div>
+
       <section className="card-desktop overflow-hidden">
         <div className="mb-3 flex items-center justify-between border-b border-border/40 pb-3">
           <div>
@@ -279,6 +346,97 @@ function CommandDashboard() {
         </div>
       </section>
     </div>
+  );
+}
+
+function BriefMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "critical" | "reported";
+}) {
+  return (
+    <div className={cn(
+      "rounded-2xl border bg-background/35 p-3 backdrop-blur-sm",
+      tone === "critical" ? "border-primary/25" : "border-gold/25",
+    )}>
+      <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className={cn(
+        "mt-1 font-display text-2xl font-black tabular-nums",
+        tone === "critical" ? "text-primary" : "text-gold",
+      )}>{value}</p>
+    </div>
+  );
+}
+
+function PriorityLane({
+  title,
+  description,
+  icon: Icon,
+  tone,
+  incidents,
+  empty,
+}: {
+  title: string;
+  description: string;
+  icon: typeof Siren;
+  tone: "critical" | "reported";
+  incidents: Incident[];
+  empty: string;
+}) {
+  return (
+    <section className="premium-surface overflow-hidden rounded-3xl border border-border/55 shadow-soft">
+      <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "grid h-9 w-9 place-items-center rounded-2xl",
+            tone === "critical" ? "bg-primary/12 text-primary" : "bg-gold/12 text-gold",
+          )}>
+            <Icon className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="font-display text-sm font-semibold">{title}</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
+          </div>
+        </div>
+        <span className={cn(
+          "rounded-full border px-2 py-1 text-[10px] font-semibold tabular-nums",
+          tone === "critical" ? "border-primary/25 bg-primary/10 text-primary" : "border-gold/25 bg-gold/10 text-gold",
+        )}>{incidents.length} open</span>
+      </div>
+      <div className="divide-y divide-border/30 px-5">
+        {incidents.map((incident) => {
+          const meta = PRIORITY_META[incident.priority as IncidentPriority];
+          return (
+            <Link
+              key={incident.id}
+              to="/police/cases/$caseId"
+              params={{ caseId: incident.id }}
+              className="group flex items-center gap-3 py-3 transition hover:translate-x-0.5"
+            >
+              <span className={cn("h-2 w-2 shrink-0 rounded-full", meta?.dot ?? "bg-border")} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold group-hover:text-primary">{incident.title}</p>
+                <p className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="font-mono">{incident.reference}</span>
+                  <span className="text-border/60">·</span>
+                  <span>{incident.district ?? "Unassigned"}</span>
+                  <span className="text-border/60">·</span>
+                  <span>{timeAgo(incident.created_at)}</span>
+                </p>
+              </div>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+            </Link>
+          );
+        })}
+        {incidents.length === 0 && (
+          <p className="py-7 text-center text-xs text-muted-foreground">{empty}</p>
+        )}
+      </div>
+    </section>
   );
 }
 
