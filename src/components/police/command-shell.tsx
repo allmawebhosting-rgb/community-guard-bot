@@ -108,7 +108,7 @@ export function CommandShell({
           </div>
           <div className="min-w-0">
             <p className="font-display text-[13px] font-semibold leading-none tracking-tight">Allma Command</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">Uganda Police Force</p>
+             <p className="mt-0.5 text-[10px] text-muted-foreground">Police Integration Ready</p>
           </div>
         </div>
 

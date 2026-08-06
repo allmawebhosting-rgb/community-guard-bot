@@ -81,6 +81,32 @@ export const Route = createFileRoute("/api/chat")({
         const gateway = createLovableAiGatewayProvider(apiKey, initialRunId);
 
         const uiMessages = messages as UIMessage[];
+        const lastUserMessage = [...uiMessages].reverse().find((m) => m.role === "user");
+        const intakeText = lastUserMessage ? textOf(lastUserMessage) : "";
+
+        if (userId && intakeText) {
+          const normalized = intakeText.toLowerCase();
+          const severity =
+            /sos|immediate danger|attack|assault|gunshot|fire|ambulance|accident/.test(normalized)
+              ? "critical"
+              : /robbery|missing|stolen|theft|crime/.test(normalized)
+                ? "high"
+                : "info";
+          const { error: activityError } = await supabase.from("safety_activity").insert({
+            user_id: userId,
+            activity_type: "ai_intake",
+            title: "AI safety intake received",
+            summary: intakeText.slice(0, 1000),
+            severity,
+            report_id: null,
+            details: {
+              channel: "allma_ai",
+              thread_id: threadId,
+              has_attachments: lastUserMessage?.parts.some((part) => part.type === "file") ?? false,
+            } as never,
+          });
+          if (activityError) console.error("Failed to record AI intake activity", activityError);
+        }
 
         let memoryBlock = "";
         if (userId) {
@@ -298,6 +324,23 @@ export const Route = createFileRoute("/api/chat")({
                   console.error("create_report failed", error);
                   return { ok: false, message: "The report could not be saved. Please try again." };
                 }
+
+                 const { error: activityError } = await supabase.from("safety_activity").insert({
+                   user_id: userId,
+                   activity_type: "report_submitted",
+                   title: "Incident report submitted",
+                   summary: input.title.slice(0, 1000),
+                   severity: input.risk_level,
+                   report_id: data.id,
+                   location_text: input.location_text,
+                   details: {
+                     channel: "allma_ai",
+                     report_type: input.report_type,
+                     category: input.category,
+                     reference: data.reference,
+                   } as never,
+                 });
+                 if (activityError) console.error("Failed to record report activity", activityError);
 
                 return { ok: true, ...data };
               },
@@ -618,7 +661,6 @@ export const Route = createFileRoute("/api/chat")({
           onFinish: async ({ responseMessage }) => {
             if (!userId || !threadId) return;
 
-            const lastUserMessage = [...uiMessages].reverse().find((m) => m.role === "user");
             const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
 
             if (lastUserMessage) {

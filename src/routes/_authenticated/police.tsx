@@ -15,12 +15,12 @@ export const Route = createFileRoute("/_authenticated/police")({
       {
         name: "description",
         content:
-          "Restricted Uganda Police command center for receiving reports, verifying incidents, dispatching officers and managing cases in real time.",
+          "Restricted police integration command center for receiving reports, verifying incidents, dispatching officers and managing cases in real time.",
       },
       { property: "og:title", content: "Police Command Center — Allma Safety AI" },
       {
         property: "og:description",
-        content: "AI-powered police operating system for incident intake, dispatch and case management.",
+        content: "AI-powered police integration workspace for incident intake, dispatch and case management.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

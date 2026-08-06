@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertTriangle, ArrowUpRight, CheckCircle2, Clock,
   Siren, Users, UserSearch, Package, Car, Flame, TrendingUp,
 } from "lucide-react";
 import {
-  incidentsQuery, officersQuery, missingPersonsQuery, lostFoundQuery,
+  incidentsQuery, officersQuery, missingPersonsQuery, lostFoundQuery, safetyActivityQuery,
   PRIORITY_META, statusLabel, timeAgo, type IncidentPriority,
 } from "@/lib/police";
 import { cn } from "@/lib/utils";
@@ -15,10 +17,24 @@ export const Route = createFileRoute("/_authenticated/police/")({
 });
 
 function CommandDashboard() {
+  const qc = useQueryClient();
   const { data: incidents = [] } = useQuery(incidentsQuery);
   const { data: officers = [] } = useQuery(officersQuery);
   const { data: missing = [] } = useQuery(missingPersonsQuery);
   const { data: lostFound = [] } = useQuery(lostFoundQuery);
+  const { data: activity = [] } = useQuery(safetyActivityQuery);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("police-command-activity-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "safety_activity" }, () => {
+        qc.invalidateQueries({ queryKey: ["police", "safety-activity"] });
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const open = incidents.filter((i) => !["resolved", "closed"].includes(i.status));
   const critical = open.filter((i) => i.priority === "critical");
@@ -84,6 +100,17 @@ function CommandDashboard() {
         <span className="text-[11px] text-muted-foreground">
           {new Date().toLocaleDateString("en-UG", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </span>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3">
+        <Siren className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <div>
+          <p className="text-xs font-semibold text-foreground">Police integration-ready queue</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            AI intake, SOS activations, locations, evidence signals, and submitted reports appear here for verified officers.
+            This workspace does not contact or represent an official emergency service.
+          </p>
+        </div>
       </div>
 
       {/* KPIs — 5 col on xl, 4 on lg, 2 on mobile */}
@@ -213,6 +240,44 @@ function CommandDashboard() {
           </section>
         </div>
       </div>
+
+      <section className="card-desktop overflow-hidden">
+        <div className="mb-3 flex items-center justify-between border-b border-border/40 pb-3">
+          <div>
+            <h2 className="text-[13px] font-semibold">Live Citizen Activity</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">AI and SOS events before or alongside formal reports</p>
+          </div>
+          <span className="flex items-center gap-1.5 text-[10px] font-medium text-success">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" /> Live
+          </span>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          {activity.slice(0, 8).map((event) => (
+            <div key={event.id} className="rounded-2xl border border-border/40 bg-secondary/20 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold">{event.title}</p>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{event.summary}</p>
+                </div>
+                <span className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                  event.severity === "critical" ? "bg-primary/12 text-primary" :
+                  event.severity === "high" ? "bg-alert/12 text-alert" :
+                  "bg-secondary text-muted-foreground",
+                )}>
+                  {event.severity}
+                </span>
+              </div>
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                {event.location_text ?? "Location not shared"} · {timeAgo(event.created_at)}
+              </p>
+            </div>
+          ))}
+          {activity.length === 0 && (
+            <p className="py-6 text-center text-[13px] text-muted-foreground md:col-span-2">No citizen activity has arrived yet.</p>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

@@ -21,6 +21,7 @@ export type MissingPerson = Database["public"]["Tables"]["missing_persons"]["Row
 export type LostFoundItem = Database["public"]["Tables"]["lost_found_items"]["Row"];
 export type OfficerMessage = Database["public"]["Tables"]["officer_messages"]["Row"];
 export type Evidence = Database["public"]["Tables"]["report_evidence"]["Row"];
+export type SafetyActivity = Database["public"]["Tables"]["safety_activity"]["Row"];
 
 export const RANKS: { value: OfficerRank; label: string; group: string }[] = [
   { value: "inspector_general", label: "Inspector General of Police", group: "National command" },
@@ -189,6 +190,19 @@ export const incidentsQuery = queryOptions({
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200);
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export const safetyActivityQuery = queryOptions({
+  queryKey: ["police", "safety-activity"],
+  queryFn: async (): Promise<SafetyActivity[]> => {
+    const { data, error } = await supabase
+      .from("safety_activity")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
     if (error) throw error;
     return data ?? [];
   },

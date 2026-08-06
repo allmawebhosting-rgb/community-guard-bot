@@ -782,6 +782,59 @@ export type Database = {
           },
         ]
       }
+      safety_activity: {
+        Row: {
+          activity_type: string
+          created_at: string
+          details: Json
+          id: string
+          latitude: number | null
+          location_text: string | null
+          longitude: number | null
+          report_id: string | null
+          severity: string
+          summary: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          details?: Json
+          id?: string
+          latitude?: number | null
+          location_text?: string | null
+          longitude?: number | null
+          report_id?: string | null
+          severity?: string
+          summary?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          latitude?: number | null
+          location_text?: string | null
+          longitude?: number | null
+          report_id?: string | null
+          severity?: string
+          summary?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_activity_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       reports: {
         Row: {
           ai_recommended_actions: Json

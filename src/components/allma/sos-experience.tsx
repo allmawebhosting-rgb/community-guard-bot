@@ -386,6 +386,21 @@ export function SOSExperience() {
     const finalLoc: LocationInfo = loc ?? { address: "Kampala Road", suburb: "Nakasero", district: "Kampala Central", lat: 0.3476, lng: 32.5825 };
     setLocation(finalLoc);
 
+    if (user) {
+      const { error } = await supabase.from("safety_activity").insert({
+        user_id: user.id,
+        activity_type: "sos_activated",
+        title: "Emergency SOS activated",
+        summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
+        severity: "critical",
+        location_text: `${finalLoc.address}, ${finalLoc.district}`.replace(/, $/, ""),
+        latitude: finalLoc.lat,
+        longitude: finalLoc.lng,
+        details: { channel: "sos", emergency_type: type } as never,
+      });
+      if (error) console.error("Failed to record SOS activity", error);
+    }
+
     const [realHospitals, realPolice] = await Promise.all([
       fetchOverpass(finalLoc.lat, finalLoc.lng, "hospital").catch(() => [] as Facility[]),
       fetchOverpass(finalLoc.lat, finalLoc.lng, "police").catch(() => [] as Facility[]),
@@ -397,15 +412,21 @@ export function SOSExperience() {
 
   async function handleSubmitReport() {
     setSubmitting(true);
-    const ref = `ASA-2026-${String(Math.floor(Math.random() * 900000 + 100000))}`;
+    let ref = `ASA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000 + 100000))}`;
     if (user && location) {
-      await supabase.from("reports").insert({
+      const { data, error } = await supabase.from("reports").insert({
         user_id: user.id, report_type: "emergency", category: "sos",
         title: "Emergency SOS", summary: reportText || "Emergency SOS submitted.",
         narrative: reportText, risk_level: "critical",
+        priority: "critical",
         latitude: location.lat, longitude: location.lng,
         location_text: `${location.address}, ${location.district}`,
-      });
+      }).select("reference").single();
+      if (error) {
+        console.error("Failed to save SOS report", error);
+      } else if (data?.reference) {
+        ref = data.reference;
+      }
     }
     setReference(ref);
     setSubmitting(false);
