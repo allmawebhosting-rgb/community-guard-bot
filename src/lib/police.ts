@@ -155,6 +155,11 @@ export function dutyStatusLabel(s: string) {
 
 /* ── queries ───────────────────────────────────────────────────────── */
 
+// Supabase error codes that mean "no profile" rather than a real failure.
+// 42501 = RLS permission denied (user exists but has no row yet)
+// PGRST116 = PostgREST "no rows" (belt-and-suspenders for maybeSingle)
+const OFFICER_SOFT_ERROR_CODES = new Set(["42501", "PGRST116"]);
+
 export const myOfficerQuery = queryOptions({
   queryKey: ["officer", "me"],
   queryFn: async (): Promise<OfficerProfile | null> => {
@@ -165,7 +170,12 @@ export const myOfficerQuery = queryOptions({
       .select("*")
       .eq("user_id", auth.user.id)
       .maybeSingle();
-    if (error) throw error;
+    // Treat permission / RLS errors as "no profile yet" so the onboarding
+    // wizard is shown instead of an error screen.
+    if (error) {
+      if (OFFICER_SOFT_ERROR_CODES.has(error.code ?? "")) return null;
+      throw error;
+    }
     return data;
   },
 });
