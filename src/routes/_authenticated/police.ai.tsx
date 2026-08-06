@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
-import { useEffect, useRef, useState } from "react";
+import { DefaultChatTransport, type UIMessage } from "ai";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Brain, Send, RotateCcw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/police/ai")({
@@ -39,17 +41,59 @@ function PoliceAIPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showQuick, setShowQuick] = useState(true);
 
-  const { messages, input, setInput, handleSubmit, isLoading, error, reload, setMessages } = useChat({
-    api: "/api/chat",
-    body: { systemPrompt: SYSTEM_PROMPT, policeMode: true },
-    initialMessages: [
+  const [input, setInput] = useState("");
+
+  const WELCOME: UIMessage = {
+    id: "welcome",
+    role: "assistant",
+    parts: [
       {
-        id: "welcome",
-        role: "assistant",
-        content: "Hello, Officer. I'm your AI Police Assistant.\n\nI can help you analyze cases, generate investigation notes, detect patterns, draft communications, and recommend next actions.\n\nWhat do you need assistance with today?",
+        type: "text",
+        text: "Hello, Officer. I'm your AI Police Assistant.\n\nI can help you analyze cases, generate investigation notes, detect patterns, draft communications, and recommend next actions.\n\nWhat do you need assistance with today?",
       },
     ],
+  };
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        prepareSendMessagesRequest: async ({ messages, body }) => {
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token;
+          const headers: Record<string, string> = {};
+          if (token) headers.Authorization = `Bearer ${token}`;
+          return {
+            body: { ...body, messages, systemPrompt: SYSTEM_PROMPT, policeMode: true },
+            headers,
+          };
+        },
+      }),
+    [],
+  );
+
+  const { messages, sendMessage, status, error, regenerate, setMessages } = useChat({
+    id: "police-ai",
+    messages: [WELCOME],
+    transport,
   });
+
+  const isLoading = status === "submitted" || status === "streaming";
+
+  function send() {
+    const text = input.trim();
+    if (!text || isLoading) return;
+    setInput("");
+    setShowQuick(false);
+    void sendMessage({ role: "user", parts: [{ type: "text", text }] });
+  }
+
+  function messageText(msg: UIMessage) {
+    return msg.parts
+      .filter((part): part is { type: "text"; text: string } => part.type === "text")
+      .map((part) => part.text)
+      .join("");
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -82,11 +126,7 @@ function PoliceAIPage() {
             size="sm"
             className="rounded-full text-xs gap-1.5"
             onClick={() => {
-              setMessages([{
-                id: "welcome",
-                role: "assistant",
-                content: "Hello, Officer. I'm your AI Police Assistant.\n\nI can help you analyze cases, generate investigation notes, detect patterns, draft communications, and recommend next actions.\n\nWhat do you need assistance with today?",
-              }]);
+              setMessages([WELCOME]);
               setShowQuick(true);
             }}
           >
@@ -115,7 +155,7 @@ function PoliceAIPage() {
                   : "premium-surface border border-border/50 shadow-soft rounded-bl-sm",
               )}
             >
-              {msg.content}
+              {messageText(msg)}
             </div>
           </div>
         ))}
@@ -142,7 +182,7 @@ function PoliceAIPage() {
         {error && (
           <div className="flex items-center justify-between rounded-2xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">
             <span>Error: {error.message}</span>
-            <Button variant="ghost" size="sm" onClick={() => reload()} className="text-alert hover:text-alert">Retry</Button>
+            <Button variant="ghost" size="sm" onClick={() => void regenerate()} className="text-alert hover:text-alert">Retry</Button>
           </div>
         )}
 
@@ -173,7 +213,13 @@ function PoliceAIPage() {
       )}
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t border-border/40 pt-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+        className="flex items-end gap-2 border-t border-border/40 pt-3"
+      >
         <div className="relative flex-1">
           <textarea
             value={input}
@@ -181,7 +227,7 @@ function PoliceAIPage() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleSubmit(e as unknown as React.FormEvent);
+                send();
               }
             }}
             rows={1}

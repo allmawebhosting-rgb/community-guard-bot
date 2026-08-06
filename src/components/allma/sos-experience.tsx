@@ -490,7 +490,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
       </div>
 
       {/* Main area — side by side on desktop */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 lg:flex-row lg:justify-center lg:gap-24">
+      <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-8 lg:flex-row lg:justify-center lg:gap-24 lg:py-0">
         {/* Left: button */}
         <div className="flex flex-col items-center text-center">
           <motion.p
@@ -553,9 +553,9 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
           </motion.p>
         </div>
 
-        {/* Right: info panel (desktop only) */}
+        {/* Right: info panel — stacked below the button on mobile */}
         <motion.div
-          className="mt-10 hidden w-72 space-y-3 lg:block"
+          className="mb-10 mt-8 w-full max-w-sm space-y-3 lg:mb-0 lg:mt-10 lg:w-72 lg:max-w-none"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
@@ -776,6 +776,162 @@ function HelpScreen({
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - 0.014},${location.lat - 0.014},${location.lng + 0.014},${location.lat + 0.014}&layer=mapnik&marker=${location.lat},${location.lng}`
     : null;
 
+  // ── Shared sections (rendered on both mobile and desktop) ──
+  const AiSection = (
+    <div className="space-y-2.5">
+      <SectionLabel><Brain className="mr-1.5 inline-block h-3 w-3 align-middle" />Allma AI — live guidance</SectionLabel>
+      <div className="space-y-2">
+        {aiLog.map((msg, i) => <AiChatBubble key={i} text={msg} />)}
+        {aiTyping && <AiChatBubble text={aiTyping} typing />}
+      </div>
+    </div>
+  );
+
+  const StepsSection = (
+    <motion.div
+      className="rounded-2xl border border-red-900/30 bg-red-950/18 p-5"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.22 }}
+    >
+      <SectionLabel><AlertTriangle className="mr-1.5 inline-block h-3 w-3 align-middle" />What to do right now</SectionLabel>
+      <ol className="space-y-3">
+        {info.steps.map((step, i) => (
+          <li key={i} className="flex items-start gap-3">
+            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-red-700/80 text-[10px] font-black text-white">
+              {i + 1}
+            </span>
+            <span className="text-[14px] leading-snug text-white/82">{step}</span>
+          </li>
+        ))}
+      </ol>
+    </motion.div>
+  );
+
+  const TimelineSection = (
+    <div>
+      <SectionLabel><Clock className="mr-1.5 inline-block h-3 w-3 align-middle" />Emergency timeline</SectionLabel>
+      <div>
+        {TIMELINE.map((ev, i) => (
+          <div key={i} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className={cn("mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[9px] transition-all duration-500",
+                i < timelineDone ? "border-green-500 bg-green-950/60 text-green-400" : "border-white/16 text-white/16",
+              )}>
+                {i < timelineDone ? "✓" : "·"}
+              </div>
+              {i < TIMELINE.length - 1 && (
+                <div className={cn("mt-1 w-px transition-all duration-700", i < timelineDone ? "bg-green-500/30" : "bg-white/8")} style={{ minHeight: 22 }} />
+              )}
+            </div>
+            <div className="pb-4">
+              <p className={cn("text-[13px] font-medium transition-colors duration-500", i < timelineDone ? "text-white/82" : "text-white/20")}>
+                {ev.label}
+              </p>
+              {ev.sub && (
+                <p className={cn("text-[11px] transition-colors duration-500", i < timelineDone ? "text-white/38" : "text-white/10")}>
+                  {ev.sub}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const CallSection = (
+    <div>
+      <SectionLabel><Phone className="mr-1.5 inline-block h-3 w-3 align-middle" />Call now — tap to dial</SectionLabel>
+      <div className="grid grid-cols-2 gap-2.5">
+        {info.primaryNumbers.map((e) => (
+          <a
+            key={e.label + e.number}
+            href={`tel:${e.number}`}
+            className={cn("flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl bg-gradient-to-br py-5 transition active:scale-[0.96]", e.gradient)}
+            style={{ boxShadow: `0 4px 22px ${e.glow}` }}
+          >
+            <Phone className="h-4 w-4 text-white/75" />
+            <span className="font-display text-[26px] font-black leading-none text-white">{e.number}</span>
+            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-white/65">{e.label}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+
+  const StatusSection = (
+    <div>
+      <SectionLabel><Radio className="mr-1.5 inline-block h-3 w-3 align-middle" />Live status</SectionLabel>
+      <div className="grid grid-cols-2 gap-2">
+        <StatusTile icon={MapPin} label="Location"  value="Active · Live GPS"    color="green" visible />
+        <StatusTile icon={Shield} label="Police"    value="Notified · En Route"  color="blue"  visible={status.police} />
+        <StatusTile icon={Heart}  label="Medical"   value="Alerted · On Standby" color="green" visible={status.hospital} />
+        <StatusTile icon={Radio}  label="Community" value={`${(COMMUNITY_RADIUS[emergencyType] ?? 1000) / 1000} km radius`} color="amber" visible={status.community} />
+      </div>
+    </div>
+  );
+
+  const MapSection = mapUrl ? (
+    <div className="overflow-hidden rounded-2xl border border-white/10">
+      <div className="relative">
+        <iframe
+          src={mapUrl}
+          title="Your live location"
+          className="h-44 w-full"
+          style={{ filter: "invert(0.88) hue-rotate(180deg)" }}
+        />
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="relative flex items-center justify-center">
+            <span className="absolute h-14 w-14 animate-ping rounded-full bg-red-500/18 [animation-duration:1.4s]" />
+            <span className="absolute h-7 w-7 animate-ping rounded-full bg-red-500/28 [animation-duration:1s]" />
+            <span className="h-3.5 w-3.5 rounded-full border-2 border-white bg-red-500 shadow-[0_0_12px_rgba(220,38,38,0.8)]" />
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 bg-white/5 px-4 py-2.5 text-[11px] text-white/45">
+        <Navigation2 className="h-3 w-3 shrink-0 text-red-400" />
+        <span className="min-w-0 truncate">
+          {location?.address}{location?.district ? `, ${location.district}` : ""}
+        </span>
+        <span className="ml-auto flex shrink-0 items-center gap-1 text-green-400/70">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" /> Live
+        </span>
+      </div>
+    </div>
+  ) : null;
+
+  const RespondersSection = (
+    <AnimatePresence>
+      {responders.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <SectionLabel>
+            Community responders
+            <span className="ml-2 rounded-full bg-amber-900/50 px-2 py-0.5 font-normal normal-case tracking-normal text-amber-400">
+              {responders.filter((r) => r.status !== "notified").length} responding
+            </span>
+          </SectionLabel>
+          <div className="space-y-2">
+            {responders.map((r) => <ResponderCard key={r.id} responder={r} />)}
+          </div>
+          <p className="mt-2 text-[10px] text-white/20">Privacy protected · Exact location not shared</p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  const FacilitiesSection = showPoliceFirst ? (
+    <>
+      <FacilitySection title="Officers on duty" demo facilities={officers} />
+      {info.showHospitals && <FacilitySection title="Nearest hospitals" facilities={hospitals} />}
+    </>
+  ) : (
+    <>
+      {info.showHospitals && <FacilitySection title="Nearest hospitals" facilities={hospitals} />}
+      <FacilitySection title="Officers on duty" demo facilities={officers} />
+    </>
+  );
+
   return (
     <motion.div
       className="flex h-full flex-col"
@@ -786,27 +942,27 @@ function HelpScreen({
     >
       {/* ── Sticky header ── */}
       <div className="shrink-0 border-b border-white/10 bg-[#080808]/92 px-5 py-3 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative grid h-9 w-9 place-items-center rounded-full bg-red-800/80">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-800/80">
               <TypeIcon className={cn("h-4.5 w-4.5", typeInfo?.color ?? "text-red-300")} strokeWidth={1.5} />
               <span className="absolute -right-0.5 -top-0.5 grid h-3 w-3 place-items-center rounded-full border border-[#080808] bg-red-500">
                 <span className="h-1.5 w-1.5 animate-ping rounded-full bg-red-300" />
               </span>
             </div>
-            <div>
-              <p className="font-display text-[14px] font-bold text-white">
+            <div className="min-w-0">
+              <p className="truncate font-display text-[14px] font-bold text-white">
                 {typeInfo?.label ?? "Emergency"} <span className="ml-1 text-[11px] font-normal text-red-400">● LIVE</span>
               </p>
               {location && (
-                <p className="flex items-center gap-1 text-[11px] text-white/38">
-                  <MapPin className="h-2.5 w-2.5" />
+                <p className="flex items-center gap-1 truncate text-[11px] text-white/38">
+                  <MapPin className="h-2.5 w-2.5 shrink-0" />
                   {[location.suburb, location.district].filter(Boolean).join(", ") || location.address}
                 </p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={onReport}
               className="hidden items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-[12px] text-white/50 transition hover:border-white/20 hover:text-white/75 sm:flex"
@@ -823,77 +979,24 @@ function HelpScreen({
         </div>
       </div>
 
-      {/* ── Body: two-column on desktop ── */}
+      {/* ── Body ── */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* LEFT column — AI + action + timeline */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-lg space-y-5 px-5 py-5 pb-14 lg:max-w-none lg:px-6">
+        {/* Mobile: single scrolling column with everything */}
+        <div className="flex-1 overflow-y-auto lg:hidden">
+          <div className="mx-auto max-w-lg space-y-5 px-5 py-5 pb-16">
+            {AiSection}
+            {CallSection}
+            {StepsSection}
+            {StatusSection}
+            {MapSection}
+            {RespondersSection}
+            {FacilitiesSection}
+            {TimelineSection}
 
-            {/* AI Chat */}
-            <div className="space-y-2.5">
-              <SectionLabel><Brain className="mr-1.5 inline-block h-3 w-3 align-middle" />Allma AI — live guidance</SectionLabel>
-              <div className="space-y-2">
-                {aiLog.map((msg, i) => <AiChatBubble key={i} text={msg} />)}
-                {aiTyping && <AiChatBubble text={aiTyping} typing />}
-              </div>
-            </div>
-
-            {/* What to do */}
-            <motion.div
-              className="rounded-2xl border border-red-900/30 bg-red-950/18 p-5"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.22 }}
-            >
-              <SectionLabel><AlertTriangle className="mr-1.5 inline-block h-3 w-3 align-middle" />What to do right now</SectionLabel>
-              <ol className="space-y-3">
-                {info.steps.map((step, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-red-700/80 text-[10px] font-black text-white">
-                      {i + 1}
-                    </span>
-                    <span className="text-[14px] leading-snug text-white/82">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </motion.div>
-
-            {/* Emergency timeline */}
-            <div>
-              <SectionLabel><Clock className="mr-1.5 inline-block h-3 w-3 align-middle" />Emergency timeline</SectionLabel>
-              <div>
-                {TIMELINE.map((ev, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className={cn("mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[9px] transition-all duration-500",
-                        i < timelineDone ? "border-green-500 bg-green-950/60 text-green-400" : "border-white/16 text-white/16",
-                      )}>
-                        {i < timelineDone ? "✓" : "·"}
-                      </div>
-                      {i < TIMELINE.length - 1 && (
-                        <div className={cn("mt-1 w-px transition-all duration-700", i < timelineDone ? "bg-green-500/30" : "bg-white/8")} style={{ minHeight: 22 }} />
-                      )}
-                    </div>
-                    <div className="pb-4">
-                      <p className={cn("text-[13px] font-medium transition-colors duration-500", i < timelineDone ? "text-white/82" : "text-white/20")}>
-                        {ev.label}
-                      </p>
-                      {ev.sub && (
-                        <p className={cn("text-[11px] transition-colors duration-500", i < timelineDone ? "text-white/38" : "text-white/10")}>
-                          {ev.sub}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Mobile: action buttons */}
-            <div className="space-y-2 pt-1 lg:hidden">
+            <div className="space-y-2 pt-1">
               <button
                 onClick={onReport}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/12 py-3.5 text-[13px] font-medium text-white/55 transition hover:border-white/22 hover:text-white/78"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-white/12 py-3.5 text-[13px] font-medium text-white/55 transition hover:border-white/22 hover:text-white/78"
               >
                 <Shield className="h-4 w-4" /> File an incident report
               </button>
@@ -904,101 +1007,25 @@ function HelpScreen({
           </div>
         </div>
 
-        {/* RIGHT column — call + map + status + facilities (desktop) */}
+        {/* Desktop LEFT column — AI + steps + timeline */}
+        <div className="hidden flex-1 overflow-y-auto lg:block">
+          <div className="space-y-5 px-6 py-5 pb-14">
+            {AiSection}
+            {StepsSection}
+            {TimelineSection}
+          </div>
+        </div>
+
+        {/* Desktop RIGHT column — call + status + map + responders + facilities */}
         <div className="hidden w-[360px] shrink-0 border-l border-white/8 lg:flex lg:flex-col">
           <div className="flex-1 overflow-y-auto">
             <div className="space-y-5 p-5 pb-14">
+              {CallSection}
+              {StatusSection}
+              {MapSection}
+              {RespondersSection}
+              {FacilitiesSection}
 
-              {/* Call buttons */}
-              <div>
-                <SectionLabel><Phone className="mr-1.5 inline-block h-3 w-3 align-middle" />Call now — tap to dial</SectionLabel>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {info.primaryNumbers.map((e) => (
-                    <a
-                      key={e.label + e.number}
-                      href={`tel:${e.number}`}
-                      className={cn("flex flex-col items-center justify-center gap-2 rounded-2xl bg-gradient-to-br py-5 transition active:scale-[0.96]", e.gradient)}
-                      style={{ boxShadow: `0 4px 22px ${e.glow}` }}
-                    >
-                      <Phone className="h-4 w-4 text-white/75" />
-                      <span className="font-display text-[26px] font-black leading-none text-white">{e.number}</span>
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/65">{e.label}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-
-              {/* Live status */}
-              <div>
-                <SectionLabel><Radio className="mr-1.5 inline-block h-3 w-3 align-middle" />Live status</SectionLabel>
-                <div className="grid grid-cols-2 gap-2">
-                  <StatusTile icon={MapPin}    label="Location"  value="Active · Live GPS"       color="green" visible />
-                  <StatusTile icon={Shield}    label="Police"    value="Notified · En Route"     color="blue"  visible={status.police}    />
-                  <StatusTile icon={Heart}     label="Medical"   value="Alerted · On Standby"    color="green" visible={status.hospital}  />
-                  <StatusTile icon={Radio}     label="Community" value={`${(COMMUNITY_RADIUS[emergencyType] ?? 1000) / 1000} km radius`} color="amber" visible={status.community} />
-                </div>
-              </div>
-
-              {/* Map */}
-              {mapUrl && (
-                <div className="overflow-hidden rounded-2xl border border-white/10">
-                  <div className="relative">
-                    <iframe
-                      src={mapUrl}
-                      title="Your live location"
-                      className="h-44 w-full"
-                      style={{ filter: "invert(0.88) hue-rotate(180deg)" }}
-                    />
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="relative flex items-center justify-center">
-                        <span className="absolute h-14 w-14 animate-ping rounded-full bg-red-500/18 [animation-duration:1.4s]" />
-                        <span className="absolute h-7 w-7 animate-ping rounded-full bg-red-500/28 [animation-duration:1s]" />
-                        <span className="h-3.5 w-3.5 rounded-full border-2 border-white bg-red-500 shadow-[0_0_12px_rgba(220,38,38,0.8)]" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/5 px-4 py-2.5 text-[11px] text-white/45">
-                    <Navigation2 className="h-3 w-3 text-red-400" />
-                    {location?.address}{location?.district ? `, ${location.district}` : ""}
-                    <span className="ml-auto flex items-center gap-1 text-green-400/70">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" /> Live
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Community responders */}
-              <AnimatePresence>
-                {responders.length > 0 && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                    <SectionLabel>
-                      Community responders
-                      <span className="ml-2 rounded-full bg-amber-900/50 px-2 py-0.5 font-normal normal-case tracking-normal text-amber-400">
-                        {responders.filter((r) => r.status !== "notified").length} responding
-                      </span>
-                    </SectionLabel>
-                    <div className="space-y-2">
-                      {responders.map((r) => <ResponderCard key={r.id} responder={r} />)}
-                    </div>
-                    <p className="mt-2 text-[10px] text-white/20">Privacy protected · Exact location not shared</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Facilities */}
-              {showPoliceFirst ? (
-                <>
-                  <FacilitySection title="Officers on duty" demo facilities={officers} />
-                  {info.showHospitals && <FacilitySection title="Nearest hospitals" facilities={hospitals} />}
-                </>
-              ) : (
-                <>
-                  {info.showHospitals && <FacilitySection title="Nearest hospitals" facilities={hospitals} />}
-                  <FacilitySection title="Officers on duty" demo facilities={officers} />
-                </>
-              )}
-
-              {/* Desktop: safe / close */}
               <div className="space-y-2 pt-1">
                 <button onClick={onClose} className="w-full py-2.5 text-center text-[11px] text-white/22 hover:text-white/42">
                   I'm safe — close SOS
@@ -1008,15 +1035,10 @@ function HelpScreen({
           </div>
         </div>
       </div>
-
-      {/* Mobile-only scrollable right-column sections below main content */}
-      {/* These are included inline in the left column scroll on mobile above */}
-      <div className="shrink-0 lg:hidden">
-        {/* Call buttons + map + status + facilities scroll inline above — nothing needed here */}
-      </div>
     </motion.div>
   );
 }
+
 
 // ─── Report ───────────────────────────────────────────────────────────────────
 
