@@ -127,7 +127,12 @@ function CaseDetail() {
 
   const updateDispatch = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: DispatchStatus }) => {
-      const patch: Record<string, unknown> = { status };
+      const patch: {
+        status: DispatchStatus;
+        en_route_at?: string;
+        on_scene_at?: string;
+        completed_at?: string;
+      } = { status };
       if (status === "en_route") patch.en_route_at = new Date().toISOString();
       if (status === "on_scene") patch.on_scene_at = new Date().toISOString();
       if (status === "completed") patch.completed_at = new Date().toISOString();

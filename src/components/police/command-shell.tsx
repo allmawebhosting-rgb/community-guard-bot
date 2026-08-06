@@ -59,7 +59,10 @@ const NAV_GROUPS = [
 ] as const;
 
 const MOBILE_NAV_PATHS = ["/police", "/police/incidents", "/police/dispatch", "/police/comms", "/police/officers"];
-const MOBILE_NAV = NAV_GROUPS.flatMap((g) => g.items).filter((i) => MOBILE_NAV_PATHS.includes(i.to));
+type NavItem = (typeof NAV_GROUPS)[number]["items"][number];
+const MOBILE_NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items as readonly NavItem[]).filter((i) =>
+  MOBILE_NAV_PATHS.includes(i.to),
+);
 
 function LiveClock() {
   const [time, setTime] = useState(() => new Date());

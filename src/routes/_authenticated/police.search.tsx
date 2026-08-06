@@ -43,7 +43,7 @@ function SearchPage() {
         case "district":  return inc.district?.toLowerCase().includes(searchTerm);
         case "category":  return inc.category?.toLowerCase().includes(searchTerm);
         case "location":  return inc.location_text?.toLowerCase().includes(searchTerm);
-        case "keywords":  return inc.title?.toLowerCase().includes(searchTerm) || inc.description?.toLowerCase().includes(searchTerm);
+        case "keywords":  return inc.title?.toLowerCase().includes(searchTerm) || inc.summary?.toLowerCase().includes(searchTerm);
         default:
           return (
             inc.reference?.toLowerCase().includes(searchTerm) ||
@@ -51,7 +51,7 @@ function SearchPage() {
             inc.district?.toLowerCase().includes(searchTerm) ||
             inc.category?.toLowerCase().includes(searchTerm) ||
             inc.location_text?.toLowerCase().includes(searchTerm) ||
-            inc.description?.toLowerCase().includes(searchTerm)
+            inc.summary?.toLowerCase().includes(searchTerm)
           );
       }
     });
@@ -69,9 +69,9 @@ function SearchPage() {
   const filteredLost = useMemo(() => {
     if (!searchTerm) return lostFound.slice(0, 30);
     return lostFound.filter((l) =>
-      l.item_name?.toLowerCase().includes(searchTerm) ||
+      l.item_type?.toLowerCase().includes(searchTerm) ||
       l.description?.toLowerCase().includes(searchTerm) ||
-      l.location_found?.toLowerCase().includes(searchTerm),
+      l.location_text?.toLowerCase().includes(searchTerm),
     );
   }, [lostFound, searchTerm]);
 
@@ -216,21 +216,21 @@ function SearchPage() {
                 {filteredLost.map((item) => (
                   <div key={item.id} className="flex items-start gap-3 px-5 py-4">
                     <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-secondary/60 text-base">
-                      {item.type === "found" ? "🎒" : "🔍"}
+                      {item.kind === "found" ? "🎒" : "🔍"}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{item.item_name}</p>
+                        <p className="font-medium text-sm">{item.item_type}</p>
                         <span className={cn(
                           "rounded-full border px-2 py-0.5 text-[10px] capitalize",
-                          item.type === "found" ? "border-success/40 bg-success/12 text-success" : "border-alert/40 bg-alert/12 text-alert",
+                          item.kind === "found" ? "border-success/40 bg-success/12 text-success" : "border-alert/40 bg-alert/12 text-alert",
                         )}>
-                          {item.type}
+                          {item.kind}
                         </span>
                       </div>
                       <div className="mt-0.5 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
                         {item.description && <span>{item.description.slice(0, 80)}</span>}
-                        {item.location_found && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{item.location_found}</span>}
+                        {item.location_text && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{item.location_text}</span>}
                         <span>{timeAgo(item.created_at)}</span>
                       </div>
                     </div>

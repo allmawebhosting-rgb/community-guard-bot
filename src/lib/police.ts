@@ -131,7 +131,7 @@ export const DUTY_STATUSES: { value: DutyStatusValue; label: string }[] = [
   { value: "available", label: "Available" },
   { value: "on_duty", label: "On duty" },
   { value: "offline", label: "Offline" },
-  { value: "on_leave", label: "On leave" },
+  { value: "unavailable", label: "Unavailable" },
 ];
 
 export const DUTY_META: Record<string, { label: string; chip: string }> = {
