@@ -7,10 +7,10 @@ import {
   BrainCircuit,
   Send,
   RotateCcw,
-  Sparkles,
   Shield,
-  ChevronRight,
+  Sparkles,
   Zap,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,14 +21,14 @@ export const Route = createFileRoute("/_authenticated/police/ai")({
 });
 
 const QUICK_PROMPTS = [
-  { label: "Summarize critical cases",       prompt: "Summarize the most critical open cases" },
-  { label: "Detect incident patterns",       prompt: "What patterns do you see in recent incidents?" },
-  { label: "Theft investigation checklist",  prompt: "Generate investigation checklist for a theft case" },
-  { label: "Next actions for open cases",    prompt: "Suggest next actions for unresolved cases" },
-  { label: "Translate Luganda statement",    prompt: "Translate a Luganda witness statement to English" },
-  { label: "Robbery evidence guide",         prompt: "What evidence is typically needed for a robbery case?" },
-  { label: "Draft missing person alert",     prompt: "Draft a community alert for a missing person" },
-  { label: "Officer allocation advice",      prompt: "Recommend officer allocation for high-priority zones" },
+  { label: "Summarize critical cases",      prompt: "Summarize the most critical open cases" },
+  { label: "Detect incident patterns",      prompt: "What patterns do you see in recent incidents?" },
+  { label: "Theft investigation checklist", prompt: "Generate investigation checklist for a theft case" },
+  { label: "Next actions for open cases",   prompt: "Suggest next actions for unresolved cases" },
+  { label: "Translate Luganda statement",   prompt: "Translate a Luganda witness statement to English" },
+  { label: "Robbery evidence guide",        prompt: "What evidence is typically needed for a robbery case?" },
+  { label: "Draft missing person alert",    prompt: "Draft a community alert for a missing person" },
+  { label: "Officer allocation advice",     prompt: "Recommend officer allocation for high-priority zones" },
 ];
 
 const SYSTEM_PROMPT = `You are an expert AI Police Assistant embedded in the Allma Safety AI Command Center for the Uganda Police Force.
@@ -46,11 +46,27 @@ You help officers:
 
 Always be professional, precise, and concise. Prioritize officer safety and legal compliance. Reference Uganda Police Force procedures where relevant.`;
 
+function AIAvatar({ size = "md" }: { size?: "sm" | "md" }) {
+  const s = size === "sm" ? "h-8 w-8 rounded-xl" : "h-11 w-11 rounded-2xl";
+  return (
+    <div
+      className={cn("grid shrink-0 place-items-center", s)}
+      style={{
+        background: "linear-gradient(135deg, oklch(0.575 0.235 26), oklch(0.855 0.175 88 / 0.9))",
+        boxShadow: "0 0 20px oklch(0.575 0.235 26 / 0.4), 0 4px 12px oklch(0 0 0 / 0.25)",
+      }}
+    >
+      <BrainCircuit className={size === "sm" ? "h-4 w-4 text-white" : "h-5 w-5 text-white"} />
+    </div>
+  );
+}
+
 function PoliceAIPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showQuick, setShowQuick] = useState(true);
   const [input, setInput] = useState("");
+  const [focused, setFocused] = useState(false);
 
   const WELCOME: UIMessage = {
     id: "welcome",
@@ -104,12 +120,10 @@ function PoliceAIPage() {
       .join("");
   }
 
-  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -117,122 +131,98 @@ function PoliceAIPage() {
     el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
   }, [input]);
 
-  function handleQuick(prompt: string) {
-    setInput(prompt);
-    setShowQuick(false);
-    textareaRef.current?.focus();
-  }
-
   return (
     <div className="mx-auto flex h-[calc(100vh-7rem)] w-full max-w-3xl flex-col lg:h-[calc(100vh-5.5rem)]">
 
-      {/* ── Header ────────────────────────────────────────────────────── */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* AI Avatar */}
-          <div className="relative grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary to-gold shadow-lift">
-            <BrainCircuit className="h-5 w-5 text-primary-foreground" />
-            <span className="absolute -inset-px rounded-2xl border border-white/10" />
-          </div>
+      {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
+      <div
+        className="mb-4 flex items-center justify-between overflow-hidden rounded-2xl p-4"
+        style={{
+          background: "linear-gradient(135deg, oklch(0.575 0.235 26 / 0.12), oklch(0.855 0.175 88 / 0.06) 60%, color-mix(in oklab, var(--card) 80%, transparent))",
+          border: "1px solid oklch(0.575 0.235 26 / 0.2)",
+          boxShadow: "0 1px 2px oklch(0 0 0 / 0.06), 0 8px 24px -12px oklch(0.575 0.235 26 / 0.2)",
+        }}
+      >
+        <div className="flex items-center gap-3.5">
+          <AIAvatar size="md" />
           <div>
-            <h1 className="font-display text-[15px] font-bold tracking-tight text-foreground">
-              AI Police Assistant
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-display text-[15px] font-bold tracking-tight text-foreground">
+                AI Police Assistant
+              </h1>
+              <span
+                className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.16em]"
+                style={{
+                  background: "oklch(0.62 0.13 160 / 0.12)",
+                  border: "1px solid oklch(0.62 0.13 160 / 0.3)",
+                  color: "oklch(0.62 0.13 160)",
+                }}
+              >
+                <span className="h-1 w-1 rounded-full" style={{ background: "oklch(0.62 0.13 160)" }} />
+                Secure
+              </span>
+            </div>
             <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Sparkles className="h-3 w-3 text-gold" />
-              Powered by Allma Intelligence
+              Allma Intelligence · Audit-logged
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Status pill */}
-          <span className="hidden items-center gap-1.5 rounded-full border border-success/30 bg-success/[0.08] px-3 py-1.5 text-[10.5px] font-semibold text-success sm:inline-flex">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-            </span>
-            Secure · Ready
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl border-border/50 text-xs gap-1.5 h-8 px-3"
-            onClick={() => {
-              setMessages([WELCOME]);
-              setShowQuick(true);
-              setInput("");
-            }}
-          >
-            <RotateCcw className="h-3 w-3" /> New session
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-xl border-border/50 text-xs gap-1.5 h-8 px-3 shrink-0"
+          onClick={() => {
+            setMessages([WELCOME]);
+            setShowQuick(true);
+            setInput("");
+          }}
+        >
+          <RotateCcw className="h-3 w-3" /> New session
+        </Button>
       </div>
 
-      {/* ── Intelligence brief banner (shown only at start) ───────────── */}
-      <AnimatePresence>
-        {showQuick && messages.length <= 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-4 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.07] via-card to-gold/[0.05] p-4 shadow-soft"
-          >
-            <div className="mb-3 flex items-center gap-2">
-              <div className="grid h-7 w-7 place-items-center rounded-xl border border-primary/25 bg-background/60 backdrop-blur">
-                <Shield className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
-                Allma Intelligence Brief
-              </p>
-            </div>
-            <p className="mb-1 font-display text-sm font-semibold text-foreground">
-              Select a quick prompt or describe your request
-            </p>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              I can analyze cases, draft alerts, detect patterns, and recommend next actions — all within police protocol.
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Messages ──────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto space-y-4 pr-0.5 py-1">
+      {/* ── MESSAGES ────────────────────────────────────────────────────── */}
+      <div className="flex-1 space-y-4 overflow-y-auto py-1 pr-0.5">
         <AnimatePresence initial={false}>
-          {messages.map((msg, i) => (
+          {messages.map((msg) => (
             <motion.div
               key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: i === 0 ? 0 : 0 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}
             >
-              {/* AI avatar */}
-              {msg.role === "assistant" && (
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-gold text-[10px] font-black text-white shadow-soft mt-0.5 self-start">
-                  <BrainCircuit className="h-3.5 w-3.5" />
-                </div>
-              )}
+              {msg.role === "assistant" && <AIAvatar size="sm" />}
 
               <div
                 className={cn(
                   "relative max-w-[84%] rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed",
                   msg.role === "user"
-                    ? "rounded-br-sm bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-lift"
-                    : "rounded-bl-sm border border-border/40 bg-card shadow-soft text-foreground",
+                    ? "rounded-br-sm text-white"
+                    : "chat-card rounded-bl-sm text-foreground",
                 )}
+                style={
+                  msg.role === "user"
+                    ? {
+                        background: "linear-gradient(135deg, oklch(0.575 0.235 26), oklch(0.7 0.21 36))",
+                        boxShadow: "0 4px 16px oklch(0.575 0.235 26 / 0.35)",
+                      }
+                    : {}
+                }
               >
-                {/* Subtle glow for user messages */}
-                {msg.role === "user" && (
-                  <span className="pointer-events-none absolute inset-0 rounded-2xl rounded-br-sm border border-white/10" />
-                )}
                 <span className="whitespace-pre-wrap">{messageText(msg)}</span>
               </div>
 
-              {/* User avatar */}
               {msg.role === "user" && (
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/30 to-gold/30 text-[10px] font-bold text-foreground border border-border/40 mt-0.5 self-start">
+                <div
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-xl self-start"
+                  style={{
+                    background: "color-mix(in oklab, var(--secondary) 80%, transparent)",
+                    border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+                  }}
+                >
                   <Shield className="h-3.5 w-3.5 text-primary" />
                 </div>
               )}
@@ -240,26 +230,27 @@ function PoliceAIPage() {
           ))}
         </AnimatePresence>
 
-        {/* Streaming / loading indicator */}
+        {/* Thinking indicator */}
         <AnimatePresence>
           {isLoading && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.25 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               className="flex gap-3 justify-start"
             >
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-gold shadow-soft">
-                <BrainCircuit className="h-3.5 w-3.5 text-white" />
-              </div>
-              <div className="rounded-2xl rounded-bl-sm border border-border/40 bg-card px-4 py-3.5 shadow-soft">
+              <AIAvatar size="sm" />
+              <div className="chat-card rounded-bl-sm px-4 py-3.5">
                 <span className="flex items-center gap-1.5">
                   {[0, 1, 2].map((i) => (
                     <span
                       key={i}
-                      className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce"
-                      style={{ animationDelay: `${i * 0.18}s` }}
+                      className="h-2 w-2 rounded-full animate-bounce"
+                      style={{
+                        background: "oklch(0.575 0.235 26 / 0.7)",
+                        animationDelay: `${i * 0.18}s`,
+                      }}
                     />
                   ))}
                 </span>
@@ -268,12 +259,16 @@ function PoliceAIPage() {
           )}
         </AnimatePresence>
 
-        {/* Error */}
         {error && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center justify-between rounded-2xl border border-destructive/30 bg-destructive/[0.07] px-4 py-3 text-[13px] text-destructive"
+            className="flex items-center justify-between rounded-2xl px-4 py-3 text-[13px]"
+            style={{
+              background: "oklch(0.55 0.22 22 / 0.07)",
+              border: "1px solid oklch(0.55 0.22 22 / 0.25)",
+              color: "oklch(0.55 0.22 22)",
+            }}
           >
             <span>Error: {error.message}</span>
             <Button
@@ -290,34 +285,42 @@ function PoliceAIPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Quick prompts ─────────────────────────────────────────────── */}
+      {/* ── QUICK PROMPTS ───────────────────────────────────────────────── */}
       <AnimatePresence>
         {showQuick && messages.length <= 1 && (
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
+            exit={{ opacity: 0, y: 6 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-3 mt-2"
+            className="mt-2 mb-3"
           >
-            <p className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+            <p className="mb-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/60">
               <Zap className="h-3 w-3 text-gold" />
               Quick prompts
             </p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               {QUICK_PROMPTS.map((p, i) => (
                 <motion.button
                   key={p.prompt}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  transition={{ delay: i * 0.04, duration: 0.25 }}
                   whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => handleQuick(p.prompt)}
-                  className="group flex items-center justify-between gap-2 rounded-xl border border-border/50 bg-secondary/30 px-3.5 py-2.5 text-left text-[12px] font-medium text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/[0.06] hover:text-foreground"
+                  onClick={() => {
+                    setInput(p.prompt);
+                    setShowQuick(false);
+                    textareaRef.current?.focus();
+                  }}
+                  className="group flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-left text-[12px] font-medium text-muted-foreground transition-all"
+                  style={{
+                    background: "color-mix(in oklab, var(--secondary) 50%, transparent)",
+                    border: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
+                  }}
                 >
                   <span className="truncate">{p.label}</span>
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-primary/60" />
+                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5" />
                 </motion.button>
               ))}
             </div>
@@ -325,7 +328,7 @@ function PoliceAIPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Input ─────────────────────────────────────────────────────── */}
+      {/* ── COMPOSER INPUT ──────────────────────────────────────────────── */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -333,36 +336,50 @@ function PoliceAIPage() {
         }}
         className="mt-1"
       >
-        <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-card/80 p-2 shadow-soft backdrop-blur-sm transition-colors focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_hsl(var(--primary)/0.08)]">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
+        {/* Outer spinning gradient shell — same pattern as citizen chat */}
+        <div className={cn("composer-shell", focused && "composer-shell-focused")}>
+          <div className="composer-surface flex items-end gap-2 px-4 py-3">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              rows={1}
+              placeholder="Ask about a case, request analysis, draft a communication…"
+              className="min-h-[40px] flex-1 resize-none bg-transparent text-[13.5px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+              style={{ maxHeight: "128px" }}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-all"
+              style={
+                input.trim() && !isLoading
+                  ? {
+                      background: "linear-gradient(135deg, oklch(0.575 0.235 26), oklch(0.7 0.21 36))",
+                      boxShadow: "0 4px 16px oklch(0.575 0.235 26 / 0.45)",
+                      color: "white",
+                    }
+                  : {
+                      background: "color-mix(in oklab, var(--muted) 60%, transparent)",
+                      color: "color-mix(in oklab, var(--muted-foreground) 40%, transparent)",
+                      cursor: "not-allowed",
+                    }
               }
-            }}
-            rows={1}
-            placeholder="Ask about a case, request analysis, draft communications…"
-            className="min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-[13.5px] placeholder:text-muted-foreground/50 focus:outline-none"
-            style={{ maxHeight: "128px" }}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className={cn(
-              "grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-all",
-              input.trim() && !isLoading
-                ? "bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-lift hover:opacity-90 hover:-translate-y-0.5"
-                : "bg-secondary text-muted-foreground/40 cursor-not-allowed",
-            )}
-          >
-            <Send className="h-4 w-4" />
-          </button>
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-        <p className="mt-1.5 text-center text-[10.5px] text-muted-foreground/50">
+
+        <p className="mt-2 text-center text-[10.5px] text-muted-foreground/40">
           Secure officer session · All queries are audit-logged
         </p>
       </form>

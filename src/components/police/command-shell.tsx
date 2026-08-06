@@ -71,7 +71,7 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="tabular-nums font-mono text-[11px] text-muted-foreground tracking-wide">
+    <span className="tabular-nums font-mono text-[11px] text-muted-foreground/80 tracking-wider">
       {time.toLocaleTimeString("en-UG", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
     </span>
   );
@@ -99,34 +99,63 @@ export function CommandShell({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* ── Sidebar ──────────────────────────────────────────────────── */}
-      <aside className="hidden w-[228px] shrink-0 flex-col border-r border-sidebar-border/70 bg-sidebar lg:flex relative overflow-hidden">
-        {/* Subtle ambient glow behind sidebar */}
-        <div className="pointer-events-none absolute -top-16 -left-16 h-48 w-48 rounded-full bg-primary/[0.07] blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-32 w-32 rounded-full bg-gold/[0.05] blur-2xl" />
 
-        {/* Brand */}
-        <div className="relative flex items-center gap-3 border-b border-sidebar-border/60 px-4 py-4">
-          <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary to-primary-glow shadow-lift">
-            <Shield className="h-4.5 w-4.5 text-primary-foreground" />
-            {/* Pulse ring */}
-            <span className="absolute -inset-0.5 rounded-2xl border border-primary/40 animate-pulse" />
+      {/* ── SIDEBAR premium dark ─────────────────────────────────────────── */}
+      <aside
+        className="hidden w-[230px] shrink-0 flex-col lg:flex relative overflow-hidden"
+        style={{
+          background: "linear-gradient(180deg, oklch(0.09 0.018 25) 0%, oklch(0.07 0.014 25) 100%)",
+          borderRight: "1px solid oklch(0.18 0.02 25)",
+        }}
+      >
+        {/* Ambient glow orbs */}
+        <div
+          className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full opacity-40"
+          style={{ background: "radial-gradient(circle, oklch(0.575 0.235 26 / 0.35), transparent 70%)" }}
+        />
+        <div
+          className="pointer-events-none absolute bottom-20 -right-16 h-48 w-48 rounded-full opacity-30"
+          style={{ background: "radial-gradient(circle, oklch(0.855 0.175 88 / 0.25), transparent 70%)" }}
+        />
+
+        {/* ── Brand ── */}
+        <div
+          className="relative flex items-center gap-3 px-4 py-4"
+          style={{ borderBottom: "1px solid oklch(0.18 0.02 25)" }}
+        >
+          {/* Shield badge with glow */}
+          <div className="relative shrink-0">
+            <div
+              className="grid h-10 w-10 place-items-center rounded-2xl shadow-lift"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.575 0.235 26), oklch(0.7 0.21 36))",
+                boxShadow: "0 0 20px oklch(0.575 0.235 26 / 0.5), 0 4px 12px oklch(0 0 0 / 0.4)",
+              }}
+            >
+              <Shield className="h-5 w-5 text-white" />
+            </div>
           </div>
           <div className="min-w-0">
-            <p className="font-display text-[13.5px] font-bold leading-none tracking-tight text-foreground">
+            <p className="font-display text-[14px] font-bold leading-none tracking-tight text-white">
               Allma Command
             </p>
-            <p className="mt-0.5 text-[9.5px] font-semibold uppercase tracking-[0.18em] text-primary/70">
+            <p
+              className="mt-1 text-[9px] font-bold uppercase tracking-[0.22em]"
+              style={{ color: "oklch(0.855 0.175 88)" }}
+            >
               Police Integration Ready
             </p>
           </div>
         </div>
 
-        {/* Nav groups */}
-        <nav className="relative flex-1 overflow-y-auto py-3 px-2">
+        {/* ── Nav groups ── */}
+        <nav className="relative flex-1 overflow-y-auto py-3 px-2.5">
           {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-1">
-              <p className="px-3 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50">
+            <div key={group.label} className="mb-2">
+              <p
+                className="px-2.5 pb-1.5 pt-3 text-[9px] font-bold uppercase tracking-[0.2em]"
+                style={{ color: "oklch(0.4 0.015 25)" }}
+              >
                 {group.label}
               </p>
               {group.items.map((item) => {
@@ -136,26 +165,45 @@ export function CommandShell({
                     key={item.to}
                     to={item.to}
                     className={cn(
-                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-150",
-                      active
-                        ? "bg-primary/[0.12] text-foreground font-semibold shadow-sm"
-                        : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] transition-all duration-150 mb-0.5",
                     )}
+                    style={
+                      active
+                        ? {
+                            background: "linear-gradient(135deg, oklch(0.575 0.235 26 / 0.25), oklch(0.7 0.21 36 / 0.12))",
+                            border: "1px solid oklch(0.575 0.235 26 / 0.35)",
+                            color: "white",
+                            fontWeight: 600,
+                          }
+                        : {
+                            color: "oklch(0.55 0.015 25)",
+                            border: "1px solid transparent",
+                          }
+                    }
                   >
+                    {/* Active left glow bar */}
                     {active && (
-                      <>
-                        <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]" />
-                      </>
+                      <span
+                        className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full"
+                        style={{
+                          background: "linear-gradient(180deg, oklch(0.575 0.235 26), oklch(0.7 0.21 36))",
+                          boxShadow: "0 0 8px oklch(0.575 0.235 26 / 0.8)",
+                        }}
+                      />
                     )}
                     <item.icon
-                      className={cn(
-                        "h-[15px] w-[15px] shrink-0 transition-colors",
-                        active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground/80",
-                      )}
+                      className="h-4 w-4 shrink-0 transition-colors"
+                      style={active ? { color: "oklch(0.7 0.21 36)" } : {}}
                     />
                     <span className="truncate">{item.label}</span>
                     {active && (
-                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary)/0.8)]" />
+                      <span
+                        className="ml-auto h-1.5 w-1.5 rounded-full shrink-0"
+                        style={{
+                          background: "oklch(0.575 0.235 26)",
+                          boxShadow: "0 0 6px oklch(0.575 0.235 26 / 0.9)",
+                        }}
+                      />
                     )}
                   </Link>
                 );
@@ -164,23 +212,48 @@ export function CommandShell({
           ))}
         </nav>
 
-        {/* Officer card */}
-        <div className="relative border-t border-sidebar-border/60 p-2.5">
-          <div className="flex items-center gap-2.5 rounded-xl bg-sidebar-accent/60 px-3 py-2.5 transition-colors hover:bg-sidebar-accent">
-            {/* Avatar with gradient ring */}
+        {/* ── Officer card ── */}
+        <div
+          className="p-3"
+          style={{ borderTop: "1px solid oklch(0.18 0.02 25)" }}
+        >
+          <div
+            className="flex items-center gap-2.5 rounded-2xl px-3 py-3 transition-colors"
+            style={{ background: "oklch(0.12 0.016 25)" }}
+          >
+            {/* Avatar */}
             <div className="relative shrink-0">
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-primary/70 to-gold/70 text-[10px] font-bold text-white shadow-soft">
+              <div
+                className="grid h-9 w-9 place-items-center rounded-full text-[11px] font-black text-white"
+                style={{
+                  background: "linear-gradient(135deg, oklch(0.575 0.235 26 / 0.9), oklch(0.855 0.175 88 / 0.9))",
+                  boxShadow: "0 0 12px oklch(0.575 0.235 26 / 0.4)",
+                }}
+              >
                 {initials || "UP"}
               </div>
-              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full border-2 border-sidebar bg-success shadow-[0_0_4px_hsl(var(--success)/0.6)]" />
+              {/* Online dot */}
+              <span
+                className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full"
+                style={{
+                  background: "oklch(0.72 0.14 156)",
+                  border: "2px solid oklch(0.09 0.018 25)",
+                  boxShadow: "0 0 6px oklch(0.72 0.14 156 / 0.7)",
+                }}
+              />
             </div>
+
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12.5px] font-semibold leading-none text-foreground">{fullName}</p>
-              <p className="mt-0.5 truncate text-[10px] leading-none text-muted-foreground">{rankLabel(officer?.rank)}</p>
+              <p className="truncate text-[12.5px] font-semibold leading-none text-white">{fullName}</p>
+              <p className="mt-0.5 truncate text-[10px] leading-none" style={{ color: "oklch(0.4 0.015 25)" }}>
+                {rankLabel(officer?.rank)}
+              </p>
             </div>
+
             <button
               aria-label="Sign out"
-              className="shrink-0 rounded-lg p-1.5 text-muted-foreground/60 transition hover:bg-background/60 hover:text-foreground"
+              className="shrink-0 rounded-xl p-1.5 transition"
+              style={{ color: "oklch(0.4 0.015 25)" }}
               onClick={async () => {
                 await qc.cancelQueries();
                 qc.clear();
@@ -194,41 +267,73 @@ export function CommandShell({
         </div>
       </aside>
 
-      {/* ── Content column ───────────────────────────────────────────── */}
+      {/* ── CONTENT AREA ─────────────────────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+
         {/* Top bar */}
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-5 backdrop-blur-md lg:px-7">
-          <div className="flex items-center gap-4 min-w-0">
-            {/* Mobile brand */}
-            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-glow shadow-sm lg:hidden">
-              <Shield className="h-3.5 w-3.5 text-primary-foreground" />
+        <header
+          className="flex h-13 shrink-0 items-center justify-between px-5 lg:px-7"
+          style={{
+            background: "color-mix(in oklab, var(--background) 92%, transparent)",
+            borderBottom: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
+            backdropFilter: "blur(12px)",
+            height: "52px",
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile brand mark */}
+            <div
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-xl lg:hidden"
+              style={{ background: "linear-gradient(135deg, oklch(0.575 0.235 26), oklch(0.7 0.21 36))" }}
+            >
+              <Shield className="h-3.5 w-3.5 text-white" />
             </div>
-            <div className="min-w-0">
-              <span className="font-display text-[13px] font-bold text-foreground">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-display text-[13.5px] font-bold text-foreground">
                 {officer?.jurisdiction_level ?? "National"} Command
               </span>
-              <span className="mx-2 text-muted-foreground/30">·</span>
+              <span className="text-muted-foreground/40">·</span>
               <span className="text-[13px] text-muted-foreground">{officer?.jurisdiction_area ?? "Uganda"}</span>
             </div>
             {officer?.badge_number && (
-              <span className="hidden rounded-full border border-border/50 bg-secondary/60 px-2.5 py-0.5 text-[10.5px] font-medium text-muted-foreground lg:block">
+              <span className="hidden rounded-full border border-border/50 bg-muted/40 px-2.5 py-0.5 text-[10.5px] font-medium text-muted-foreground lg:block">
                 Badge {officer.badge_number}
               </span>
             )}
           </div>
+
           <div className="flex items-center gap-3">
             <LiveClock />
-            {/* Live indicator */}
-            <span className="flex items-center gap-1.5 rounded-full border border-success/30 bg-success/[0.08] px-2.5 py-1 text-[10.5px] font-semibold text-success">
+
+            {/* Live pill */}
+            <span
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10.5px] font-semibold"
+              style={{
+                background: "oklch(0.62 0.13 160 / 0.1)",
+                border: "1px solid oklch(0.62 0.13 160 / 0.3)",
+                color: "oklch(0.62 0.13 160)",
+              }}
+            >
               <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+                <span
+                  className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70"
+                  style={{ background: "oklch(0.62 0.13 160)" }}
+                />
+                <span
+                  className="relative inline-flex h-1.5 w-1.5 rounded-full"
+                  style={{ background: "oklch(0.62 0.13 160)" }}
+                />
               </span>
               Live
             </span>
+
             <Link
               to="/chat"
-              className="hidden rounded-xl border border-border/50 bg-secondary/40 px-3 py-1.5 text-[11.5px] font-medium text-muted-foreground transition hover:border-primary/30 hover:bg-primary/[0.06] hover:text-foreground sm:block"
+              className="hidden rounded-xl px-3 py-1.5 text-[11.5px] font-medium text-muted-foreground transition hover:text-foreground sm:block"
+              style={{
+                border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+                background: "color-mix(in oklab, var(--muted) 40%, transparent)",
+              }}
             >
               Citizen app
             </Link>
@@ -239,7 +344,7 @@ export function CommandShell({
         <main className="min-w-0 flex-1 overflow-y-auto px-5 pb-8 pt-6 lg:px-8">{children}</main>
       </div>
 
-      {/* ── Mobile bottom nav ────────────────────────────────────────── */}
+      {/* ── Mobile bottom nav ────────────────────────────────────────────── */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-background/95 backdrop-blur-xl lg:hidden">
         <div className="grid grid-cols-5 px-2 pb-[env(safe-area-inset-bottom)]">
           {MOBILE_NAV.map((item) => {
@@ -253,7 +358,7 @@ export function CommandShell({
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >
-                <item.icon className={cn("h-4.5 w-4.5", active && "drop-shadow-[0_0_4px_hsl(var(--primary)/0.7)]")} />
+                <item.icon className="h-4 w-4" />
                 {item.label}
               </Link>
             );
