@@ -553,9 +553,9 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
           </motion.p>
         </div>
 
-        {/* Right: info panel (desktop only) */}
+        {/* Right: info panel — stacked below the button on mobile */}
         <motion.div
-          className="mt-10 hidden w-72 space-y-3 lg:block"
+          className="mb-10 mt-8 w-full max-w-sm space-y-3 lg:mb-0 lg:mt-10 lg:w-72 lg:max-w-none"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
