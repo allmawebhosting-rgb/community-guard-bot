@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell, ChevronRight, FileText, LogOut, MapPin, MessageSquare,
-  Moon, Shield, Sun, UserRound,
+  Moon, Shield, Sun, UserRound, Users, LocateFixed, Loader2,
 } from "lucide-react";
 import { AppShell } from "@/components/allma/app-shell";
 import { MascotAvatar } from "@/components/allma/mascot";
@@ -10,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/lib/theme";
 import { DISCLAIMER } from "@/lib/allma";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -32,6 +34,76 @@ function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [responderAvailable, setResponderAvailable] = useState(false);
+  const [responderSaving, setResponderSaving] = useState(false);
+  const responderWatch = useRef<number | null>(null);
+  const responderTable = supabase as unknown as {
+    from: (table: string) => {
+      select: (columns: string) => { eq: (column: string, value: string) => { maybeSingle: () => Promise<{ data: { is_available: boolean } | null }> } };
+      upsert: (values: Record<string, unknown>, options?: Record<string, unknown>) => Promise<{ error: unknown }>;
+      update: (values: Record<string, unknown>) => { eq: (column: string, value: string) => Promise<{ error: unknown }> };
+    };
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void responderTable.from("community_responder_locations")
+      .select("is_available")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setResponderAvailable(Boolean(data?.is_available));
+      });
+    return () => {
+      cancelled = true;
+      if (responderWatch.current !== null && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(responderWatch.current);
+      }
+    };
+  }, [user]);
+
+  async function setResponderMode(enabled: boolean) {
+    if (!user) return;
+    setResponderSaving(true);
+    if (!enabled) {
+      if (responderWatch.current !== null) navigator.geolocation.clearWatch(responderWatch.current);
+      responderWatch.current = null;
+      const { error } = await responderTable.from("community_responder_locations")
+        .update({ is_available: false, last_seen_at: new Date().toISOString() })
+        .eq("user_id", user.id);
+      if (error) console.error("Failed to disable responder presence", error);
+      setResponderAvailable(false);
+      setResponderSaving(false);
+      return;
+    }
+
+    if (!("geolocation" in navigator)) {
+      setResponderSaving(false);
+      return;
+    }
+
+    responderWatch.current = navigator.geolocation.watchPosition(
+      async ({ coords }) => {
+        const { error } = await responderTable.from("community_responder_locations").upsert({
+          user_id: user.id,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          is_available: true,
+          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+        if (error) console.error("Failed to update responder presence", error);
+        setResponderAvailable(!error);
+        setResponderSaving(false);
+      },
+      () => {
+        setResponderAvailable(false);
+        setResponderSaving(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
+    );
+  }
 
   const { data: stats } = useQuery({
     queryKey: ["profile-stats"],
@@ -138,6 +210,26 @@ function ProfileScreen() {
             <div>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Preferences</p>
               <div className="overflow-hidden rounded-[1.4rem] border border-border/60 bg-card/70">
+                <div className="flex items-center gap-4 border-b border-border/50 px-5 py-4">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500/10">
+                    <Users className="h-4 w-4 text-amber-500" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[13.5px] font-semibold">Help neighbors nearby</span>
+                    <span className="mt-0.5 block text-[11.5px] leading-relaxed text-muted-foreground">
+                      Share your availability during SOS alerts. Your exact location is never shown.
+                    </span>
+                  </div>
+                  {responderSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Switch
+                      checked={responderAvailable}
+                      onCheckedChange={setResponderMode}
+                      aria-label="Allow nearby SOS responder alerts"
+                    />
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={toggleTheme}

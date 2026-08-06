@@ -4,7 +4,7 @@ import {
   Siren, MapPin, Phone, Building2, Shield, Loader2,
   ChevronRight, Send, ArrowLeft, CheckCircle2, Navigation2,
   Radio, Brain, Zap, AlertTriangle, Heart, Car,
-  UserX, Home, MoreHorizontal, Clock,
+  UserX, Home, MoreHorizontal, Clock, LocateFixed, Users,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ type Phase = "idle" | "type-select" | "loading" | "help" | "report" | "submitted
 
 type LocationInfo = {
   address: string; suburb: string; district: string; lat: number; lng: number;
+  accuracy: number; capturedAt: number;
 };
 
 type Facility = {
@@ -25,6 +26,13 @@ type Facility = {
 type ResponderStatus = "notified" | "accepted" | "travelling" | "arrived" | "completed";
 type Responder = {
   id: string; name: string; distance: string; eta: string; status: ResponderStatus; verified: boolean;
+};
+
+type NearbyPerson = {
+  id: string;
+  display_name: string;
+  distance_m: number;
+  updated_at: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -45,11 +53,6 @@ const EMERGENCY_TYPES = [
   { id: "missing",  icon: UserX,        label: "Missing Person",      color: "text-purple-400", bg: "bg-purple-950/50" },
   { id: "domestic", icon: Home,         label: "Domestic Violence",   color: "text-pink-400",   bg: "bg-pink-950/50"   },
   { id: "other",    icon: MoreHorizontal,label: "Other Emergency",   color: "text-zinc-400",   bg: "bg-zinc-800/50"   },
-];
-
-const DEMO_RESPONDERS: Omit<Responder, "status">[] = [
-  { id: "r1", name: "Kato M.",  distance: "0.4 km", eta: "~4 min", verified: true  },
-  { id: "r2", name: "Amara J.", distance: "0.8 km", eta: "~8 min", verified: false },
 ];
 
 const COMMUNITY_RADIUS: Record<string, number> = {
@@ -138,9 +141,14 @@ async function fetchOverpass(lat: number, lng: number, amenity: "hospital" | "po
 function getLocation(): Promise<LocationInfo> {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) { reject(new Error("no geo")); return; }
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        const { latitude: lat, longitude: lng } = coords;
+    let best: GeolocationPosition | null = null;
+    let settled = false;
+    let watchId: number | null = null;
+    const finish = async (position: GeolocationPosition) => {
+      if (settled) return;
+      settled = true;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      const { latitude: lat, longitude: lng, accuracy } = position.coords;
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
           const d = await res.json();
@@ -148,14 +156,61 @@ function getLocation(): Promise<LocationInfo> {
             address: d.address?.road || d.display_name?.split(",")[0] || "Current Location",
             suburb: d.address?.suburb || d.address?.village || d.address?.neighbourhood || "",
             district: d.address?.city || d.address?.county || "",
-            lat, lng,
+            lat, lng, accuracy, capturedAt: Date.now(),
           });
-        } catch { resolve({ address: "Current Location", suburb: "", district: "", lat, lng }); }
+        } catch {
+          resolve({ address: "Current Location", suburb: "", district: "", lat, lng, accuracy, capturedAt: Date.now() });
+        }
+    };
+    const timeout = window.setTimeout(() => {
+      if (best) void finish(best);
+      else {
+        settled = true;
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+        reject(new Error("location timeout"));
+      }
+    }, 15000);
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (!best || position.coords.accuracy < best.coords.accuracy) best = position;
+        // A phone GPS fix under 30m is usually good enough for an emergency pin.
+        if (position.coords.accuracy <= 30) {
+          window.clearTimeout(timeout);
+          void finish(position);
+        }
       },
-      (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 9000 },
+      (err) => {
+        window.clearTimeout(timeout);
+        if (best) void finish(best);
+        else reject(err);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
   });
+}
+
+async function findNearbyPeople(location: LocationInfo, radiusMeters: number): Promise<NearbyPerson[]> {
+  // This RPC only returns people who explicitly opted in as available responders.
+  // It also rounds their coordinates before returning them, so the SOS user never
+  // receives another person's exact position.
+  if (!location) return [];
+  const client = supabase as unknown as {
+    rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: NearbyPerson[] | null; error: unknown }>;
+  };
+  const { data, error } = await client.rpc("find_nearby_responders", {
+    origin_lat: location.lat,
+    origin_lng: location.lng,
+    radius_meters: radiusMeters,
+  });
+  if (error) {
+    console.warn("Nearby responder search unavailable", error);
+    return [];
+  }
+  return data ?? [];
+}
+
+function formatDistanceMeters(meters: number) {
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 
 function getAiMessages(type: string, location: LocationInfo | null): string[] {
@@ -174,8 +229,7 @@ function getAiMessages(type: string, location: LocationInfo | null): string[] {
     `Emergency mode activated. I'm locating you and determining the fastest available assistance.`,
     `Your location has been detected in ${loc}. I'm alerting the nearest emergency services now.`,
     typeMsg[type] ?? typeMsg.other,
-    `I've found nearby Allma Safety AI community members. I'm alerting opted-in users within ${(COMMUNITY_RADIUS[type] ?? 1000) / 1000} km of your location.`,
-    `A community responder nearby has accepted your emergency alert. Help is on the way — stay where you are if it is safe.`,
+    `I'm checking for opted-in Allma responders within ${(COMMUNITY_RADIUS[type] ?? 1000) / 1000} km. Their exact locations stay private.`,
   ];
 }
 
@@ -368,10 +422,30 @@ export function SOSExperience() {
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [hospitals, setHospitals] = useState<Facility[]>([]);
   const [officers, setOfficers] = useState<Facility[]>([]);
+  const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
   const [reportText, setReportText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const activated = useRef(false);
+
+  useEffect(() => {
+    if (phase !== "help" || !location || !("geolocation" in navigator)) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude: lat, longitude: lng, accuracy } = position.coords;
+        setLocation((current) => current ? {
+          ...current,
+          lat,
+          lng,
+          accuracy,
+          capturedAt: Date.now(),
+        } : current);
+      },
+      (error) => console.warn("Live GPS update unavailable", error),
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [phase, Boolean(location)]);
 
   function handleSosPress() { setPhase("type-select"); }
 
@@ -383,30 +457,37 @@ export function SOSExperience() {
 
     let loc: LocationInfo | null = null;
     try { loc = await getLocation(); } catch { loc = null; }
-    const finalLoc: LocationInfo = loc ?? { address: "Kampala Road", suburb: "Nakasero", district: "Kampala Central", lat: 0.3476, lng: 32.5825 };
-    setLocation(finalLoc);
+    setLocation(loc);
 
-    if (user) {
+    if (user && loc) {
       const { error } = await supabase.from("safety_activity").insert({
         user_id: user.id,
         activity_type: "sos_activated",
         title: "Emergency SOS activated",
         summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
         severity: "critical",
-        location_text: `${finalLoc.address}, ${finalLoc.district}`.replace(/, $/, ""),
-        latitude: finalLoc.lat,
-        longitude: finalLoc.lng,
-        details: { channel: "sos", emergency_type: type } as never,
+        location_text: `${loc.address}, ${loc.district}`.replace(/, $/, ""),
+        latitude: loc.lat,
+        longitude: loc.lng,
+        details: { channel: "sos", emergency_type: type, accuracy_m: loc.accuracy } as never,
       });
       if (error) console.error("Failed to record SOS activity", error);
     }
 
-    const [realHospitals, realPolice] = await Promise.all([
-      fetchOverpass(finalLoc.lat, finalLoc.lng, "hospital").catch(() => [] as Facility[]),
-      fetchOverpass(finalLoc.lat, finalLoc.lng, "police").catch(() => [] as Facility[]),
-    ]);
-    setHospitals(realHospitals.length >= 2 ? realHospitals.slice(0, 4) : withDistance(DEMO_HOSPITALS, finalLoc.lat, finalLoc.lng));
-    setOfficers(realPolice.length >= 1 ? realPolice.slice(0, 3) : withDistance(DEMO_OFFICERS, finalLoc.lat, finalLoc.lng));
+    if (loc) {
+      const [realHospitals, realPolice, nearby] = await Promise.all([
+        fetchOverpass(loc.lat, loc.lng, "hospital").catch(() => [] as Facility[]),
+        fetchOverpass(loc.lat, loc.lng, "police").catch(() => [] as Facility[]),
+        user ? findNearbyPeople(loc, COMMUNITY_RADIUS[type] ?? 1000) : Promise.resolve([]),
+      ]);
+      setHospitals(realHospitals.length >= 2 ? realHospitals.slice(0, 4) : withDistance(DEMO_HOSPITALS, loc.lat, loc.lng));
+      setOfficers(realPolice.length >= 1 ? realPolice.slice(0, 3) : withDistance(DEMO_OFFICERS, loc.lat, loc.lng));
+      setNearbyPeople(nearby);
+    } else {
+      setHospitals([]);
+      setOfficers([]);
+      setNearbyPeople([]);
+    }
     setPhase("help");
   }
 
@@ -460,6 +541,7 @@ export function SOSExperience() {
             location={location}
             hospitals={hospitals}
             officers={officers}
+            nearbyPeople={nearbyPeople}
             onReport={() => setPhase("report")}
             onClose={() => { activated.current = false; setPhase("idle"); }}
           />
@@ -753,10 +835,10 @@ function LoadingScreen() {
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
 function HelpScreen({
-  emergencyType, location, hospitals, officers, onReport, onClose,
+  emergencyType, location, hospitals, officers, nearbyPeople, onReport, onClose,
 }: {
   emergencyType: string; location: LocationInfo | null; hospitals: Facility[];
-  officers: Facility[]; onReport: () => void; onClose: () => void;
+  officers: Facility[]; nearbyPeople: NearbyPerson[]; onReport: () => void; onClose: () => void;
 }) {
   const info = HELP_INFO[emergencyType] ?? HELP_INFO.other;
   const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
@@ -767,14 +849,21 @@ function HelpScreen({
   const { log: aiLog, typing: aiTyping } = useAiChat(aiMessages);
 
   const [status, setStatus] = useState({ police: false, hospital: false, community: false });
-  const [responders, setResponders] = useState<Responder[]>([]);
+  const responders: Responder[] = nearbyPeople.map((person) => ({
+    id: person.id,
+    name: person.display_name || "Nearby responder",
+    distance: formatDistanceMeters(person.distance_m),
+    eta: "available",
+    status: "notified",
+    verified: false,
+  }));
 
   const TIMELINE = [
     { label: "SOS Activated",              sub: "Emergency mode engaged"                                                      },
     { label: "Location Detected",          sub: [location?.suburb, location?.district].filter(Boolean).join(", ") || "Kampala" },
     { label: "Emergency Services Alerted", sub: "Police · Ambulance · Fire Brigade"                                          },
     { label: "Community Search Started",   sub: `${(COMMUNITY_RADIUS[emergencyType] ?? 1000) / 1000} km radius active`        },
-    { label: "Community Responder Found",  sub: "Volunteer en route to your location"                                        },
+    { label: "Nearby responders checked",  sub: nearbyPeople.length ? `${nearbyPeople.length} opted-in people available` : "No opted-in responders found yet" },
   ];
   const [timelineDone, setTimelineDone] = useState(2);
 
@@ -784,17 +873,15 @@ function HelpScreen({
     add(1200,  () => setStatus((s) => ({ ...s, police: true })));
     add(2200,  () => setStatus((s) => ({ ...s, hospital: true })));
     add(3800,  () => setTimelineDone(3));
-    add(5500,  () => { setStatus((s) => ({ ...s, community: true })); setTimelineDone(4); setResponders([{ ...DEMO_RESPONDERS[0], status: "notified" }, { ...DEMO_RESPONDERS[1], status: "notified" }]); });
-    add(8500,  () => setResponders((r) => r.map((x) => x.id === "r1" ? { ...x, status: "accepted"   } : x)));
-    add(12000, () => { setTimelineDone(5); setResponders((r) => r.map((x) => x.id === "r1" ? { ...x, status: "travelling" } : x)); });
-    add(18000, () => setResponders((r) => r.map((x) => x.id === "r2" ? { ...x, status: "accepted"   } : x)));
-    add(28000, () => setResponders((r) => r.map((x) => x.id === "r1" ? { ...x, status: "arrived"    } : x)));
-    add(34000, () => setResponders((r) => r.map((x) => x.id === "r2" ? { ...x, status: "travelling" } : x)));
+    add(5500,  () => { setStatus((s) => ({ ...s, community: true })); setTimelineDone(4); });
     return () => ts.forEach(clearTimeout);
   }, []);
 
   const mapUrl = location
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - 0.014},${location.lat - 0.014},${location.lng + 0.014},${location.lat + 0.014}&layer=mapnik&marker=${location.lat},${location.lng}`
+    ? (() => {
+        const delta = Math.max(0.004, Math.min(0.02, (location.accuracy / 111000) * 5));
+        return `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - delta},${location.lat - delta},${location.lng + delta},${location.lat + delta}&layer=mapnik&marker=${location.lat},${location.lng}`;
+      })()
     : null;
 
   // ── Shared sections (rendered on both mobile and desktop) ──
@@ -885,7 +972,7 @@ function HelpScreen({
     <div>
       <SectionLabel><Radio className="mr-1.5 inline-block h-3 w-3 align-middle" />Live status</SectionLabel>
       <div className="grid grid-cols-2 gap-2">
-        <StatusTile icon={MapPin} label="Location"  value="Active · Live GPS"    color="green" visible />
+        <StatusTile icon={MapPin} label="Location"  value={location ? `GPS ±${Math.round(location.accuracy)} m` : "Unavailable"} color="green" visible />
         <StatusTile icon={Shield} label="Police"    value="Notified · En Route"  color="blue"  visible={status.police} />
         <StatusTile icon={Heart}  label="Medical"   value="Alerted · On Standby" color="green" visible={status.hospital} />
         <StatusTile icon={Radio}  label="Community" value={`${(COMMUNITY_RADIUS[emergencyType] ?? 1000) / 1000} km radius`} color="amber" visible={status.community} />
@@ -915,8 +1002,11 @@ function HelpScreen({
         <span className="min-w-0 truncate">
           {location?.address}{location?.district ? `, ${location.district}` : ""}
         </span>
+          {location && (
+            <span className="shrink-0 text-white/30">±{Math.round(location.accuracy)} m</span>
+          )}
         <span className="ml-auto flex shrink-0 items-center gap-1 text-green-400/70">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" /> Live
+            <LocateFixed className="h-3 w-3" /> GPS
         </span>
       </div>
     </div>
@@ -929,13 +1019,13 @@ function HelpScreen({
           <SectionLabel>
             Community responders
             <span className="ml-2 rounded-full bg-amber-900/50 px-2 py-0.5 font-normal normal-case tracking-normal text-amber-400">
-              {responders.filter((r) => r.status !== "notified").length} responding
+              {responders.length} nearby
             </span>
           </SectionLabel>
           <div className="space-y-2">
             {responders.map((r) => <ResponderCard key={r.id} responder={r} />)}
           </div>
-          <p className="mt-2 text-[10px] text-white/20">Privacy protected · Exact location not shared</p>
+          <p className="mt-2 text-[10px] text-white/20">Opted-in responders only · Exact locations are never shared</p>
         </motion.div>
       )}
     </AnimatePresence>

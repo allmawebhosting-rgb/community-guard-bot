@@ -1,0 +1,1 @@
+- [SOS location privacy](sos-location-privacy.md) — Nearby responder presence is opt-in, stale entries expire, and SOS users receive distance only.
