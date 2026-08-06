@@ -2,7 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Brain, Send, RotateCcw, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  BrainCircuit,
+  Send,
+  RotateCcw,
+  Sparkles,
+  Shield,
+  ChevronRight,
+  Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -12,14 +21,14 @@ export const Route = createFileRoute("/_authenticated/police/ai")({
 });
 
 const QUICK_PROMPTS = [
-  "Summarize the most critical open cases",
-  "What patterns do you see in recent incidents?",
-  "Generate investigation checklist for a theft case",
-  "Suggest next actions for unresolved cases",
-  "Translate a Luganda witness statement to English",
-  "What evidence is typically needed for a robbery case?",
-  "Draft a community alert for a missing person",
-  "Recommend officer allocation for high-priority zones",
+  { label: "Summarize critical cases",       prompt: "Summarize the most critical open cases" },
+  { label: "Detect incident patterns",       prompt: "What patterns do you see in recent incidents?" },
+  { label: "Theft investigation checklist",  prompt: "Generate investigation checklist for a theft case" },
+  { label: "Next actions for open cases",    prompt: "Suggest next actions for unresolved cases" },
+  { label: "Translate Luganda statement",    prompt: "Translate a Luganda witness statement to English" },
+  { label: "Robbery evidence guide",         prompt: "What evidence is typically needed for a robbery case?" },
+  { label: "Draft missing person alert",     prompt: "Draft a community alert for a missing person" },
+  { label: "Officer allocation advice",      prompt: "Recommend officer allocation for high-priority zones" },
 ];
 
 const SYSTEM_PROMPT = `You are an expert AI Police Assistant embedded in the Allma Safety AI Command Center for the Uganda Police Force.
@@ -39,8 +48,8 @@ Always be professional, precise, and concise. Prioritize officer safety and lega
 
 function PoliceAIPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showQuick, setShowQuick] = useState(true);
-
   const [input, setInput] = useState("");
 
   const WELCOME: UIMessage = {
@@ -95,133 +104,238 @@ function PoliceAIPage() {
       .join("");
   }
 
+  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [input]);
 
   function handleQuick(prompt: string) {
     setInput(prompt);
     setShowQuick(false);
+    textareaRef.current?.focus();
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-7rem)] w-full max-w-4xl flex-col gap-0 lg:h-[calc(100vh-5rem)]">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/40 pb-4 mb-2">
+    <div className="mx-auto flex h-[calc(100vh-7rem)] w-full max-w-3xl flex-col lg:h-[calc(100vh-5.5rem)]">
+
+      {/* ── Header ────────────────────────────────────────────────────── */}
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-2xl bg-gradient-to-br from-primary to-gold shadow-lift">
-            <Brain className="h-4.5 w-4.5 text-primary-foreground" />
+          {/* AI Avatar */}
+          <div className="relative grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary to-gold shadow-lift">
+            <BrainCircuit className="h-5 w-5 text-primary-foreground" />
+            <span className="absolute -inset-px rounded-2xl border border-white/10" />
           </div>
           <div>
-            <h1 className="font-display text-sm font-semibold">AI Police Assistant</h1>
-            <p className="text-[11px] text-muted-foreground">Powered by OpenAI GPT-4o</p>
+            <h1 className="font-display text-[15px] font-bold tracking-tight text-foreground">
+              AI Police Assistant
+            </h1>
+            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Sparkles className="h-3 w-3 text-gold" />
+              Powered by Allma Intelligence
+            </p>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
-          <span className="hidden items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-[11px] font-medium text-success sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" /> Ready
+          {/* Status pill */}
+          <span className="hidden items-center gap-1.5 rounded-full border border-success/30 bg-success/[0.08] px-3 py-1.5 text-[10.5px] font-semibold text-success sm:inline-flex">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+            </span>
+            Secure · Ready
           </span>
           <Button
             variant="outline"
             size="sm"
-            className="rounded-full text-xs gap-1.5"
+            className="rounded-xl border-border/50 text-xs gap-1.5 h-8 px-3"
             onClick={() => {
               setMessages([WELCOME]);
               setShowQuick(true);
+              setInput("");
             }}
           >
-            <RotateCcw className="h-3.5 w-3.5" /> New session
+            <RotateCcw className="h-3 w-3" /> New session
           </Button>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-2">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}
+      {/* ── Intelligence brief banner (shown only at start) ───────────── */}
+      <AnimatePresence>
+        {showQuick && messages.length <= 1 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-4 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.07] via-card to-gold/[0.05] p-4 shadow-soft"
           >
-            {msg.role === "assistant" && (
-              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-gold text-[10px] font-bold text-primary-foreground mt-0.5">
-                AI
+            <div className="mb-3 flex items-center gap-2">
+              <div className="grid h-7 w-7 place-items-center rounded-xl border border-primary/25 bg-background/60 backdrop-blur">
+                <Shield className="h-3.5 w-3.5 text-primary" />
               </div>
-            )}
-            <div
-              className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-sm"
-                  : "premium-surface border border-border/50 shadow-soft rounded-bl-sm",
-              )}
-            >
-              {messageText(msg)}
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
+                Allma Intelligence Brief
+              </p>
             </div>
-          </div>
-        ))}
-
-        {isLoading && (
-          <div className="flex gap-3 justify-start">
-            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-gold text-[10px] font-bold text-primary-foreground">
-              AI
-            </div>
-            <div className="premium-surface rounded-2xl rounded-bl-sm border border-border/50 px-4 py-3">
-              <span className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
-              </span>
-            </div>
-          </div>
+            <p className="mb-1 font-display text-sm font-semibold text-foreground">
+              Select a quick prompt or describe your request
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              I can analyze cases, draft alerts, detect patterns, and recommend next actions — all within police protocol.
+            </p>
+          </motion.div>
         )}
+      </AnimatePresence>
 
+      {/* ── Messages ──────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto space-y-4 pr-0.5 py-1">
+        <AnimatePresence initial={false}>
+          {messages.map((msg, i) => (
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: i === 0 ? 0 : 0 }}
+              className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}
+            >
+              {/* AI avatar */}
+              {msg.role === "assistant" && (
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-gold text-[10px] font-black text-white shadow-soft mt-0.5 self-start">
+                  <BrainCircuit className="h-3.5 w-3.5" />
+                </div>
+              )}
+
+              <div
+                className={cn(
+                  "relative max-w-[84%] rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed",
+                  msg.role === "user"
+                    ? "rounded-br-sm bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-lift"
+                    : "rounded-bl-sm border border-border/40 bg-card shadow-soft text-foreground",
+                )}
+              >
+                {/* Subtle glow for user messages */}
+                {msg.role === "user" && (
+                  <span className="pointer-events-none absolute inset-0 rounded-2xl rounded-br-sm border border-white/10" />
+                )}
+                <span className="whitespace-pre-wrap">{messageText(msg)}</span>
+              </div>
+
+              {/* User avatar */}
+              {msg.role === "user" && (
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/30 to-gold/30 text-[10px] font-bold text-foreground border border-border/40 mt-0.5 self-start">
+                  <Shield className="h-3.5 w-3.5 text-primary" />
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {/* Streaming / loading indicator */}
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.25 }}
+              className="flex gap-3 justify-start"
+            >
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-gold shadow-soft">
+                <BrainCircuit className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="rounded-2xl rounded-bl-sm border border-border/40 bg-card px-4 py-3.5 shadow-soft">
+                <span className="flex items-center gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce"
+                      style={{ animationDelay: `${i * 0.18}s` }}
+                    />
+                  ))}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Error */}
         {error && (
-          <div className="flex items-center justify-between rounded-2xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-between rounded-2xl border border-destructive/30 bg-destructive/[0.07] px-4 py-3 text-[13px] text-destructive"
+          >
             <span>Error: {error.message}</span>
-            <Button variant="ghost" size="sm" onClick={() => void regenerate()} className="text-alert hover:text-alert">Retry</Button>
-          </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void regenerate()}
+              className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+            >
+              Retry
+            </Button>
+          </motion.div>
         )}
 
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick prompts */}
-      {showQuick && messages.length <= 1 && (
-        <div className="mb-3">
-          <button
-            onClick={() => setShowQuick(false)}
-            className="mb-2 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+      {/* ── Quick prompts ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showQuick && messages.length <= 1 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-3 mt-2"
           >
-            <ChevronDown className="h-3 w-3" /> Quick prompts
-          </button>
-          <div className="flex flex-wrap gap-2">
-            {QUICK_PROMPTS.map((p) => (
-              <button
-                key={p}
-                onClick={() => handleQuick(p)}
-                className="rounded-full border border-border/50 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground transition hover:border-primary/40 hover:bg-primary/8 hover:text-foreground"
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+            <p className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+              <Zap className="h-3 w-3 text-gold" />
+              Quick prompts
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+              {QUICK_PROMPTS.map((p, i) => (
+                <motion.button
+                  key={p.prompt}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleQuick(p.prompt)}
+                  className="group flex items-center justify-between gap-2 rounded-xl border border-border/50 bg-secondary/30 px-3.5 py-2.5 text-left text-[12px] font-medium text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/[0.06] hover:text-foreground"
+                >
+                  <span className="truncate">{p.label}</span>
+                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-primary/60" />
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Input */}
+      {/* ── Input ─────────────────────────────────────────────────────── */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           send();
         }}
-        className="flex items-end gap-2 border-t border-border/40 pt-3"
+        className="mt-1"
       >
-        <div className="relative flex-1">
+        <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-card/80 p-2 shadow-soft backdrop-blur-sm transition-colors focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_hsl(var(--primary)/0.08)]">
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -232,18 +346,25 @@ function PoliceAIPage() {
             }}
             rows={1}
             placeholder="Ask about a case, request analysis, draft communications…"
-            className="w-full resize-none rounded-2xl border border-border/60 bg-secondary/30 px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 max-h-32"
-            style={{ minHeight: "44px" }}
+            className="min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-[13.5px] placeholder:text-muted-foreground/50 focus:outline-none"
+            style={{ maxHeight: "128px" }}
           />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className={cn(
+              "grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-all",
+              input.trim() && !isLoading
+                ? "bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-lift hover:opacity-90 hover:-translate-y-0.5"
+                : "bg-secondary text-muted-foreground/40 cursor-not-allowed",
+            )}
+          >
+            <Send className="h-4 w-4" />
+          </button>
         </div>
-        <Button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          size="icon"
-          className="h-11 w-11 shrink-0 rounded-2xl"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+        <p className="mt-1.5 text-center text-[10.5px] text-muted-foreground/50">
+          Secure officer session · All queries are audit-logged
+        </p>
       </form>
     </div>
   );

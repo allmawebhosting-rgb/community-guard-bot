@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import {
   incidentsQuery, officersQuery, missingPersonsQuery, lostFoundQuery, safetyActivityQuery,
-  PRIORITY_META, statusLabel, timeAgo, type IncidentPriority, myOfficerQuery,
+  PRIORITY_META, statusLabel, timeAgo, type IncidentPriority, type Incident, myOfficerQuery,
 } from "@/lib/police";
 import { cn } from "@/lib/utils";
 
