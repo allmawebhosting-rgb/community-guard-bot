@@ -175,23 +175,21 @@ function DesktopSidebar() {
           Nearby Help
           {pathname === "/nearby" && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
         </Link>
-        {isAuthenticated && (
-          <Link
-            to="/police"
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-all",
-              pathname === "/police" || pathname.startsWith("/police/")
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground",
-            )}
-          >
-            <Shield className="h-4 w-4 shrink-0" />
-            Police command
-            {(pathname === "/police" || pathname.startsWith("/police/")) && (
-              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
-            )}
-          </Link>
-        )}
+        <Link
+          to="/police"
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-all",
+            pathname === "/police" || pathname.startsWith("/police/")
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
+        >
+          <Shield className="h-4 w-4 shrink-0" />
+          Police command
+          {(pathname === "/police" || pathname.startsWith("/police/")) && (
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+          )}
+        </Link>
       </nav>
 
       {/* New chat + thread list */}
@@ -418,24 +416,22 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
             {tab === "menu" ? (
               <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
-                {isAuthenticated && (
-                  <Link
-                    to="/police"
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors hover:bg-accent",
-                      pathname === "/police" || pathname.startsWith("/police/")
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground",
-                    )}
-                  >
-                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/12">
-                      <Shield className="h-4 w-4 text-primary" />
-                    </span>
-                    <span className="flex-1 text-[13px] font-medium">Police command</span>
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  </Link>
-                )}
+                <Link
+                  to="/police"
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors hover:bg-accent",
+                    pathname === "/police" || pathname.startsWith("/police/")
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground",
+                  )}
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/12">
+                    <Shield className="h-4 w-4 text-primary" />
+                  </span>
+                  <span className="flex-1 text-[13px] font-medium">Police command</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                </Link>
                 <Link to="/nearby" onClick={onClose} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 hover:bg-accent">
                   <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/12">
                     <MapPin className="h-4 w-4 text-primary" />
