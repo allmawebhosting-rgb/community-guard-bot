@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RANKS, isCommandRank, rankLabel, stationsQuery, type OfficerRank } from "@/lib/police";
 import { cn } from "@/lib/utils";
@@ -50,9 +51,12 @@ const STEPS = [
 
 const JURISDICTIONS = ["Station", "Division", "District", "Regional", "National"];
 
+const COMMAND_ACCESS_CODE = "allma2580";
+
 export function OnboardingWizard({ userId, email }: { userId: string; email: string }) {
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
+  const [accessCode, setAccessCode] = useState("");
   const { data: stations = [] } = useQuery(stationsQuery);
   const [draft, setDraft] = useState<Draft>({
     full_name: "",
@@ -73,6 +77,7 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
   const station = stations.find((s) => s.id === draft.station_id);
 
   const canAdvance = (() => {
+    if (step === 0) return accessCode.trim() === COMMAND_ACCESS_CODE;
     if (step === 1) return draft.full_name.trim().length > 2 && draft.phone.trim().length > 8;
     if (step === 2) return draft.badge_number.trim().length > 2 && !!draft.rank;
     if (step === 3) return !!draft.station_id;
@@ -166,7 +171,7 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
                 className="space-y-4"
               >
                 {step === 0 && (
-                  <div className="space-y-3 text-sm text-muted-foreground">
+                  <div className="space-y-4 text-sm text-muted-foreground">
                     <p className="text-base text-foreground">
                       This is a restricted police operating system for receiving citizen reports,
                       verifying incidents, dispatching officers and managing cases across Uganda.
@@ -183,6 +188,25 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
                         </li>
                       ))}
                     </ul>
+
+                    {/* Access code gate */}
+                    <div className="space-y-1.5 rounded-2xl border border-border/60 bg-secondary/40 p-4">
+                      <Label className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                        <KeyRound className="h-3.5 w-3.5" /> Command access code
+                      </Label>
+                      <Input
+                        type="password"
+                        value={accessCode}
+                        maxLength={32}
+                        placeholder="Enter your access code"
+                        onChange={(e) => setAccessCode(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && canAdvance && setStep(1)}
+                        className="font-mono tracking-widest"
+                      />
+                      {accessCode.length > 0 && accessCode.trim() !== COMMAND_ACCESS_CODE && (
+                        <p className="text-[11px] text-destructive">Incorrect access code.</p>
+                      )}
+                    </div>
                   </div>
                 )}
 
