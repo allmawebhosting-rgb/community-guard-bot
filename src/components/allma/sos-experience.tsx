@@ -2219,6 +2219,8 @@ function HelpScreen({
               {CallSection}
               {TrustedContactsSection}
               {StatusSection}
+              {ControlsSection}
+
               {MapSection}
               {RespondersSection}
               {FacilitiesSection}
