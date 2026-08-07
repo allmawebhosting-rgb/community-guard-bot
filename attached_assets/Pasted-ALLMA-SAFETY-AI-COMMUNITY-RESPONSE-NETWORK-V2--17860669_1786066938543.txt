@@ -1,0 +1,304 @@
+ALLMA SAFETY AI – COMMUNITY RESPONSE NETWORK V2
+==================================================
+
+Transform the SOS feature into an AI-powered emergency coordination system.
+
+The AI should intelligently coordinate local authorities, community responders and emergency services based on the type and severity of the emergency.
+
+The AI must always prioritize user safety.
+
+==================================================
+
+EMERGENCY RESPONSE HIERARCHY
+
+The AI automatically decides who should be notified.
+
+LEVEL 1
+
+Trusted Emergency Contacts
+
+Family
+
+Friends
+
+Neighbours
+
+LEVEL 2
+
+Community Response Network
+
+Verified Community Responders
+
+Village Volunteers
+
+Community First Aiders
+
+Community Health Workers
+
+LEVEL 3
+
+Local Authorities
+
+LC1 Chairperson
+
+LC1 Vice Chairperson
+
+Community Policing Officer
+
+Village Security Committee
+
+Parish Leaders
+
+LEVEL 4
+
+Emergency Services
+
+Police
+
+Ambulance
+
+Fire Brigade
+
+Disaster Response
+
+The AI may notify one or more levels depending on the emergency.
+
+==================================================
+
+AI DECISION ENGINE
+
+The AI should determine
+
+What happened
+
+Emergency severity
+
+Immediate danger
+
+Medical emergency
+
+Violence
+
+Fire
+
+Flood
+
+Road accident
+
+Missing child
+
+The AI decides who should be contacted first.
+
+Examples
+
+Medical Emergency
+
+Notify
+
+Nearby First Aider
+
+Community Health Worker
+
+Ambulance
+
+Trusted Family Contact
+
+Armed Robbery
+
+Notify
+
+Police
+
+Official emergency dispatch
+
+Trusted emergency contact
+
+Do not ask community members to confront suspects.
+
+Fire
+
+Notify
+
+Nearby volunteers (if safe)
+
+Fire service
+
+LC Chairperson
+
+Nearby residents only when evacuation information is appropriate.
+
+==================================================
+
+AUTOMATIC CALLING (WITH USER CONSENT)
+
+After the AI understands the emergency, it displays:
+
+"I can call the appropriate emergency contact for you."
+
+Buttons
+
+📞 Call Police
+
+📞 Call Ambulance
+
+📞 Call Fire Service
+
+📞 Call LC1 Chairperson
+
+📞 Call Trusted Contact
+
+📞 Call Community Responder
+
+Call buttons should use official numbers configured in the system.
+
+==================================================
+
+SMART CALL SEQUENCE
+
+If a user requests assistance, the AI can suggest or initiate the next call (subject to device capabilities and user confirmation).
+
+Example
+
+Medical Emergency
+
+1. Call Ambulance
+
+2. Notify Family
+
+3. Notify Community First Aider
+
+4. Share Live Location
+
+5. Continue AI Guidance
+
+==================================================
+
+LOCAL AUTHORITY DIRECTORY
+
+Maintain a directory for each village.
+
+Store
+
+Village
+
+Parish
+
+Sub County
+
+District
+
+LC1 Chairperson
+
+Official Contact Number
+
+Community Policing Contact
+
+Emergency Contacts
+
+Police Station
+
+Hospital
+
+Fire Station
+
+Only authorized administrators can update this directory.
+
+==================================================
+
+COMMUNITY RESPONDER NETWORK
+
+Responder Categories
+
+Verified First Aider
+
+Community Health Worker
+
+Village Volunteer
+
+Community Policing Volunteer
+
+Motorcycle Volunteer
+
+Disaster Volunteer
+
+Search and notify responders based on proximity, availability and skills.
+
+==================================================
+
+LIVE RESPONSE STATUS
+
+Citizen sees
+
+Emergency Active
+
+Police Notified
+
+Ambulance Contacted
+
+LC1 Contacted
+
+Community Responder Accepted
+
+Responder En Route
+
+Responder Arrived
+
+Case Closed
+
+==================================================
+
+AI CHAT
+
+The AI continues supporting the citizen.
+
+Examples
+
+"I've shared your location with the emergency services you selected."
+
+"A nearby verified first aider has accepted."
+
+"The nearest police station has been identified."
+
+"If it is safe, move to a secure location while waiting."
+
+The AI continues asking one question at a time while providing calm guidance.
+
+==================================================
+
+RESPONDER SAFETY
+
+Community responders must never be encouraged to confront violent suspects.
+
+For violent incidents, the AI should prioritize official emergency services and advise community responders only to help in safe, appropriate ways such as guiding responders, providing first aid after the scene is safe, or assisting with evacuation.
+
+==================================================
+
+PRIVACY
+
+Only share information necessary to coordinate the response.
+
+Protect exact locations, identities and contact information unless the user has consented or sharing is necessary for emergency coordination.
+
+==================================================
+
+FUTURE INTEGRATIONS
+
+Design the architecture so future official integrations can support:
+
+Police dispatch
+
+Ambulance dispatch
+
+Fire services
+
+Hospital emergency departments
+
+Government emergency management systems
+
+without requiring major changes to the platform.
+
+==================================================
+
+FINAL GOAL
+
+Create a coordinated emergency response platform where AI intelligently decides who should be informed, guides the citizen through the emergency one step at a time, and helps connect them with the right people as quickly and safely as possible.
