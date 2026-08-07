@@ -3,10 +3,15 @@ import { SOSExperience } from "@/components/allma/sos-experience";
 
 export const Route = createFileRoute("/sos")({
   validateSearch: (search: Record<string, unknown>) => ({
-    instant: search.instant === true || search.instant === "true" || search.instant === "1"
-      ? true
-      : undefined,
+    instant:
+      search.instant === true ||
+      search.instant === "true" ||
+      search.instant === 1 ||
+      search.instant === "1"
+        ? true
+        : undefined,
   }),
+
   head: () => ({
     meta: [
       { title: "Emergency SOS — Allma Safety AI" },
