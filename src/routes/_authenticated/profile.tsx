@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import {
   Bell, ChevronRight, FileText, LogOut, MapPin, MessageSquare,
-  Moon, Shield, Sun, UserRound, Users, LocateFixed, Loader2,
+  Moon, Shield, Sun, UserRound, Users, LocateFixed, Loader2, Check, X,
+  Navigation, CheckCircle2,
 } from "lucide-react";
 import { AppShell } from "@/components/allma/app-shell";
 import { MascotAvatar } from "@/components/allma/mascot";
@@ -36,6 +37,8 @@ function ProfileScreen() {
   const navigate = useNavigate();
   const [responderAvailable, setResponderAvailable] = useState(false);
   const [responderSaving, setResponderSaving] = useState(false);
+  const [sosOffers, setSosOffers] = useState<SosOffer[]>([]);
+  const [offerSaving, setOfferSaving] = useState<string | null>(null);
   const responderWatch = useRef<number | null>(null);
   const responderTable = supabase as unknown as {
     from: (table: string) => {
@@ -44,6 +47,57 @@ function ProfileScreen() {
       update: (values: Record<string, unknown>) => { eq: (column: string, value: string) => Promise<{ error: unknown }> };
     };
   };
+  const offerClient = supabase as unknown as {
+    rpc: (name: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+  };
+
+  type SosOffer = {
+    offer_id: string;
+    sos_activity_id: string;
+    emergency_type: string;
+    area: string;
+    distance_m: number;
+    status: "offered" | "accepted" | "declined" | "en_route" | "arrived" | "cancelled";
+    created_at: string;
+  };
+
+  const offerStatusLabel: Record<SosOffer["status"], string> = {
+    offered: "Needs a response",
+    accepted: "Accepted",
+    declined: "Declined",
+    en_route: "En route",
+    arrived: "Arrived",
+    cancelled: "Cancelled",
+  };
+
+  const offerStatusClass: Record<SosOffer["status"], string> = {
+    offered: "bg-amber-500/12 text-amber-600 dark:text-amber-300",
+    accepted: "bg-blue-500/12 text-blue-600 dark:text-blue-300",
+    declined: "bg-red-500/12 text-red-600 dark:text-red-300",
+    en_route: "bg-indigo-500/12 text-indigo-600 dark:text-indigo-300",
+    arrived: "bg-green-500/12 text-green-600 dark:text-green-300",
+    cancelled: "bg-muted text-muted-foreground",
+  };
+
+  function formatOfferDistance(meters: number) {
+    return meters < 1000 ? `${Math.round(meters)} m away` : `${(meters / 1000).toFixed(1)} km away`;
+  }
+
+  async function updateOffer(offerId: string, nextStatus: SosOffer["status"]) {
+    setOfferSaving(offerId);
+    const { error } = await offerClient.rpc("respond_to_sos_offer", {
+      p_offer_id: offerId,
+      p_status: nextStatus,
+    });
+    if (error) {
+      console.error("Failed to update SOS offer", error);
+    } else {
+      setSosOffers((current) => current.map((offer) => (
+        offer.offer_id === offerId ? { ...offer, status: nextStatus } : offer
+      )));
+    }
+    setOfferSaving(null);
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -60,6 +114,46 @@ function ProfileScreen() {
       if (responderWatch.current !== null && "geolocation" in navigator) {
         navigator.geolocation.clearWatch(responderWatch.current);
       }
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    async function loadOffers() {
+      const { data, error } = await offerClient.rpc("get_my_sos_offers");
+      if (!cancelled && !error) setSosOffers((data as SosOffer[] | null) ?? []);
+      if (error) console.error("Failed to load SOS offers", error);
+    }
+
+    void loadOffers();
+    const channel = supabase
+      .channel(`sos-responder-inbox-${user.id}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "sos_responder_offers",
+        filter: `responder_id=eq.${user.id}`,
+      }, (payload) => {
+        const next = payload.new as Partial<SosOffer> & { id?: string };
+        if (!next.id) return;
+        setSosOffers((current) => {
+          const existing = current.find((offer) => offer.offer_id === next.id);
+          if (!existing) {
+            void loadOffers();
+            return current;
+          }
+          return current.map((offer) => offer.offer_id === next.id
+            ? { ...offer, status: (next.status as SosOffer["status"]) ?? offer.status }
+            : offer);
+        });
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
     };
   }, [user]);
 
@@ -204,6 +298,95 @@ function ProfileScreen() {
                   </Link>
                 ))}
               </nav>
+            </div>
+
+            {/* Responder inbox */}
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Nearby SOS alerts</p>
+                {sosOffers.some((offer) => offer.status === "offered") && (
+                  <span className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-300">
+                    Action needed
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2.5">
+                {sosOffers.length === 0 ? (
+                  <div className="rounded-[1.4rem] border border-dashed border-border/70 bg-card/40 px-5 py-4">
+                    <p className="text-[13px] font-semibold">No nearby SOS alerts</p>
+                    <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
+                      Turn on “Help neighbors nearby” below to receive alerts when someone close needs help.
+                    </p>
+                  </div>
+                ) : (
+                  sosOffers.map((offer) => (
+                    <div key={offer.offer_id} className="rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-red-500/10">
+                          <Bell className="h-4 w-4 text-red-500" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-[13.5px] font-semibold">
+                              {offer.emergency_type.replace(/_/g, " ")} nearby
+                            </p>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${offerStatusClass[offer.status]}`}>
+                              {offerStatusLabel[offer.status]}
+                            </span>
+                          </div>
+                          <p className="mt-1 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                            <MapPin className="h-3 w-3 shrink-0" /> {offer.area} · {formatOfferDistance(offer.distance_m)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {offer.status === "offered" && (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            disabled={offerSaving === offer.offer_id}
+                            onClick={() => void updateOffer(offer.offer_id, "declined")}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border/70 px-3 py-2 text-[11.5px] font-semibold text-muted-foreground transition hover:bg-accent disabled:opacity-50"
+                          >
+                            <X className="h-3.5 w-3.5" /> Decline
+                          </button>
+                          <button
+                            type="button"
+                            disabled={offerSaving === offer.offer_id}
+                            onClick={() => void updateOffer(offer.offer_id, "accepted")}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[11.5px] font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                          >
+                            {offerSaving === offer.offer_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                            Accept
+                          </button>
+                        </div>
+                      )}
+                      {offer.status === "accepted" && (
+                        <button
+                          type="button"
+                          disabled={offerSaving === offer.offer_id}
+                          onClick={() => void updateOffer(offer.offer_id, "en_route")}
+                          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-[11.5px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {offerSaving === offer.offer_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Navigation className="h-3.5 w-3.5" />}
+                          Mark en route
+                        </button>
+                      )}
+                      {offer.status === "en_route" && (
+                        <button
+                          type="button"
+                          disabled={offerSaving === offer.offer_id}
+                          onClick={() => void updateOffer(offer.offer_id, "arrived")}
+                          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-[11.5px] font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {offerSaving === offer.offer_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                          Mark arrived
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Preferences */}

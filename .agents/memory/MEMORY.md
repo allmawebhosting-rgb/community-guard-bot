@@ -1,1 +1,2 @@
 - [SOS location privacy](sos-location-privacy.md) — Nearby responder presence is opt-in, stale entries expire, and SOS users receive distance only.
+- [Supabase CLI network](supabase-cli-network.md) — Linked migration commands may need the documented IPv4 link workaround in this environment.

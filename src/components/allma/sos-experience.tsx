@@ -23,16 +23,17 @@ type Facility = {
   name: string; type: "hospital" | "police"; distance: string; phone: string; address: string;
 };
 
-type ResponderStatus = "notified" | "accepted" | "travelling" | "arrived" | "completed";
+type ResponderStatus = "offered" | "accepted" | "declined" | "en_route" | "arrived" | "cancelled";
 type Responder = {
-  id: string; name: string; distance: string; eta: string; status: ResponderStatus; verified: boolean;
+  id: string; offerId: string; name: string; distance: string; eta: string; status: ResponderStatus; verified: boolean;
 };
 
-type NearbyPerson = {
-  id: string;
+type ResponderOffer = {
+  offer_id: string;
+  responder_id: string;
   display_name: string;
   distance_m: number;
-  updated_at: string;
+  status: ResponderStatus;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -189,21 +190,16 @@ function getLocation(): Promise<LocationInfo> {
   });
 }
 
-async function findNearbyPeople(location: LocationInfo, radiusMeters: number): Promise<NearbyPerson[]> {
-  // This RPC only returns people who explicitly opted in as available responders.
-  // It also rounds their coordinates before returning them, so the SOS user never
-  // receives another person's exact position.
-  if (!location) return [];
+async function createResponderOffers(activityId: string, radiusMeters: number): Promise<ResponderOffer[]> {
   const client = supabase as unknown as {
-    rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: NearbyPerson[] | null; error: unknown }>;
+    rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: ResponderOffer[] | null; error: unknown }>;
   };
-  const { data, error } = await client.rpc("find_nearby_responders", {
-    origin_lat: location.lat,
-    origin_lng: location.lng,
-    radius_meters: radiusMeters,
+  const { data, error } = await client.rpc("create_sos_responder_offers", {
+    p_sos_activity_id: activityId,
+    p_radius_meters: radiusMeters,
   });
   if (error) {
-    console.warn("Nearby responder search unavailable", error);
+    console.warn("Responder offer creation unavailable", error);
     return [];
   }
   return data ?? [];
@@ -291,11 +287,12 @@ function AiChatBubble({ text, typing }: { text: string; typing?: boolean }) {
 }
 
 const RESPONDER_STATUS_CHIP: Record<ResponderStatus, { label: string; cls: string }> = {
-  notified:   { label: "Notified",  cls: "bg-white/8 text-white/45" },
-  accepted:   { label: "Accepted",  cls: "bg-amber-900/60 text-amber-300" },
-  travelling: { label: "En Route",  cls: "bg-blue-900/60 text-blue-300"  },
-  arrived:    { label: "Arrived",   cls: "bg-green-900/60 text-green-300" },
-  completed:  { label: "Completed", cls: "bg-green-900/60 text-green-400" },
+  offered:  { label: "Offered",  cls: "bg-white/8 text-white/45" },
+  accepted: { label: "Accepted", cls: "bg-amber-900/60 text-amber-300" },
+  declined: { label: "Declined", cls: "bg-red-950/60 text-red-300" },
+  en_route: { label: "En Route", cls: "bg-blue-900/60 text-blue-300" },
+  arrived:  { label: "Arrived",  cls: "bg-green-900/60 text-green-300" },
+  cancelled:{ label: "Cancelled", cls: "bg-white/8 text-white/35" },
 };
 
 function ResponderCard({ responder }: { responder: Responder }) {
@@ -422,7 +419,8 @@ export function SOSExperience() {
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [hospitals, setHospitals] = useState<Facility[]>([]);
   const [officers, setOfficers] = useState<Facility[]>([]);
-  const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
+  const [responderOffers, setResponderOffers] = useState<ResponderOffer[]>([]);
+  const [sosActivityId, setSosActivityId] = useState<string | null>(null);
   const [reportText, setReportText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
@@ -452,6 +450,8 @@ export function SOSExperience() {
   async function handleTypeSelect(type: string) {
     if (activated.current) return;
     activated.current = true;
+    setSosActivityId(null);
+    setResponderOffers([]);
     setEmergencyType(type);
     setPhase("loading");
 
@@ -459,8 +459,9 @@ export function SOSExperience() {
     try { loc = await getLocation(); } catch { loc = null; }
     setLocation(loc);
 
+    let activityId: string | null = null;
     if (user && loc) {
-      const { error } = await supabase.from("safety_activity").insert({
+      const { data: activity, error } = await supabase.from("safety_activity").insert({
         user_id: user.id,
         activity_type: "sos_activated",
         title: "Emergency SOS activated",
@@ -470,23 +471,27 @@ export function SOSExperience() {
         latitude: loc.lat,
         longitude: loc.lng,
         details: { channel: "sos", emergency_type: type, accuracy_m: loc.accuracy } as never,
-      });
+      }).select("id").single();
+      activityId = activity?.id ?? null;
+      setSosActivityId(activityId);
       if (error) console.error("Failed to record SOS activity", error);
     }
 
     if (loc) {
-      const [realHospitals, realPolice, nearby] = await Promise.all([
+      const [realHospitals, realPolice, offers] = await Promise.all([
         fetchOverpass(loc.lat, loc.lng, "hospital").catch(() => [] as Facility[]),
         fetchOverpass(loc.lat, loc.lng, "police").catch(() => [] as Facility[]),
-        user ? findNearbyPeople(loc, COMMUNITY_RADIUS[type] ?? 1000) : Promise.resolve([]),
+        activityId
+          ? createResponderOffers(activityId, COMMUNITY_RADIUS[type] ?? 1000)
+          : Promise.resolve([]),
       ]);
       setHospitals(realHospitals.length >= 2 ? realHospitals.slice(0, 4) : withDistance(DEMO_HOSPITALS, loc.lat, loc.lng));
       setOfficers(realPolice.length >= 1 ? realPolice.slice(0, 3) : withDistance(DEMO_OFFICERS, loc.lat, loc.lng));
-      setNearbyPeople(nearby);
+      setResponderOffers(offers);
     } else {
       setHospitals([]);
       setOfficers([]);
-      setNearbyPeople([]);
+      setResponderOffers([]);
     }
     setPhase("help");
   }
@@ -541,9 +546,10 @@ export function SOSExperience() {
             location={location}
             hospitals={hospitals}
             officers={officers}
-            nearbyPeople={nearbyPeople}
+            responderOffers={responderOffers}
+            activityId={sosActivityId}
             onReport={() => setPhase("report")}
-            onClose={() => { activated.current = false; setPhase("idle"); }}
+            onClose={() => { activated.current = false; setSosActivityId(null); setResponderOffers([]); setPhase("idle"); }}
           />
         )}
         {phase === "report" && (
@@ -560,7 +566,7 @@ export function SOSExperience() {
           <SubmittedScreen
             key="submitted"
             reference={reference}
-            onDone={() => { activated.current = false; setPhase("idle"); }}
+              onDone={() => { activated.current = false; setSosActivityId(null); setResponderOffers([]); setPhase("idle"); }}
           />
         )}
       </AnimatePresence>
@@ -835,10 +841,11 @@ function LoadingScreen() {
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
 function HelpScreen({
-  emergencyType, location, hospitals, officers, nearbyPeople, onReport, onClose,
+  emergencyType, location, hospitals, officers, responderOffers, activityId, onReport, onClose,
 }: {
   emergencyType: string; location: LocationInfo | null; hospitals: Facility[];
-  officers: Facility[]; nearbyPeople: NearbyPerson[]; onReport: () => void; onClose: () => void;
+  officers: Facility[]; responderOffers: ResponderOffer[]; activityId: string | null;
+  onReport: () => void; onClose: () => void;
 }) {
   const info = HELP_INFO[emergencyType] ?? HELP_INFO.other;
   const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
@@ -849,21 +856,46 @@ function HelpScreen({
   const { log: aiLog, typing: aiTyping } = useAiChat(aiMessages);
 
   const [status, setStatus] = useState({ police: false, hospital: false, community: false });
-  const responders: Responder[] = nearbyPeople.map((person) => ({
-    id: person.id,
-    name: person.display_name || "Nearby responder",
-    distance: formatDistanceMeters(person.distance_m),
+  const [liveOffers, setLiveOffers] = useState(responderOffers);
+  const responders: Responder[] = liveOffers.map((offer) => ({
+    id: offer.offer_id,
+    offerId: offer.offer_id,
+    name: offer.display_name || "Nearby responder",
+    distance: formatDistanceMeters(offer.distance_m),
     eta: "available",
-    status: "notified",
+    status: offer.status,
     verified: false,
   }));
+
+  useEffect(() => {
+    setLiveOffers(responderOffers);
+  }, [responderOffers]);
+
+  useEffect(() => {
+    if (!activityId) return;
+    const channel = supabase
+      .channel(`sos-responder-offers-${activityId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "sos_responder_offers", filter: `sos_activity_id=eq.${activityId}` },
+        (payload) => {
+          const changed = payload.new as { id?: string; status?: ResponderStatus };
+          if (!changed.id || !changed.status) return;
+          setLiveOffers((current) => current.map((offer) => (
+            offer.offer_id === changed.id ? { ...offer, status: changed.status as ResponderStatus } : offer
+          )));
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [activityId]);
 
   const TIMELINE = [
     { label: "SOS Activated",              sub: "Emergency mode engaged"                                                      },
     { label: "Location Detected",          sub: [location?.suburb, location?.district].filter(Boolean).join(", ") || "Kampala" },
     { label: "Emergency Services Alerted", sub: "Police · Ambulance · Fire Brigade"                                          },
     { label: "Community Search Started",   sub: `${(COMMUNITY_RADIUS[emergencyType] ?? 1000) / 1000} km radius active`        },
-    { label: "Nearby responders checked",  sub: nearbyPeople.length ? `${nearbyPeople.length} opted-in people available` : "No opted-in responders found yet" },
+    { label: "Nearby responders checked",  sub: liveOffers.length ? `${liveOffers.length} opted-in people alerted` : "No opted-in responders found yet" },
   ];
   const [timelineDone, setTimelineDone] = useState(2);
 
