@@ -1571,6 +1571,9 @@ function HelpScreen({
   respondersNotified,
   responderOffers,
   activityId,
+  onChangeType,
+  onToggleLocation,
+  onToggleResponders,
   onReport,
   onClose,
 }: {
@@ -1584,8 +1587,12 @@ function HelpScreen({
   respondersNotified: boolean;
   responderOffers: ResponderOffer[];
   activityId: string | null;
+  onChangeType: (type: string) => void;
+  onToggleLocation: () => void;
+  onToggleResponders: () => void;
   onReport: () => void;
   onClose: () => void;
+
 }) {
   const info = HELP_INFO[emergencyType] ?? HELP_INFO.other;
   const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
