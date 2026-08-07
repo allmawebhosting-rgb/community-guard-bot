@@ -1049,7 +1049,14 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
             respondersNotified={notifyResponders}
             responderOffers={responderOffers}
             activityId={sosActivityId}
+            onChangeType={(next) => {
+              setPendingEmergencyType(next);
+              setEmergencyType(next);
+            }}
+            onToggleLocation={() => setShareLocation((v) => !v)}
+            onToggleResponders={() => setNotifyResponders((v) => !v)}
             onReport={() => setPhase("report")}
+
             onClose={() => {
               activated.current = false;
               setSosActivityId(null);
