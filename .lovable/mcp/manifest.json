@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://otrcvcdwaswzsghdqigw.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "remix-of-remix-of-remix-of-allma-safety-ai",
+      "version": "0.1.0",
+      "title": "Remix of Remix of Remix of Allma Safety AI"
+    },
+    "tools": [
+      {
+        "name": "list_my_reports",
+        "title": "List my safety reports",
+        "description": "List the signed-in citizen's own safety reports (crime, missing person, lost & found, etc.) with status and reference number.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "description": "Optional status filter, e.g. submitted, under_review, resolved."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Maximum rows to return, default 20, capped at 50."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_report",
+        "title": "Get a safety report",
+        "description": "Fetch one of the signed-in citizen's safety reports in full, by report id or reference number, including status history.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "reference": {
+              "type": "string",
+              "description": "Report reference number, e.g. ALM-1234."
+            },
+            "id": {
+              "type": "string",
+              "description": "Report UUID."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_report",
+        "title": "File a safety report",
+        "description": "File a new non-emergency safety report for the signed-in citizen. For a life-threatening emergency, tell the user to call 999 / use in-app SOS instead.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Short title for the incident."
+            },
+            "report_type": {
+              "type": "string",
+              "description": "Type of report, e.g. crime, missing_person, lost_found, suspicious_activity, other."
+            },
+            "narrative": {
+              "type": "string",
+              "description": "What happened, in the reporter's own words."
+            },
+            "location_text": {
+              "type": "string",
+              "description": "Where it happened, in plain words."
+            },
+            "district": {
+              "type": "string",
+              "description": "Ugandan district, e.g. Kampala."
+            },
+            "occurred_at": {
+              "type": "string",
+              "description": "ISO timestamp of when it happened."
+            },
+            "is_anonymous": {
+              "type": "boolean",
+              "description": "Hide the reporter's identity from public views."
+            }
+          },
+          "required": [
+            "title",
+            "report_type",
+            "narrative"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_community_alerts",
+        "title": "List community safety alerts",
+        "description": "List currently published community safety alerts and advisories, newest first.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "area": {
+              "type": "string",
+              "description": "Optional area or district filter, matched loosely."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Maximum rows, default 20, capped at 50."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "find_facilities",
+        "title": "Find help facilities",
+        "description": "Find nearby help facilities such as police stations, hospitals and clinics, filtered by type, district or 24/7 availability.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "facility_type": {
+              "type": "string",
+              "description": "Facility type, e.g. police, hospital, clinic, fire."
+            },
+            "district": {
+              "type": "string",
+              "description": "District name, matched loosely."
+            },
+            "open_24_7": {
+              "type": "boolean",
+              "description": "Only return facilities open around the clock."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Maximum rows, default 20, capped at 50."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "manage_emergency_contacts",
+        "title": "Emergency contacts",
+        "description": "List the signed-in citizen's emergency contacts, or add a new one that will be notified when they raise an SOS.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "description": "Either 'list' or 'add'."
+            },
+            "name": {
+              "type": "string",
+              "description": "Contact name, required when adding."
+            },
+            "phone": {
+              "type": "string",
+              "description": "Contact phone number, required when adding."
+            },
+            "relationship": {
+              "type": "string",
+              "description": "How this person relates to the user, e.g. sister."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
