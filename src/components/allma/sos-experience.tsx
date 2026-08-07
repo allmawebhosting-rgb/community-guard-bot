@@ -2178,6 +2178,8 @@ function HelpScreen({
             {TrustedContactsSection}
             {StepsSection}
             {StatusSection}
+            {ControlsSection}
+
             {MapSection}
             {RespondersSection}
             {FacilitiesSection}
