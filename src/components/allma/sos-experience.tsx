@@ -25,6 +25,8 @@ import {
   Clock,
   LocateFixed,
   Users,
+  Settings2,
+
   Check,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -825,9 +827,10 @@ function StatusTile({
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export function SOSExperience() {
+export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   const { user } = useAuth();
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>(instant ? "loading" : "idle");
+
   const [emergencyType, setEmergencyType] = useState("other");
   const [pendingEmergencyType, setPendingEmergencyType] = useState("other");
   const [shareLocation, setShareLocation] = useState(true);
@@ -866,9 +869,16 @@ export function SOSExperience() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [phase, Boolean(location)]);
 
+  useEffect(() => {
+    if (!instant || activated.current) return;
+    void activateEmergency();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instant]);
+
   function handleSosPress() {
     setPhase("type-select");
   }
+
 
   function handleTypeSelect(type: string) {
     setPendingEmergencyType(type);
@@ -1041,7 +1051,14 @@ export function SOSExperience() {
             respondersNotified={notifyResponders}
             responderOffers={responderOffers}
             activityId={sosActivityId}
+            onChangeType={(next) => {
+              setPendingEmergencyType(next);
+              setEmergencyType(next);
+            }}
+            onToggleLocation={() => setShareLocation((v) => !v)}
+            onToggleResponders={() => setNotifyResponders((v) => !v)}
             onReport={() => setPhase("report")}
+
             onClose={() => {
               activated.current = false;
               setSosActivityId(null);
@@ -1556,6 +1573,9 @@ function HelpScreen({
   respondersNotified,
   responderOffers,
   activityId,
+  onChangeType,
+  onToggleLocation,
+  onToggleResponders,
   onReport,
   onClose,
 }: {
@@ -1569,8 +1589,12 @@ function HelpScreen({
   respondersNotified: boolean;
   responderOffers: ResponderOffer[];
   activityId: string | null;
+  onChangeType: (type: string) => void;
+  onToggleLocation: () => void;
+  onToggleResponders: () => void;
   onReport: () => void;
   onClose: () => void;
+
 }) {
   const info = HELP_INFO[emergencyType] ?? HELP_INFO.other;
   const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
@@ -1908,7 +1932,66 @@ function HelpScreen({
       </div>
     ) : null;
 
+  const ControlsSection = (
+    <div>
+      <SectionLabel>
+        <Settings2 className="mr-1.5 inline-block h-3 w-3 align-middle" />
+        Adjust this emergency
+      </SectionLabel>
+      <div className="space-y-2.5 rounded-2xl border border-white/10 bg-white/4 p-3.5">
+        <div className="flex flex-wrap gap-1.5">
+          {EMERGENCY_TYPES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChangeType(item.id)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
+                item.id === emergencyType
+                  ? "border-red-500/40 bg-red-900/40 text-red-200"
+                  : "border-white/10 bg-white/5 text-white/45 hover:text-white/75",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onToggleLocation}
+            aria-pressed={locationShared}
+            className={cn(
+              "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[11.5px] font-semibold transition",
+              locationShared
+                ? "border-green-500/25 bg-green-950/25 text-green-200"
+                : "border-white/10 bg-white/4 text-white/40",
+            )}
+          >
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            {locationShared ? "Sharing location" : "Location sharing off"}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleResponders}
+            aria-pressed={respondersNotified}
+            className={cn(
+              "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[11.5px] font-semibold transition",
+              respondersNotified
+                ? "border-green-500/25 bg-green-950/25 text-green-200"
+                : "border-white/10 bg-white/4 text-white/40",
+            )}
+          >
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            {respondersNotified ? "Neighbors alerted" : "Neighbors not alerted"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const StatusSection = (
+
     <div>
       <SectionLabel>
         <Radio className="mr-1.5 inline-block h-3 w-3 align-middle" />
@@ -2095,6 +2178,8 @@ function HelpScreen({
             {TrustedContactsSection}
             {StepsSection}
             {StatusSection}
+            {ControlsSection}
+
             {MapSection}
             {RespondersSection}
             {FacilitiesSection}
@@ -2134,6 +2219,8 @@ function HelpScreen({
               {CallSection}
               {TrustedContactsSection}
               {StatusSection}
+              {ControlsSection}
+
               {MapSection}
               {RespondersSection}
               {FacilitiesSection}
