@@ -21,6 +21,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
 import { Route as AuthenticatedPoliceIndexRouteImport } from './routes/_authenticated/police.index'
@@ -95,6 +96,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   id: '/api/transcribe',
   path: '/api/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
@@ -203,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/police/ai': typeof AuthenticatedPoliceAiRoute
   '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/police/ai': typeof AuthenticatedPoliceAiRoute
   '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/police/ai': typeof AuthenticatedPoliceAiRoute
   '/_authenticated/police/alerts': typeof AuthenticatedPoliceAlertsRoute
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/api/chat'
     | '/api/transcribe'
+    | '/.lovable/oauth/consent'
     | '/chat/$threadId'
     | '/police/ai'
     | '/police/alerts'
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/api/chat'
     | '/api/transcribe'
+    | '/.lovable/oauth/consent'
     | '/chat/$threadId'
     | '/police/ai'
     | '/police/alerts'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/api/chat'
     | '/api/transcribe'
+    | '/.lovable/oauth/consent'
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/police/ai'
     | '/_authenticated/police/alerts'
@@ -378,6 +390,7 @@ export interface RootRouteChildren {
   SosRoute: typeof SosRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -464,6 +477,13 @@ declare module '@tanstack/react-router' {
       path: '/api/transcribe'
       fullPath: '/api/transcribe'
       preLoaderRoute: typeof ApiTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/chat/': {
@@ -648,6 +668,7 @@ const rootRouteChildren: RootRouteChildren = {
   SosRoute: SosRoute,
   ApiChatRoute: ApiChatRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
