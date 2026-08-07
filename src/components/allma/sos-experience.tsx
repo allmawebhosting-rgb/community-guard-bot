@@ -825,9 +825,10 @@ function StatusTile({
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export function SOSExperience() {
+export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   const { user } = useAuth();
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>(instant ? "loading" : "idle");
+
   const [emergencyType, setEmergencyType] = useState("other");
   const [pendingEmergencyType, setPendingEmergencyType] = useState("other");
   const [shareLocation, setShareLocation] = useState(true);
