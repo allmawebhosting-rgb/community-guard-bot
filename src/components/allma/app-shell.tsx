@@ -52,6 +52,7 @@ function BottomTabs() {
         <div className="relative grid place-items-center">
           <Link
             to="/sos"
+            search={{ instant: true }}
             aria-label="Emergency SOS"
             className={cn(
               "sos-pulse -mt-7 grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-primary to-primary-glow font-display text-[13px] font-black tracking-[0.08em] text-primary-foreground shadow-lift ring-4 ring-background transition-transform active:scale-95",
@@ -128,6 +129,7 @@ function DesktopSidebar() {
       <div className="shrink-0 px-4 pt-4 pb-3">
         <Link
           to="/sos"
+          search={{ instant: true }}
           className={cn(
             "sos-pulse flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-primary to-primary-glow py-3 font-display text-[13px] font-black tracking-[0.1em] text-primary-foreground shadow-lift transition-transform hover:scale-[1.02] active:scale-[0.98]",
             pathname === "/sos" && "ring-2 ring-primary/50 ring-offset-2 ring-offset-sidebar",
@@ -537,6 +539,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
             <Link
               to="/sos"
+              search={{ instant: true }}
               aria-label="Emergency SOS"
               className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
