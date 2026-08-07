@@ -14,6 +14,10 @@ import { lovable } from "@/integrations/lovable/index";
 import { DISCLAIMER } from "@/lib/allma";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { next?: string } =>
+    typeof search.next === "string" && search.next.startsWith("/") && !search.next.startsWith("//")
+      ? { next: search.next }
+      : {},
   head: () => ({
     meta: [
       { title: "Sign in — Allma Safety AI" },
@@ -48,6 +52,11 @@ const TRUST_POINTS = [
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const goNext = () => {
+    if (next) window.location.href = next;
+    else navigate({ to: "/dashboard", replace: true });
+  };
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -56,9 +65,10 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
+      if (data.session) goNext();
     });
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, next]);
 
   async function signIn() {
     const parsed = credentials.safeParse({ email, password });
@@ -67,7 +77,7 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setLoading(false);
     if (error) return toast.error(error.message);
-    navigate({ to: "/dashboard", replace: true });
+    goNext();
   }
 
   async function signUp() {
@@ -77,23 +87,23 @@ function AuthPage() {
     const { data, error } = await supabase.auth.signUp({
       ...parsed.data,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: next ? `${window.location.origin}${next}` : window.location.origin,
         data: { full_name: fullName.trim().slice(0, 80) || null },
       },
     });
     setLoading(false);
     if (error) return toast.error(error.message);
     if (!data.session) { setCheckEmail(true); return; }
-    navigate({ to: "/dashboard", replace: true });
+    goNext();
   }
 
   async function google() {
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: next ? `${window.location.origin}${next}` : window.location.origin,
     });
     if (result.error) return toast.error("Google sign-in failed. Please try again.");
     if (result.redirected) return;
-    navigate({ to: "/dashboard", replace: true });
+    goNext();
   }
 
   return (
