@@ -782,59 +782,6 @@ export type Database = {
           },
         ]
       }
-      safety_activity: {
-        Row: {
-          activity_type: string
-          created_at: string
-          details: Json
-          id: string
-          latitude: number | null
-          location_text: string | null
-          longitude: number | null
-          report_id: string | null
-          severity: string
-          summary: string | null
-          title: string
-          user_id: string | null
-        }
-        Insert: {
-          activity_type: string
-          created_at?: string
-          details?: Json
-          id?: string
-          latitude?: number | null
-          location_text?: string | null
-          longitude?: number | null
-          report_id?: string | null
-          severity?: string
-          summary?: string | null
-          title: string
-          user_id?: string | null
-        }
-        Update: {
-          activity_type?: string
-          created_at?: string
-          details?: Json
-          id?: string
-          latitude?: number | null
-          location_text?: string | null
-          longitude?: number | null
-          report_id?: string | null
-          severity?: string
-          summary?: string | null
-          title?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "safety_activity_report_id_fkey"
-            columns: ["report_id"]
-            isOneToOne: false
-            referencedRelation: "reports"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       reports: {
         Row: {
           ai_recommended_actions: Json
@@ -959,6 +906,103 @@ export type Database = {
           },
         ]
       }
+      safety_activity: {
+        Row: {
+          activity_type: string
+          created_at: string
+          details: Json
+          id: string
+          latitude: number | null
+          location_text: string | null
+          longitude: number | null
+          report_id: string | null
+          severity: string
+          summary: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          details?: Json
+          id?: string
+          latitude?: number | null
+          location_text?: string | null
+          longitude?: number | null
+          report_id?: string | null
+          severity?: string
+          summary?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          latitude?: number | null
+          location_text?: string | null
+          longitude?: number | null
+          report_id?: string | null
+          severity?: string
+          summary?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_activity_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sos_responder_offers: {
+        Row: {
+          created_at: string
+          distance_m: number
+          id: string
+          requester_id: string
+          responded_at: string | null
+          responder_id: string
+          sos_activity_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          distance_m: number
+          id?: string
+          requester_id: string
+          responded_at?: string | null
+          responder_id: string
+          sos_activity_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          distance_m?: number
+          id?: string
+          requester_id?: string
+          responded_at?: string | null
+          responder_id?: string
+          sos_activity_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sos_responder_offers_sos_activity_id_fkey"
+            columns: ["sos_activity_id"]
+            isOneToOne: false
+            referencedRelation: "safety_activity"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       threads: {
         Row: {
           created_at: string
@@ -1015,6 +1059,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_sos_responder_offers: {
+        Args: { p_radius_meters?: number; p_sos_activity_id: string }
+        Returns: {
+          display_name: string
+          distance_m: number
+          offer_id: string
+          responder_id: string
+          status: string
+        }[]
+      }
+      get_my_sos_offers: {
+        Args: never
+        Returns: {
+          area: string
+          created_at: string
+          distance_m: number
+          emergency_type: string
+          offer_id: string
+          sos_activity_id: string
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1024,6 +1090,10 @@ export type Database = {
       }
       is_command_staff: { Args: { _user_id: string }; Returns: boolean }
       is_verified_officer: { Args: { _user_id: string }; Returns: boolean }
+      respond_to_sos_offer: {
+        Args: { p_offer_id: string; p_status: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "officer" | "user"
