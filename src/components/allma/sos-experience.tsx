@@ -26,7 +26,6 @@ import {
   LocateFixed,
   Users,
   Settings2,
-
   Check,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -87,6 +86,8 @@ type ResponseTarget = {
   detail: string;
   tone: "blue" | "amber" | "violet" | "red";
 };
+
+type EscalationAction = "nearest" | "community" | "authority" | "police" | "ambulance";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -694,7 +695,7 @@ function ResponderCard({ responder }: { responder: Responder }) {
           )}
         </div>
         <p className="text-[11px] text-white/38">
-          {responder.distance} away · ETA {responder.eta}
+          Approx. {responder.distance} away · {responder.eta}
         </p>
       </div>
       <AnimatePresence mode="wait">
@@ -878,7 +879,6 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   function handleSosPress() {
     setPhase("type-select");
   }
-
 
   function handleTypeSelect(type: string) {
     setPendingEmergencyType(type);
@@ -1594,7 +1594,6 @@ function HelpScreen({
   onToggleResponders: () => void;
   onReport: () => void;
   onClose: () => void;
-
 }) {
   const info = HELP_INFO[emergencyType] ?? HELP_INFO.other;
   const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
@@ -1607,6 +1606,7 @@ function HelpScreen({
   const [status, setStatus] = useState({ police: false, hospital: false, community: false });
   const [liveOffers, setLiveOffers] = useState(responderOffers);
   const [calledTargets, setCalledTargets] = useState<string[]>([]);
+  const [escalationAction, setEscalationAction] = useState<EscalationAction | null>(null);
   const responders: Responder[] = liveOffers.map((offer) => ({
     id: offer.offer_id,
     offerId: offer.offer_id,
@@ -1616,6 +1616,23 @@ function HelpScreen({
     status: offer.status,
     verified: false,
   }));
+
+  const nearestResponder = responders[0];
+  const isViolentEmergency = ["crime", "attack", "domestic"].includes(emergencyType);
+
+  function runEscalationAction(action: EscalationAction) {
+    setEscalationAction(action);
+    if (action === "police") {
+      setCalledTargets((current) =>
+        current.includes("Police") ? current : [...current, "Police"],
+      );
+    }
+    if (action === "ambulance") {
+      setCalledTargets((current) =>
+        current.includes("Ambulance") ? current : [...current, "Ambulance"],
+      );
+    }
+  }
 
   useEffect(() => {
     setLiveOffers(responderOffers);
@@ -1991,7 +2008,6 @@ function HelpScreen({
   );
 
   const StatusSection = (
-
     <div>
       <SectionLabel>
         <Radio className="mr-1.5 inline-block h-3 w-3 align-middle" />
@@ -2103,6 +2119,133 @@ function HelpScreen({
     </AnimatePresence>
   );
 
+  const EscalationSection = (
+    <div className="rounded-2xl border border-amber-500/20 bg-amber-950/15 p-4">
+      <div className="flex items-start gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-900/50">
+          <Radio className="h-4 w-4 text-amber-300" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300/70">
+            AI escalation desk
+          </p>
+          <h3 className="mt-1 font-display text-[16px] font-bold text-white/90">
+            Nearby help is ready to coordinate
+          </h3>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/38">
+            Allma ranks available, opted-in responders by distance, availability and verification.
+            You choose who to contact.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-900/60 text-[11px] font-black text-amber-300">
+            1
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-semibold text-white/80">
+              {nearestResponder?.name ?? "Verified responder search"}
+            </p>
+            <p className="text-[10px] text-white/35">
+              {nearestResponder
+                ? `Approx. ${nearestResponder.distance} · ${nearestResponder.eta}`
+                : "Only recently active, location-sharing responders are considered"}
+            </p>
+          </div>
+          {nearestResponder?.verified && (
+            <span className="rounded-full bg-blue-950/70 px-2 py-1 text-[9px] font-bold uppercase text-blue-300">
+              Verified
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-950/60 text-[11px] font-black text-blue-300">
+            2
+          </span>
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-white/70">Official response chain</p>
+            <p className="text-[10px] text-white/32">
+              {isViolentEmergency
+                ? "Police and local authority priority"
+                : "Local authority and emergency services"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {isViolentEmergency && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-950/30 px-3 py-2.5 text-[10px] leading-relaxed text-red-100/65">
+          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-300" />
+          <span>
+            Safety priority: volunteers must not confront anyone. Move to a safe place and contact
+            police or official emergency services.
+          </span>
+        </div>
+      )}
+
+      {escalationAction && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-green-500/20 bg-green-950/25 px-3 py-2.5 text-[11px] text-green-200/75">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-300" />
+          {escalationAction === "community"
+            ? "Nearby responder search is active. We will stop when someone accepts."
+            : escalationAction === "nearest"
+              ? "The nearest eligible responder has been requested."
+              : escalationAction === "authority"
+                ? "Local authority has been added to the response path."
+                : escalationAction === "police"
+                  ? "Police call opened. Share the location shown below with the operator."
+                  : "Ambulance call opened. Keep the line clear for the operator."}
+        </div>
+      )}
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => runEscalationAction("nearest")}
+          disabled={!nearestResponder}
+          className="flex items-center justify-center gap-2 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-3 text-[11px] font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Users className="h-3.5 w-3.5" /> Call nearest responder
+        </button>
+        <button
+          type="button"
+          onClick={() => runEscalationAction("community")}
+          disabled={!respondersNotified}
+          className="flex items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/6 px-3 py-3 text-[11px] font-bold text-white/70 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Radio className="h-3.5 w-3.5" /> Notify nearby responders
+        </button>
+        <button
+          type="button"
+          onClick={() => runEscalationAction("authority")}
+          className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-3 text-[11px] font-bold text-blue-200 transition hover:bg-blue-500/20"
+        >
+          <Shield className="h-3.5 w-3.5" /> Contact local authority
+        </button>
+        <a
+          href="tel:999"
+          onClick={() => runEscalationAction("police")}
+          className="flex items-center justify-center gap-2 rounded-xl border border-red-400/25 bg-red-500/15 px-3 py-3 text-[11px] font-bold text-red-100 transition hover:bg-red-500/25"
+        >
+          <Phone className="h-3.5 w-3.5" /> Contact police · 999
+        </a>
+        <a
+          href="tel:911"
+          onClick={() => runEscalationAction("ambulance")}
+          className="flex items-center justify-center gap-2 rounded-xl border border-green-400/20 bg-green-500/10 px-3 py-3 text-[11px] font-bold text-green-200 transition hover:bg-green-500/20 sm:col-span-2"
+        >
+          <Heart className="h-3.5 w-3.5" /> Contact ambulance · 911
+        </a>
+      </div>
+      <p className="mt-3 text-[10px] leading-relaxed text-white/22">
+        Calls use your device dialer and always require your tap. Exact responder coordinates are
+        never shown.
+      </p>
+    </div>
+  );
+
   const FacilitiesSection = showPoliceFirst ? (
     <>
       <FacilitySection title="Officers on duty" demo facilities={officers} />
@@ -2173,6 +2316,7 @@ function HelpScreen({
         <div className="flex-1 overflow-y-auto lg:hidden">
           <div className="mx-auto max-w-lg space-y-5 px-5 py-5 pb-16">
             {AiSection}
+            {EscalationSection}
             {ResponsePlanSection}
             {CallSection}
             {TrustedContactsSection}
@@ -2206,6 +2350,7 @@ function HelpScreen({
         <div className="hidden flex-1 overflow-y-auto lg:block">
           <div className="space-y-5 px-6 py-5 pb-14">
             {AiSection}
+            {EscalationSection}
             {ResponsePlanSection}
             {StepsSection}
             {TimelineSection}

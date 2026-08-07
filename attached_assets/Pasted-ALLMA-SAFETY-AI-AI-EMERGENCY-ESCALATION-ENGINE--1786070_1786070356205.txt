@@ -1,0 +1,182 @@
+ALLMA SAFETY AI – AI EMERGENCY ESCALATION ENGINE
+==================================================
+
+When a citizen taps SOS:
+
+STEP 1
+
+Immediately activate Emergency Mode.
+
+Get live GPS.
+
+Determine emergency type.
+
+Begin AI conversation.
+
+==================================================
+
+STEP 2
+
+The AI searches for nearby users who:
+
+• Have enabled Emergency Response Mode
+• Are online or recently active
+• Have location sharing enabled
+• Have accepted emergency call permissions
+
+Rank responders by:
+
+Distance
+
+Availability
+
+Verification
+
+Response history
+
+Medical skills (if applicable)
+
+==================================================
+
+STEP 3
+
+The AI creates a responder priority list.
+
+Example
+
+1. Verified First Aider
+250 metres
+
+2. Community Volunteer
+400 metres
+
+3. Community Health Worker
+600 metres
+
+4. LC1 Chairperson
+
+5. Police Station
+
+6. Hospital
+
+==================================================
+
+STEP 4
+
+The AI asks:
+
+"I've found nearby emergency responders.
+
+Would you like me to contact them?"
+
+Buttons
+
+Call Nearest Responder
+
+Notify Nearby Responders
+
+Contact Local Authority
+
+Contact Police
+
+Contact Ambulance
+
+Cancel
+
+==================================================
+
+STEP 5
+
+If confirmed
+
+The app automatically places calls using the device's phone capabilities or VoIP if supported.
+
+Call order
+
+Nearest verified responder
+
+↓
+
+Second responder if unanswered
+
+↓
+
+LC1 Chairperson
+
+↓
+
+Community policing contact
+
+↓
+
+Police station
+
+↓
+
+Ambulance
+
+The AI stops when someone accepts.
+
+==================================================
+
+RESPONDER RECEIVES
+
+Incoming Emergency Request
+
+Approximate location
+
+Emergency type
+
+Distance
+
+Buttons
+
+Accept
+
+Decline
+
+Call Citizen
+
+Navigate
+
+==================================================
+
+IF ACCEPTED
+
+Citizen sees
+
+Responder Name
+
+Verification Badge
+
+Estimated Arrival
+
+Live Status
+
+The AI continues coordinating until official responders arrive.
+
+==================================================
+
+SAFETY
+
+For violent crimes
+
+The AI should prioritize police and official emergency services.
+
+Nearby volunteers should never be instructed to confront suspects.
+
+Instead they may help by:
+
+Guiding emergency services
+
+Providing first aid after the scene is safe
+
+Helping with evacuation
+
+Waiting in a safe location
+
+==================================================
+
+FINAL GOAL
+
+The AI intelligently coordinates the fastest available help while protecting both the person requesting help and the community responders.
