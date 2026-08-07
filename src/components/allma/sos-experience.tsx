@@ -27,6 +27,11 @@ import {
   Users,
   Settings2,
   Check,
+  Plus,
+  Minus,
+  Crosshair,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,73 +100,73 @@ const EMERGENCY_NUMBERS = [
   {
     label: "Police",
     number: "999",
-    gradient: "from-blue-700 to-blue-900",
-    glow: "rgba(59,130,246,0.35)",
+    gradient: "from-info to-info/70 text-info-foreground",
+    glow: "var(--info)",
   },
   {
     label: "Ambulance",
     number: "911",
-    gradient: "from-green-700 to-green-900",
-    glow: "rgba(34,197,94,0.35)",
+    gradient: "from-success to-success/70 text-success-foreground",
+    glow: "var(--success)",
   },
   {
     label: "Fire Brigade",
     number: "112",
-    gradient: "from-orange-600 to-red-900",
-    glow: "rgba(234,88,12,0.35)",
+    gradient: "from-alert to-destructive text-alert-foreground",
+    glow: "var(--alert)",
   },
   {
     label: "General Emergency",
     number: "112",
-    gradient: "from-zinc-700 to-zinc-900",
-    glow: "rgba(161,161,170,0.18)",
+    gradient: "from-secondary to-secondary/70 text-secondary-foreground",
+    glow: "var(--muted-foreground)",
   },
 ];
 
 const EMERGENCY_TYPES = [
-  { id: "crime", icon: Car, label: "Crime / Theft", color: "text-blue-400", bg: "bg-blue-950/50" },
+  { id: "crime", icon: Car, label: "Crime / Theft", color: "text-info", bg: "bg-info/18" },
   {
     id: "medical",
     icon: Heart,
     label: "Medical Emergency",
-    color: "text-green-400",
-    bg: "bg-green-950/50",
+    color: "text-success",
+    bg: "bg-success/18",
   },
-  { id: "fire", icon: Zap, label: "Fire", color: "text-orange-400", bg: "bg-orange-950/50" },
+  { id: "fire", icon: Zap, label: "Fire", color: "text-alert", bg: "bg-alert/18" },
   {
     id: "attack",
     icon: AlertTriangle,
     label: "Attack / Violence",
-    color: "text-red-400",
-    bg: "bg-red-950/50",
+    color: "text-destructive",
+    bg: "bg-destructive/18",
   },
   {
     id: "accident",
     icon: Car,
     label: "Road Accident",
-    color: "text-amber-400",
-    bg: "bg-amber-950/50",
+    color: "text-gold",
+    bg: "bg-gold/18",
   },
   {
     id: "missing",
     icon: UserX,
     label: "Missing Person",
-    color: "text-purple-400",
-    bg: "bg-purple-950/50",
+    color: "text-trusted",
+    bg: "bg-trusted/18",
   },
   {
     id: "domestic",
     icon: Home,
     label: "Domestic Violence",
-    color: "text-pink-400",
-    bg: "bg-pink-950/50",
+    color: "text-trusted",
+    bg: "bg-trusted/18",
   },
   {
     id: "other",
     icon: MoreHorizontal,
     label: "Other Emergency",
-    color: "text-zinc-400",
-    bg: "bg-zinc-800/50",
+    color: "text-muted-foreground",
+    bg: "bg-secondary/60",
   },
 ];
 
@@ -631,7 +636,7 @@ function useAiChat(messages: string[]) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/35">
+    <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
       {children}
     </p>
   );
@@ -640,13 +645,13 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function AiChatBubble({ text, typing }: { text: string; typing?: boolean }) {
   return (
     <div className="flex items-start gap-2.5">
-      <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-red-700 to-red-900 shadow-[0_0_14px_rgba(220,38,38,0.45)]">
-        <Brain className="h-3.5 w-3.5 text-white" />
+      <div className="sos-glow-sm mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-destructive to-primary-glow">
+        <Brain className="h-3.5 w-3.5 text-destructive-foreground" />
       </div>
-      <div className="flex-1 rounded-2xl rounded-tl-sm border border-white/10 bg-white/6 px-4 py-3 text-[13px] leading-relaxed text-white/85 backdrop-blur-sm">
+      <div className="premium-surface flex-1 rounded-2xl rounded-tl-sm border border-border/60 px-4 py-3 text-[13px] leading-relaxed text-foreground">
         {text}
         {typing && (
-          <span className="ml-0.5 inline-block h-3.5 w-0.5 translate-y-0.5 animate-pulse rounded-full bg-white/55" />
+          <span className="ml-0.5 inline-block h-3.5 w-0.5 translate-y-0.5 animate-pulse rounded-full bg-secondary/60" />
         )}
       </div>
     </div>
@@ -654,12 +659,12 @@ function AiChatBubble({ text, typing }: { text: string; typing?: boolean }) {
 }
 
 const RESPONDER_STATUS_CHIP: Record<ResponderStatus, { label: string; cls: string }> = {
-  offered: { label: "Offered", cls: "bg-white/8 text-white/45" },
-  accepted: { label: "Accepted", cls: "bg-amber-900/60 text-amber-300" },
-  declined: { label: "Declined", cls: "bg-red-950/60 text-red-300" },
-  en_route: { label: "En Route", cls: "bg-blue-900/60 text-blue-300" },
-  arrived: { label: "Arrived", cls: "bg-green-900/60 text-green-300" },
-  cancelled: { label: "Cancelled", cls: "bg-white/8 text-white/35" },
+  offered: { label: "Offered", cls: "bg-secondary/60 text-muted-foreground" },
+  accepted: { label: "Accepted", cls: "bg-gold/18 text-gold" },
+  declined: { label: "Declined", cls: "bg-destructive/18 text-destructive" },
+  en_route: { label: "En Route", cls: "bg-info/18 text-info" },
+  arrived: { label: "Arrived", cls: "bg-success/18 text-success" },
+  cancelled: { label: "Cancelled", cls: "bg-secondary/60 text-muted-foreground" },
 };
 
 function ResponderCard({ responder }: { responder: Responder }) {
@@ -667,12 +672,12 @@ function ResponderCard({ responder }: { responder: Responder }) {
   return (
     <motion.div
       layout
-      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/5 px-4 py-3 backdrop-blur-sm"
+      className="flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/40 px-4 py-3 backdrop-blur-sm"
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ type: "spring", stiffness: 280, damping: 22 }}
     >
-      <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-white/15 to-white/5 text-sm font-bold text-white/70">
+      <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-secondary to-secondary/40 text-sm font-bold text-foreground">
         {responder.name
           .split(" ")
           .map((p) => p[0])
@@ -680,21 +685,21 @@ function ResponderCard({ responder }: { responder: Responder }) {
           .slice(0, 2)
           .toUpperCase()}
         {responder.verified && (
-          <span className="absolute -right-0.5 -top-0.5 grid h-4 w-4 place-items-center rounded-full bg-blue-500 text-[9px] font-black text-white">
+          <span className="absolute -right-0.5 -top-0.5 grid h-4 w-4 place-items-center rounded-full bg-info text-[9px] font-black text-info-foreground">
             ✓
           </span>
         )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="text-[13px] font-semibold text-white/90">{responder.name}</p>
+          <p className="text-[13px] font-semibold text-foreground">{responder.name}</p>
           {responder.verified && (
-            <span className="rounded-full border border-blue-500/30 bg-blue-950/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-400">
+            <span className="rounded-full border border-info/30 bg-info/18 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-info">
               Verified
             </span>
           )}
         </div>
-        <p className="text-[11px] text-white/38">
+        <p className="text-[11px] text-muted-foreground">
           Approx. {responder.distance} away · {responder.eta}
         </p>
       </div>
@@ -717,22 +722,22 @@ function ResponderCard({ responder }: { responder: Responder }) {
 function FacilityRow({ facility }: { facility: Facility }) {
   const isHospital = facility.type === "hospital";
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/5 px-3.5 py-3 backdrop-blur-sm">
+    <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/40 px-3.5 py-3 backdrop-blur-sm">
       <div
         className={cn(
           "grid h-9 w-9 shrink-0 place-items-center rounded-full",
-          isHospital ? "bg-green-950/70" : "bg-blue-950/70",
+          isHospital ? "bg-success/18" : "bg-info/18",
         )}
       >
         {isHospital ? (
-          <Building2 className="h-4 w-4 text-green-400" />
+          <Building2 className="h-4 w-4 text-success" />
         ) : (
-          <Shield className="h-4 w-4 text-blue-400" />
+          <Shield className="h-4 w-4 text-info" />
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-white/88">{facility.name}</p>
-        <p className="flex items-center gap-1 text-[11px] text-white/38">
+        <p className="truncate text-[13px] font-medium text-foreground">{facility.name}</p>
+        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
           <MapPin className="h-2.5 w-2.5 shrink-0" />
           <span className="truncate">{facility.address}</span>
         </p>
@@ -741,14 +746,14 @@ function FacilityRow({ facility }: { facility: Facility }) {
         <span
           className={cn(
             "text-[11px] font-semibold",
-            isHospital ? "text-green-400/80" : "text-blue-400/80",
+            isHospital ? "text-success" : "text-info",
           )}
         >
           {facility.distance}
         </span>
         <a
           href={`tel:${facility.phone.replace(/\s/g, "")}`}
-          className="flex items-center gap-1 rounded-lg bg-white/8 px-2.5 py-1 text-[10px] font-semibold text-white/65 transition hover:bg-white/14"
+          className="flex items-center gap-1 rounded-lg bg-secondary/60 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-accent"
         >
           <Phone className="h-2.5 w-2.5" /> Call
         </a>
@@ -772,7 +777,7 @@ function FacilitySection({
       <SectionLabel>
         {title}
         {demo && (
-          <span className="ml-1.5 font-normal normal-case tracking-normal text-white/20">
+          <span className="ml-1.5 font-normal normal-case tracking-normal text-muted-foreground">
             (demo)
           </span>
         )}
@@ -781,6 +786,143 @@ function FacilitySection({
         {facilities.map((f, i) => (
           <FacilityRow key={i} facility={f} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Live location map ────────────────────────────────────────────────────────
+
+const MAP_ZOOM_LEVELS = [
+  { label: "Street", span: 250 },
+  { label: "Block", span: 700 },
+  { label: "Area", span: 2000 },
+  { label: "City", span: 6000 },
+] as const;
+
+const MAP_HEIGHT = 208;
+
+function LiveLocationMap({ location }: { location: LocationInfo }) {
+  const [zoom, setZoom] = useState(1);
+  const [copied, setCopied] = useState(false);
+  const level = MAP_ZOOM_LEVELS[zoom];
+
+  // Half-span of the viewport in metres → degrees for the OSM bbox.
+  const halfSpan = level.span / 2;
+  const dLat = halfSpan / 111_320;
+  const dLng = halfSpan / (111_320 * Math.max(0.2, Math.cos((location.lat * Math.PI) / 180)));
+  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - dLng},${
+    location.lat - dLat
+  },${location.lng + dLng},${location.lat + dLat}&layer=mapnik&marker=${location.lat},${location.lng}`;
+
+  // Accuracy circle drawn to the same scale as the tiles.
+  const metresPerPixel = level.span / MAP_HEIGHT;
+  const accuracyPx = Math.max(18, Math.min(MAP_HEIGHT * 0.9, (location.accuracy / metresPerPixel) * 2));
+
+  const coords = `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
+
+  const copyCoords = async () => {
+    try {
+      await navigator.clipboard.writeText(coords);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
+      <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
+        <iframe
+          key={mapUrl}
+          src={mapUrl}
+          title="Your live location"
+          loading="lazy"
+          className="map-tint h-full w-full border-0"
+        />
+
+        {/* Accuracy radius + pulsing position marker */}
+        <div className="pointer-events-none absolute inset-0 grid place-items-center">
+          <span
+            className="absolute rounded-full border border-destructive/40 bg-destructive/10"
+            style={{ height: accuracyPx, width: accuracyPx }}
+          />
+          <span className="absolute h-12 w-12 animate-ping rounded-full bg-destructive/20 [animation-duration:1.6s]" />
+          <span className="sos-glow-sm h-3.5 w-3.5 rounded-full border-2 border-background bg-destructive" />
+        </div>
+
+        {/* Scale + zoom controls */}
+        <div className="absolute right-2.5 top-2.5 flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/80 backdrop-blur-md">
+          <button
+            type="button"
+            aria-label="Zoom in"
+            onClick={() => setZoom((z) => Math.max(0, z - 1))}
+            disabled={zoom === 0}
+            className="grid h-8 w-8 place-items-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-40"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+          <span className="h-px bg-border" />
+          <button
+            type="button"
+            aria-label="Zoom out"
+            onClick={() => setZoom((z) => Math.min(MAP_ZOOM_LEVELS.length - 1, z + 1))}
+            disabled={zoom === MAP_ZOOM_LEVELS.length - 1}
+            className="grid h-8 w-8 place-items-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-40"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <span className="h-px bg-border" />
+          <button
+            type="button"
+            aria-label="Recenter on me"
+            onClick={() => setZoom(1)}
+            className="grid h-8 w-8 place-items-center text-destructive transition hover:bg-accent"
+          >
+            <Crosshair className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground backdrop-blur-md">
+          <LocateFixed className="h-3 w-3 text-success" />
+          {level.label} · ±{Math.round(location.accuracy)} m
+        </div>
+      </div>
+
+      <div className="flex items-start gap-2 border-t border-border/60 px-4 py-3">
+        <Navigation2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12.5px] font-semibold text-foreground">
+            {location.address}
+            {location.district ? `, ${location.district}` : ""}
+          </p>
+          <p className="mt-0.5 font-mono text-[10.5px] text-muted-foreground">{coords}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 border-t border-border/60 p-2.5">
+        <a
+          href={`https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=17/${location.lat}/${location.lng}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-secondary/40 px-3 py-2 text-[11.5px] font-semibold text-foreground transition hover:bg-accent"
+        >
+          <ExternalLink className="h-3.5 w-3.5" /> Open in Maps
+        </a>
+        <button
+          type="button"
+          onClick={copyCoords}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[11.5px] font-semibold transition",
+            copied
+              ? "border-success/30 bg-success/15 text-success"
+              : "border-border/60 bg-secondary/40 text-foreground hover:bg-accent",
+          )}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied" : "Copy GPS"}
+        </button>
       </div>
     </div>
   );
@@ -800,10 +942,10 @@ function StatusTile({
   visible: boolean;
 }) {
   const cls = {
-    green: "border-green-500/20 bg-green-950/35 text-green-400",
-    blue: "border-blue-500/20 bg-blue-950/35 text-blue-400",
-    amber: "border-amber-500/20 bg-amber-950/35 text-amber-400",
-    red: "border-red-500/20 bg-red-950/35 text-red-400",
+    green: "border-success/20 bg-success/18 text-success",
+    blue: "border-info/20 bg-info/18 text-info",
+    amber: "border-gold/20 bg-gold/18 text-gold",
+    red: "border-destructive/20 bg-destructive/18 text-destructive",
   }[color];
   return (
     <AnimatePresence>
@@ -1001,21 +1143,15 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   }
 
   return (
-    <div className="dark fixed inset-0 z-[100] overflow-hidden bg-[#060606]">
-      {/* Ambient glow */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(185,20,20,0.25) 0%, transparent 60%), radial-gradient(ellipse 50% 35% at 85% 110%, rgba(255,185,0,0.07) 0%, transparent 55%)",
-        }}
-      />
+    <div className="fixed inset-0 z-[100] overflow-hidden bg-background">
+      {/* Ambient brand glow — same signal-streak wash as the onboarding wizard */}
+      <div className="signal-streak pointer-events-none absolute inset-0" />
       {/* Subtle grid */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.035]"
+        className="pointer-events-none absolute inset-0 opacity-[0.05]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.4) 1px,transparent 1px)",
+            "linear-gradient(color-mix(in oklab, var(--border) 90%, transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in oklab, var(--border) 90%, transparent) 1px,transparent 1px)",
           backgroundSize: "48px 48px",
         }}
       />
@@ -1106,14 +1242,14 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
       transition={{ duration: 0.3 }}
     >
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-white/6 px-6 py-3.5">
+      <div className="flex items-center justify-between border-b border-border/60 px-6 py-3.5">
         <div className="flex items-center gap-2.5">
-          <div className="grid h-7 w-7 place-items-center rounded-full bg-red-800/80">
-            <Siren className="h-3.5 w-3.5 text-red-300" strokeWidth={1.5} />
+          <div className="grid h-7 w-7 place-items-center rounded-full bg-destructive/18">
+            <Siren className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
           </div>
-          <span className="text-[13px] font-semibold text-white/75">Allma Safety AI</span>
+          <span className="text-[13px] font-semibold text-foreground">Allma Safety AI</span>
         </div>
-        <span className="rounded-full border border-red-500/25 bg-red-950/30 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-red-400/80">
+        <span className="rounded-full border border-destructive/25 bg-destructive/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive">
           Demo
         </span>
       </div>
@@ -1123,7 +1259,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
         {/* Left: button */}
         <div className="flex flex-col items-center text-center">
           <motion.p
-            className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-red-400/60"
+            className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-destructive/60"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -1131,7 +1267,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
             Emergency Response
           </motion.p>
           <motion.h1
-            className="mb-2 font-display text-[32px] font-black text-white"
+            className="mb-2 font-display text-[32px] font-black text-foreground"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.14 }}
@@ -1139,7 +1275,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
             SOS
           </motion.h1>
           <motion.p
-            className="mb-12 text-[13px] text-white/35"
+            className="mb-12 text-[13px] text-muted-foreground"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -1154,24 +1290,24 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.22, type: "spring", stiffness: 240, damping: 18 }}
           >
-            <span className="absolute inset-0 animate-ping rounded-full bg-red-600/15" />
-            <span className="absolute -inset-6 animate-ping rounded-full bg-red-600/07 [animation-delay:0.6s]" />
+            <span className="absolute inset-0 animate-ping rounded-full bg-destructive/15" />
+            <span className="absolute -inset-6 animate-ping rounded-full bg-destructive/7 [animation-delay:0.6s]" />
             <button
               onClick={onActivate}
               aria-label="Activate Emergency SOS"
-              className="relative h-52 w-52 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-4 focus-visible:ring-offset-[#060606]"
+              className="relative h-52 w-52 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
             >
               <span
                 className="absolute inset-0 rounded-full"
                 style={{
                   background:
-                    "conic-gradient(from 0deg, #dc2626, #fbbf24 38%, #dc2626 68%, #991b1b)",
+                    "conic-gradient(from 0deg, var(--destructive), var(--gold) 38%, var(--destructive) 68%, var(--primary-glow))",
                   padding: "3px",
                 }}
               />
-              <span className="absolute inset-[3px] rounded-full bg-[#060606]" />
-              <span className="absolute inset-[14px] flex items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-900 shadow-[0_0_72px_rgba(220,38,38,0.6)]">
-                <span className="font-display text-[28px] font-black tracking-[0.18em] text-white">
+              <span className="absolute inset-[3px] rounded-full bg-background" />
+              <span className="sos-glow absolute inset-[14px] flex items-center justify-center rounded-full bg-gradient-to-br from-destructive to-primary-glow">
+                <span className="font-display text-[28px] font-black tracking-[0.18em] text-destructive-foreground">
                   SOS
                 </span>
               </span>
@@ -1179,7 +1315,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
           </motion.div>
 
           <motion.p
-            className="mt-12 text-[11px] text-white/18"
+            className="mt-12 text-[11px] text-muted-foreground"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -1195,32 +1331,32 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
         >
-          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-white/25">
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
             Emergency Numbers
           </p>
           {EMERGENCY_NUMBERS.map((e) => (
             <a
               key={e.label}
               href={`tel:${e.number}`}
-              className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/5 px-4 py-3 transition hover:bg-white/8"
+              className="flex items-center justify-between rounded-2xl border border-border/60 bg-secondary/40 px-4 py-3 transition hover:bg-accent"
             >
               <div>
-                <p className="text-[13px] font-semibold text-white/85">{e.label}</p>
-                <p className="text-[11px] text-white/35">Tap to call</p>
+                <p className="text-[13px] font-semibold text-foreground">{e.label}</p>
+                <p className="text-[11px] text-muted-foreground">Tap to call</p>
               </div>
               <div
                 className={cn(
-                  "flex items-center gap-1.5 rounded-xl bg-gradient-to-br px-3 py-1.5 text-[15px] font-black text-white",
+                  "flex items-center gap-1.5 rounded-xl bg-gradient-to-br px-3 py-1.5 text-[15px] font-black",
                   e.gradient,
                 )}
-                style={{ boxShadow: `0 0 16px ${e.glow}` }}
+                style={{ boxShadow: `0 0 18px -4px color-mix(in oklab, ${e.glow} 55%, transparent)` }}
               >
                 <Phone className="h-3 w-3" />
                 {e.number}
               </div>
             </a>
           ))}
-          <div className="rounded-2xl border border-white/6 bg-white/3 px-4 py-3 text-[12px] text-white/28 leading-relaxed">
+          <div className="rounded-2xl border border-border/60 bg-secondary/40 px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
             Allma AI guides you through an emergency, locates nearby services, and connects
             community responders — automatically.
           </div>
@@ -1248,11 +1384,11 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.06 }}
         >
-          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.26em] text-red-400/60">
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.26em] text-destructive/60">
             Emergency SOS
           </p>
-          <h2 className="font-display text-2xl font-black text-white">What's happening?</h2>
-          <p className="mt-1 text-[13px] text-white/35">
+          <h2 className="font-display text-2xl font-black text-foreground">What's happening?</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
             Select the emergency type. Help will be tailored instantly.
           </p>
         </motion.div>
@@ -1264,7 +1400,7 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
               <motion.button
                 key={et.id}
                 onClick={() => onSelect(et.id)}
-                className="group flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-center backdrop-blur-md transition-all hover:border-white/20 hover:bg-white/9 active:scale-95"
+                className="group flex flex-col items-center gap-3 rounded-2xl border border-border/60 bg-secondary/40 p-5 text-center backdrop-blur-md transition-all hover:border-border/60 hover:bg-accent active:scale-95"
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.07 + i * 0.03 }}
@@ -1273,7 +1409,7 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
                 <div className={cn("grid h-11 w-11 place-items-center rounded-2xl", et.bg)}>
                   <Icon className={cn("h-5 w-5", et.color)} strokeWidth={1.5} />
                 </div>
-                <span className="text-[13px] font-semibold leading-tight text-white/80 group-hover:text-white">
+                <span className="text-[13px] font-semibold leading-tight text-foreground group-hover:text-foreground">
                   {et.label}
                 </span>
               </motion.button>
@@ -1319,7 +1455,7 @@ function ConsentScreen({
       <div className="mx-auto w-full max-w-xl px-5 py-10">
         <button
           onClick={onBack}
-          className="mb-6 flex items-center gap-1.5 text-[13px] text-white/40 hover:text-white/70"
+          className="mb-6 flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> Change emergency type
         </button>
@@ -1327,27 +1463,27 @@ function ConsentScreen({
           <div
             className={cn(
               "grid h-11 w-11 shrink-0 place-items-center rounded-2xl",
-              typeInfo?.bg ?? "bg-red-950/50",
+              typeInfo?.bg ?? "bg-destructive/18",
             )}
           >
-            <Icon className={cn("h-5 w-5", typeInfo?.color ?? "text-red-400")} />
+            <Icon className={cn("h-5 w-5", typeInfo?.color ?? "text-destructive")} />
           </div>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-red-400/65">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-destructive/65">
               Before we coordinate help
             </p>
-            <h2 className="mt-1 font-display text-2xl font-black text-white">
+            <h2 className="mt-1 font-display text-2xl font-black text-foreground">
               {typeInfo?.label ?? "Emergency"}
             </h2>
-            <p className="mt-1 text-[13px] leading-relaxed text-white/40">
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
               You stay in control of what Allma shares. Calls to official services always require
               your tap.
             </p>
           </div>
         </div>
 
-        <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+        <div className="mb-5 rounded-2xl border border-border/60 bg-secondary/40 p-4">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
             Suggested response path
           </p>
           <div className="space-y-3">
@@ -1357,19 +1493,19 @@ function ConsentScreen({
                   className={cn(
                     "grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-black",
                     target.tone === "red"
-                      ? "bg-red-900/70 text-red-300"
+                      ? "bg-destructive/18 text-destructive"
                       : target.tone === "blue"
-                        ? "bg-blue-900/70 text-blue-300"
+                        ? "bg-info/18 text-info"
                         : target.tone === "amber"
-                          ? "bg-amber-900/70 text-amber-300"
-                          : "bg-violet-900/70 text-violet-300",
+                          ? "bg-gold/18 text-gold"
+                          : "bg-trusted/18 text-trusted",
                   )}
                 >
                   {target.level}
                 </span>
                 <div>
-                  <p className="text-[13px] font-semibold text-white/80">{target.label}</p>
-                  <p className="text-[11px] text-white/35">{target.detail}</p>
+                  <p className="text-[13px] font-semibold text-foreground">{target.label}</p>
+                  <p className="text-[11px] text-muted-foreground">{target.detail}</p>
                 </div>
               </div>
             ))}
@@ -1393,8 +1529,8 @@ function ConsentScreen({
           />
         </div>
 
-        <div className="mt-5 flex items-start gap-2 rounded-2xl border border-amber-500/15 bg-amber-950/20 px-4 py-3 text-[11px] leading-relaxed text-amber-100/55">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400/80" />
+        <div className="mt-5 flex items-start gap-2 rounded-2xl border border-gold/20 bg-gold/10 px-4 py-3 text-[11px] leading-relaxed text-gold">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
           <span>
             For immediate danger, call the official emergency number shown on the next screen. Allma
             is independent and is not an emergency service.
@@ -1403,7 +1539,7 @@ function ConsentScreen({
 
         <button
           onClick={onConfirm}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-red-700 py-4 font-display text-[15px] font-bold text-white shadow-[0_8px_26px_rgba(185,28,28,0.28)] transition hover:bg-red-600 active:scale-[0.99]"
+          className="shadow-lift mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive py-4 font-display text-[15px] font-bold text-destructive-foreground transition hover:bg-destructive/90 active:scale-[0.99]"
         >
           <ShieldAlert className="h-4 w-4" /> Activate coordinated SOS
         </button>
@@ -1431,28 +1567,28 @@ function ConsentOption({
       onClick={onChange}
       className={cn(
         "flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition",
-        checked ? "border-green-500/25 bg-green-950/25" : "border-white/10 bg-white/4",
+        checked ? "border-success/25 bg-success/18" : "border-border/60 bg-secondary/40",
       )}
       aria-pressed={checked}
     >
       <div
         className={cn(
           "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl",
-          checked ? "bg-green-900/70 text-green-300" : "bg-white/8 text-white/35",
+          checked ? "bg-success/18 text-success" : "bg-secondary/60 text-muted-foreground",
         )}
       >
         <Icon className="h-4 w-4" />
       </div>
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-semibold text-white/82">{title}</span>
-        <span className="mt-1 block text-[11px] leading-relaxed text-white/35">{description}</span>
+        <span className="block text-[13px] font-semibold text-foreground">{title}</span>
+        <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">{description}</span>
       </span>
       <span
         className={cn(
           "mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border",
           checked
-            ? "border-green-400 bg-green-500 text-[#07120b]"
-            : "border-white/20 text-transparent",
+            ? "border-success bg-success text-success-foreground"
+            : "border-border/60 text-transparent",
         )}
       >
         <Check className="h-3 w-3" />
@@ -1505,14 +1641,14 @@ function LoadingScreen() {
       transition={{ duration: 0.3 }}
     >
       <div className="relative mb-10 flex items-center justify-center">
-        <span className="absolute h-52 w-52 animate-ping rounded-full bg-red-600/7 [animation-duration:1.6s]" />
-        <span className="absolute h-36 w-36 animate-ping rounded-full bg-red-600/11 [animation-duration:1.2s]" />
+        <span className="absolute h-52 w-52 animate-ping rounded-full bg-destructive/7 [animation-duration:1.6s]" />
+        <span className="absolute h-36 w-36 animate-ping rounded-full bg-destructive/11 [animation-duration:1.2s]" />
         <motion.div
-          className="relative flex h-24 w-24 items-center justify-center rounded-full border border-red-700/40 bg-red-950/60 backdrop-blur-sm"
+          className="relative flex h-24 w-24 items-center justify-center rounded-full border border-destructive/40 bg-destructive/18 backdrop-blur-sm"
           animate={{ scale: [1, 1.06, 1] }}
           transition={{ duration: 1.1, repeat: Infinity }}
         >
-          <Siren className="h-11 w-11 text-red-400" strokeWidth={1.5} />
+          <Siren className="h-11 w-11 text-destructive" strokeWidth={1.5} />
         </motion.div>
       </div>
 
@@ -1522,13 +1658,13 @@ function LoadingScreen() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-red-700 to-red-900">
-          <Brain className="h-3.5 w-3.5 text-white" />
+        <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-destructive to-destructive">
+          <Brain className="h-3.5 w-3.5 text-foreground" />
         </div>
-        <div className="rounded-2xl rounded-tl-sm border border-white/10 bg-white/6 px-4 py-3 text-[13px] leading-relaxed text-white/85">
+        <div className="rounded-2xl rounded-tl-sm border border-border/60 bg-secondary/40 px-4 py-3 text-[13px] leading-relaxed text-foreground">
           {aiText}
           {aiText.length < aiFull.length && (
-            <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-white/60" />
+            <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-secondary/60" />
           )}
         </div>
       </motion.div>
@@ -1539,18 +1675,18 @@ function LoadingScreen() {
             key={i}
             className={cn(
               "flex items-center gap-3 text-[13px] transition-colors",
-              i <= step ? "text-white/85" : "text-white/18",
+              i <= step ? "text-foreground" : "text-muted-foreground",
             )}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.06 }}
           >
             {i < step ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
             ) : i === step ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-400" />
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-gold" />
             ) : (
-              <span className="h-4 w-4 shrink-0 rounded-full border border-white/15" />
+              <span className="h-4 w-4 shrink-0 rounded-full border border-border/60" />
             )}
             {s}
           </motion.div>
@@ -1717,13 +1853,6 @@ function HelpScreen({
     return () => ts.forEach(clearTimeout);
   }, [emergencyType, respondersNotified]);
 
-  const mapUrl = location
-    ? (() => {
-        const delta = Math.max(0.004, Math.min(0.02, (location.accuracy / 111000) * 5));
-        return `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - delta},${location.lat - delta},${location.lng + delta},${location.lat + delta}&layer=mapnik&marker=${location.lat},${location.lng}`;
-      })()
-    : null;
-
   // ── Shared sections (rendered on both mobile and desktop) ──
   const AiSection = (
     <div className="space-y-2.5">
@@ -1742,7 +1871,7 @@ function HelpScreen({
 
   const StepsSection = (
     <motion.div
-      className="rounded-2xl border border-red-900/30 bg-red-950/18 p-5"
+      className="rounded-2xl border border-destructive/30 bg-destructive/18 p-5"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.22 }}
@@ -1754,10 +1883,10 @@ function HelpScreen({
       <ol className="space-y-3">
         {info.steps.map((step, i) => (
           <li key={i} className="flex items-start gap-3">
-            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-red-700/80 text-[10px] font-black text-white">
+            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-destructive/25 text-[10px] font-black text-foreground">
               {i + 1}
             </span>
-            <span className="text-[14px] leading-snug text-white/82">{step}</span>
+            <span className="text-[14px] leading-snug text-foreground">{step}</span>
           </li>
         ))}
       </ol>
@@ -1778,8 +1907,8 @@ function HelpScreen({
                 className={cn(
                   "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[9px] transition-all duration-500",
                   i < timelineDone
-                    ? "border-green-500 bg-green-950/60 text-green-400"
-                    : "border-white/16 text-white/16",
+                    ? "border-success/30 bg-success/18 text-success"
+                    : "border-border/60 text-muted-foreground",
                 )}
               >
                 {i < timelineDone ? "✓" : "·"}
@@ -1788,7 +1917,7 @@ function HelpScreen({
                 <div
                   className={cn(
                     "mt-1 w-px transition-all duration-700",
-                    i < timelineDone ? "bg-green-500/30" : "bg-white/8",
+                    i < timelineDone ? "bg-success/30" : "bg-secondary/60",
                   )}
                   style={{ minHeight: 22 }}
                 />
@@ -1798,7 +1927,7 @@ function HelpScreen({
               <p
                 className={cn(
                   "text-[13px] font-medium transition-colors duration-500",
-                  i < timelineDone ? "text-white/82" : "text-white/20",
+                  i < timelineDone ? "text-foreground" : "text-muted-foreground",
                 )}
               >
                 {ev.label}
@@ -1807,7 +1936,7 @@ function HelpScreen({
                 <p
                   className={cn(
                     "text-[11px] transition-colors duration-500",
-                    i < timelineDone ? "text-white/38" : "text-white/10",
+                    i < timelineDone ? "text-muted-foreground" : "text-muted-foreground",
                   )}
                 >
                   {ev.sub}
@@ -1840,19 +1969,19 @@ function HelpScreen({
               "flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl bg-gradient-to-br py-5 transition active:scale-[0.96]",
               e.gradient,
             )}
-            style={{ boxShadow: `0 4px 22px ${e.glow}` }}
+            style={{ boxShadow: `0 6px 24px -8px color-mix(in oklab, ${e.glow} 60%, transparent)` }}
           >
-            <Phone className="h-4 w-4 text-white/75" />
-            <span className="font-display text-[26px] font-black leading-none text-white">
+            <Phone className="h-4 w-4 opacity-75" />
+            <span className="font-display text-[26px] font-black leading-none">
               {e.number}
             </span>
-            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-white/65">
+            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] opacity-75">
               {calledTargets.includes(e.label) ? "Call started" : e.label}
             </span>
           </a>
         ))}
       </div>
-      <p className="mt-2 text-[10px] leading-relaxed text-white/25">
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
         Allma cannot place calls automatically. Tap a number to use your device dialer and share
         details with the operator.
       </p>
@@ -1869,27 +1998,27 @@ function HelpScreen({
         {responsePlan.map((target) => (
           <div
             key={target.level}
-            className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/4 px-3.5 py-3"
+            className="flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/40 px-3.5 py-3"
           >
             <span
               className={cn(
                 "grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10px] font-black",
                 target.tone === "red"
-                  ? "bg-red-900/70 text-red-300"
+                  ? "bg-destructive/18 text-destructive"
                   : target.tone === "blue"
-                    ? "bg-blue-900/70 text-blue-300"
+                    ? "bg-info/18 text-info"
                     : target.tone === "amber"
-                      ? "bg-amber-900/70 text-amber-300"
-                      : "bg-violet-900/70 text-violet-300",
+                      ? "bg-gold/18 text-gold"
+                      : "bg-trusted/18 text-trusted",
               )}
             >
               L{target.level}
             </span>
             <div className="min-w-0">
-              <p className="text-[12px] font-semibold text-white/75">{target.label}</p>
-              <p className="text-[11px] leading-relaxed text-white/30">{target.detail}</p>
+              <p className="text-[12px] font-semibold text-foreground">{target.label}</p>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{target.detail}</p>
             </div>
-            <span className="ml-auto shrink-0 rounded-full border border-white/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/30">
+            <span className="ml-auto shrink-0 rounded-full border border-border/60 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
               {target.level === 4
                 ? "Tap to call"
                 : target.level === 2 && respondersNotified
@@ -1899,7 +2028,7 @@ function HelpScreen({
           </div>
         ))}
       </div>
-      <p className="mt-2 text-[10px] text-white/22">
+      <p className="mt-2 text-[10px] text-muted-foreground">
         No community member is asked to confront a suspect. Responders only help when the scene is
         safe.
       </p>
@@ -1923,9 +2052,9 @@ function HelpScreen({
                   current.includes(contact.id) ? current : [...current, contact.id],
                 )
               }
-              className="flex items-center gap-3 rounded-xl border border-violet-500/15 bg-violet-950/20 px-3.5 py-3 transition hover:bg-violet-950/35"
+              className="flex items-center gap-3 rounded-xl border border-trusted/15 bg-trusted/18 px-3.5 py-3 transition hover:bg-trusted/18"
             >
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-violet-900/60 text-[11px] font-bold text-violet-200">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-trusted/18 text-[11px] font-bold text-trusted">
                 {contact.name
                   .split(" ")
                   .map((part) => part[0])
@@ -1934,12 +2063,12 @@ function HelpScreen({
                   .toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[12px] font-semibold text-white/75">{contact.name}</p>
-                <p className="text-[10px] text-white/30">
+                <p className="truncate text-[12px] font-semibold text-foreground">{contact.name}</p>
+                <p className="text-[10px] text-muted-foreground">
                   {contact.relationship || "Trusted contact"} · {contact.phone}
                 </p>
               </div>
-              <span className="flex items-center gap-1 rounded-lg bg-violet-800/70 px-2.5 py-1.5 text-[10px] font-bold text-violet-100">
+              <span className="flex items-center gap-1 rounded-lg bg-trusted/18 px-2.5 py-1.5 text-[10px] font-bold text-trusted">
                 <Phone className="h-3 w-3" />{" "}
                 {calledTargets.includes(contact.id) ? "Called" : "Call"}
               </span>
@@ -1955,7 +2084,7 @@ function HelpScreen({
         <Settings2 className="mr-1.5 inline-block h-3 w-3 align-middle" />
         Adjust this emergency
       </SectionLabel>
-      <div className="space-y-2.5 rounded-2xl border border-white/10 bg-white/4 p-3.5">
+      <div className="space-y-2.5 rounded-2xl border border-border/60 bg-secondary/40 p-3.5">
         <div className="flex flex-wrap gap-1.5">
           {EMERGENCY_TYPES.map((item) => (
             <button
@@ -1965,8 +2094,8 @@ function HelpScreen({
               className={cn(
                 "rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
                 item.id === emergencyType
-                  ? "border-red-500/40 bg-red-900/40 text-red-200"
-                  : "border-white/10 bg-white/5 text-white/45 hover:text-white/75",
+                  ? "border-destructive/40 bg-destructive/18 text-destructive"
+                  : "border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground",
               )}
             >
               {item.label}
@@ -1981,8 +2110,8 @@ function HelpScreen({
             className={cn(
               "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[11.5px] font-semibold transition",
               locationShared
-                ? "border-green-500/25 bg-green-950/25 text-green-200"
-                : "border-white/10 bg-white/4 text-white/40",
+                ? "border-success/25 bg-success/18 text-success"
+                : "border-border/60 bg-secondary/40 text-muted-foreground",
             )}
           >
             <MapPin className="h-3.5 w-3.5 shrink-0" />
@@ -1995,8 +2124,8 @@ function HelpScreen({
             className={cn(
               "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[11.5px] font-semibold transition",
               respondersNotified
-                ? "border-green-500/25 bg-green-950/25 text-green-200"
-                : "border-white/10 bg-white/4 text-white/40",
+                ? "border-success/25 bg-success/18 text-success"
+                : "border-border/60 bg-secondary/40 text-muted-foreground",
             )}
           >
             <Users className="h-3.5 w-3.5 shrink-0" />
@@ -2059,38 +2188,7 @@ function HelpScreen({
     </div>
   );
 
-  const MapSection = mapUrl ? (
-    <div className="overflow-hidden rounded-2xl border border-white/10">
-      <div className="relative">
-        <iframe
-          src={mapUrl}
-          title="Your live location"
-          className="h-44 w-full"
-          style={{ filter: "invert(0.88) hue-rotate(180deg)" }}
-        />
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="relative flex items-center justify-center">
-            <span className="absolute h-14 w-14 animate-ping rounded-full bg-red-500/18 [animation-duration:1.4s]" />
-            <span className="absolute h-7 w-7 animate-ping rounded-full bg-red-500/28 [animation-duration:1s]" />
-            <span className="h-3.5 w-3.5 rounded-full border-2 border-white bg-red-500 shadow-[0_0_12px_rgba(220,38,38,0.8)]" />
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 bg-white/5 px-4 py-2.5 text-[11px] text-white/45">
-        <Navigation2 className="h-3 w-3 shrink-0 text-red-400" />
-        <span className="min-w-0 truncate">
-          {location?.address}
-          {location?.district ? `, ${location.district}` : ""}
-        </span>
-        {location && (
-          <span className="shrink-0 text-white/30">±{Math.round(location.accuracy)} m</span>
-        )}
-        <span className="ml-auto flex shrink-0 items-center gap-1 text-green-400/70">
-          <LocateFixed className="h-3 w-3" /> GPS
-        </span>
-      </div>
-    </div>
-  ) : null;
+  const MapSection = location ? <LiveLocationMap location={location} /> : null;
 
   const RespondersSection = (
     <AnimatePresence>
@@ -2102,7 +2200,7 @@ function HelpScreen({
         >
           <SectionLabel>
             Community responders
-            <span className="ml-2 rounded-full bg-amber-900/50 px-2 py-0.5 font-normal normal-case tracking-normal text-amber-400">
+            <span className="ml-2 rounded-full bg-gold/18 px-2 py-0.5 font-normal normal-case tracking-normal text-gold">
               {responders.length} nearby
             </span>
           </SectionLabel>
@@ -2111,7 +2209,7 @@ function HelpScreen({
               <ResponderCard key={r.id} responder={r} />
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-white/20">
+          <p className="mt-2 text-[10px] text-muted-foreground">
             Opted-in responders only · Exact locations are never shared
           </p>
         </motion.div>
@@ -2120,19 +2218,19 @@ function HelpScreen({
   );
 
   const EscalationSection = (
-    <div className="rounded-2xl border border-amber-500/20 bg-amber-950/15 p-4">
+    <div className="rounded-2xl border border-gold/20 bg-gold/15 p-4">
       <div className="flex items-start gap-3">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-900/50">
-          <Radio className="h-4 w-4 text-amber-300" />
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold/18">
+          <Radio className="h-4 w-4 text-gold" />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300/70">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">
             AI escalation desk
           </p>
-          <h3 className="mt-1 font-display text-[16px] font-bold text-white/90">
+          <h3 className="mt-1 font-display text-[16px] font-bold text-foreground">
             Nearby help is ready to coordinate
           </h3>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/38">
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
             Allma ranks available, opted-in responders by distance, availability and verification.
             You choose who to contact.
           </p>
@@ -2140,33 +2238,33 @@ function HelpScreen({
       </div>
 
       <div className="mt-4 space-y-2">
-        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-900/60 text-[11px] font-black text-amber-300">
+        <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/40 px-3 py-3">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gold/18 text-[11px] font-black text-gold">
             1
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-semibold text-white/80">
+            <p className="text-[12px] font-semibold text-foreground">
               {nearestResponder?.name ?? "Verified responder search"}
             </p>
-            <p className="text-[10px] text-white/35">
+            <p className="text-[10px] text-muted-foreground">
               {nearestResponder
                 ? `Approx. ${nearestResponder.distance} · ${nearestResponder.eta}`
                 : "Only recently active, location-sharing responders are considered"}
             </p>
           </div>
           {nearestResponder?.verified && (
-            <span className="rounded-full bg-blue-950/70 px-2 py-1 text-[9px] font-bold uppercase text-blue-300">
+            <span className="rounded-full bg-info/18 px-2 py-1 text-[9px] font-bold uppercase text-info">
               Verified
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-950/60 text-[11px] font-black text-blue-300">
+        <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/40 px-3 py-3">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-info/18 text-[11px] font-black text-info">
             2
           </span>
           <div className="min-w-0">
-            <p className="text-[12px] font-semibold text-white/70">Official response chain</p>
-            <p className="text-[10px] text-white/32">
+            <p className="text-[12px] font-semibold text-foreground">Official response chain</p>
+            <p className="text-[10px] text-muted-foreground">
               {isViolentEmergency
                 ? "Police and local authority priority"
                 : "Local authority and emergency services"}
@@ -2176,8 +2274,8 @@ function HelpScreen({
       </div>
 
       {isViolentEmergency && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-950/30 px-3 py-2.5 text-[10px] leading-relaxed text-red-100/65">
-          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-300" />
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/18 px-3 py-2.5 text-[10px] leading-relaxed text-destructive/65">
+          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
           <span>
             Safety priority: volunteers must not confront anyone. Move to a safe place and contact
             police or official emergency services.
@@ -2186,8 +2284,8 @@ function HelpScreen({
       )}
 
       {escalationAction && (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-green-500/20 bg-green-950/25 px-3 py-2.5 text-[11px] text-green-200/75">
-          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-300" />
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-success/20 bg-success/18 px-3 py-2.5 text-[11px] text-success">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
           {escalationAction === "community"
             ? "Nearby responder search is active. We will stop when someone accepts."
             : escalationAction === "nearest"
@@ -2205,7 +2303,7 @@ function HelpScreen({
           type="button"
           onClick={() => runEscalationAction("nearest")}
           disabled={!nearestResponder}
-          className="flex items-center justify-center gap-2 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-3 text-[11px] font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex items-center justify-center gap-2 rounded-xl border border-gold/25 bg-gold/10 px-3 py-3 text-[11px] font-bold text-gold transition hover:bg-gold/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Users className="h-3.5 w-3.5" /> Call nearest responder
         </button>
@@ -2213,33 +2311,33 @@ function HelpScreen({
           type="button"
           onClick={() => runEscalationAction("community")}
           disabled={!respondersNotified}
-          className="flex items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/6 px-3 py-3 text-[11px] font-bold text-white/70 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/40 px-3 py-3 text-[11px] font-bold text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Radio className="h-3.5 w-3.5" /> Notify nearby responders
         </button>
         <button
           type="button"
           onClick={() => runEscalationAction("authority")}
-          className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-3 text-[11px] font-bold text-blue-200 transition hover:bg-blue-500/20"
+          className="flex items-center justify-center gap-2 rounded-xl border border-info/20 bg-info/10 px-3 py-3 text-[11px] font-bold text-info transition hover:bg-info/20"
         >
           <Shield className="h-3.5 w-3.5" /> Contact local authority
         </button>
         <a
           href="tel:999"
           onClick={() => runEscalationAction("police")}
-          className="flex items-center justify-center gap-2 rounded-xl border border-red-400/25 bg-red-500/15 px-3 py-3 text-[11px] font-bold text-red-100 transition hover:bg-red-500/25"
+          className="flex items-center justify-center gap-2 rounded-xl border border-destructive/25 bg-destructive/15 px-3 py-3 text-[11px] font-bold text-destructive transition hover:bg-destructive/25"
         >
           <Phone className="h-3.5 w-3.5" /> Contact police · 999
         </a>
         <a
           href="tel:911"
           onClick={() => runEscalationAction("ambulance")}
-          className="flex items-center justify-center gap-2 rounded-xl border border-green-400/20 bg-green-500/10 px-3 py-3 text-[11px] font-bold text-green-200 transition hover:bg-green-500/20 sm:col-span-2"
+          className="flex items-center justify-center gap-2 rounded-xl border border-success/20 bg-success/10 px-3 py-3 text-[11px] font-bold text-success transition hover:bg-success/20 sm:col-span-2"
         >
           <Heart className="h-3.5 w-3.5" /> Contact ambulance · 911
         </a>
       </div>
-      <p className="mt-3 text-[10px] leading-relaxed text-white/22">
+      <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
         Calls use your device dialer and always require your tap. Exact responder coordinates are
         never shown.
       </p>
@@ -2267,25 +2365,25 @@ function HelpScreen({
       transition={{ duration: 0.32 }}
     >
       {/* ── Sticky header ── */}
-      <div className="shrink-0 border-b border-white/10 bg-[#080808]/92 px-5 py-3 backdrop-blur-md">
+      <div className="glass shrink-0 border-b border-border/60 px-5 py-3">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-800/80">
+            <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-destructive/18">
               <TypeIcon
-                className={cn("h-4.5 w-4.5", typeInfo?.color ?? "text-red-300")}
+                className={cn("h-4.5 w-4.5", typeInfo?.color ?? "text-destructive")}
                 strokeWidth={1.5}
               />
-              <span className="absolute -right-0.5 -top-0.5 grid h-3 w-3 place-items-center rounded-full border border-[#080808] bg-red-500">
-                <span className="h-1.5 w-1.5 animate-ping rounded-full bg-red-300" />
+              <span className="absolute -right-0.5 -top-0.5 grid h-3 w-3 place-items-center rounded-full border border-background bg-destructive">
+                <span className="h-1.5 w-1.5 animate-ping rounded-full bg-destructive-foreground" />
               </span>
             </div>
             <div className="min-w-0">
-              <p className="truncate font-display text-[14px] font-bold text-white">
+              <p className="truncate font-display text-[14px] font-bold text-foreground">
                 {typeInfo?.label ?? "Emergency"}{" "}
-                <span className="ml-1 text-[11px] font-normal text-red-400">● LIVE</span>
+                <span className="ml-1 text-[11px] font-normal text-destructive">● LIVE</span>
               </p>
               {location && (
-                <p className="flex items-center gap-1 truncate text-[11px] text-white/38">
+                <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
                   <MapPin className="h-2.5 w-2.5 shrink-0" />
                   {[location.suburb, location.district].filter(Boolean).join(", ") ||
                     location.address}
@@ -2296,13 +2394,13 @@ function HelpScreen({
           <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={onReport}
-              className="hidden items-center gap-1.5 rounded-full border border-white/10 px-3.5 py-1.5 text-[12px] text-white/50 transition hover:border-white/20 hover:text-white/75 sm:flex"
+              className="hidden items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1.5 text-[12px] text-muted-foreground transition hover:border-border/60 hover:text-foreground sm:flex"
             >
               <Shield className="h-3.5 w-3.5" /> File Report
             </button>
             <button
               onClick={onClose}
-              className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-white/38 transition hover:border-white/22 hover:text-white/65"
+              className="rounded-full border border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground transition hover:border-border/60 hover:text-muted-foreground"
             >
               Close
             </button>
@@ -2332,13 +2430,13 @@ function HelpScreen({
             <div className="space-y-2 pt-1">
               <button
                 onClick={onReport}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-white/12 py-3.5 text-[13px] font-medium text-white/55 transition hover:border-white/22 hover:text-white/78"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-border/60 py-3.5 text-[13px] font-medium text-muted-foreground transition hover:border-border/60 hover:text-foreground"
               >
                 <Shield className="h-4 w-4" /> File an incident report
               </button>
               <button
                 onClick={onClose}
-                className="w-full py-2.5 text-[11px] text-white/20 hover:text-white/40"
+                className="w-full py-2.5 text-[11px] text-muted-foreground hover:text-muted-foreground"
               >
                 I'm safe — close SOS
               </button>
@@ -2358,7 +2456,7 @@ function HelpScreen({
         </div>
 
         {/* Desktop RIGHT column — call + status + map + responders + facilities */}
-        <div className="hidden w-[360px] shrink-0 border-l border-white/8 lg:flex lg:flex-col">
+        <div className="hidden w-[360px] shrink-0 border-l border-border/60 lg:flex lg:flex-col">
           <div className="flex-1 overflow-y-auto">
             <div className="space-y-5 p-5 pb-14">
               {CallSection}
@@ -2373,7 +2471,7 @@ function HelpScreen({
               <div className="space-y-2 pt-1">
                 <button
                   onClick={onClose}
-                  className="w-full py-2.5 text-center text-[11px] text-white/22 hover:text-white/42"
+                  className="w-full py-2.5 text-center text-[11px] text-muted-foreground hover:text-muted-foreground"
                 >
                   I'm safe — close SOS
                 </button>
@@ -2412,17 +2510,17 @@ function ReportScreen({
       <div className="w-full max-w-lg">
         <button
           onClick={onBack}
-          className="mb-5 flex items-center gap-1.5 text-[13px] text-white/38 hover:text-white/62"
+          className="mb-5 flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-muted-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        <h2 className="mb-1 font-display text-2xl font-black text-white">Quick incident report</h2>
-        <p className="mb-7 text-[13px] text-white/38">
+        <h2 className="mb-1 font-display text-2xl font-black text-foreground">Quick incident report</h2>
+        <p className="mb-7 text-[13px] text-muted-foreground">
           Takes 30 seconds. Helps responders understand the situation.
         </p>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 lg:p-6">
-          <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-white/35">
+        <div className="rounded-2xl border border-border/60 bg-secondary/40 p-5 lg:p-6">
+          <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
             What happened?
           </label>
           <textarea
@@ -2431,22 +2529,22 @@ function ReportScreen({
             placeholder="Briefly describe the situation — e.g. 'A man grabbed my bag near Shoprite and ran toward the market.'"
             rows={6}
             maxLength={2000}
-            className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[14px] leading-relaxed text-white outline-none placeholder:text-white/22 focus:border-red-600/50"
+            className="w-full resize-none rounded-xl border border-border/60 bg-secondary/40 px-4 py-3 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-destructive/40"
           />
-          <p className="mt-1.5 text-right text-[10px] text-white/22">{reportText.length}/2000</p>
+          <p className="mt-1.5 text-right text-[10px] text-muted-foreground">{reportText.length}/2000</p>
         </div>
 
         <button
           onClick={onSubmit}
           disabled={submitting}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-red-700 py-4 font-display text-[15px] font-bold text-white transition hover:bg-red-600 disabled:opacity-60"
+          className="shadow-lift mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive py-4 font-display text-[15px] font-bold text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-60"
         >
           {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           {submitting ? "Submitting…" : "Submit emergency report"}
         </button>
         <button
           onClick={onBack}
-          className="mt-2.5 w-full py-3 text-[12px] text-white/22 hover:text-white/42"
+          className="mt-2.5 w-full py-3 text-[12px] text-muted-foreground hover:text-muted-foreground"
         >
           Cancel
         </button>
@@ -2467,15 +2565,15 @@ function SubmittedScreen({ reference, onDone }: { reference: string | null; onDo
       transition={{ duration: 0.4, type: "spring", stiffness: 260, damping: 20 }}
     >
       <motion.div
-        className="mb-6 grid h-20 w-20 place-items-center rounded-full bg-green-950/60 ring-1 ring-green-500/20 ring-offset-4 ring-offset-[#060606]"
+        className="mb-6 grid h-20 w-20 place-items-center rounded-full bg-success/20 ring-1 ring-success/30 ring-offset-4 ring-offset-background"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
       >
-        <CheckCircle2 className="h-10 w-10 text-green-400" />
+        <CheckCircle2 className="h-10 w-10 text-success" />
       </motion.div>
       <motion.h2
-        className="mb-2 font-display text-2xl font-black text-white"
+        className="mb-2 font-display text-2xl font-black text-foreground"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.18 }}
@@ -2484,19 +2582,19 @@ function SubmittedScreen({ reference, onDone }: { reference: string | null; onDo
       </motion.h2>
       {reference && (
         <motion.div
-          className="mb-4 rounded-2xl border border-white/10 bg-white/5 px-6 py-3.5"
+          className="mb-4 rounded-2xl border border-border/60 bg-secondary/40 px-6 py-3.5"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.24 }}
         >
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">Reference</p>
-          <p className="mt-1 font-display text-2xl font-black tracking-wide text-amber-400">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Reference</p>
+          <p className="mt-1 font-display text-2xl font-black tracking-wide text-gold">
             {reference}
           </p>
         </motion.div>
       )}
       <motion.p
-        className="mb-10 max-w-sm text-[14px] leading-relaxed text-white/45"
+        className="mb-10 max-w-sm text-[14px] leading-relaxed text-muted-foreground"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.28 }}
@@ -2505,7 +2603,7 @@ function SubmittedScreen({ reference, onDone }: { reference: string | null; onDo
       </motion.p>
       <motion.button
         onClick={onDone}
-        className="flex items-center gap-2 rounded-2xl bg-white/10 px-8 py-3.5 text-[14px] font-medium text-white/75 transition hover:bg-white/15"
+        className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-8 py-3.5 text-[14px] font-medium text-foreground transition hover:bg-accent"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.32 }}
