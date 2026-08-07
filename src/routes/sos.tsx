@@ -2,6 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SOSExperience } from "@/components/allma/sos-experience";
 
 export const Route = createFileRoute("/sos")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    instant: search.instant === true || search.instant === "true" || search.instant === "1"
+      ? true
+      : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Emergency SOS — Allma Safety AI" },
@@ -20,5 +25,10 @@ export const Route = createFileRoute("/sos")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: SOSExperience,
+  component: SOSRoute,
 });
+
+function SOSRoute() {
+  const { instant } = Route.useSearch();
+  return <SOSExperience instant={instant} />;
+}
