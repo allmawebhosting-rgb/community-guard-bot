@@ -867,9 +867,16 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [phase, Boolean(location)]);
 
+  useEffect(() => {
+    if (!instant || activated.current) return;
+    void activateEmergency();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instant]);
+
   function handleSosPress() {
     setPhase("type-select");
   }
+
 
   function handleTypeSelect(type: string) {
     setPendingEmergencyType(type);
