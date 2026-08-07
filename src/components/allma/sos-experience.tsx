@@ -25,6 +25,8 @@ import {
   Clock,
   LocateFixed,
   Users,
+  Settings2,
+
   Check,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
