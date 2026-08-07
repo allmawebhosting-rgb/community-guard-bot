@@ -13,5 +13,3 @@ export const attachSupabaseAuth = createMiddleware({ type: 'function' }).client(
     })
   },
 )
-
-
