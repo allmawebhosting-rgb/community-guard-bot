@@ -1141,6 +1141,22 @@ export function AllmaChat({
 
       <div className="no-print sticky bottom-[4.9rem] z-30 glass border-t border-border/60 px-4 pb-4 pt-3 lg:bottom-0">
         <div className="mx-auto w-full max-w-3xl">
+          <div className="chip-scroll -mx-1 mb-2 flex gap-2 overflow-x-auto px-1 pb-1">
+            {QUICK_ACTIONS.map((action) => {
+              const ActionIcon = action.icon;
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => send(action.prompt)}
+                  className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
+                >
+                  <ActionIcon className="h-3.5 w-3.5 text-primary" />
+                  {action.label}
+                </button>
+              );
+            })}
+          </div>
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {attachments.map((attachment) => (
