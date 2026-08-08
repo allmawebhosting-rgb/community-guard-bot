@@ -155,8 +155,14 @@ export const Route = createFileRoute("/api/chat")({
             }),
             ask_structured_question: tool({
               description:
-                "Ask the user one structured question at a time with tappable options. Use during guided reporting flows so the user can pick an answer instead of typing. After the user picks, continue the conversation based on their answer.",
+                "Ask the user one structured question at a time with tappable options. Use during guided reporting flows so the user can pick an answer instead of typing. Renders a slim flow banner (flow label, step counter, step title, progress bar) and shows the options as tappable chips under your reply. After the user picks, continue the conversation based on their answer.",
               inputSchema: z.object({
+                flow_label: z
+                  .string()
+                  .describe("Short uppercase-ish flow name shown in the banner, e.g. 'Reporting', 'Missing person', 'Lost & found', 'Safety check'"),
+                step_title: z
+                  .string()
+                  .describe("Short title of this step shown in the banner, e.g. 'Add photos', 'Where did it happen?'"),
                 step: z.number().describe("Current step number, e.g. 2"),
                 total_steps: z.number().describe("Total number of steps in the flow, e.g. 7"),
                 question: z.string().describe("The single question to ask the user"),
@@ -177,7 +183,7 @@ export const Route = createFileRoute("/api/chat")({
             }),
             request_media: tool({
               description:
-                "Ask the user to upload a photo, video, audio, document or location. Use when evidence would help the report. The UI will show an upload card. If optional, the user can skip.",
+                "Ask the user to upload a photo, video, audio, document or location. Use when evidence would help the report. The UI shows a single tap-to-attach card. If optional, the user can skip.",
               inputSchema: z.object({
                 media_type: z
                   .enum(["photo", "video", "audio", "document", "location"])
@@ -185,6 +191,10 @@ export const Route = createFileRoute("/api/chat")({
                 prompt: z
                   .string()
                   .describe("Friendly message asking for the media, e.g. 'Do you have a photo of the phone?'"),
+                tips: z
+                  .string()
+                  .nullable()
+                  .describe("Optional one-line tips separated by ' · ', e.g. 'Good light · Show the whole scene · Up to 4 photos'"),
                 optional: z.boolean().describe("Whether the user can skip this request"),
               }),
               execute: async (input) => ({ ok: true, ...input }),
