@@ -26,6 +26,7 @@ import {
   Shield,
   ShieldAlert,
   Siren,
+  Sparkles,
   Upload,
   User,
   Video,
