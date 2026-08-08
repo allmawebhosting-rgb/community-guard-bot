@@ -341,7 +341,16 @@ export function CommandShell({
         </header>
 
         {/* Page content */}
-        <main className="min-w-0 flex-1 overflow-y-auto px-5 pb-8 pt-6 lg:px-8">{children}</main>
+        <main
+          className={cn(
+            "min-w-0 flex-1 px-5 pt-6 lg:px-8",
+            pathname === "/police/ai"
+              ? "flex flex-col overflow-hidden pb-20 lg:pb-8"
+              : "overflow-y-auto pb-8",
+          )}
+        >
+          {children}
+        </main>
       </div>
 
       {/* ── Mobile bottom nav ────────────────────────────────────────────── */}

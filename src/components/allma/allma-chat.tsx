@@ -1021,7 +1021,7 @@ export function AllmaChat({
   }, [send]);
 
   return (
-    <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden", className)}>
+    <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
       {/* Hidden file input for attachment sheet */}
       <input
         ref={attachInputRef}
@@ -1171,7 +1171,7 @@ export function AllmaChat({
         </Conversation>
       )}
 
-      <div className="no-print sticky bottom-0 z-30 glass border-t border-border/60 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-4">
+      <div className="no-print shrink-0 glass border-t border-border/60 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-4">
         <div className="mx-auto w-full max-w-3xl">
           <div className="chip-scroll -mx-1 mb-2 flex gap-2 overflow-x-auto px-1 pb-1">
             {QUICK_ACTIONS.map((action) => {

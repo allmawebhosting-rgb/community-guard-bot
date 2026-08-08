@@ -132,11 +132,11 @@ function PoliceAIPage() {
   }, [input]);
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-7rem)] w-full max-w-3xl flex-col lg:h-[calc(100vh-5.5rem)]">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col">
 
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
       <div
-        className="mb-4 flex items-center justify-between overflow-hidden rounded-2xl p-4"
+        className="mb-4 flex shrink-0 items-center justify-between overflow-hidden rounded-2xl p-4"
         style={{
           background: "linear-gradient(135deg, oklch(0.575 0.235 26 / 0.12), oklch(0.855 0.175 88 / 0.06) 60%, color-mix(in oklab, var(--card) 80%, transparent))",
           border: "1px solid oklch(0.575 0.235 26 / 0.2)",
@@ -184,7 +184,7 @@ function PoliceAIPage() {
       </div>
 
       {/* ── MESSAGES ────────────────────────────────────────────────────── */}
-      <div className="flex-1 space-y-4 overflow-y-auto py-1 pr-0.5">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-1 pr-0.5">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
@@ -293,7 +293,7 @@ function PoliceAIPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 6 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-2 mb-3"
+            className="mt-2 mb-3 shrink-0"
           >
             <p className="mb-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/60">
               <Zap className="h-3 w-3 text-gold" />
@@ -334,7 +334,7 @@ function PoliceAIPage() {
           e.preventDefault();
           send();
         }}
-        className="mt-1"
+        className="mt-1 shrink-0"
       >
         {/* Outer spinning gradient shell — same pattern as citizen chat */}
         <div className={cn("composer-shell", focused && "composer-shell-focused")}>
