@@ -208,9 +208,12 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
   }
 
   body {
+    min-width: 0;
+    overflow-x: hidden;
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);

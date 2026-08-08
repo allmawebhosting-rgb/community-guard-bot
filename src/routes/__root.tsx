@@ -79,7 +79,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
       { title: "Allma Safety AI — Uganda's AI safety assistant" },
       {
         name: "description",
@@ -91,14 +94,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Allma Safety AI — Uganda's AI safety assistant" },
       {
         property: "og:description",
-        content: "Chat with Allma Safety AI to report crime, raise an SOS, find hospitals and police stations, and get calm safety guidance in seconds. Built for Uganda.",
+        content:
+          "Chat with Allma Safety AI to report crime, raise an SOS, find hospitals and police stations, and get calm safety guidance in seconds. Built for Uganda.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Allma Safety AI — Uganda's AI safety assistant" },
-      { name: "twitter:description", content: "Chat with Allma Safety AI to report crime, raise an SOS, find hospitals and police stations, and get calm safety guidance in seconds. Built for Uganda." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b327276-eb56-412a-91e7-1cadd6c40fe2/id-preview-cadfaa89--6b4123d7-3b66-41cc-a143-dfaf2ec44596.lovable.app-1785595330209.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b327276-eb56-412a-91e7-1cadd6c40fe2/id-preview-cadfaa89--6b4123d7-3b66-41cc-a143-dfaf2ec44596.lovable.app-1785595330209.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Chat with Allma Safety AI to report crime, raise an SOS, find hospitals and police stations, and get calm safety guidance in seconds. Built for Uganda.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b327276-eb56-412a-91e7-1cadd6c40fe2/id-preview-cadfaa89--6b4123d7-3b66-41cc-a143-dfaf2ec44596.lovable.app-1785595330209.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b327276-eb56-412a-91e7-1cadd6c40fe2/id-preview-cadfaa89--6b4123d7-3b66-41cc-a143-dfaf2ec44596.lovable.app-1785595330209.png",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -161,4 +177,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

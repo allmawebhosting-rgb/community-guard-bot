@@ -17,11 +17,20 @@ const MORE_IDS = ["fire", "ambulance", "alerts", "ask"];
 
 const TINTS: Record<string, { icon: string; card: string }> = {
   sos: { icon: "bg-primary text-primary-foreground", card: "border-primary/45 bg-primary/12" },
-  crime: { icon: "bg-primary/85 text-primary-foreground", card: "border-primary/25 bg-primary/[0.07]" },
+  crime: {
+    icon: "bg-primary/85 text-primary-foreground",
+    card: "border-primary/25 bg-primary/[0.07]",
+  },
   missing: { icon: "bg-gold text-gold-foreground", card: "border-gold/30 bg-gold/[0.08]" },
   lost: { icon: "bg-gold/85 text-gold-foreground", card: "border-gold/25 bg-gold/[0.06]" },
-  hospital: { icon: "bg-success text-success-foreground", card: "border-success/25 bg-success/[0.07]" },
-  police: { icon: "bg-primary-glow text-primary-foreground", card: "border-primary/25 bg-primary/[0.07]" },
+  hospital: {
+    icon: "bg-success text-success-foreground",
+    card: "border-success/25 bg-success/[0.07]",
+  },
+  police: {
+    icon: "bg-primary-glow text-primary-foreground",
+    card: "border-primary/25 bg-primary/[0.07]",
+  },
 };
 
 const byId = (id: string) => QUICK_ACTIONS.find((action) => action.id === id)!;
@@ -57,8 +66,7 @@ export function AssistantHero({
             transition={{ delay: 0.1, duration: 0.45 }}
             className="text-center font-display text-[2.8rem] font-black leading-[1.0] tracking-[-0.05em]"
           >
-            Hello, I&apos;m{" "}
-            <span className="brand-gradient-text">Allma</span>
+            Hello, I&apos;m <span className="brand-gradient-text">Allma</span>
           </motion.h1>
 
           <motion.p
@@ -67,8 +75,8 @@ export function AssistantHero({
             transition={{ delay: 0.17, duration: 0.4 }}
             className="mt-4 text-center text-[15px] leading-relaxed text-muted-foreground"
           >
-            Your AI safety companion for Uganda. Report incidents, raise an SOS,
-            or find help nearby — I&apos;ll guide you step by step.
+            Your AI safety companion for Uganda. Report incidents, raise an SOS, or find help nearby
+            — I&apos;ll guide you step by step.
           </motion.p>
 
           <motion.div
@@ -120,7 +128,11 @@ export function AssistantHero({
                   type="button"
                   initial={{ opacity: 0, y: 14, scale: 0.94 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ delay: 0.15 + index * 0.05, duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+                  transition={{
+                    delay: 0.15 + index * 0.05,
+                    duration: 0.38,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
                   whileHover={{ y: -4, scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => onSelect(action.prompt)}
@@ -139,7 +151,9 @@ export function AssistantHero({
                     {action.emoji}
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[13.5px] font-bold leading-tight">{action.label}</span>
+                    <span className="block text-[13.5px] font-bold leading-tight">
+                      {action.label}
+                    </span>
                     <span className="mt-1 block text-[11.5px] leading-snug text-muted-foreground">
                       {action.description}
                     </span>
@@ -194,15 +208,15 @@ export function AssistantHero({
         </div>
       </div>
 
-      {/* ── Mobile layout (unchanged) ───────────────────────────────────── */}
-      <div className="flex flex-col items-center px-4 pb-4 pt-2 lg:hidden">
-        <Mascot size={180} priority className="mt-1" />
+      {/* ── Mobile layout ───────────────────────────────────────────────── */}
+      <div className="flex w-full flex-col items-center px-3 pb-4 pt-1 sm:px-4 lg:hidden">
+        <Mascot size={132} priority className="mt-0 sm:h-[160px] sm:w-[160px]" />
 
         <motion.h1
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="mt-1 text-center font-display text-[2rem] font-black leading-[1] tracking-[-0.04em] sm:text-[2.4rem]"
+          className="mt-1 text-center font-display text-[1.8rem] font-black leading-[1] tracking-[-0.04em] sm:text-[2.4rem]"
         >
           Hello, I&apos;m <span className="brand-gradient-text">Allma</span>
         </motion.h1>
@@ -211,10 +225,10 @@ export function AssistantHero({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.07, duration: 0.35 }}
-          className="mt-2 max-w-sm text-center text-[13.5px] leading-relaxed text-muted-foreground"
+          className="mt-2 max-w-sm text-center text-[13px] leading-relaxed text-muted-foreground sm:text-[13.5px]"
         >
-          Your AI safety companion for Uganda. Report incidents, raise an SOS, or find help nearby — I&apos;ll guide you
-          step by step.
+          Your AI safety companion for Uganda. Report incidents, raise an SOS, or find help nearby —
+          I&apos;ll guide you step by step.
         </motion.p>
 
         <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2">
@@ -229,7 +243,7 @@ export function AssistantHero({
           ))}
         </div>
 
-        <div className="mt-6 grid w-full max-w-md grid-cols-2 gap-3">
+        <div className="mt-5 grid w-full max-w-md grid-cols-2 gap-2.5 sm:gap-3">
           {GRID_IDS.map((id, index) => {
             const action = byId(id);
             const tint = TINTS[id];
@@ -243,13 +257,13 @@ export function AssistantHero({
                 whileTap={{ scale: 0.96 }}
                 onClick={() => onSelect(action.prompt)}
                 className={cn(
-                  "group flex flex-col items-start gap-2.5 rounded-[1.4rem] border p-3.5 text-left shadow-soft backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-lift",
+                  "group flex min-w-0 flex-col items-start gap-2 rounded-[1.2rem] border p-3 text-left shadow-soft backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-lift sm:gap-2.5 sm:rounded-[1.4rem] sm:p-3.5",
                   tint.card,
                 )}
               >
                 <span
                   className={cn(
-                    "grid h-11 w-11 place-items-center rounded-2xl text-xl shadow-sm transition-transform group-hover:scale-105",
+                    "grid h-10 w-10 place-items-center rounded-xl text-lg shadow-sm transition-transform group-hover:scale-105 sm:h-11 sm:w-11 sm:rounded-2xl sm:text-xl",
                     tint.icon,
                   )}
                   aria-hidden
@@ -257,8 +271,10 @@ export function AssistantHero({
                   {action.emoji}
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-[13px] font-bold leading-tight">{action.label}</span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                  <span className="block truncate text-[12px] font-bold leading-tight sm:text-[13px]">
+                    {action.label}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
                     {action.description}
                   </span>
                 </span>
@@ -267,7 +283,7 @@ export function AssistantHero({
           })}
         </div>
 
-        <div className="mt-4 flex w-full max-w-md flex-wrap justify-center gap-2">
+        <div className="mt-3 flex w-full max-w-md flex-wrap justify-center gap-1.5 sm:gap-2">
           {MORE_IDS.map((id) => {
             const action = byId(id);
             return (
@@ -284,7 +300,9 @@ export function AssistantHero({
           })}
         </div>
 
-        <p className="mt-5 max-w-md text-center text-[10px] leading-relaxed text-muted-foreground/55">{DISCLAIMER}</p>
+        <p className="mt-5 max-w-md text-center text-[10px] leading-relaxed text-muted-foreground/55">
+          {DISCLAIMER}
+        </p>
       </div>
     </div>
   );

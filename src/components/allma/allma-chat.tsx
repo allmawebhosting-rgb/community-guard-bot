@@ -37,12 +37,7 @@ import {
 } from "lucide-react";
 
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   Conversation,
   ConversationContent,
@@ -195,13 +190,24 @@ function FlowBanner({
   );
 }
 
-
 const ATTACHMENT_OPTIONS = [
-  { id: "camera", icon: Camera, label: "Camera", accept: "image/*", capture: "environment" as const },
+  {
+    id: "camera",
+    icon: Camera,
+    label: "Camera",
+    accept: "image/*",
+    capture: "environment" as const,
+  },
   { id: "gallery", icon: Paperclip, label: "Gallery", accept: "image/*", capture: undefined },
   { id: "video", icon: Video, label: "Video", accept: "video/*", capture: undefined },
   { id: "voice", icon: FileAudio, label: "Voice", accept: "audio/*", capture: undefined },
-  { id: "document", icon: FileIcon, label: "Document", accept: "application/pdf,.doc,.docx", capture: undefined },
+  {
+    id: "document",
+    icon: FileIcon,
+    label: "Document",
+    accept: "application/pdf,.doc,.docx",
+    capture: undefined,
+  },
 ];
 
 type Attachment = {
@@ -247,15 +253,27 @@ function ToolCard({
     list_alerts: { icon: Megaphone, label: "Community alerts", busy: "Checking alerts…" },
     ask_structured_question: { icon: HelpCircle, label: "Question", busy: "Preparing question…" },
     request_media: { icon: Upload, label: "Upload evidence", busy: "Preparing upload…" },
-    recommend_actions: { icon: AlertCircle, label: "Recommended actions", busy: "Finding recommendations…" },
+    recommend_actions: {
+      icon: AlertCircle,
+      label: "Recommended actions",
+      busy: "Finding recommendations…",
+    },
     report_summary: { icon: FileText, label: "Report summary", busy: "Preparing summary…" },
     my_reports: { icon: FileText, label: "Your reports", busy: "Checking your reports…" },
     match_reports: { icon: Search, label: "Possible matches", busy: "Looking for matches…" },
-    recall_history: { icon: Search, label: "Earlier conversations", busy: "Recalling earlier chats…" },
+    recall_history: {
+      icon: Search,
+      label: "Earlier conversations",
+      busy: "Recalling earlier chats…",
+    },
     remember: { icon: Shield, label: "Saved", busy: "Noting that down…" },
     save_draft: { icon: FileText, label: "Draft saved", busy: "Saving your draft…" },
     get_draft: { icon: FileText, label: "Saved draft", busy: "Loading your draft…" },
-    location_intelligence: { icon: MapPin, label: "Location intelligence", busy: "Identifying responsible station…" },
+    location_intelligence: {
+      icon: MapPin,
+      label: "Location intelligence",
+      busy: "Identifying responsible station…",
+    },
     case_timeline: { icon: Clock, label: "Case timeline", busy: "Building timeline…" },
   };
   const entry = meta[name] ?? { icon: FileText, label: name, busy: "Working…" };
@@ -269,7 +287,6 @@ function ToolCard({
   if (!running && (name === "remember" || name === "recall_history" || name === "get_draft")) {
     return null;
   }
-
 
   if (running) {
     return (
@@ -302,7 +319,7 @@ function ToolCard({
   if (name === "request_media" && output?.ok) {
     const prompt = String(output.prompt ?? "Please upload a photo or file.");
     const mediaType = String(output.media_type ?? "photo");
-    const tips = output.tips ? String(output.tips) : DEFAULT_MEDIA_TIPS[mediaType] ?? null;
+    const tips = output.tips ? String(output.tips) : (DEFAULT_MEDIA_TIPS[mediaType] ?? null);
     const optional = Boolean(output.optional);
     const isLocation = mediaType === "location";
     const MediaIcon = MEDIA_ICONS[mediaType] ?? Camera;
@@ -324,7 +341,9 @@ function ToolCard({
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold text-foreground">{prompt}</span>
-            {tips ? <span className="block truncate text-xs text-muted-foreground">{tips}</span> : null}
+            {tips ? (
+              <span className="block truncate text-xs text-muted-foreground">{tips}</span>
+            ) : null}
           </span>
         </motion.button>
         {optional ? (
@@ -346,29 +365,33 @@ function ToolCard({
 
     return (
       <div className="chat-card p-4">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {title}
+        </p>
         <div className="grid gap-2 sm:grid-cols-2">
-          {actions.map((action: { label: string; subtitle: string; icon?: string }, index: number) => {
-            const ActionIcon = ACTION_ICONS[action.icon ?? "shield"] ?? Shield;
-            return (
-              <motion.button
-                key={index}
-                type="button"
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onSend(action.label)}
-                className="flex items-start gap-3 rounded-2xl border border-border/50 bg-background/40 p-3.5 text-left transition-all hover:border-primary/45 hover:bg-accent"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <ActionIcon className="h-4 w-4 text-primary" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{action.label}</p>
-                  <p className="text-xs text-muted-foreground">{action.subtitle}</p>
-                </div>
-              </motion.button>
-            );
-          })}
+          {actions.map(
+            (action: { label: string; subtitle: string; icon?: string }, index: number) => {
+              const ActionIcon = ACTION_ICONS[action.icon ?? "shield"] ?? Shield;
+              return (
+                <motion.button
+                  key={index}
+                  type="button"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => onSend(action.label)}
+                  className="flex items-start gap-3 rounded-2xl border border-border/50 bg-background/40 p-3.5 text-left transition-all hover:border-primary/45 hover:bg-accent"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <ActionIcon className="h-4 w-4 text-primary" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{action.label}</p>
+                    <p className="text-xs text-muted-foreground">{action.subtitle}</p>
+                  </div>
+                </motion.button>
+              );
+            },
+          )}
         </div>
       </div>
     );
@@ -390,7 +413,9 @@ function ToolCard({
       <div className="chat-card p-4">
         <div className="mb-3 flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Review before submitting</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Review before submitting
+          </p>
         </div>
         <h4 className="mb-1 text-sm font-semibold text-foreground">{summary.title}</h4>
         <p className="mb-3 text-xs text-muted-foreground">{summary.summary}</p>
@@ -463,15 +488,30 @@ function ToolCard({
       phone?: string;
       status?: string;
     };
-    const FacilityCard = ({ icon: FIcon, iconColor, iconBg, label, name: facName, address, distanceKm, estimatedMinutes, phone, status }: FacilityCardProps) => (
+    const FacilityCard = ({
+      icon: FIcon,
+      iconColor,
+      iconBg,
+      label,
+      name: facName,
+      address,
+      distanceKm,
+      estimatedMinutes,
+      phone,
+      status,
+    }: FacilityCardProps) => (
       <div className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
+            <span
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}
+            >
               <FIcon className={`h-4 w-4 ${iconColor}`} />
             </span>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {label}
+              </p>
               <p className="text-sm font-semibold text-foreground leading-tight">{facName}</p>
             </div>
           </div>
@@ -484,10 +524,12 @@ function ToolCard({
         {address ? <p className="mb-2 text-xs text-muted-foreground">{address}</p> : null}
         <div className="mb-2.5 flex gap-3 text-xs">
           <span className="flex items-center gap-1 text-foreground font-medium">
-            <MapPin className="h-3 w-3 text-primary" />{distanceKm} km
+            <MapPin className="h-3 w-3 text-primary" />
+            {distanceKm} km
           </span>
           <span className="flex items-center gap-1 text-foreground font-medium">
-            <Clock className="h-3 w-3 text-primary" />{estimatedMinutes} min
+            <Clock className="h-3 w-3 text-primary" />
+            {estimatedMinutes} min
           </span>
         </div>
         {phone ? (
@@ -511,7 +553,9 @@ function ToolCard({
         </div>
         {policeStation ? (
           <p className="mb-3 text-sm text-foreground">
-            This incident falls under <span className="font-semibold">{String(policeStation.name ?? "a local station")}</span>.
+            This incident falls under{" "}
+            <span className="font-semibold">{String(policeStation.name ?? "a local station")}</span>
+            .
           </p>
         ) : null}
         <div className="space-y-2">
@@ -556,7 +600,10 @@ function ToolCard({
             />
           ) : null}
           {!policeStation && !hospital && !fireStation ? (
-            <p className="text-sm text-muted-foreground">No facilities found for this area yet. You can search by a different area or call the national emergency line: 999 / 112.</p>
+            <p className="text-sm text-muted-foreground">
+              No facilities found for this area yet. You can search by a different area or call the
+              national emergency line: 999 / 112.
+            </p>
           ) : null}
         </div>
       </div>
@@ -574,7 +621,9 @@ function ToolCard({
       <div className="chat-card p-4">
         <div className="mb-3 flex items-center gap-2">
           <Clock className="h-4 w-4 text-primary" />
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Case Timeline</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Case Timeline
+          </p>
         </div>
         <div className="relative pl-5">
           <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border/60" />
@@ -591,15 +640,22 @@ function ToolCard({
                 transition={{ delay: i * 0.07, duration: 0.3 }}
                 className="relative mb-3 last:mb-0"
               >
-                <span className={cn(
-                  "absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2",
-                  isLast
-                    ? "border-primary bg-primary"
-                    : "border-border/60 bg-background"
-                )} />
+                <span
+                  className={cn(
+                    "absolute -left-5 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2",
+                    isLast ? "border-primary bg-primary" : "border-border/60 bg-background",
+                  )}
+                />
                 <div className="flex items-baseline gap-2">
-                  <span className="font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">{hh}:{mm}</span>
-                  <span className={cn("text-[13px]", isLast ? "font-semibold text-foreground" : "text-foreground/80")}>
+                  <span className="font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
+                    {hh}:{mm}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[13px]",
+                      isLast ? "font-semibold text-foreground" : "text-foreground/80",
+                    )}
+                  >
                     {evt.label}
                   </span>
                 </div>
@@ -620,26 +676,39 @@ function ToolCard({
         <div>
           <div className="mb-3 flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-            <p className="text-sm font-semibold text-foreground">{String(output.title ?? "Report filed successfully")}</p>
+            <p className="text-sm font-semibold text-foreground">
+              {String(output.title ?? "Report filed successfully")}
+            </p>
           </div>
           <div className="mb-3 rounded-2xl border border-border/50 bg-background/40 p-3.5 space-y-1.5">
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Reference number</span>
-              <span className="font-mono font-semibold text-foreground">{String(output.reference)}</span>
+              <span className="font-mono font-semibold text-foreground">
+                {String(output.reference)}
+              </span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Status</span>
-              <span className="capitalize font-medium text-foreground">{String(output.status)}</span>
+              <span className="capitalize font-medium text-foreground">
+                {String(output.status)}
+              </span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Risk level</span>
-              <span className={cn(
-                "capitalize font-semibold",
-                output.risk_level === "critical" ? "text-destructive" :
-                output.risk_level === "high" ? "text-orange-500" :
-                output.risk_level === "medium" ? "text-yellow-500" :
-                "text-emerald-500"
-              )}>{String(output.risk_level)}</span>
+              <span
+                className={cn(
+                  "capitalize font-semibold",
+                  output.risk_level === "critical"
+                    ? "text-destructive"
+                    : output.risk_level === "high"
+                      ? "text-orange-500"
+                      : output.risk_level === "medium"
+                        ? "text-yellow-500"
+                        : "text-emerald-500",
+                )}
+              >
+                {String(output.risk_level)}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -673,7 +742,9 @@ function ToolCard({
             </div>
           ))}
           {(output.facilities as unknown[]).length === 0 ? (
-            <p className="text-sm text-muted-foreground">No facilities found for this area. Try a different area name.</p>
+            <p className="text-sm text-muted-foreground">
+              No facilities found for this area. Try a different area name.
+            </p>
           ) : null}
         </div>
       ) : name === "list_alerts" && Array.isArray(output?.alerts) ? (
@@ -684,7 +755,11 @@ function ToolCard({
               <span className="block text-xs text-muted-foreground mt-0.5">
                 {String(alert.area ?? "")} · {String(alert.severity)}
               </span>
-              {alert.body ? <span className="block text-xs text-muted-foreground mt-1">{String(alert.body)}</span> : null}
+              {alert.body ? (
+                <span className="block text-xs text-muted-foreground mt-1">
+                  {String(alert.body)}
+                </span>
+              ) : null}
             </li>
           ))}
           {(output.alerts as unknown[]).length === 0 ? (
@@ -696,9 +771,14 @@ function ToolCard({
         <ul className="space-y-2 text-sm">
           {((output.reports ?? output.matches) as Array<Record<string, unknown>>).map(
             (row, index) => (
-              <li key={index} className="flex items-start justify-between gap-3 rounded-xl border border-border/50 bg-background/30 p-3">
+              <li
+                key={index}
+                className="flex items-start justify-between gap-3 rounded-xl border border-border/50 bg-background/30 p-3"
+              >
                 <span>
-                  <span className="block font-medium text-foreground">{String(row.title ?? "Report")}</span>
+                  <span className="block font-medium text-foreground">
+                    {String(row.title ?? "Report")}
+                  </span>
                   <span className="block font-mono text-xs text-muted-foreground">
                     {String(row.reference ?? "")}
                   </span>
@@ -716,17 +796,13 @@ function ToolCard({
           ) : null}
         </ul>
       ) : name === "save_draft" && output?.ok ? (
-        <p className="text-sm text-muted-foreground">
-          Saved — you can pick this up any time.
-        </p>
+        <p className="text-sm text-muted-foreground">Saved — you can pick this up any time.</p>
       ) : (
         <p className="text-sm text-muted-foreground">Done.</p>
       )}
-
     </div>
   );
 }
-
 
 export function AllmaChat({
   threadId,
@@ -823,7 +899,11 @@ export function AllmaChat({
     send(initialPrompt);
   }, [initialPrompt, messages.length, send]);
 
-  const { recording, transcribing, toggle: toggleVoice } = useVoiceInput({
+  const {
+    recording,
+    transcribing,
+    toggle: toggleVoice,
+  } = useVoiceInput({
     onTranscript: (text) => {
       const field = textareaRef.current;
       if (!field) return;
@@ -891,12 +971,10 @@ export function AllmaChat({
     if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
     const parts = (lastMsg.parts ?? []) as ToolPart[];
     // A live step question owns the chip row — its options are the answers.
-    const stepPart = [...parts]
-      .reverse()
-      .find((p) => p.type === "tool-ask_structured_question") as ToolPart | undefined;
+    const stepPart = [...parts].reverse().find((p) => p.type === "tool-ask_structured_question") as
+      ToolPart | undefined;
     const stepOutput = stepPart?.output as
-      | { options?: Array<{ label: string; value: string }> }
-      | undefined;
+      { options?: Array<{ label: string; value: string }> } | undefined;
     if (stepPart) {
       if (stepOutput?.options?.length) {
         return stepOutput.options
@@ -908,24 +986,23 @@ export function AllmaChat({
         (stepPart.output as { question?: string } | undefined)?.question ?? "",
       );
       const fallback = STEP_FALLBACK_CHIPS.find(({ matches }) => matches.test(question));
-      return fallback?.chips ?? [
-        { label: "Yes", prompt: "Yes" },
-        { label: "No", prompt: "No" },
-        { label: "I'm not sure", prompt: "I'm not sure" },
-      ];
+      return (
+        fallback?.chips ?? [
+          { label: "Yes", prompt: "Yes" },
+          { label: "No", prompt: "No" },
+          { label: "I'm not sure", prompt: "I'm not sure" },
+        ]
+      );
     }
-    const suggestionPart = [...parts]
-      .reverse()
-      .find((p) => p.type === "tool-suggest_replies") as ToolPart | undefined;
+    const suggestionPart = [...parts].reverse().find((p) => p.type === "tool-suggest_replies") as
+      ToolPart | undefined;
     const output = suggestionPart?.output as
-      | { suggestions?: Array<{ label: string; prompt: string }> }
-      | undefined;
+      { suggestions?: Array<{ label: string; prompt: string }> } | undefined;
     const suggestions = ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
     return suggestions.length > 0 ? suggestions : IDLE_CHIPS;
   }, [busy, isEmpty, status, lastMsg]);
 
   const showChips = contextualChips.length > 0;
-
 
   const shareLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
@@ -934,7 +1011,9 @@ export function AllmaChat({
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        send(`My current location is: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
+        send(
+          `My current location is: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`,
+        );
       },
       () => toast.error("Location permission denied."),
       { enableHighAccuracy: true, timeout: 10000 },
@@ -942,7 +1021,7 @@ export function AllmaChat({
   }, [send]);
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+    <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden", className)}>
       {/* Hidden file input for attachment sheet */}
       <input
         ref={attachInputRef}
@@ -979,7 +1058,13 @@ export function AllmaChat({
             <div className="flex flex-col gap-6 pt-6">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role}>
-                  <MessageContent className={message.role === "assistant" ? "rounded-none bg-transparent px-0 py-0" : "rounded-[1.4rem] rounded-br-sm"}>
+                  <MessageContent
+                    className={
+                      message.role === "assistant"
+                        ? "rounded-none bg-transparent px-0 py-0"
+                        : "rounded-[1.4rem] rounded-br-sm"
+                    }
+                  >
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
                         return message.role === "assistant" ? (
@@ -990,7 +1075,10 @@ export function AllmaChat({
                             {part.text}
                           </MessageResponse>
                         ) : (
-                          <p key={index} className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift">
+                          <p
+                            key={index}
+                            className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift"
+                          >
                             {part.text}
                           </p>
                         );
@@ -1062,7 +1150,6 @@ export function AllmaChat({
                           ))}
                         </motion.div>
                       </AnimatePresence>
-
                     )}
                 </Message>
               ))}
@@ -1084,7 +1171,7 @@ export function AllmaChat({
         </Conversation>
       )}
 
-      <div className="no-print sticky bottom-[4.9rem] z-30 glass border-t border-border/60 px-4 pb-4 pt-3 lg:bottom-0">
+      <div className="no-print sticky bottom-0 z-30 glass border-t border-border/60 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-4">
         <div className="mx-auto w-full max-w-3xl">
           <div className="chip-scroll -mx-1 mb-2 flex gap-2 overflow-x-auto px-1 pb-1">
             {QUICK_ACTIONS.map((action) => {
@@ -1148,60 +1235,60 @@ export function AllmaChat({
             )}
           >
             <div className="composer-surface">
-            <PromptInput
-              onSubmit={(message, event) => {
-                event.preventDefault();
-                const text = (message.text ?? "").trim();
-                if (!text) return;
-                send(text);
-                setComposerText("");
-                event.currentTarget.reset();
-              }}
-              className="rounded-[inherit] border-0 bg-transparent shadow-none ring-0 outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent"
-            >
+              <PromptInput
+                onSubmit={(message, event) => {
+                  event.preventDefault();
+                  const text = (message.text ?? "").trim();
+                  if (!text) return;
+                  send(text);
+                  setComposerText("");
+                  event.currentTarget.reset();
+                }}
+                className="rounded-[inherit] border-0 bg-transparent shadow-none ring-0 outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent"
+              >
+                <InputGroupAddon align="inline-start" className="pl-2">
+                  {/* Attachment menu trigger */}
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setAttachSheetOpen(true)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110"
+                    aria-label="Attach files"
+                  >
+                    <Plus className="h-[17px] w-[17px]" />
+                  </motion.button>
+                </InputGroupAddon>
 
-              <InputGroupAddon align="inline-start" className="pl-2">
-                {/* Attachment menu trigger */}
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setAttachSheetOpen(true)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110"
-                  aria-label="Attach files"
-                >
-                  <Plus className="h-[17px] w-[17px]" />
-                </motion.button>
-              </InputGroupAddon>
+                <PromptInputTextarea
+                  ref={textareaRef}
+                  placeholder="Ask Allma to help, report, or find help…"
+                  className="min-h-[2.75rem] bg-transparent py-3 text-[14px] leading-6"
+                  onChange={(event) => setComposerText(event.target.value)}
+                />
 
-              <PromptInputTextarea
-                ref={textareaRef}
-                placeholder="Ask Allma to help, report, or find help…"
-                className="min-h-[2.75rem] bg-transparent py-3 text-[14px] leading-6"
-                onChange={(event) => setComposerText(event.target.value)}
-              />
-
-              <InputGroupAddon align="inline-end" className="gap-0.5 pr-2">
-                <button
-                  type="button"
-                  onClick={toggleVoice}
-                  disabled={transcribing}
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110",
-                    recording && "bg-destructive text-destructive-foreground hover:bg-destructive",
-                  )}
-                  aria-label={recording ? "Stop recording" : "Voice input"}
-                >
-                  {transcribing ? (
-                    <Loader2 className="h-[17px] w-[17px] animate-spin" />
-                  ) : (
-                    <Mic className="h-[17px] w-[17px]" />
-                  )}
-                </button>
-                {composerText.trim().length > 0 ? (
-                  <PromptInputSubmit status={status} disabled={busy} size="icon-sm" />
-                ) : null}
-              </InputGroupAddon>
-            </PromptInput>
+                <InputGroupAddon align="inline-end" className="gap-0.5 pr-2">
+                  <button
+                    type="button"
+                    onClick={toggleVoice}
+                    disabled={transcribing}
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110",
+                      recording &&
+                        "bg-destructive text-destructive-foreground hover:bg-destructive",
+                    )}
+                    aria-label={recording ? "Stop recording" : "Voice input"}
+                  >
+                    {transcribing ? (
+                      <Loader2 className="h-[17px] w-[17px] animate-spin" />
+                    ) : (
+                      <Mic className="h-[17px] w-[17px]" />
+                    )}
+                  </button>
+                  {composerText.trim().length > 0 ? (
+                    <PromptInputSubmit status={status} disabled={busy} size="icon-sm" />
+                  ) : null}
+                </InputGroupAddon>
+              </PromptInput>
             </div>
           </div>
 
@@ -1268,4 +1355,3 @@ export function AllmaChat({
     </div>
   );
 }
-
