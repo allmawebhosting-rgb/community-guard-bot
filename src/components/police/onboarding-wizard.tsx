@@ -57,7 +57,11 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
   const [accessCode, setAccessCode] = useState("");
-  const { data: stations = [] } = useQuery(stationsQuery);
+  const {
+    data: stations = [],
+    isLoading: stationsLoading,
+    isError: stationsError,
+  } = useQuery(stationsQuery);
   const [draft, setDraft] = useState<Draft>({
     full_name: "",
     phone: "",
@@ -182,7 +186,10 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
                         "Case data is confidential and must not be shared outside the force",
                         "Your account is activated only after command verification",
                       ].map((line) => (
-                        <li key={line} className="flex gap-2.5 rounded-2xl border border-border/50 bg-secondary/40 p-3">
+                        <li
+                          key={line}
+                          className="flex gap-2.5 rounded-2xl border border-border/50 bg-secondary/40 p-3"
+                        >
                           <Check className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
                           <span>{line}</span>
                         </li>
@@ -276,26 +283,44 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
                 )}
 
                 {step === 3 && (
-                  <Field label="Duty station">
+                  <Field label="Select your duty station">
                     <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
-                      {stations.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => set("station_id", s.id)}
-                          className={cn(
-                            "w-full rounded-2xl border px-3.5 py-2.5 text-left transition",
-                            draft.station_id === s.id
-                              ? "border-primary/60 bg-primary/10"
-                              : "border-border/50 bg-secondary/35 hover:border-border",
-                          )}
-                        >
-                          <p className="text-sm font-medium">{s.name}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {s.district} district · {s.region} region
-                          </p>
-                        </button>
-                      ))}
+                      {stationsLoading && (
+                        <p className="rounded-2xl border border-border/50 bg-secondary/35 p-4 text-sm text-muted-foreground">
+                          Loading available police stations…
+                        </p>
+                      )}
+                      {stationsError && (
+                        <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+                          We could not load police stations. Refresh the page and try again.
+                        </p>
+                      )}
+                      {!stationsLoading && !stationsError && stations.length === 0 && (
+                        <p className="rounded-2xl border border-gold/40 bg-gold/10 p-4 text-sm text-gold">
+                          No duty stations are available yet. Please ask an administrator to add
+                          your station before continuing.
+                        </p>
+                      )}
+                      {!stationsLoading &&
+                        !stationsError &&
+                        stations.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => set("station_id", s.id)}
+                            className={cn(
+                              "w-full rounded-2xl border px-3.5 py-2.5 text-left transition",
+                              draft.station_id === s.id
+                                ? "border-primary/60 bg-primary/10"
+                                : "border-border/50 bg-secondary/35 hover:border-border",
+                            )}
+                          >
+                            <p className="text-sm font-medium">{s.name}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {s.district} district · {s.region} region
+                            </p>
+                          </button>
+                        ))}
                     </div>
                   </Field>
                 )}
@@ -380,7 +405,10 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
                       ["Badge", draft.badge_number || "—"],
                       ["Rank", rankLabel(draft.rank as OfficerRank)],
                       ["Station", station?.name ?? "—"],
-                      ["Jurisdiction", `${draft.jurisdiction_level} · ${draft.jurisdiction_area || station?.district || "—"}`],
+                      [
+                        "Jurisdiction",
+                        `${draft.jurisdiction_level} · ${draft.jurisdiction_area || station?.district || "—"}`,
+                      ],
                       ["Contact", `${draft.phone} · ${draft.official_email}`],
                     ].map(([label, value]) => (
                       <div
@@ -448,7 +476,9 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</Label>
+      <Label className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </Label>
       {children}
     </div>
   );
