@@ -909,8 +909,18 @@ export function AllmaChat({
   const contextualChips = useMemo(() => {
     if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
     const parts = (lastMsg.parts ?? []) as ToolPart[];
-    // If the turn ended with a structured question card, its options are the choices.
-    if (parts.some((p) => p.type === "tool-ask_structured_question")) return [];
+    // A live step question owns the chip row — its options are the answers.
+    const stepPart = [...parts]
+      .reverse()
+      .find((p) => p.type === "tool-ask_structured_question") as ToolPart | undefined;
+    const stepOutput = stepPart?.output as
+      | { options?: Array<{ label: string; value: string }> }
+      | undefined;
+    if (stepOutput?.options?.length) {
+      return stepOutput.options
+        .slice(0, 5)
+        .map((opt) => ({ label: opt.label, prompt: opt.value }));
+    }
     const suggestionPart = [...parts]
       .reverse()
       .find((p) => p.type === "tool-suggest_replies") as ToolPart | undefined;
