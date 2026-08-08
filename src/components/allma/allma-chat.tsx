@@ -68,6 +68,75 @@ type ToolPart = {
 
 type Suggestion = { label: string; prompt: string };
 
+const DEFAULT_MEDIA_TIPS: Record<string, string> = {
+  photo: "Good light · Show the whole scene · Up to 4 photos",
+  video: "Keep it short · Hold steady · Capture the surroundings",
+  audio: "Speak clearly · Quiet spot if you can",
+  document: "PDF or photo of the document is fine",
+  location: "Shares your GPS position with responders",
+};
+
+const MEDIA_ICONS: Record<string, typeof Camera> = {
+  photo: Camera,
+  video: Video,
+  audio: FileAudio,
+  document: FileIcon,
+  location: Navigation,
+};
+
+function FlowBanner({
+  flowLabel,
+  stepTitle,
+  step,
+  total,
+  helper,
+}: {
+  flowLabel: string;
+  stepTitle: string;
+  step: number;
+  total: number;
+  helper?: string | null;
+}) {
+  const pct = Math.min(100, (step / Math.max(total, 1)) * 100);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className="chat-card relative overflow-hidden p-3.5"
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-gold shadow-soft">
+          <ShieldAlert className="h-4.5 w-4.5 text-primary-foreground" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+            {flowLabel}
+            <span className="text-muted-foreground/70">
+              {" "}
+              · Step {step} of {total}
+            </span>
+          </p>
+          <h4 className="truncate text-[15px] font-semibold leading-snug tracking-[-0.01em] text-foreground">
+            {stepTitle}
+          </h4>
+          {helper ? (
+            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{helper}</p>
+          ) : null}
+        </div>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-border/40">
+        <motion.div
+          className="h-full bg-gradient-to-r from-primary via-primary-glow to-gold"
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
 
 const ATTACHMENT_OPTIONS = [
   { id: "camera", icon: Camera, label: "Camera", accept: "image/*", capture: "environment" as const },
