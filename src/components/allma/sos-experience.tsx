@@ -1143,7 +1143,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-hidden bg-background">
+    <div className="fixed inset-0 z-[100] flex h-[100dvh] w-screen max-w-full flex-col overflow-hidden bg-background">
       {/* Ambient brand glow — same signal-streak wash as the onboarding wizard */}
       <div className="signal-streak pointer-events-none absolute inset-0" />
       {/* Subtle grid */}
@@ -1235,19 +1235,19 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
 function IdleScreen({ onActivate }: { onActivate: () => void }) {
   return (
     <motion.div
-      className="flex h-full flex-col"
+      className="flex min-h-0 flex-1 flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.3 }}
     >
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-border/60 px-6 py-3.5">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 sm:px-6 sm:py-3.5">
+        <div className="flex min-w-0 items-center gap-2.5">
           <div className="grid h-7 w-7 place-items-center rounded-full bg-destructive/18">
             <Siren className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
           </div>
-          <span className="text-[13px] font-semibold text-foreground">Allma Safety AI</span>
+          <span className="truncate text-[13px] font-semibold text-foreground">Allma Safety AI</span>
         </div>
         <span className="rounded-full border border-destructive/25 bg-destructive/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive">
           Demo
@@ -1255,7 +1255,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
       </div>
 
       {/* Main area — side by side on desktop */}
-      <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-8 lg:flex-row lg:justify-center lg:gap-24 lg:py-0">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6 sm:py-8 lg:flex lg:flex-row lg:items-center lg:justify-center lg:gap-24 lg:overflow-hidden lg:py-0">
         {/* Left: button */}
         <div className="flex flex-col items-center text-center">
           <motion.p
@@ -1275,7 +1275,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
             SOS
           </motion.h1>
           <motion.p
-            className="mb-12 text-[13px] text-muted-foreground"
+            className="mb-8 text-[13px] text-muted-foreground sm:mb-12"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -1295,7 +1295,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
             <button
               onClick={onActivate}
               aria-label="Activate Emergency SOS"
-              className="relative h-52 w-52 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+              className="relative h-[min(13rem,58vw)] w-[min(13rem,58vw)] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background sm:h-52 sm:w-52"
             >
               <span
                 className="absolute inset-0 rounded-full"
@@ -1315,7 +1315,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
           </motion.div>
 
           <motion.p
-            className="mt-12 text-[11px] text-muted-foreground"
+            className="mt-8 text-[11px] text-muted-foreground sm:mt-12"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -1326,7 +1326,7 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
 
         {/* Right: info panel — stacked below the button on mobile */}
         <motion.div
-          className="mb-10 mt-8 w-full max-w-sm space-y-3 lg:mb-0 lg:mt-10 lg:w-72 lg:max-w-none"
+          className="mb-5 mt-8 w-full max-w-sm space-y-3 lg:mb-0 lg:mt-10 lg:w-72 lg:max-w-none"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
@@ -1371,13 +1371,13 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
 function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
   return (
     <motion.div
-      className="flex h-full flex-col overflow-y-auto"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.25 }}
     >
-      <div className="mx-auto w-full max-w-2xl px-5 pt-12 pb-10">
+      <div className="mx-auto w-full max-w-2xl px-4 pt-8 pb-10 sm:px-5 sm:pt-12">
         <motion.div
           className="mb-7"
           initial={{ opacity: 0, y: 8 }}
@@ -1393,14 +1393,14 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {EMERGENCY_TYPES.map((et, i) => {
             const Icon = et.icon;
             return (
               <motion.button
                 key={et.id}
                 onClick={() => onSelect(et.id)}
-                className="group flex flex-col items-center gap-3 rounded-2xl border border-border/60 bg-secondary/40 p-5 text-center backdrop-blur-md transition-all hover:border-border/60 hover:bg-accent active:scale-95"
+                className="group flex min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-border/60 bg-secondary/40 p-3.5 text-center backdrop-blur-md transition-all hover:border-border/60 hover:bg-accent active:scale-95 sm:gap-3 sm:p-5"
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.07 + i * 0.03 }}
@@ -1409,7 +1409,7 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
                 <div className={cn("grid h-11 w-11 place-items-center rounded-2xl", et.bg)}>
                   <Icon className={cn("h-5 w-5", et.color)} strokeWidth={1.5} />
                 </div>
-                <span className="text-[13px] font-semibold leading-tight text-foreground group-hover:text-foreground">
+                  <span className="text-[12px] font-semibold leading-tight text-foreground group-hover:text-foreground sm:text-[13px]">
                   {et.label}
                 </span>
               </motion.button>
@@ -1446,13 +1446,13 @@ function ConsentScreen({
 
   return (
     <motion.div
-      className="flex h-full flex-col overflow-y-auto"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -18 }}
       transition={{ duration: 0.25 }}
     >
-      <div className="mx-auto w-full max-w-xl px-5 py-10">
+      <div className="mx-auto w-full max-w-xl px-4 py-7 sm:px-5 sm:py-10">
         <button
           onClick={onBack}
           className="mb-6 flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground"
@@ -2358,16 +2358,16 @@ function HelpScreen({
 
   return (
     <motion.div
-      className="flex h-full flex-col"
+      className="flex min-h-0 flex-1 flex-col"
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.32 }}
     >
       {/* ── Sticky header ── */}
-      <div className="glass shrink-0 border-b border-border/60 px-5 py-3">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
+      <div className="glass shrink-0 border-b border-border/60 px-3 py-2.5 sm:px-5 sm:py-3">
+        <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-2 sm:gap-3">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-destructive/18">
               <TypeIcon
                 className={cn("h-4.5 w-4.5", typeInfo?.color ?? "text-destructive")}
@@ -2412,7 +2412,7 @@ function HelpScreen({
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Mobile: single scrolling column with everything */}
         <div className="flex-1 overflow-y-auto lg:hidden">
-          <div className="mx-auto max-w-lg space-y-5 px-5 py-5 pb-16">
+          <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
             {AiSection}
             {EscalationSection}
             {ResponsePlanSection}

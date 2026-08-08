@@ -507,7 +507,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="relative flex min-h-[100dvh] min-w-0 overflow-x-hidden bg-background">
+    <div className="relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-background">
       <div className="signal-streak pointer-events-none fixed inset-0 -z-10 opacity-70" />
 
       {/* Desktop persistent sidebar */}
@@ -517,7 +517,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col lg:ml-[260px]">
         {/* Mobile-only header */}
         <header className="no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl lg:hidden">
-          <div className="mx-auto grid h-14 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4">
+          <div className="mx-auto grid h-14 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
