@@ -1093,7 +1093,7 @@ export function AllmaChat({
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.15, duration: 0.35 }}
-                          className="chip-scroll -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible"
+                          className="mt-3 flex flex-wrap gap-2"
                         >
                           {contextualChips.map((chip, chipIndex) => (
                             <motion.button
@@ -1109,8 +1109,9 @@ export function AllmaChat({
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => send(chip.prompt)}
-                              className="shrink-0 whitespace-nowrap rounded-full border border-border/40 bg-gradient-to-b from-card/85 to-card/55 px-4 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:text-foreground"
+                              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/30 bg-card/70 px-3.5 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/60 hover:bg-primary/[0.06] hover:text-foreground"
                             >
+                              <Sparkles className="h-3.5 w-3.5 text-primary/70" />
                               {chip.label}
                             </motion.button>
                           ))}
