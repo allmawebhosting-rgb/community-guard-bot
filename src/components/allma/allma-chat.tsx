@@ -85,6 +85,13 @@ const MEDIA_ICONS: Record<string, typeof Camera> = {
   location: Navigation,
 };
 
+const QUICK_ACTIONS: Array<{ label: string; prompt: string; icon: typeof Camera }> = [
+  { label: "Report a crime", prompt: "I want to report a crime", icon: ShieldAlert },
+  { label: "Missing person", prompt: "I want to report a missing person", icon: User },
+  { label: "Lost & found", prompt: "I lost something and want to report it", icon: Search },
+  { label: "Find help nearby", prompt: "Find help near me", icon: MapPin },
+];
+
 function FlowBanner({
   flowLabel,
   stepTitle,
