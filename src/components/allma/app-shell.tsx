@@ -11,7 +11,6 @@ import {
   Menu,
   Moon,
   Plus,
-  Siren,
   Shield,
   Sun,
   UserRound,
@@ -22,6 +21,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MascotAvatar } from "@/components/allma/mascot";
 import { BrandLockup } from "@/components/allma/brand";
+import { SosButton } from "@/components/allma/sos-button";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/lib/theme";
@@ -29,7 +29,7 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-type TabPath = "/chat" | "/alerts" | "/sos" | "/reports" | "/profile";
+type TabPath = "/chat" | "/alerts" | "/reports" | "/profile";
 
 const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Home", to: "/chat", icon: Home },
@@ -37,54 +37,6 @@ const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Reports", to: "/reports", icon: FileText },
   { label: "Profile", to: "/profile", icon: UserRound },
 ];
-
-/* ─── Mobile bottom tabs ───────────────────────────────────────────────── */
-function BottomTabs() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isHome = pathname === "/chat" || pathname.startsWith("/chat/");
-
-  return (
-    <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-xl lg:hidden">
-      <div className="mx-auto grid h-[4.5rem] w-full max-w-2xl grid-cols-5 items-center px-2 pb-[env(safe-area-inset-bottom)]">
-        {NAV_ITEMS.slice(0, 2).map((tab) => (
-          <TabLink key={tab.to} tab={tab} active={tab.to === "/chat" ? isHome : pathname === tab.to} />
-        ))}
-        <div className="relative grid place-items-center">
-          <Link
-            to="/sos"
-            search={{ instant: true }}
-            aria-label="Emergency SOS"
-            className={cn(
-              "sos-pulse -mt-7 grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-primary to-primary-glow font-display text-[13px] font-black tracking-[0.08em] text-primary-foreground shadow-lift ring-4 ring-background transition-transform active:scale-95",
-              pathname === "/sos" && "ring-primary/40",
-            )}
-          >
-            SOS
-          </Link>
-        </div>
-        {NAV_ITEMS.slice(2).map((tab) => (
-          <TabLink key={tab.to} tab={tab} active={pathname === tab.to} />
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-function TabLink({ tab, active }: { tab: (typeof NAV_ITEMS)[number]; active: boolean }) {
-  const Icon = tab.icon;
-  return (
-    <Link
-      to={tab.to}
-      className={cn(
-        "flex flex-col items-center gap-1 py-2 text-[10.5px] font-semibold transition-colors",
-        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <Icon className={cn("h-[19px] w-[19px]", active && "drop-shadow-[0_0_10px_color-mix(in_oklab,var(--color-primary)_70%,transparent)]")} />
-      {tab.label}
-    </Link>
-  );
-}
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────── */
 function DesktopSidebar() {
@@ -97,7 +49,13 @@ function DesktopSidebar() {
   const isHome = pathname === "/chat" || pathname.startsWith("/chat/");
 
   const name = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "Guest";
-  const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+  const initials = name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   const newChat = async () => {
     if (!isAuthenticated) {
@@ -125,21 +83,6 @@ function DesktopSidebar() {
         </div>
       </div>
 
-      {/* SOS Button */}
-      <div className="shrink-0 px-4 pt-4 pb-3">
-        <Link
-          to="/sos"
-          search={{ instant: true }}
-          className={cn(
-            "sos-pulse flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-primary to-primary-glow py-3 font-display text-[13px] font-black tracking-[0.1em] text-primary-foreground shadow-lift transition-transform hover:scale-[1.02] active:scale-[0.98]",
-            pathname === "/sos" && "ring-2 ring-primary/50 ring-offset-2 ring-offset-sidebar",
-          )}
-        >
-          <Siren className="h-4 w-4" />
-          EMERGENCY SOS
-        </Link>
-      </div>
-
       {/* Nav Links */}
       <nav className="shrink-0 px-3 pb-3 space-y-0.5">
         {NAV_ITEMS.map((item) => {
@@ -158,9 +101,7 @@ function DesktopSidebar() {
             >
               <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
               {item.label}
-              {active && (
-                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
-              )}
+              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
             </Link>
           );
         })}
@@ -175,7 +116,9 @@ function DesktopSidebar() {
         >
           <MapPin className="h-4 w-4 shrink-0" />
           Nearby Help
-          {pathname === "/nearby" && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+          {pathname === "/nearby" && (
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+          )}
         </Link>
         <Link
           to="/police"
@@ -257,7 +200,11 @@ function DesktopSidebar() {
                 onClick={toggleTheme}
                 className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
-                {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                {theme === "dark" ? (
+                  <Sun className="h-3.5 w-3.5" />
+                ) : (
+                  <Moon className="h-3.5 w-3.5" />
+                )}
               </button>
               <button
                 type="button"
@@ -286,7 +233,11 @@ function DesktopSidebar() {
               onClick={toggleTheme}
               className="grid h-8 w-8 place-items-center rounded-xl border border-border/60 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              {theme === "dark" ? (
+                <Sun className="h-3.5 w-3.5" />
+              ) : (
+                <Moon className="h-3.5 w-3.5" />
+              )}
             </button>
           </div>
         )}
@@ -301,11 +252,20 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient();
   const { user, isAuthenticated, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { data: threads = [] } = useQuery({ ...threadsQueryOptions(), enabled: isAuthenticated && open });
+  const { data: threads = [] } = useQuery({
+    ...threadsQueryOptions(),
+    enabled: isAuthenticated && open,
+  });
   const [tab, setTab] = useState<"menu" | "chats">("menu");
 
   const name = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "Guest";
-  const initials = name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+  const initials = name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   const startPrompt = (prompt: string) => {
     onClose();
@@ -354,7 +314,9 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <div className="flex min-w-0 items-center gap-3">
                   <MascotAvatar className="h-11 w-11" />
                   <div className="min-w-0 leading-tight">
-                    <p className="brand-gradient-text truncate font-display text-[15px] font-black">ALLMA</p>
+                    <p className="brand-gradient-text truncate font-display text-[15px] font-black">
+                      ALLMA
+                    </p>
                     <p className="truncate text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                       Safety AI
                     </p>
@@ -393,7 +355,12 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                   </button>
                 </div>
               ) : (
-                <Button className="relative mt-4 w-full rounded-2xl" size="sm" asChild onClick={onClose}>
+                <Button
+                  className="relative mt-4 w-full rounded-2xl"
+                  size="sm"
+                  asChild
+                  onClick={onClose}
+                >
                   <Link to="/auth">
                     <UserRound className="mr-1.5 h-4 w-4" /> Sign in to save reports
                   </Link>
@@ -409,7 +376,9 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                   onClick={() => setTab(key)}
                   className={cn(
                     "border-b-2 pb-2 text-[13px] font-semibold capitalize transition-colors",
-                    tab === key ? "border-primary text-primary" : "border-transparent text-muted-foreground",
+                    tab === key
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground",
                   )}
                 >
                   {key}
@@ -419,6 +388,31 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
             {tab === "menu" ? (
               <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+                {NAV_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    item.to === "/chat"
+                      ? pathname === "/chat" || pathname.startsWith("/chat/")
+                      : pathname === item.to;
+
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={onClose}
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors hover:bg-accent",
+                        active ? "bg-primary/10 text-primary" : "text-foreground",
+                      )}
+                    >
+                      <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/12">
+                        <Icon className="h-4 w-4 text-primary" />
+                      </span>
+                      <span className="flex-1 text-[13px] font-medium">{item.label}</span>
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                    </Link>
+                  );
+                })}
                 <Link
                   to="/police"
                   onClick={onClose}
@@ -435,7 +429,11 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                   <span className="flex-1 text-[13px] font-medium">Police command</span>
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
                 </Link>
-                <Link to="/nearby" onClick={onClose} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 hover:bg-accent">
+                <Link
+                  to="/nearby"
+                  onClick={onClose}
+                  className="flex items-center gap-3 rounded-2xl px-2 py-2.5 hover:bg-accent"
+                >
                   <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/12">
                     <MapPin className="h-4 w-4 text-primary" />
                   </span>
@@ -454,7 +452,9 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-medium">{action.label}</span>
-                      <span className="block truncate text-[11px] text-muted-foreground">{action.description}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">
+                        {action.description}
+                      </span>
                     </span>
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
                   </button>
@@ -532,19 +532,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               <div className="min-w-0 leading-tight">
                 <p className="truncate text-[13px] font-semibold">{title ?? "Allma Safety AI"}</p>
                 <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span className="online-pulse inline-block h-1.5 w-1.5 rounded-full bg-success" /> Online
+                  <span className="online-pulse inline-block h-1.5 w-1.5 rounded-full bg-success" />{" "}
+                  Online
                 </p>
               </div>
             </div>
 
-            <Link
-              to="/sos"
-              search={{ instant: true }}
-              aria-label="Emergency SOS"
-              className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Siren className="h-[18px] w-[18px] text-primary" />
-            </Link>
+            <span className="h-9 w-9" aria-hidden="true" />
           </div>
         </header>
 
@@ -553,7 +547,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           <div className="flex h-13 w-full items-center justify-between gap-4 px-6">
             <div className="flex items-center gap-2.5">
               <span className="online-pulse inline-block h-2 w-2 rounded-full bg-success" />
-              <span className="text-[13px] font-semibold text-foreground/80">{title ?? "Allma Safety AI"}</span>
+              <span className="text-[13px] font-semibold text-foreground/80">
+                {title ?? "Allma Safety AI"}
+              </span>
               <span className="text-[12px] text-muted-foreground">— Online & ready</span>
             </div>
             <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
@@ -568,14 +564,14 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         </header>
 
         {/* Main content — no max-w constraint; children control their own width */}
-        <main className="flex min-h-0 flex-1 flex-col pb-[5.5rem] lg:pb-0">{children}</main>
-
-        {/* Mobile bottom tabs */}
-        <BottomTabs />
+        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
       </div>
 
       {/* Mobile drawer */}
       <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+
+      {/* One emergency control shared by every app-shell screen. */}
+      <SosButton />
     </div>
   );
 }

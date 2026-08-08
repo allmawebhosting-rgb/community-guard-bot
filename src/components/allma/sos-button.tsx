@@ -20,7 +20,10 @@ export function SosButton() {
 
   function requestLocation(): Promise<Coords | null> {
     return new Promise((resolve) => {
-      if (!("geolocation" in navigator)) { resolve(null); return; }
+      if (!("geolocation" in navigator)) {
+        resolve(null);
+        return;
+      }
       setLocating(true);
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -29,7 +32,11 @@ export function SosButton() {
           setCoords(next);
           resolve(next);
         },
-        () => { setLocating(false); toast.error("Location denied. You can still call for help."); resolve(null); },
+        () => {
+          setLocating(false);
+          toast.error("Location denied. You can still call for help.");
+          resolve(null);
+        },
         { enableHighAccuracy: true, timeout: 12000 },
       );
     });
@@ -43,24 +50,37 @@ export function SosButton() {
     const { data, error } = await supabase
       .from("reports")
       .insert({
-        user_id: user.id, report_type: "emergency", category: "sos",
+        user_id: user.id,
+        report_type: "emergency",
+        category: "sos",
         title: "Emergency SOS activated",
         summary: "The user triggered an SOS alert from the Allma Safety AI app.",
-        narrative: "SOS button activated. Location captured at the moment of activation where permission was granted.",
+        narrative:
+          "SOS button activated. Location captured at the moment of activation where permission was granted.",
         risk_level: "critical",
-        latitude: position?.latitude ?? null, longitude: position?.longitude ?? null,
-        location_text: position ? `${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)}` : "Location unavailable",
+        latitude: position?.latitude ?? null,
+        longitude: position?.longitude ?? null,
+        location_text: position
+          ? `${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)}`
+          : "Location unavailable",
       })
       .select("reference")
       .single();
     setSaving(false);
-    if (error) { toast.error("SOS logged locally, but the report could not be stored."); return; }
+    if (error) {
+      toast.error("SOS logged locally, but the report could not be stored.");
+      return;
+    }
     setReference(data.reference);
   }
 
   function reset() {
     setOpen(false);
-    setTimeout(() => { setStage("confirm"); setReference(null); setCoords(null); }, 250);
+    setTimeout(() => {
+      setStage("confirm");
+      setReference(null);
+      setCoords(null);
+    }, 250);
   }
 
   return (
@@ -71,7 +91,7 @@ export function SosButton() {
         aria-label="Emergency SOS"
         onClick={() => setOpen(true)}
         whileTap={{ scale: 0.92 }}
-        className="no-print sos-pulse fixed bottom-24 right-4 z-50 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-[0_4px_20px_rgba(220,38,38,0.45)] sm:bottom-6 sm:right-6 lg:h-12 lg:w-12"
+        className="no-print sos-pulse sos-blink fixed right-4 top-1/2 z-50 flex h-16 w-16 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-[0_4px_20px_rgba(220,38,38,0.45)] transition-transform hover:scale-105 active:scale-95 sm:right-6 lg:h-14 lg:w-14"
       >
         <ShieldAlert className="h-5 w-5 lg:h-4 lg:w-4" />
         <span className="text-[9px] font-black uppercase tracking-widest lg:text-[8px]">SOS</span>
@@ -88,10 +108,7 @@ export function SosButton() {
             transition={{ duration: 0.18 }}
           >
             {/* Scrim */}
-            <motion.div
-              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
-              onClick={reset}
-            />
+            <motion.div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={reset} />
 
             {/* Sheet */}
             <motion.div
@@ -142,7 +159,8 @@ function ConfirmStage({ onActivate, onCancel }: { onActivate: () => void; onCanc
 
       <h2 className="font-display text-xl font-black text-white">Activate Emergency SOS?</h2>
       <p className="mt-1.5 text-[13px] leading-relaxed text-white/45">
-        Allma will capture your GPS location, show emergency numbers and record an emergency report on your account.
+        Allma will capture your GPS location, show emergency numbers and record an emergency report
+        on your account.
       </p>
 
       {/* Disclaimer */}
@@ -169,9 +187,20 @@ function ConfirmStage({ onActivate, onCancel }: { onActivate: () => void; onCanc
   );
 }
 
-function ActiveStage({ locating, coords, saving, reference, user, onClose }: {
-  locating: boolean; coords: Coords | null; saving: boolean;
-  reference: string | null; user: boolean; onClose: () => void;
+function ActiveStage({
+  locating,
+  coords,
+  saving,
+  reference,
+  user,
+  onClose,
+}: {
+  locating: boolean;
+  coords: Coords | null;
+  saving: boolean;
+  reference: string | null;
+  user: boolean;
+  onClose: () => void;
 }) {
   return (
     <div className="px-5 pb-7 pt-5">
@@ -197,10 +226,13 @@ function ActiveStage({ locating, coords, saving, reference, user, onClose }: {
           >
             <div>
               <p className="text-[12px] font-semibold text-white/88">{e.label}</p>
-              <p className="text-[10px] text-white/35">{(e as { description?: string }).description ?? "Tap to call"}</p>
+              <p className="text-[10px] text-white/35">
+                {(e as { description?: string }).description ?? "Tap to call"}
+              </p>
             </div>
             <span className="flex items-center gap-1 rounded-xl bg-destructive px-2.5 py-1.5 text-[13px] font-black text-white shadow-[0_0_12px_rgba(220,38,38,0.4)]">
-              <Phone className="h-3 w-3" />{e.number}
+              <Phone className="h-3 w-3" />
+              {e.number}
             </span>
           </a>
         ))}
@@ -209,22 +241,43 @@ function ActiveStage({ locating, coords, saving, reference, user, onClose }: {
       {/* Status row */}
       <div className="mt-4 space-y-2 rounded-2xl border border-white/8 bg-white/4 px-4 py-3.5 text-[12px] text-white/38">
         <p className="flex items-center gap-2">
-          {locating
-            ? <><Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /> Getting your location…</>
-            : coords
-              ? <><Check className="h-3.5 w-3.5 text-green-400" /> <span className="text-green-400/80">Location captured</span> · {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}</>
-              : <><MapPin className="h-3.5 w-3.5" /> Location unavailable</>
-          }
+          {locating ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /> Getting your location…
+            </>
+          ) : coords ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-green-400" />{" "}
+              <span className="text-green-400/80">Location captured</span> ·{" "}
+              {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+            </>
+          ) : (
+            <>
+              <MapPin className="h-3.5 w-3.5" /> Location unavailable
+            </>
+          )}
         </p>
         <p className={cn("flex items-center gap-2", !user && "opacity-60")}>
-          {!user
-            ? <><ShieldAlert className="h-3.5 w-3.5" /> Sign in to store this emergency on your account</>
-            : saving
-              ? <><Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /> Saving emergency report…</>
-              : reference
-                ? <><Check className="h-3.5 w-3.5 text-green-400" /> <span className="text-green-400/80">Saved</span> · {reference}</>
-                : <><ShieldAlert className="h-3.5 w-3.5" /> Emergency report not saved</>
-          }
+          {!user ? (
+            <>
+              <ShieldAlert className="h-3.5 w-3.5" /> Sign in to store this emergency on your
+              account
+            </>
+          ) : saving ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /> Saving emergency
+              report…
+            </>
+          ) : reference ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-green-400" />{" "}
+              <span className="text-green-400/80">Saved</span> · {reference}
+            </>
+          ) : (
+            <>
+              <ShieldAlert className="h-3.5 w-3.5" /> Emergency report not saved
+            </>
+          )}
         </p>
       </div>
 

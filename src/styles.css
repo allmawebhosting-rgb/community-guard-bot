@@ -122,7 +122,12 @@
     color-mix(in oklab, var(--primary-glow) 14%, transparent) 55%,
     transparent
   );
-  --gradient-brand: linear-gradient(105deg, oklch(0.72 0.16 82), oklch(0.62 0.19 50) 55%, oklch(0.53 0.215 26));
+  --gradient-brand: linear-gradient(
+    105deg,
+    oklch(0.72 0.16 82),
+    oklch(0.62 0.19 50) 55%,
+    oklch(0.53 0.215 26)
+  );
   --shadow-soft: 0 1px 2px oklch(0.2 0.04 250 / 0.06), 0 12px 32px -16px oklch(0.2 0.04 250 / 0.24);
   --shadow-lift: 0 18px 48px -22px oklch(0.2 0.04 250 / 0.4);
   --glass-bg: color-mix(in oklab, var(--card) 72%, transparent);
@@ -179,7 +184,12 @@
   --sidebar-ring: oklch(0.575 0.235 26);
 
   /* Gold → red brand gradient (wordmark, highlights) */
-  --gradient-brand: linear-gradient(105deg, oklch(0.9 0.17 92), oklch(0.78 0.19 62) 55%, oklch(0.62 0.235 28));
+  --gradient-brand: linear-gradient(
+    105deg,
+    oklch(0.9 0.17 92),
+    oklch(0.78 0.19 62) 55%,
+    oklch(0.62 0.235 28)
+  );
   --gradient-hero: linear-gradient(
     140deg,
     color-mix(in oklab, oklch(0.575 0.235 26) 22%, transparent),
@@ -238,8 +248,11 @@
 }
 
 @utility premium-surface {
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--card) 94%, transparent), color-mix(in oklab, var(--card) 78%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--card) 94%, transparent),
+    color-mix(in oklab, var(--card) 78%, transparent)
+  );
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
 }
@@ -260,23 +273,33 @@
 
 /* Radial halo behind the assistant mascot */
 @utility mascot-halo {
-  background-image: radial-gradient(
+  background-image:
+    radial-gradient(
       circle at 50% 42%,
       color-mix(in oklab, var(--primary) 55%, transparent),
       transparent 58%
     ),
-    radial-gradient(circle at 50% 40%, color-mix(in oklab, var(--gold) 26%, transparent), transparent 42%);
+    radial-gradient(
+      circle at 50% 40%,
+      color-mix(in oklab, var(--gold) 26%, transparent),
+      transparent 42%
+    );
   filter: blur(6px);
 }
 
 /* Sweeping red-gold light streak backdrop */
 @utility signal-streak {
-  background-image: radial-gradient(
+  background-image:
+    radial-gradient(
       120% 60% at 10% 55%,
       color-mix(in oklab, var(--primary) 24%, transparent),
       transparent 60%
     ),
-    radial-gradient(90% 50% at 85% 20%, color-mix(in oklab, var(--gold) 14%, transparent), transparent 60%);
+    radial-gradient(
+      90% 50% at 85% 20%,
+      color-mix(in oklab, var(--gold) 14%, transparent),
+      transparent 60%
+    );
 }
 
 @utility shadow-soft {
@@ -299,6 +322,24 @@
 
 @utility sos-pulse {
   animation: allma-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes allma-sos-blink {
+  0%,
+  45%,
+  100% {
+    opacity: 1;
+  }
+  55%,
+  75% {
+    opacity: 0.58;
+  }
+}
+
+@utility sos-blink {
+  animation:
+    allma-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite,
+    allma-sos-blink 1.35s ease-in-out infinite;
 }
 
 /* Urgent red halo used by the SOS activation button and live markers */
@@ -336,8 +377,15 @@
 
 /* Slow pulse for hero orbs */
 @keyframes allma-pulse-slow {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.12); }
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
 }
 
 @utility animate-pulse-slow {
@@ -346,14 +394,26 @@
 
 /* Input bar outer glow — animated green/blue shimmer ring */
 @keyframes allma-ring-glow {
-  0%   { box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 45%, transparent),
-                     0 0 18px 4px color-mix(in oklab, var(--primary) 20%, transparent); }
-  40%  { box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary-glow) 60%, transparent),
-                     0 0 28px 8px color-mix(in oklab, var(--primary-glow) 25%, transparent); }
-  70%  { box-shadow: 0 0 0 2px color-mix(in oklab, var(--success) 55%, transparent),
-                     0 0 24px 6px color-mix(in oklab, var(--success) 22%, transparent); }
-  100% { box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 45%, transparent),
-                     0 0 18px 4px color-mix(in oklab, var(--primary) 20%, transparent); }
+  0% {
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--primary) 45%, transparent),
+      0 0 18px 4px color-mix(in oklab, var(--primary) 20%, transparent);
+  }
+  40% {
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--primary-glow) 60%, transparent),
+      0 0 28px 8px color-mix(in oklab, var(--primary-glow) 25%, transparent);
+  }
+  70% {
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--success) 55%, transparent),
+      0 0 24px 6px color-mix(in oklab, var(--success) 22%, transparent);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--primary) 45%, transparent),
+      0 0 18px 4px color-mix(in oklab, var(--primary) 20%, transparent);
+  }
 }
 
 @utility input-glow-ring {
@@ -363,7 +423,9 @@
 
 /* Composer shell — rotating gradient border, brightens on focus */
 @keyframes allma-composer-spin {
-  to { --allma-angle: 360deg; }
+  to {
+    --allma-angle: 360deg;
+  }
 }
 
 @property --allma-angle {
@@ -386,7 +448,9 @@
   );
   animation: allma-composer-spin 14s linear infinite;
   box-shadow: 0 10px 30px -18px color-mix(in oklab, var(--primary) 55%, transparent);
-  transition: box-shadow 320ms ease, filter 320ms ease;
+  transition:
+    box-shadow 320ms ease,
+    filter 320ms ease;
 }
 
 @utility composer-shell-focused {
@@ -421,15 +485,18 @@
   }
 }
 
-
-
 /* Gradient input glow border */
 @keyframes allma-input-glow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 transparent, 0 0 18px 2px color-mix(in oklab, var(--primary) 28%, transparent);
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 transparent,
+      0 0 18px 2px color-mix(in oklab, var(--primary) 28%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 0 transparent, 0 0 28px 6px color-mix(in oklab, var(--primary-glow) 32%, transparent);
+    box-shadow:
+      0 0 0 0 transparent,
+      0 0 28px 6px color-mix(in oklab, var(--primary-glow) 32%, transparent);
   }
 }
 
@@ -438,9 +505,15 @@
 }
 
 @keyframes allma-gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @utility gradient-shift {
@@ -450,8 +523,12 @@
 
 /* Shimmer loading animation */
 @keyframes allma-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @utility animate-shimmer {
@@ -467,8 +544,13 @@
 
 /* Floating badge animation */
 @keyframes allma-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 @utility animate-float {
@@ -477,8 +559,15 @@
 
 /* Online status pulse */
 @keyframes allma-online-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(0.88); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.88);
+  }
 }
 
 @utility online-pulse {
@@ -487,13 +576,16 @@
 
 /* Avatar glow ring */
 @keyframes allma-glow-ring {
-  0%, 100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent),
-                0 0 28px 6px color-mix(in oklab, var(--primary) 22%, transparent);
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent),
+      0 0 28px 6px color-mix(in oklab, var(--primary) 22%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 18%, transparent),
-                0 0 48px 12px color-mix(in oklab, var(--primary-glow) 28%, transparent);
+    box-shadow:
+      0 0 0 6px color-mix(in oklab, var(--primary) 18%, transparent),
+      0 0 48px 12px color-mix(in oklab, var(--primary-glow) 28%, transparent);
   }
 }
 
@@ -511,12 +603,11 @@
 @utility chat-card {
   position: relative;
   border-radius: 1.4rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--card) 88%, transparent),
-      color-mix(in oklab, var(--card) 72%, transparent)
-    );
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--card) 88%, transparent),
+    color-mix(in oklab, var(--card) 72%, transparent)
+  );
   backdrop-filter: blur(18px) saturate(140%);
   box-shadow: var(--shadow-soft);
 
