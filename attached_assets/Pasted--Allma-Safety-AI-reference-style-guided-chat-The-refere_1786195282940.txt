@@ -1,0 +1,32 @@
+# Allma Safety AI — reference-style guided chat
+
+The reference screenshot shows a guided assistant that always makes the next move obvious: a slim flow banner at the top of the reply ("SELLING · STEP 2 OF 7 — Add photos" with a progress line), tappable suggestion pills right under the message text, and a compact tap-to-attach prompt card. Allma has most of the machinery already (step questions, media requests, suggestion chips), but presents them differently and hides chips whenever a step card is on screen. This pass makes the safety flows behave and look like the reference.
+
+## 1. Flow banner above the reply
+
+- A slim banner renders at the top of an assistant turn during a guided flow: coloured icon tile, eyebrow line `REPORTING · STEP 2 OF 7`, bold step title, and a thin progress bar along the bottom edge.
+- Flow name and step title come from the step question the assistant already sends: "Reporting", "Missing person", "Lost & found", "Safety check".
+- The current bulky step card becomes: banner on top, question text in the reply, answers as pills below. One visual language instead of two.
+
+## 2. Suggestions always present
+
+- Chips are no longer suppressed when a step question is on screen — the step's answer options render as the chip row, exactly like the reference. Only one chip source per turn: step options if a step is active, otherwise the assistant's own suggestions.
+- Chips get the reference treatment: outlined pill, small sparkle icon, wrapping into rows rather than a single scroll strip on mobile.
+- Prompt rules tightened so every turn ends with 2–4 suggestions tied to the exact step (after "Are you in a safe place?" → "Yes, I'm safe" / "No, I'm in danger" / "I'm not sure"), and broad actions (find hospital, emergency numbers, generate report) only appear when no flow is running.
+- Safety-specific fallback: if the model returns nothing, chips are derived from the current step type instead of leaving the user with a blank prompt.
+
+## 3. Compact evidence prompt
+
+- The six-button upload grid becomes the reference's single tap-to-attach card: warm circular icon, bold ask ("Tap to attach a photo of the scene"), one muted tips line ("Good light · Show the whole scene · Up to 4 photos"), tapping anywhere opens the attach sheet.
+- "Skip for now" stays as a quiet secondary chip when the evidence is optional.
+
+## 4. Persistent quick actions
+
+- A single horizontal row of safety quick actions sits directly above the composer at all times (Report a crime, Missing person, Lost & found, Find help nearby), matching the reference's persistent action strip.
+
+## Technical notes
+
+- `src/components/allma/allma-chat.tsx`: new `FlowBanner` and `EvidencePrompt` components; rework the `ask_structured_question` and `request_media` branches of `ToolCard`; change chip selection so step options feed the chip row instead of suppressing it; add the quick-action strip above the composer.
+- `src/routes/api/chat.ts`: add `flow_label` and `step_title` to `ask_structured_question`; add an optional `tips` field to `request_media`.
+- `src/lib/allma-prompt.ts`: update the suggestion and step-question rules described above.
+- Styling uses existing tokens (primary, gold, chat-card, chip-scroll) — no new colours.
