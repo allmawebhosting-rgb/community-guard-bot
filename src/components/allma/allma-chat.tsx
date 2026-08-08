@@ -26,6 +26,7 @@ import {
   Shield,
   ShieldAlert,
   Siren,
+  Sparkles,
   Upload,
   User,
   Video,
@@ -67,6 +68,82 @@ type ToolPart = {
 };
 
 type Suggestion = { label: string; prompt: string };
+
+const DEFAULT_MEDIA_TIPS: Record<string, string> = {
+  photo: "Good light · Show the whole scene · Up to 4 photos",
+  video: "Keep it short · Hold steady · Capture the surroundings",
+  audio: "Speak clearly · Quiet spot if you can",
+  document: "PDF or photo of the document is fine",
+  location: "Shares your GPS position with responders",
+};
+
+const MEDIA_ICONS: Record<string, typeof Camera> = {
+  photo: Camera,
+  video: Video,
+  audio: FileAudio,
+  document: FileIcon,
+  location: Navigation,
+};
+
+const QUICK_ACTIONS: Array<{ label: string; prompt: string; icon: typeof Camera }> = [
+  { label: "Report a crime", prompt: "I want to report a crime", icon: ShieldAlert },
+  { label: "Missing person", prompt: "I want to report a missing person", icon: User },
+  { label: "Lost & found", prompt: "I lost something and want to report it", icon: Search },
+  { label: "Find help nearby", prompt: "Find help near me", icon: MapPin },
+];
+
+function FlowBanner({
+  flowLabel,
+  stepTitle,
+  step,
+  total,
+  helper,
+}: {
+  flowLabel: string;
+  stepTitle: string;
+  step: number;
+  total: number;
+  helper?: string | null;
+}) {
+  const pct = Math.min(100, (step / Math.max(total, 1)) * 100);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className="chat-card relative overflow-hidden p-3.5"
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-gold shadow-soft">
+          <ShieldAlert className="h-4.5 w-4.5 text-primary-foreground" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+            {flowLabel}
+            <span className="text-muted-foreground/70">
+              {" "}
+              · Step {step} of {total}
+            </span>
+          </p>
+          <h4 className="truncate text-[15px] font-semibold leading-snug tracking-[-0.01em] text-foreground">
+            {stepTitle}
+          </h4>
+          {helper ? (
+            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{helper}</p>
+          ) : null}
+        </div>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-border/40">
+        <motion.div
+          className="h-full bg-gradient-to-r from-primary via-primary-glow to-gold"
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        />
+      </div>
+    </motion.div>
+  );
+}
 
 
 const ATTACHMENT_OPTIONS = [
@@ -232,104 +309,53 @@ function ToolCard({
     const total = Number(output.total_steps ?? 5);
     const question = String(output.question ?? "");
     const helper = output.helper_text ? String(output.helper_text) : null;
-    const options = Array.isArray(output.options) ? output.options : [];
+    const flowLabel = String(output.flow_label ?? "Reporting");
+    const stepTitle = String(output.step_title ?? question);
 
     return (
-      <div className="chat-card p-5">
-        <div className="mb-4">
-          <div className="mb-2.5 flex items-center gap-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              Step {step}
-              <span className="text-muted-foreground/50"> / {total}</span>
-            </p>
-            <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-border/50">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-primary via-primary-glow to-gold"
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(100, (step / Math.max(total, 1)) * 100)}%` }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              />
-            </div>
-          </div>
-          <h4 className="text-base font-semibold leading-snug tracking-[-0.01em] text-foreground">{question}</h4>
-          {helper ? <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{helper}</p> : null}
-        </div>
-        <div className="grid gap-2">
-          {options.map((opt: { label: string; value: string }, index: number) => (
-            <motion.button
-              key={index}
-              type="button"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              whileHover={{ scale: 1.015 }}
-              whileTap={{ scale: 0.985 }}
-              onClick={() => onSend(opt.value)}
-              className="group flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-background/30 px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/[0.06]"
-            >
-              <span>{opt.label}</span>
-              <CheckCircle className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
-            </motion.button>
-          ))}
-        </div>
-      </div>
-
+      <FlowBanner
+        flowLabel={flowLabel}
+        stepTitle={stepTitle}
+        step={step}
+        total={total}
+        helper={helper}
+      />
     );
   }
 
   if (name === "request_media" && output?.ok) {
-    const mediaType = String(output.media_type ?? "photo");
     const prompt = String(output.prompt ?? "Please upload a photo or file.");
+    const mediaType = String(output.media_type ?? "photo");
+    const tips = output.tips ? String(output.tips) : DEFAULT_MEDIA_TIPS[mediaType] ?? null;
     const optional = Boolean(output.optional);
-
-    const MEDIA_BUTTONS = [
-      { id: "camera", icon: Camera, label: "Camera", action: () => onOpenAttach?.() },
-      { id: "gallery", icon: Paperclip, label: "Gallery", action: () => onOpenAttach?.() },
-      { id: "video", icon: Video, label: "Video", action: () => onOpenAttach?.() },
-      { id: "voice", icon: FileAudio, label: "Voice", action: () => onOpenAttach?.() },
-      { id: "document", icon: FileIcon, label: "Document", action: () => onOpenAttach?.() },
-      { id: "location", icon: Navigation, label: "Location", action: () => { onShareLocation?.(); } },
-    ];
+    const isLocation = mediaType === "location";
+    const MediaIcon = MEDIA_ICONS[mediaType] ?? Camera;
 
     return (
-      <div className="chat-card p-4">
-        <div className="mb-3 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-            <Upload className="h-5 w-5 text-primary" />
+      <div className="space-y-2">
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          whileHover={{ scale: 1.005 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.())}
+          className="flex w-full items-center gap-3 rounded-[1.25rem] border border-gold/35 bg-gold/[0.08] px-4 py-3.5 text-left transition-colors hover:border-gold/60 hover:bg-gold/[0.14]"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-primary shadow-soft">
+            <MediaIcon className="h-5 w-5 text-primary-foreground" />
           </span>
-          <div>
-            <p className="text-sm font-semibold text-foreground">Evidence requested</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{prompt}</p>
-          </div>
-        </div>
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          {MEDIA_BUTTONS.map((btn, i) => {
-            const BtnIcon = btn.icon;
-            return (
-              <motion.button
-                key={btn.id}
-                type="button"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.25 }}
-                whileHover={{ scale: 1.03, y: -1 }}
-                whileTap={{ scale: 0.96 }}
-                onClick={btn.action}
-                className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/50 bg-background/40 py-3 text-center transition-all hover:border-primary/40 hover:bg-accent"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                  <BtnIcon className="h-4 w-4 text-primary" />
-                </span>
-                <span className="text-[10px] font-medium text-muted-foreground">{btn.label}</span>
-              </motion.button>
-            );
-          })}
-        </div>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-foreground">{prompt}</span>
+            {tips ? <span className="block truncate text-xs text-muted-foreground">{tips}</span> : null}
+          </span>
+        </motion.button>
         {optional ? (
           <button
             type="button"
             onClick={() => onSend("Skip for now")}
-            className="w-full rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
+            className="rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
           >
             Skip for now
           </button>
@@ -891,8 +917,18 @@ export function AllmaChat({
   const contextualChips = useMemo(() => {
     if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
     const parts = (lastMsg.parts ?? []) as ToolPart[];
-    // If the turn ended with a structured question card, its options are the choices.
-    if (parts.some((p) => p.type === "tool-ask_structured_question")) return [];
+    // A live step question owns the chip row — its options are the answers.
+    const stepPart = [...parts]
+      .reverse()
+      .find((p) => p.type === "tool-ask_structured_question") as ToolPart | undefined;
+    const stepOutput = stepPart?.output as
+      | { options?: Array<{ label: string; value: string }> }
+      | undefined;
+    if (stepOutput?.options?.length) {
+      return stepOutput.options
+        .slice(0, 5)
+        .map((opt) => ({ label: opt.label, prompt: opt.value }));
+    }
     const suggestionPart = [...parts]
       .reverse()
       .find((p) => p.type === "tool-suggest_replies") as ToolPart | undefined;
@@ -1064,7 +1100,7 @@ export function AllmaChat({
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.15, duration: 0.35 }}
-                          className="chip-scroll -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible"
+                          className="mt-3 flex flex-wrap gap-2"
                         >
                           {contextualChips.map((chip, chipIndex) => (
                             <motion.button
@@ -1080,8 +1116,9 @@ export function AllmaChat({
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => send(chip.prompt)}
-                              className="shrink-0 whitespace-nowrap rounded-full border border-border/40 bg-gradient-to-b from-card/85 to-card/55 px-4 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/50 hover:text-foreground"
+                              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/30 bg-card/70 px-3.5 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/60 hover:bg-primary/[0.06] hover:text-foreground"
                             >
+                              <Sparkles className="h-3.5 w-3.5 text-primary/70" />
                               {chip.label}
                             </motion.button>
                           ))}
@@ -1111,6 +1148,22 @@ export function AllmaChat({
 
       <div className="no-print sticky bottom-[4.9rem] z-30 glass border-t border-border/60 px-4 pb-4 pt-3 lg:bottom-0">
         <div className="mx-auto w-full max-w-3xl">
+          <div className="chip-scroll -mx-1 mb-2 flex gap-2 overflow-x-auto px-1 pb-1">
+            {QUICK_ACTIONS.map((action) => {
+              const ActionIcon = action.icon;
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => send(action.prompt)}
+                  className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
+                >
+                  <ActionIcon className="h-3.5 w-3.5 text-primary" />
+                  {action.label}
+                </button>
+              );
+            })}
+          </div>
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {attachments.map((attachment) => (
