@@ -85,6 +85,55 @@ const MEDIA_ICONS: Record<string, typeof Camera> = {
   location: Navigation,
 };
 
+const FLOW_ICONS: Record<string, typeof ShieldAlert> = {
+  reporting: ShieldAlert,
+  "missing person": User,
+  "lost & found": Search,
+  "safety check": Shield,
+  emergency: Siren,
+};
+
+const IDLE_CHIPS: Suggestion[] = [
+  { label: "Report a crime", prompt: "I want to report a crime" },
+  { label: "Find help nearby", prompt: "Find help near me" },
+  { label: "Emergency numbers", prompt: "Show me the emergency numbers" },
+];
+
+const STEP_FALLBACK_CHIPS: Array<{ matches: RegExp; chips: Suggestion[] }> = [
+  {
+    matches: /safe|danger|immediate|threat/i,
+    chips: [
+      { label: "Yes, I'm safe", prompt: "Yes, I'm safe" },
+      { label: "No, I'm in danger", prompt: "No, I'm in danger" },
+      { label: "I'm not sure", prompt: "I'm not sure if I'm safe" },
+    ],
+  },
+  {
+    matches: /photo|video|evidence|attach|upload/i,
+    chips: [
+      { label: "Attach a photo", prompt: "I'd like to attach a photo" },
+      { label: "I have a video", prompt: "I have a video to attach" },
+      { label: "Skip for now", prompt: "Skip for now" },
+    ],
+  },
+  {
+    matches: /where|location|place|area|happen/i,
+    chips: [
+      { label: "Share my location", prompt: "Share my current location" },
+      { label: "Type the location", prompt: "I'll type the location" },
+      { label: "I'm not sure", prompt: "I'm not sure of the exact location" },
+    ],
+  },
+  {
+    matches: /when|time|date|last seen/i,
+    chips: [
+      { label: "Today", prompt: "It happened today" },
+      { label: "Yesterday", prompt: "It happened yesterday" },
+      { label: "I'm not sure", prompt: "I'm not sure when it happened" },
+    ],
+  },
+];
+
 const QUICK_ACTIONS: Array<{ label: string; prompt: string; icon: typeof Camera }> = [
   { label: "Report a crime", prompt: "I want to report a crime", icon: ShieldAlert },
   { label: "Missing person", prompt: "I want to report a missing person", icon: User },
@@ -106,6 +155,7 @@ function FlowBanner({
   helper?: string | null;
 }) {
   const pct = Math.min(100, (step / Math.max(total, 1)) * 100);
+  const FlowIcon = FLOW_ICONS[flowLabel.trim().toLowerCase()] ?? ShieldAlert;
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -115,14 +165,14 @@ function FlowBanner({
     >
       <div className="flex items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-gold shadow-soft">
-          <ShieldAlert className="h-4.5 w-4.5 text-primary-foreground" />
+          <FlowIcon className="h-4.5 w-4.5 text-primary-foreground" />
         </span>
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
             {flowLabel}
             <span className="text-muted-foreground/70">
               {" "}
-              · Step {step} of {total}
+              · STEP {step} OF {total}
             </span>
           </p>
           <h4 className="truncate text-[15px] font-semibold leading-snug tracking-[-0.01em] text-foreground">
@@ -161,80 +211,6 @@ type Attachment = {
   url: string;
   preview: string;
 };
-
-type GuidedCase = {
-  type: string;
-  priority: "Critical" | "High" | "Medium" | "Low";
-  question: string;
-  evidence: string[];
-  nextActions: string[];
-};
-
-function inferGuidedCase(prompt: string): GuidedCase | null {
-  const normalized = prompt.toLowerCase();
-
-  if (normalized.includes("fire") || normalized.includes("smoke")) {
-    return {
-      type: "Fire",
-      priority: "Critical",
-      question: "Where is the fire or smoke right now?",
-      evidence: ["Photo of the scene", "Voice note of what you see", "Location sharing"],
-      nextActions: ["Call fire brigade", "Move to a safe place", "Share location"],
-    };
-  }
-
-  if (normalized.includes("missing") || normalized.includes("child") || normalized.includes("disappeared")) {
-    return {
-      type: "Missing Person",
-      priority: "High",
-      question: "When was the person last seen and where?",
-      evidence: ["Photo of the person", "Last known clothing details", "Any contact details"],
-      nextActions: ["Notify family", "Share last known location", "Contact police"],
-    };
-  }
-
-  if (normalized.includes("attack") || normalized.includes("assault") || normalized.includes("gunshot") || normalized.includes("robbery")) {
-    return {
-      type: "High Priority Emergency",
-      priority: "Critical",
-      question: "Are you in immediate danger right now?",
-      evidence: ["Voice note", "Photo or video", "Live location"],
-      nextActions: ["Call emergency services", "Stay in a safe place", "Share location"],
-    };
-  }
-
-  if (normalized.includes("accident") || normalized.includes("crash") || normalized.includes("collision")) {
-    return {
-      type: "Road Accident",
-      priority: "High",
-      question: "How many people are involved and where did the accident happen?",
-      evidence: ["Photo of the scene", "Vehicle details", "Location pin"],
-      nextActions: ["Call ambulance", "Notify police", "Share precise location"],
-    };
-  }
-
-  if (normalized.includes("stolen") || normalized.includes("theft") || normalized.includes("phone")) {
-    return {
-      type: "Theft",
-      priority: "Medium",
-      question: "Where did the theft happen, and when did it happen?",
-      evidence: ["Photo of the item", "Receipt or proof of ownership", "IMEI or serial number"],
-      nextActions: ["Block SIM", "Block mobile money", "Generate report"],
-    };
-  }
-
-  if (normalized.includes("hospital") || normalized.includes("ambulance")) {
-    return {
-      type: "Medical Help",
-      priority: "Critical",
-      question: "Are you experiencing a medical emergency right now?",
-      evidence: ["Current location", "Symptoms or type of emergency", "Any voice details"],
-      nextActions: ["Call ambulance", "Find nearest hospital", "Share location"],
-    };
-  }
-
-  return null;
-}
 
 const ACTION_ICONS: Record<string, typeof FileText> = {
   phone: Phone,
@@ -770,7 +746,6 @@ export function AllmaChat({
   const [uploading, setUploading] = useState(false);
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
-  const [activeCase, setActiveCase] = useState<GuidedCase | null>(null);
   const [pendingAccept, setPendingAccept] = useState<string | undefined>();
   const [pendingCapture, setPendingCapture] = useState<"environment" | undefined>();
 
@@ -824,8 +799,6 @@ export function AllmaChat({
       const parts: UIMessage["parts"] = [];
       if (trimmed) {
         parts.push({ type: "text", text: trimmed });
-        const workflow = inferGuidedCase(trimmed);
-        if (workflow) setActiveCase(workflow);
       }
       for (const attachment of attachments) {
         parts.push({
@@ -924,10 +897,22 @@ export function AllmaChat({
     const stepOutput = stepPart?.output as
       | { options?: Array<{ label: string; value: string }> }
       | undefined;
-    if (stepOutput?.options?.length) {
-      return stepOutput.options
-        .slice(0, 5)
-        .map((opt) => ({ label: opt.label, prompt: opt.value }));
+    if (stepPart) {
+      if (stepOutput?.options?.length) {
+        return stepOutput.options
+          .slice(0, 5)
+          .map((opt) => ({ label: opt.label, prompt: opt.value }));
+      }
+
+      const question = String(
+        (stepPart.output as { question?: string } | undefined)?.question ?? "",
+      );
+      const fallback = STEP_FALLBACK_CHIPS.find(({ matches }) => matches.test(question));
+      return fallback?.chips ?? [
+        { label: "Yes", prompt: "Yes" },
+        { label: "No", prompt: "No" },
+        { label: "I'm not sure", prompt: "I'm not sure" },
+      ];
     }
     const suggestionPart = [...parts]
       .reverse()
@@ -935,7 +920,8 @@ export function AllmaChat({
     const output = suggestionPart?.output as
       | { suggestions?: Array<{ label: string; prompt: string }> }
       | undefined;
-    return ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
+    const suggestions = ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
+    return suggestions.length > 0 ? suggestions : IDLE_CHIPS;
   }, [busy, isEmpty, status, lastMsg]);
 
   const showChips = contextualChips.length > 0;
@@ -990,54 +976,6 @@ export function AllmaChat({
       ) : (
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6 lg:px-8">
-            {activeCase ? (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="chat-card mt-4 p-4"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Case detected</p>
-                    <h3 className="mt-1 text-lg font-semibold text-foreground">{activeCase.type}</h3>
-                  </div>
-                  <span className="rounded-full border border-border/60 bg-background/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-                    {activeCase.priority}
-                  </span>
-                </div>
-
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-border/50 bg-background/30 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Next question</p>
-                    <p className="mt-1 text-sm text-foreground">{activeCase.question}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/50 bg-background/30 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Suggested evidence</p>
-                    <ul className="mt-1 space-y-1 text-sm text-foreground">
-                      {activeCase.evidence.map((item) => (
-                        <li key={item}>• {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="mt-3 rounded-2xl border border-border/50 bg-background/30 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Recommended next actions</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {activeCase.nextActions.map((action) => (
-                      <button
-                        key={action}
-                        type="button"
-                        onClick={() => send(action)}
-                        className="rounded-full border border-border/60 bg-card/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-accent hover:text-foreground"
-                      >
-                        {action}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            ) : null}
             <div className="flex flex-col gap-6 pt-6">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role}>
