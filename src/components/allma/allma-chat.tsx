@@ -1262,19 +1262,54 @@ export function AllmaChat({
                 <PromptInputTextarea
                   ref={textareaRef}
                   placeholder="Ask Allma to help, report, or find help…"
-                  className="min-h-[2.75rem] bg-transparent py-3 text-[14px] leading-6"
+                  className="min-h-[2.75rem] bg-transparent py-3 text-base leading-6 sm:text-[14px]"
                   onChange={(event) => setComposerText(event.target.value)}
                 />
 
-                <InputGroupAddon align="inline-end" className="gap-0.5 pr-2">
-                  <button
+                <InputGroupAddon align="inline-end" className="gap-1 pr-2">
+                  {recording ? (
+                    <>
+                      <span className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-1">
+                        <span className="flex h-4 items-end gap-[2px]">
+                          {[0.55, 0.9, 0.7, 1, 0.6].map((weight, index) => (
+                            <span
+                              key={index}
+                              className="w-[3px] rounded-full bg-destructive transition-[height] duration-100"
+                              style={{
+                                height: `${Math.max(3, Math.min(16, 3 + level * weight * 26))}px`,
+                              }}
+                            />
+                          ))}
+                        </span>
+                        <span className="tabular-nums text-[11px] font-medium text-destructive">
+                          {String(Math.floor(seconds / 60)).padStart(2, "0")}:
+                          {String(seconds % 60).padStart(2, "0")}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={cancelVoice}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        aria-label="Discard recording"
+                      >
+                        <X className="h-[17px] w-[17px]" />
+                      </button>
+                    </>
+                  ) : null}
+                  {transcribing ? (
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      Transcribing…
+                    </span>
+                  ) : null}
+                  <motion.button
                     type="button"
+                    whileTap={{ scale: 0.9 }}
                     onClick={toggleVoice}
                     disabled={transcribing}
                     className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110",
+                      "flex h-9 w-9 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60",
                       recording &&
-                        "bg-destructive text-destructive-foreground hover:bg-destructive",
+                        "mic-recording bg-destructive text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground",
                     )}
                     aria-label={recording ? "Stop recording" : "Voice input"}
                   >
@@ -1283,8 +1318,8 @@ export function AllmaChat({
                     ) : (
                       <Mic className="h-[17px] w-[17px]" />
                     )}
-                  </button>
-                  {composerText.trim().length > 0 ? (
+                  </motion.button>
+                  {composerText.trim().length > 0 && !recording ? (
                     <PromptInputSubmit status={status} disabled={busy} size="icon-sm" />
                   ) : null}
                 </InputGroupAddon>
