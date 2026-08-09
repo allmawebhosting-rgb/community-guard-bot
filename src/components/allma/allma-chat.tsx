@@ -903,6 +903,9 @@ export function AllmaChat({
     recording,
     transcribing,
     toggle: toggleVoice,
+    cancel: cancelVoice,
+    level,
+    seconds,
   } = useVoiceInput({
     onTranscript: (text) => {
       const field = textareaRef.current;
