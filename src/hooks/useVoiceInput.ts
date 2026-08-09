@@ -1,12 +1,18 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Recorder = {
   stream: MediaStream;
   ctx: AudioContext;
   source: MediaStreamAudioSourceNode;
   processor: ScriptProcessorNode;
+  analyser: AnalyserNode;
   chunks: Float32Array[];
+  raf: number | null;
+  timeout: ReturnType<typeof setTimeout> | null;
+  interval: ReturnType<typeof setInterval> | null;
 };
+
+const MAX_SECONDS = 120;
 
 function encodeWav(chunks: Float32Array[], sampleRate: number, targetRate = 16000) {
   const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
@@ -60,6 +66,18 @@ export function useVoiceInput({
   const recorder = useRef<Recorder | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [level, setLevel] = useState(0);
+  const [seconds, setSeconds] = useState(0);
+
+  const teardown = useCallback((active: Recorder) => {
+    if (active.raf !== null) cancelAnimationFrame(active.raf);
+    if (active.timeout) clearTimeout(active.timeout);
+    if (active.interval) clearInterval(active.interval);
+    active.stream.getTracks().forEach((track) => track.stop());
+    active.processor.disconnect();
+    active.source.disconnect();
+    active.analyser.disconnect();
+  }, []);
 
   const start = useCallback(async () => {
     if (recorder.current) return;
@@ -74,14 +92,48 @@ export function useVoiceInput({
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
     const processor = ctx.createScriptProcessor(4096, 1, 1);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
     const chunks: Float32Array[] = [];
     processor.onaudioprocess = (event) => {
       chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
     };
+    source.connect(analyser);
     source.connect(processor);
     processor.connect(ctx.destination);
 
-    recorder.current = { stream, ctx, source, processor, chunks };
+    const active: Recorder = {
+      stream,
+      ctx,
+      source,
+      processor,
+      analyser,
+      chunks,
+      raf: null,
+      timeout: null,
+      interval: null,
+    };
+    recorder.current = active;
+
+    const buffer = new Uint8Array(analyser.fftSize);
+    const tick = () => {
+      if (recorder.current !== active) return;
+      analyser.getByteTimeDomainData(buffer);
+      let peak = 0;
+      for (let i = 0; i < buffer.length; i += 1) {
+        peak = Math.max(peak, Math.abs((buffer[i] ?? 128) - 128) / 128);
+      }
+      setLevel(Math.min(1, peak * 1.8));
+      active.raf = requestAnimationFrame(tick);
+    };
+    active.raf = requestAnimationFrame(tick);
+
+    setSeconds(0);
+    active.interval = setInterval(() => setSeconds((value) => value + 1), 1000);
+    active.timeout = setTimeout(() => {
+      void stopRef.current?.();
+    }, MAX_SECONDS * 1000);
+
     setRecording(true);
   }, [onError]);
 
@@ -90,10 +142,9 @@ export function useVoiceInput({
     if (!active) return;
     recorder.current = null;
     setRecording(false);
+    setLevel(0);
 
-    active.stream.getTracks().forEach((track) => track.stop());
-    active.processor.disconnect();
-    active.source.disconnect();
+    teardown(active);
     const blob = encodeWav(active.chunks, active.ctx.sampleRate);
     await active.ctx.close();
 
@@ -119,12 +170,37 @@ export function useVoiceInput({
     } finally {
       setTranscribing(false);
     }
-  }, [onError, onTranscript]);
+  }, [onError, onTranscript, teardown]);
+
+  const stopRef = useRef<(() => Promise<void>) | null>(null);
+  stopRef.current = stop;
+
+  const cancel = useCallback(() => {
+    const active = recorder.current;
+    if (!active) return;
+    recorder.current = null;
+    setRecording(false);
+    setLevel(0);
+    setSeconds(0);
+    teardown(active);
+    void active.ctx.close();
+  }, [teardown]);
+
+  useEffect(
+    () => () => {
+      const active = recorder.current;
+      if (!active) return;
+      recorder.current = null;
+      teardown(active);
+      void active.ctx.close();
+    },
+    [teardown],
+  );
 
   const toggle = useCallback(() => {
     if (recording) void stop();
     else void start();
   }, [recording, start, stop]);
 
-  return { recording, transcribing, toggle };
+  return { recording, transcribing, toggle, cancel, level, seconds };
 }

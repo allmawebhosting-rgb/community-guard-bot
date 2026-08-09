@@ -498,6 +498,29 @@
   }
 }
 
+@utility mic-recording {
+  animation: allma-mic-pulse 1.6s ease-out infinite;
+}
+
+@keyframes allma-mic-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--destructive) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-recording {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 35%, transparent);
+  }
+}
+
 /* Gradient input glow border */
 @keyframes allma-input-glow {
   0%,
