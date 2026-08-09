@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   Loader2,
   ChevronRight,
+  X,
   Send,
   ArrowLeft,
   CheckCircle2,
@@ -753,7 +754,7 @@ function FacilityRow({ facility }: { facility: Facility }) {
         </span>
         <a
           href={`tel:${facility.phone.replace(/\s/g, "")}`}
-          className="flex items-center gap-1 rounded-lg bg-secondary/60 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-accent"
+          className="flex min-h-8 items-center gap-1 rounded-lg border border-border/70 bg-secondary px-2.5 py-1 text-[10px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
         >
           <Phone className="h-2.5 w-2.5" /> Call
         </a>
@@ -859,7 +860,7 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
             aria-label="Zoom in"
             onClick={() => setZoom((z) => Math.max(0, z - 1))}
             disabled={zoom === 0}
-            className="grid h-8 w-8 place-items-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-40"
+            className="grid h-9 w-9 place-items-center bg-background/90 text-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-55"
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -869,7 +870,7 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
             aria-label="Zoom out"
             onClick={() => setZoom((z) => Math.min(MAP_ZOOM_LEVELS.length - 1, z + 1))}
             disabled={zoom === MAP_ZOOM_LEVELS.length - 1}
-            className="grid h-8 w-8 place-items-center text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-40"
+            className="grid h-9 w-9 place-items-center bg-background/90 text-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-55"
           >
             <Minus className="h-3.5 w-3.5" />
           </button>
@@ -878,7 +879,7 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
             type="button"
             aria-label="Recenter on me"
             onClick={() => setZoom(1)}
-            className="grid h-8 w-8 place-items-center text-destructive transition hover:bg-accent"
+            className="grid h-9 w-9 place-items-center bg-background/90 text-destructive transition hover:bg-accent"
           >
             <Crosshair className="h-3.5 w-3.5" />
           </button>
@@ -906,7 +907,7 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
           href={`https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=17/${location.lat}/${location.lng}`}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-secondary/40 px-3 py-2 text-[11.5px] font-semibold text-foreground transition hover:bg-accent"
+          className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
         >
           <ExternalLink className="h-3.5 w-3.5" /> Open in Maps
         </a>
@@ -1455,7 +1456,7 @@ function ConsentScreen({
       <div className="mx-auto w-full max-w-xl px-4 py-7 sm:px-5 sm:py-10">
         <button
           onClick={onBack}
-          className="mb-6 flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground"
+              className="mb-6 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border/70 bg-secondary/70 px-3.5 text-[13px] font-semibold text-foreground transition hover:border-primary/40 hover:bg-accent"
         >
           <ArrowLeft className="h-4 w-4" /> Change emergency type
         </button>
@@ -2366,7 +2367,7 @@ function HelpScreen({
     >
       {/* ── Sticky header ── */}
       <div className="glass shrink-0 border-b border-border/60 px-3 py-2.5 sm:px-5 sm:py-3">
-        <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-2 sm:gap-3">
+          <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-1.5 sm:gap-3">
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-destructive/18">
               <TypeIcon
@@ -2391,18 +2392,20 @@ function HelpScreen({
               )}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button
+              type="button"
               onClick={onReport}
-              className="hidden items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1.5 text-[12px] text-muted-foreground transition hover:border-border/60 hover:text-foreground sm:flex"
+              className="flex min-h-9 items-center gap-1 rounded-xl border border-border/70 bg-secondary px-2 py-1.5 text-[10px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent sm:gap-1.5 sm:px-3.5 sm:text-[12px]"
             >
-              <Shield className="h-3.5 w-3.5" /> File Report
+              <Shield className="h-3.5 w-3.5 shrink-0" /> <span>Report</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
-              className="rounded-full border border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground transition hover:border-border/60 hover:text-muted-foreground"
+              className="flex min-h-9 items-center gap-1 rounded-xl border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-[10px] font-bold text-destructive transition hover:border-destructive/50 hover:bg-destructive/20 sm:gap-1.5 sm:px-3 sm:text-[11px]"
             >
-              Close
+              <X className="h-3.5 w-3.5 shrink-0" /> Close
             </button>
           </div>
         </div>
@@ -2430,15 +2433,15 @@ function HelpScreen({
             <div className="space-y-2 pt-1">
               <button
                 onClick={onReport}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-border/60 py-3.5 text-[13px] font-medium text-muted-foreground transition hover:border-border/60 hover:text-foreground"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-primary/35 bg-primary/10 py-3.5 text-[13px] font-bold text-foreground transition hover:border-primary/60 hover:bg-primary/15"
               >
                 <Shield className="h-4 w-4" /> File an incident report
               </button>
               <button
                 onClick={onClose}
-                className="w-full py-2.5 text-[11px] text-muted-foreground hover:text-muted-foreground"
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-[12px] font-bold text-destructive transition hover:border-destructive/45 hover:bg-destructive/18"
               >
-                I'm safe — close SOS
+                <X className="h-3.5 w-3.5" /> I'm safe — close SOS
               </button>
             </div>
           </div>
@@ -2471,9 +2474,9 @@ function HelpScreen({
               <div className="space-y-2 pt-1">
                 <button
                   onClick={onClose}
-                  className="w-full py-2.5 text-center text-[11px] text-muted-foreground hover:text-muted-foreground"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-[12px] font-bold text-destructive transition hover:border-destructive/45 hover:bg-destructive/18"
                 >
-                  I'm safe — close SOS
+                  <X className="h-3.5 w-3.5" /> I'm safe — close SOS
                 </button>
               </div>
             </div>
@@ -2510,7 +2513,7 @@ function ReportScreen({
       <div className="w-full max-w-lg">
         <button
           onClick={onBack}
-          className="mb-5 flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-muted-foreground"
+          className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border/70 bg-secondary/70 px-3.5 text-[13px] font-semibold text-foreground transition hover:border-primary/40 hover:bg-accent"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
@@ -2544,7 +2547,7 @@ function ReportScreen({
         </button>
         <button
           onClick={onBack}
-          className="mt-2.5 w-full py-3 text-[12px] text-muted-foreground hover:text-muted-foreground"
+          className="mt-2.5 flex min-h-11 w-full items-center justify-center rounded-2xl border border-border/70 bg-secondary/70 py-3 text-[12px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
         >
           Cancel
         </button>
@@ -2603,7 +2606,7 @@ function SubmittedScreen({ reference, onDone }: { reference: string | null; onDo
       </motion.p>
       <motion.button
         onClick={onDone}
-        className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-8 py-3.5 text-[14px] font-medium text-foreground transition hover:bg-accent"
+        className="flex min-h-12 items-center gap-2 rounded-2xl border border-primary/35 bg-primary/10 px-8 py-3.5 text-[14px] font-bold text-foreground transition hover:border-primary/60 hover:bg-primary/15"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.32 }}
