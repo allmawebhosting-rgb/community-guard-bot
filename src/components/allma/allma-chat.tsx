@@ -1047,13 +1047,13 @@ export function AllmaChat({
       />
 
       {isEmpty ? (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="mx-auto w-full px-0 pb-6 lg:px-0">
             <AssistantHero onSelect={send} />
           </div>
         </div>
       ) : (
-        <Conversation className="min-h-0 flex-1">
+        <Conversation className="min-h-0 flex-1 overscroll-contain">
           <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6 lg:px-8">
             <div className="flex flex-col gap-6 pt-6">
               {messages.map((message, msgIndex) => (

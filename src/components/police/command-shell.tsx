@@ -343,9 +343,9 @@ export function CommandShell({
         {/* Page content */}
         <main
           className={cn(
-            "min-w-0 flex-1 px-5 pt-6 lg:px-8",
+            "min-h-0 min-w-0 flex-1 px-5 pt-6 lg:px-8",
             pathname === "/police/ai"
-              ? "flex flex-col overflow-hidden pb-20 lg:pb-8"
+              ? "flex h-full flex-col overflow-hidden pb-20 lg:pb-8"
               : "overflow-y-auto pb-8",
           )}
         >

@@ -505,16 +505,28 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 /* ─── AppShell ─────────────────────────────────────────────────────────── */
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isChat = pathname === "/chat" || pathname.startsWith("/chat/");
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full min-w-0 overflow-x-hidden bg-background">
+    <div
+      className={cn(
+        "relative flex w-full min-w-0 overflow-x-hidden bg-background",
+        isChat ? "h-[100dvh] max-h-[100dvh] overflow-hidden" : "min-h-[100dvh]",
+      )}
+    >
       <div className="signal-streak pointer-events-none fixed inset-0 -z-10 opacity-70" />
 
       {/* Desktop persistent sidebar */}
       <DesktopSidebar />
 
       {/* Content column — shifts right on desktop to clear the sidebar */}
-      <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col lg:ml-[260px]">
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col lg:ml-[260px]",
+          isChat ? "h-full min-h-0 overflow-hidden" : "min-h-[100dvh]",
+        )}
+      >
         {/* Mobile-only header */}
         <header className="no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl lg:hidden">
           <div className="mx-auto grid h-14 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4">
@@ -564,7 +576,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         </header>
 
         {/* Main content — no max-w constraint; children control their own width */}
-        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+        <main className={cn("flex min-h-0 flex-1 flex-col", isChat && "overflow-hidden")}>
+          {children}
+        </main>
       </div>
 
       {/* Mobile drawer */}

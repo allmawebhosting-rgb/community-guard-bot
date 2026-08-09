@@ -184,7 +184,7 @@ function PoliceAIPage() {
       </div>
 
       {/* ── MESSAGES ────────────────────────────────────────────────────── */}
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-1 pr-0.5">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-1 pr-0.5">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
