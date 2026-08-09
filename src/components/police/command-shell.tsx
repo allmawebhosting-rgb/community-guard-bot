@@ -97,8 +97,20 @@ export function CommandShell({
     .join("")
     .toUpperCase();
 
+  const isPoliceAI = pathname === "/police/ai";
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("viewport-locked", isPoliceAI);
+    document.body.classList.toggle("viewport-locked", isPoliceAI);
+
+    return () => {
+      document.documentElement.classList.remove("viewport-locked");
+      document.body.classList.remove("viewport-locked");
+    };
+  }, [isPoliceAI]);
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden bg-background">
 
       {/* ── SIDEBAR premium dark ─────────────────────────────────────────── */}
       <aside
@@ -345,7 +357,7 @@ export function CommandShell({
           className={cn(
             "min-h-0 min-w-0 flex-1 px-5 pt-6 lg:px-8",
             pathname === "/police/ai"
-              ? "flex h-full flex-col overflow-hidden pb-20 lg:pb-8"
+              ? "flex min-h-0 flex-col overflow-hidden pb-20 lg:pb-8"
               : "overflow-y-auto pb-8",
           )}
         >

@@ -222,6 +222,14 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  html.viewport-locked,
+  body.viewport-locked {
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   h1,
   h2,
   h3,

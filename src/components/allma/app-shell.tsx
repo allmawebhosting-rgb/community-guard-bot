@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
@@ -508,6 +508,16 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isChat = pathname === "/chat" || pathname.startsWith("/chat/");
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("viewport-locked", isChat);
+    document.body.classList.toggle("viewport-locked", isChat);
+
+    return () => {
+      document.documentElement.classList.remove("viewport-locked");
+      document.body.classList.remove("viewport-locked");
+    };
+  }, [isChat]);
+
   return (
     <div
       className={cn(
@@ -524,7 +534,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       <div
         className={cn(
           "flex min-w-0 flex-1 flex-col lg:ml-[260px]",
-          isChat ? "h-full min-h-0 overflow-hidden" : "min-h-[100dvh]",
+          isChat ? "min-h-0 overflow-hidden" : "min-h-[100dvh]",
         )}
       >
         {/* Mobile-only header */}
