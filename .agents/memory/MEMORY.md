@@ -2,3 +2,4 @@
 - [Supabase CLI network](supabase-cli-network.md) — Linked migration commands may need the documented IPv4 link workaround in this environment.
 - [Imported project dependency bootstrap](imported-project-dependency-bootstrap.md) — Restoring missing npm dependencies may rewrite semver-resolved lockfile entries; review and revert incidental drift.
 - [Mobile chat viewport containment](mobile-chat-viewport-containment.md) — Chat shells need both flex-boundary sizing and a route-scoped root scroll lock on mobile.
+- [SSR onboarding animation](onboarding-animation-hydration.md) — First-render onboarding content must not start hidden or hydration can leave the route visually blank.

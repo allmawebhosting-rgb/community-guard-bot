@@ -13,6 +13,8 @@ import {
   LockKeyhole,
   MapPin,
   Plus,
+  ShieldCheck,
+  SlidersHorizontal,
   Shield,
   Sparkles,
   Trash2,
@@ -48,6 +50,7 @@ type CircleMember = {
   id: number;
   name: string;
   relationship: string;
+  method: "Allma username" | "Verified phone" | "QR code";
   status: "pending" | "connected";
 };
 
@@ -87,6 +90,7 @@ type OnboardingDraft = {
   location: "unknown" | "allowed" | "declined";
   members: CircleMember[];
   plan: typeof DEFAULT_PLAN;
+  locationMode: "approximate" | "exact-after-accept" | "never";
 };
 
 const initialDraft: OnboardingDraft = {
@@ -98,6 +102,7 @@ const initialDraft: OnboardingDraft = {
   location: "unknown",
   members: [],
   plan: DEFAULT_PLAN,
+  locationMode: "approximate",
 };
 
 function OnboardingPage() {
@@ -106,6 +111,7 @@ function OnboardingPage() {
   const [hydrated, setHydrated] = useState(false);
   const [memberName, setMemberName] = useState("");
   const [relationship, setRelationship] = useState("Family");
+  const [inviteMethod, setInviteMethod] = useState<CircleMember["method"]>("Allma username");
   const [addingMember, setAddingMember] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
 
@@ -116,6 +122,7 @@ function OnboardingPage() {
       ...saved,
       plan: { ...DEFAULT_PLAN, ...(saved.plan ?? {}) },
       members: saved.members ?? [],
+      locationMode: saved.locationMode ?? "approximate",
     });
     setHydrated(true);
   }, []);
@@ -145,10 +152,22 @@ function OnboardingPage() {
     const name = memberName.trim();
     if (!name) return;
     update({
-      members: [...draft.members, { id: Date.now(), name, relationship, status: "pending" }],
+      members: [
+        ...draft.members,
+        { id: Date.now(), name, relationship, method: inviteMethod, status: "pending" },
+      ],
     });
     setMemberName("");
     setAddingMember(false);
+  }
+
+  function moveMember(id: number, direction: -1 | 1) {
+    const index = draft.members.findIndex((member) => member.id === id);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= draft.members.length) return;
+    const members = [...draft.members];
+    [members[index], members[nextIndex]] = [members[nextIndex], members[index]];
+    update({ members });
   }
 
   function removeMember(id: number) {
@@ -230,10 +249,10 @@ function OnboardingPage() {
             </div>
           </div>
 
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 18 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -18 }}
               transition={{ duration: 0.22 }}
@@ -264,13 +283,16 @@ function OnboardingPage() {
                   members={draft.members}
                   name={memberName}
                   relationship={relationship}
+                  method={inviteMethod}
                   adding={addingMember}
                   onNameChange={setMemberName}
                   onRelationshipChange={setRelationship}
+                  onMethodChange={setInviteMethod}
                   onAdd={() => setAddingMember(true)}
                   onCancel={() => setAddingMember(false)}
                   onSave={addMember}
                   onRemove={removeMember}
+                  onMove={moveMember}
                   onNext={next}
                   onBack={back}
                 />
@@ -278,7 +300,9 @@ function OnboardingPage() {
               {step === 4 && (
                 <PlanStep
                   plan={draft.plan}
+                  locationMode={draft.locationMode}
                   onChange={(plan) => update({ plan })}
+                  onLocationModeChange={(locationMode) => update({ locationMode })}
                   onNext={next}
                   onBack={back}
                 />
@@ -572,26 +596,32 @@ function CircleStep({
   members,
   name,
   relationship,
+  method,
   adding,
   onNameChange,
   onRelationshipChange,
+  onMethodChange,
   onAdd,
   onCancel,
   onSave,
   onRemove,
+  onMove,
   onNext,
   onBack,
 }: {
   members: CircleMember[];
   name: string;
   relationship: string;
+  method: CircleMember["method"];
   adding: boolean;
   onNameChange: (v: string) => void;
   onRelationshipChange: (v: string) => void;
+  onMethodChange: (v: CircleMember["method"]) => void;
   onAdd: () => void;
   onCancel: () => void;
   onSave: () => void;
   onRemove: (id: number) => void;
+  onMove: (id: number, direction: -1 | 1) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
@@ -610,12 +640,23 @@ function CircleStep({
           their availability and the permissions they give.
         </p>
       </div>
+      <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <span>{members.length ? `${members.length} invited` : "No one invited yet"}</span>
+        {members.length > 0 && (
+          <span className="flex items-center gap-1 text-trusted">
+            <SlidersHorizontal className="h-3 w-3" /> Priority order
+          </span>
+        )}
+      </div>
       <div className="space-y-2">
         {members.map((member) => (
           <div
             key={member.id}
-            className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/45 p-3"
+            className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/45 p-3 transition-colors hover:border-trusted/35"
           >
+            <span className="w-4 shrink-0 text-center font-display text-xs font-bold text-muted-foreground/60">
+              {members.indexOf(member) + 1}
+            </span>
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-trusted/30 to-primary/20 text-sm font-bold text-trusted">
               {member.name.slice(0, 1).toUpperCase()}
             </div>
@@ -624,6 +665,34 @@ function CircleStep({
               <p className="text-[11px] text-muted-foreground">
                 {member.relationship} · <span className="text-gold">Invitation pending</span>
               </p>
+            </div>
+            <div className="hidden flex-col items-end gap-1 sm:flex">
+              <span className="rounded-full border border-border/60 px-2 py-0.5 text-[9px] text-muted-foreground">
+                {member.method}
+              </span>
+              <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                <Clock3 className="h-3 w-3" /> Awaiting acceptance
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                aria-label={`Move ${member.name} up`}
+                disabled={members.indexOf(member) === 0}
+                onClick={() => onMove(member.id, -1)}
+                className="text-muted-foreground disabled:opacity-20"
+              >
+                <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Move ${member.name} down`}
+                disabled={members.indexOf(member) === members.length - 1}
+                onClick={() => onMove(member.id, 1)}
+                className="text-muted-foreground disabled:opacity-20"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
             </div>
             <button
               type="button"
@@ -662,8 +731,26 @@ function CircleStep({
               ))}
             </select>
           </div>
+          <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-xl border border-border/50 bg-background/35 p-1">
+            {(["Allma username", "Verified phone", "QR code"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onMethodChange(item)}
+                className={cn(
+                  "rounded-lg px-2 py-2 text-[10px] font-semibold transition-colors",
+                  method === item
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-accent",
+                )}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            You’ll send an invitation — they are not connected until they accept.
+            You’ll send an intentional invitation through Allma. Contacts are never added
+            automatically, and they are not connected until they accept.
           </p>
           <Button onClick={onSave} disabled={!name.trim()} className="mt-4 rounded-full">
             Send request <ArrowRight className="ml-2 h-3.5 w-3.5" />
@@ -690,12 +777,16 @@ function CircleStep({
 
 function PlanStep({
   plan,
+  locationMode,
   onChange,
+  onLocationModeChange,
   onNext,
   onBack,
 }: {
   plan: typeof DEFAULT_PLAN;
+  locationMode: OnboardingDraft["locationMode"];
   onChange: (plan: typeof DEFAULT_PLAN) => void;
+  onLocationModeChange: (mode: OnboardingDraft["locationMode"]) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
@@ -760,11 +851,50 @@ function PlanStep({
           </label>
         ))}
       </div>
-      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-border/50 bg-muted/40 p-4">
-        <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+      <div className="mt-5 rounded-2xl border border-border/50 bg-background/35 p-4">
+        <div className="flex items-start gap-3">
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div>
+            <p className="text-[13px] font-bold">Location sharing during SOS</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              Connected people do not receive your exact location automatically. Choose the most
+              comfortable starting point.
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {(
+            [
+              ["approximate", "Approximate first", "Before a responder accepts"],
+              ["exact-after-accept", "More precise later", "After accepting your SOS"],
+              ["never", "Never share", "Keep location private"],
+            ] as const
+          ).map(([value, title, desc]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onLocationModeChange(value)}
+              className={cn(
+                "rounded-xl border p-3 text-left transition-colors",
+                locationMode === value
+                  ? "border-primary/50 bg-primary/10"
+                  : "border-border/50 bg-background/30 hover:bg-accent/50",
+              )}
+            >
+              <span className="block text-[11px] font-bold">{title}</span>
+              <span className="mt-1 block text-[10px] leading-relaxed text-muted-foreground">
+                {desc}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 flex items-start gap-3 rounded-2xl border border-success/20 bg-success/5 p-4">
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Allma never exposes your private phone number, email or exact location to a connected
-          person unless you explicitly permit it.
+          Your choices are saved on this device. Allma never exposes your private phone number,
+          email or exact location unless you explicitly permit it and it is needed for an active
+          emergency.
         </p>
       </div>
       <FooterActions onBack={onBack} onNext={onNext} nextLabel="Review setup" />
