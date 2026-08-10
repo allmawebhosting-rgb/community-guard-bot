@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Ambulance,
   ArrowUpRight,
@@ -36,10 +36,10 @@ import {
   type EmergencyCategory,
   type EmergencyCommandState,
 } from "@/lib/emergency-communication";
-import { demoVoiceProvider } from "@/lib/voice-provider";
+import { voiceProvider, type VoiceSession, VoiceProviderError } from "@/lib/voice-provider";
 
 type ViewMode = "responder" | "citizen";
-type CallStatus = "ringing" | "connected" | "ended";
+type CallStatus = "connecting" | "ringing" | "connected" | "reconnecting" | "ended" | "failed";
 type ResponderStatus = "accepted" | "en_route" | "arrived" | "completed";
 
 const responder = {
@@ -133,6 +133,8 @@ function StatusPill({
 export function EmergencyCallsWorkspace() {
   const [view, setView] = useState<ViewMode>("responder");
   const [callStatus, setCallStatus] = useState<CallStatus>("ringing");
+  const [voiceSession, setVoiceSession] = useState<VoiceSession | null>(null);
+  const [callError, setCallError] = useState<string | null>(null);
   const [responderStatus, setResponderStatus] = useState<ResponderStatus>("accepted");
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(false);
@@ -143,7 +145,8 @@ export function EmergencyCallsWorkspace() {
     { author: "Sarah", text: "I’m on my way. Please stay where you are." },
   ]);
 
-  const isConnected = callStatus === "connected";
+  const isConnected = callStatus === "connected" && voiceSession?.providerConfirmed === true;
+  const isDemo = !voiceSession || voiceSession.provider === "demo";
   const currentStatus = statusCopy[responderStatus];
   const officialEscalation = shouldEscalateOfficially("medical", "critical", true);
   const commandState: EmergencyCommandState =
@@ -159,8 +162,8 @@ export function EmergencyCallsWorkspace() {
     () => [
       {
         name: "Sarah · Verified first aider",
-        status: isConnected ? "Connected" : "Calling",
-        tone: isConnected ? "green" : "red",
+        status: isConnected ? "Connected" : isDemo ? "Demo only" : "Awaiting confirmation",
+        tone: isConnected ? "green" : isDemo ? "amber" : "red",
       },
       { name: "David · Trusted family", status: "Queued", tone: "amber" },
       {
@@ -172,16 +175,64 @@ export function EmergencyCallsWorkspace() {
     [isConnected, officialEscalation],
   );
 
+  useEffect(
+    () =>
+      voiceProvider.subscribe((session) => {
+        setVoiceSession(session);
+        setCallStatus(session.status);
+      }),
+    [],
+  );
+
   async function acceptCall() {
-    await demoVoiceProvider.acceptCall({ callId: "ASA-000128" });
-    setCallStatus("connected");
-    setChat((items) => [
-      ...items,
-      {
-        author: "system",
-        text: "Demo call connected. No microphone or real recipient is connected.",
-      },
-    ]);
+    setCallError(null);
+    setCallStatus("connecting");
+    try {
+      const session = await voiceProvider.acceptCall({ callId: "ASA-000128" });
+      setVoiceSession(session);
+      setCallStatus(session.status);
+      if (session.status !== "connected" || !session.providerConfirmed) {
+        setChat((items) => [
+          ...items,
+          {
+            author: "system",
+            text:
+              session.provider === "demo"
+                ? "Demo mode: no microphone or real recipient is connected."
+                : "Provider session created. Waiting for confirmed connection.",
+          },
+        ]);
+      }
+    } catch (error) {
+      const message =
+        error instanceof VoiceProviderError
+          ? error.message
+          : "The call could not be started. No connection was confirmed.";
+      setCallStatus("failed");
+      setCallError(message);
+      setChat((items) => [...items, { author: "system", text: message }]);
+    }
+  }
+
+  async function endCall() {
+    try {
+      await voiceProvider.endCall({ callId: "ASA-000128" });
+    } catch {
+      // The UI still moves to an ended, non-connected state if the provider
+      // cannot be reached. It never claims the end was confirmed.
+    }
+    setCallStatus("ended");
+    setVoiceSession((session) =>
+      session ? { ...session, status: "ended", providerConfirmed: false } : session,
+    );
+  }
+
+  function toggleMute() {
+    setMuted((value) => {
+      const next = !value;
+      voiceProvider.setMuted(next);
+      return next;
+    });
   }
 
   function sendMessage() {
@@ -208,7 +259,9 @@ export function EmergencyCallsWorkspace() {
             <div className="mb-2 flex items-center gap-2">
               <Siren className="h-4 w-4 text-destructive" />
               <SectionLabel>Emergency communication</SectionLabel>
-              <StatusPill tone="amber">Demo call mode</StatusPill>
+              <StatusPill tone={isDemo ? "amber" : "blue"}>
+                {isDemo ? "Demo call mode" : "Provider call mode"}
+              </StatusPill>
             </div>
             <h1 className="font-display text-2xl font-black tracking-[-0.03em] lg:text-4xl">
               Emergency calls
@@ -263,12 +316,24 @@ export function EmergencyCallsWorkspace() {
                       <p className="text-[11.5px] text-muted-foreground">
                         {view === "responder"
                           ? "Sarah may need your help"
-                          : `Connected to ${responder.name}`}
+                          : isConnected
+                            ? `Connected to ${responder.name}`
+                            : "Waiting for confirmed provider connection"}
                       </p>
                     </div>
                   </div>
-                  <StatusPill tone={isConnected ? "green" : "red"}>
-                    {isConnected ? "Connected" : "Calling"}
+                  <StatusPill
+                    tone={isConnected ? "green" : callStatus === "failed" ? "red" : "amber"}
+                  >
+                    {isConnected
+                      ? "Connected"
+                      : callStatus === "reconnecting"
+                        ? "Reconnecting"
+                        : callStatus === "failed"
+                          ? "Not connected"
+                          : isDemo
+                            ? "Demo only"
+                            : "Calling"}
                   </StatusPill>
                 </div>
               </div>
@@ -337,12 +402,12 @@ export function EmergencyCallsWorkspace() {
                     <InfoCell
                       icon={Radio}
                       label="Connection"
-                      value={isConnected ? "Secure demo" : "Awaiting response"}
-                      tone="green"
+                      value={isConnected ? "Provider confirmed" : "Not confirmed"}
+                      tone={isConnected ? "green" : "amber"}
                     />
                   </div>
                   <div className="flex flex-wrap justify-center gap-2 pt-1">
-                    {view === "responder" && !isConnected ? (
+                    {view === "responder" && !isConnected && callStatus !== "ended" ? (
                       <>
                         <Button
                           onClick={acceptCall}
@@ -351,7 +416,7 @@ export function EmergencyCallsWorkspace() {
                           <PhoneCall className="mr-1.5 h-4 w-4" /> Accept
                         </Button>
                         <Button
-                          onClick={() => setCallStatus("ended")}
+                          onClick={() => void endCall()}
                           variant="outline"
                           className="h-11 flex-1 rounded-2xl border-destructive/30 text-destructive hover:bg-destructive/5"
                         >
@@ -362,7 +427,7 @@ export function EmergencyCallsWorkspace() {
                       <>
                         <ControlButton
                           active={muted}
-                          onClick={() => setMuted((value) => !value)}
+                          onClick={toggleMute}
                           icon={muted ? MicOff : Mic}
                           label={muted ? "Unmute" : "Mute"}
                         />
@@ -378,7 +443,7 @@ export function EmergencyCallsWorkspace() {
                           label="Chat"
                         />
                         <ControlButton
-                          onClick={() => setCallStatus("ended")}
+                          onClick={() => void endCall()}
                           icon={PhoneOff}
                           label="End"
                           danger
@@ -392,12 +457,17 @@ export function EmergencyCallsWorkspace() {
                       role-relevant summary are shown.
                     </p>
                   )}
+                  {callError && (
+                    <p className="text-center text-[10.5px] leading-relaxed text-destructive">
+                      {callError}
+                    </p>
+                  )}
                 </div>
               </div>
               {callStatus === "ended" && (
                 <div className="border-t border-border/50 bg-secondary/25 px-5 py-4 text-center text-[12px] text-muted-foreground">
-                  This demo call ended. The SOS session remains independent and can still be
-                  escalated.
+                  This call ended without a provider-confirmed connection. The SOS session remains
+                  independent and can still be escalated.
                 </div>
               )}
             </motion.section>
@@ -527,7 +597,7 @@ export function EmergencyCallsWorkspace() {
                     ? [
                         {
                           time: "13:43",
-                          label: "Sarah accepted · demo call connected",
+                          label: "Sarah accepted · provider connection confirmed",
                           tone: "green",
                         },
                       ]
@@ -627,7 +697,9 @@ export function EmergencyCallsWorkspace() {
             boundary ready · no provider configured
           </span>
           <span className="font-semibold uppercase tracking-widest text-gold">
-            DEMO · no real call occurred
+            {isDemo
+              ? "DEMO · no real call occurred"
+              : "PROVIDER · connection requires confirmation"}
           </span>
         </div>
       </div>

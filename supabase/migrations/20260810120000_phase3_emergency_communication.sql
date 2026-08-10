@@ -10,6 +10,7 @@ create table if not exists public.emergency_calls (
   call_type text not null default 'emergency_assistance',
   status text not null default 'pending' check (status in ('pending','calling','ringing','accepted','declined','no_answer','busy','connected','failed','ended')),
   provider_mode text not null default 'demo' check (provider_mode in ('demo','webrtc')),
+  provider_confirmed boolean not null default false,
   started_at timestamptz,
   ringing_at timestamptz,
   accepted_at timestamptz,
@@ -17,7 +18,10 @@ create table if not exists public.emergency_calls (
   ended_at timestamptz,
   duration integer,
   failure_reason text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint emergency_calls_connected_requires_provider
+    check (status <> 'connected' or (provider_mode = 'webrtc' and provider_confirmed))
 );
 
 create table if not exists public.call_sessions (
@@ -25,8 +29,64 @@ create table if not exists public.call_sessions (
   emergency_call_id uuid not null references public.emergency_calls(id) on delete cascade,
   webrtc_session_id text,
   status text not null default 'connecting' check (status in ('connecting','ringing','connected','reconnecting','poor_connection','disconnected','ended')),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  provider_confirmed boolean not null default false,
+  provider_expires_at timestamptz,
+  last_provider_event_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint call_sessions_connected_requires_provider
+    check (status <> 'connected' or provider_confirmed)
 );
+
+alter table public.emergency_calls
+  add column if not exists provider_confirmed boolean not null default false;
+alter table public.emergency_calls
+  add column if not exists updated_at timestamptz not null default now();
+alter table public.call_sessions
+  add column if not exists provider_confirmed boolean not null default false;
+alter table public.call_sessions
+  add column if not exists provider_expires_at timestamptz;
+alter table public.call_sessions
+  add column if not exists last_provider_event_at timestamptz not null default now();
+alter table public.call_sessions
+  add column if not exists updated_at timestamptz not null default now();
+
+-- Existing preview/demo rows must not block the production invariant. They are
+-- retained as ended audit history rather than being upgraded to connected.
+update public.emergency_calls
+set status = 'ended',
+    ended_at = coalesce(ended_at, now()),
+    failure_reason = coalesce(failure_reason, 'Legacy demo state was never provider-confirmed.'),
+    updated_at = now()
+where status = 'connected'
+  and (provider_mode <> 'webrtc' or not provider_confirmed);
+
+update public.call_sessions
+set status = 'ended',
+    provider_confirmed = false,
+    updated_at = now()
+where status = 'connected'
+  and not provider_confirmed;
+
+-- Keep the invariant active for databases that created these tables before
+-- provider confirmation columns were added.
+do $$
+begin
+  alter table public.emergency_calls
+    add constraint emergency_calls_connected_requires_provider
+    check (status <> 'connected' or (provider_mode = 'webrtc' and provider_confirmed));
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter table public.call_sessions
+    add constraint call_sessions_connected_requires_provider
+    check (status <> 'connected' or provider_confirmed);
+exception
+  when duplicate_object then null;
+end $$;
 
 create table if not exists public.responder_assignments (
   id uuid primary key default gen_random_uuid(),
