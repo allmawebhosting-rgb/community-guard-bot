@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { createThread, threadsQueryOptions } from "@/lib/threads";
+import { useRequireOnboarding } from "@/lib/onboarding";
 import { DISCLAIMER, EMERGENCY_NUMBERS, REPORT_TYPE_LABELS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +45,7 @@ const riskTone: Record<string, string> = {
 
 function Dashboard() {
   const navigate = useNavigate();
+  useRequireOnboarding();
   const queryClient = useQueryClient();
 
   const reports = useQuery({
