@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -109,6 +110,7 @@ function OnboardingPage() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState<OnboardingDraft>(initialDraft);
   const [hydrated, setHydrated] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [memberName, setMemberName] = useState("");
   const [relationship, setRelationship] = useState("Family");
   const [inviteMethod, setInviteMethod] = useState<CircleMember["method"]>("Allma username");
@@ -116,20 +118,106 @@ function OnboardingPage() {
   const [locationBusy, setLocationBusy] = useState(false);
 
   useEffect(() => {
-    const saved = readDraft();
-    setDraft({
-      ...initialDraft,
-      ...saved,
-      plan: { ...DEFAULT_PLAN, ...(saved.plan ?? {}) },
-      members: saved.members ?? [],
-      locationMode: saved.locationMode ?? "approximate",
-    });
-    setHydrated(true);
+    let active = true;
+
+    void (async () => {
+      const saved = readDraft();
+      const local: OnboardingDraft = {
+        ...initialDraft,
+        ...saved,
+        plan: { ...DEFAULT_PLAN, ...(saved.plan ?? {}) },
+        members: saved.members ?? [],
+        locationMode: saved.locationMode ?? "approximate",
+      };
+
+      const { data: auth } = await supabase.auth.getUser();
+      const id = auth.user?.id ?? null;
+      if (!active) return;
+      setUserId(id);
+
+      if (!id) {
+        setDraft(local);
+        setHydrated(true);
+        return;
+      }
+
+      const [{ data: profile }, { data: contacts }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("full_name, phone, avatar_url, locale, onboarding_step, location_mode, safety_plan")
+          .eq("id", id)
+          .maybeSingle(),
+        supabase
+          .from("emergency_contacts")
+          .select("id, name, relationship")
+          .eq("user_id", id)
+          .order("created_at", { ascending: true }),
+      ]);
+      if (!active) return;
+
+      setDraft({
+        ...local,
+        step: (Number(profile?.onboarding_step ?? local.step) as Step) ?? 0,
+        name: profile?.full_name ?? local.name,
+        phone: profile?.phone ?? local.phone,
+        avatar: profile?.avatar_url ?? local.avatar,
+        language: profile?.locale || local.language,
+        locationMode:
+          (profile?.location_mode as OnboardingDraft["locationMode"]) ?? local.locationMode,
+        plan: { ...DEFAULT_PLAN, ...((profile?.safety_plan as typeof DEFAULT_PLAN | null) ?? {}) },
+        members: contacts?.length
+          ? contacts.map((contact, index) => ({
+              id: index + 1,
+              name: contact.name,
+              relationship: contact.relationship ?? "Family",
+              method: "Allma username" as const,
+              status: "pending" as const,
+            }))
+          : local.members,
+      });
+      setHydrated(true);
+    })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
     if (hydrated) localStorage.setItem("allma-onboarding-draft", JSON.stringify(draft));
   }, [draft, hydrated]);
+
+  // Persist progress to the account whenever the draft changes.
+  useEffect(() => {
+    if (!hydrated || !userId) return;
+    const timer = setTimeout(() => {
+      void supabase.from("profiles").upsert({
+        id: userId,
+        full_name: draft.name.trim() || null,
+        phone: draft.phone.trim() || null,
+        avatar_url: draft.avatar || null,
+        locale: draft.language,
+        onboarding_step: draft.step,
+        location_mode: draft.locationMode,
+        safety_plan: draft.plan,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [draft, hydrated, userId]);
+
+  async function syncMembers(members: CircleMember[]) {
+    if (!userId) return;
+    await supabase.from("emergency_contacts").delete().eq("user_id", userId);
+    if (!members.length) return;
+    await supabase.from("emergency_contacts").insert(
+      members.map((member) => ({
+        user_id: userId,
+        name: member.name,
+        phone: "",
+        relationship: member.relationship,
+      })),
+    );
+  }
 
   const step = draft.step;
   const progress = Math.round((step / (STEP_LABELS.length - 1)) * 100);
@@ -151,12 +239,12 @@ function OnboardingPage() {
   function addMember() {
     const name = memberName.trim();
     if (!name) return;
-    update({
-      members: [
-        ...draft.members,
-        { id: Date.now(), name, relationship, method: inviteMethod, status: "pending" },
-      ],
-    });
+    const members: CircleMember[] = [
+      ...draft.members,
+      { id: Date.now(), name, relationship, method: inviteMethod, status: "pending" },
+    ];
+    update({ members });
+    void syncMembers(members);
     setMemberName("");
     setAddingMember(false);
   }
@@ -168,10 +256,13 @@ function OnboardingPage() {
     const members = [...draft.members];
     [members[index], members[nextIndex]] = [members[nextIndex], members[index]];
     update({ members });
+    void syncMembers(members);
   }
 
   function removeMember(id: number) {
-    update({ members: draft.members.filter((member) => member.id !== id) });
+    const members = draft.members.filter((member) => member.id !== id);
+    update({ members });
+    void syncMembers(members);
   }
 
   function requestLocation() {
@@ -194,8 +285,23 @@ function OnboardingPage() {
     );
   }
 
-  function finish() {
+  async function finish() {
     localStorage.setItem("allma-onboarding-complete", "true");
+    if (!userId) {
+      navigate({ to: "/auth", search: { next: "/onboarding" } });
+      return;
+    }
+    await supabase.from("profiles").upsert({
+      id: userId,
+      full_name: draft.name.trim() || null,
+      phone: draft.phone.trim() || null,
+      avatar_url: draft.avatar || null,
+      locale: draft.language,
+      onboarding_step: draft.step,
+      location_mode: draft.locationMode,
+      safety_plan: draft.plan,
+      onboarding_completed: true,
+    });
     navigate({ to: "/chat" });
   }
 
