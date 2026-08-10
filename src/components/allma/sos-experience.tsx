@@ -611,12 +611,12 @@ function getAiMessages(type: string, location: LocationInfo | null): string[] {
     other: `Stay calm and remain in a safe location if possible. Choose the appropriate call option below.`,
   };
   return [
-    `Emergency mode activated. I'm locating you and determining the fastest available assistance.`,
+    `Emergency mode is active. I'm going to help you step by step.`,
     location
-      ? `Your location is available in ${loc}. You decide which contacts receive it.`
-      : `Location is unavailable or not shared. You can still call for help.`,
+      ? `Your location has been found in ${loc}. You decide which contacts receive it.`
+      : `I couldn't use GPS. You can still call for help or share a nearby landmark.`,
     typeMsg[type] ?? typeMsg.other,
-    `If you consented, I'm checking for opted-in Allma responders within ${(COMMUNITY_RADIUS[type] ?? 1000) / 1000} km. Their exact locations stay private.`,
+    `The response path is ready. No authority or responder has been contacted automatically.`,
   ];
 }
 
@@ -1608,8 +1608,8 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
             </a>
           ))}
           <div className="rounded-2xl border border-border/60 bg-secondary/40 px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
-            Allma AI guides you through an emergency, locates nearby services, and connects
-            community responders — automatically.
+            Allma AI guides you through an emergency, helps locate nearby services, and keeps you in
+            control of every contact.
           </div>
         </motion.div>
       </div>
@@ -1860,7 +1860,7 @@ function LoadingScreen() {
   const [step, setStep] = useState(0);
   const [aiText, setAiText] = useState("");
   const aiFull =
-    "Emergency mode activated. I'm locating you and determining the fastest available assistance.";
+    "Emergency mode is active. I'm going to help you step by step.";
 
   useEffect(() => {
     const t1 = setTimeout(() => setStep(1), 900);
@@ -2089,10 +2089,18 @@ function HelpScreen({
   const TIMELINE = [
     { label: "SOS Activated", sub: "Emergency mode engaged" },
     {
-      label: locationShared ? "Location Shared" : "Location Not Shared",
-      sub: locationShared
-        ? [location?.suburb, location?.district].filter(Boolean).join(", ") || "Current area"
-        : "You chose not to share GPS",
+      label:
+        locationState === "found" || locationState === "approximate"
+          ? "Location Acquired"
+          : locationState === "finding"
+            ? "Finding Location"
+            : "Location Not Available",
+      sub:
+        locationState === "found" || locationState === "approximate"
+          ? [location?.suburb, location?.district].filter(Boolean).join(", ") || "Current area"
+          : locationState === "finding"
+            ? "Allma is checking your device location"
+            : "You can continue without GPS",
     },
     { label: "Response Path Ready", sub: "Tap a call action when you are ready" },
     {
@@ -2104,15 +2112,20 @@ function HelpScreen({
     {
       label: "Live Response Status",
       sub: liveOffers.length
-        ? `${liveOffers.length} opted-in people alerted`
-        : "Waiting for a responder to accept",
+        ? `${liveOffers.length} opted-in responder${liveOffers.length === 1 ? "" : "s"} found`
+        : respondersNotified
+          ? "No responder has accepted yet"
+          : "Responder search is off",
     },
   ];
-  const [timelineDone, setTimelineDone] = useState(locationShared ? 2 : 1);
+  const [timelineDone, setTimelineDone] = useState(1);
 
   useEffect(() => {
     const ts: ReturnType<typeof setTimeout>[] = [];
     const add = (ms: number, fn: () => void) => ts.push(setTimeout(fn, ms));
+    if (locationState === "found" || locationState === "approximate") {
+      setTimelineDone((current) => Math.max(current, 2));
+    }
     if (
       emergencyType === "medical" ||
       emergencyType === "accident" ||
@@ -2133,7 +2146,7 @@ function HelpScreen({
       add(2800, () => setTimelineDone(3));
     }
     return () => ts.forEach(clearTimeout);
-  }, [emergencyType, respondersNotified]);
+  }, [emergencyType, respondersNotified, locationState]);
 
   // ── Shared sections (rendered on both mobile and desktop) ──
   const AiSection = (
@@ -2270,7 +2283,7 @@ function HelpScreen({
               {e.number}
             </span>
             <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] opacity-75">
-              {calledTargets.includes(e.label) ? "Call started" : e.label}
+              {calledTargets.includes(e.label) ? "Dialer opened" : e.label}
             </span>
           </a>
         ))}
@@ -2448,7 +2461,10 @@ function HelpScreen({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-bold text-foreground">{currentLocationCopy.label}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            Live location
+          </p>
+          <p className="mt-1 text-[12px] font-bold text-foreground">{currentLocationCopy.label}</p>
           <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
             {location
               ? `${currentLocationCopy.detail} Last updated ${new Date(location.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
@@ -2461,7 +2477,7 @@ function HelpScreen({
             onClick={onEnableLocation}
             className="shrink-0 rounded-lg border border-gold/30 bg-background/50 px-2.5 py-2 text-[10px] font-bold text-gold transition hover:bg-background/80"
           >
-            Enable
+            Enable location
           </button>
         )}
       </div>
@@ -2499,7 +2515,7 @@ function HelpScreen({
           label="Location"
           value={
             locationShared && location
-              ? `Shared · ±${Math.round(location.accuracy)} m`
+              ? `Live · ±${Math.round(location.accuracy)} m`
               : "Not shared"
           }
           color="green"
@@ -2508,7 +2524,7 @@ function HelpScreen({
         <StatusTile
           icon={Shield}
           label="Police"
-          value={calledTargets.includes("Police") ? "Call started" : "Ready to call"}
+          value={calledTargets.includes("Police") ? "Dialer opened" : "Ready to call"}
           color="blue"
           visible={
             status.police ||
@@ -2520,7 +2536,7 @@ function HelpScreen({
         <StatusTile
           icon={Heart}
           label="Medical"
-          value={calledTargets.includes("Ambulance") ? "Call started" : "Ready to call"}
+          value={calledTargets.includes("Ambulance") ? "Dialer opened" : "Ready to call"}
           color="green"
           visible={status.hospital || emergencyType === "medical" || emergencyType === "accident"}
         />
@@ -2994,7 +3010,9 @@ function SubmittedScreen({ reference, onDone }: { reference: string | null; onDo
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.28 }}
       >
-        The nearest response team has been notified. Stay safe and remain in a secure location.
+         Your report is saved locally with the reference above. Allma has not contacted an authority
+         or responder automatically. Stay safe and use the official call options if you need urgent
+         help.
       </motion.p>
       <motion.button
         onClick={onDone}
