@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { DISCLAIMER } from "@/lib/allma";
+import { resolvePostAuthPath } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { next?: string } =>
@@ -53,9 +54,15 @@ const TRUST_POINTS = [
 function AuthPage() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
-  const goNext = () => {
-    if (next) window.location.href = next;
-    else navigate({ to: "/dashboard", replace: true });
+  const goNext = async (userId?: string) => {
+    const id = userId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (!id) {
+      navigate({ to: "/auth", replace: true });
+      return;
+    }
+    const target = await resolvePostAuthPath(id, next);
+    if (target === next) window.location.href = target;
+    else navigate({ to: target, replace: true });
   };
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,7 +72,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) goNext();
+      if (data.session) void goNext(data.session.user.id);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, next]);
@@ -77,7 +84,7 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setLoading(false);
     if (error) return toast.error(error.message);
-    goNext();
+    void goNext();
   }
 
   async function signUp() {
@@ -94,7 +101,7 @@ function AuthPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     if (!data.session) { setCheckEmail(true); return; }
-    goNext();
+    void goNext(data.session.user.id);
   }
 
   async function google() {
@@ -103,7 +110,7 @@ function AuthPage() {
     });
     if (result.error) return toast.error("Google sign-in failed. Please try again.");
     if (result.redirected) return;
-    goNext();
+    void goNext();
   }
 
   return (
