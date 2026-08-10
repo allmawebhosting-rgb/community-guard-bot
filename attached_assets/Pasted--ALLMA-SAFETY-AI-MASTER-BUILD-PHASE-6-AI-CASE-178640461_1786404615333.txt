@@ -1,0 +1,2115 @@
+==================================================
+ALLMA SAFETY AI
+MASTER BUILD — PHASE 6
+AI CASE INTELLIGENCE & INVESTIGATION ASSISTANT
+==================================================
+
+IMPORTANT:
+
+This is PHASE 6 of Allma Safety AI.
+
+DO NOT rebuild, remove, or break:
+
+PHASE 1
+• Citizen onboarding
+• Emergency Circle
+• Trusted contacts
+• Permissions
+• Responder profiles
+
+PHASE 2
+• SOS
+• Real-time location
+• AI emergency assessment
+• Emergency classification
+• Severity
+• Emergency timeline
+
+PHASE 3
+• In-app emergency communication
+• Voice calls
+• Emergency escalation
+
+PHASE 4
+• Community responders
+• Responder matching
+• Responder verification
+• Responder availability
+• Responder assignments
+
+PHASE 5
+• Official authority escalation
+• Police dashboard
+• Authority routing
+• Dispatch workflow
+• Officer assignment
+• Official case management
+• Evidence/media handling
+• Audit logs
+
+EXTEND THE EXISTING SYSTEM.
+
+==================================================
+1. PURPOSE
+==================================================
+
+Transform Allma from an emergency chatbot into an intelligent CASE ASSISTANCE SYSTEM.
+
+Allma should help authorized responders understand:
+
+WHAT HAPPENED
+
+WHERE IT HAPPENED
+
+WHEN IT HAPPENED
+
+WHO IS INVOLVED
+
+WHAT THE CITIZEN REPORTED
+
+WHAT HAS BEEN CONFIRMED
+
+WHAT REMAINS UNKNOWN
+
+WHAT ACTIONS HAVE ALREADY BEEN TAKEN
+
+WHAT QUESTIONS SHOULD BE ASKED NEXT
+
+WHAT INFORMATION MAY BE RELEVANT
+
+WHETHER OTHER CASES MAY BE CONNECTED
+
+IMPORTANT:
+
+Allma is an ASSISTANT.
+
+It must never independently determine guilt, declare someone a criminal, fabricate evidence, or replace an authorized investigator/officer.
+
+==================================================
+2. AI CASE INTELLIGENCE ENGINE
+==================================================
+
+Create a server-side AI case intelligence engine.
+
+Inputs may include:
+
+Citizen conversation
+
+SOS information
+
+Location
+
+Time
+
+Emergency category
+
+Severity
+
+Uploaded photos
+
+Uploaded videos
+
+Audio
+
+Documents
+
+Responder reports
+
+Officer updates
+
+Authority updates
+
+Case history
+
+Related incidents
+
+Publicly available information where legally permitted
+
+System events
+
+The AI should convert these inputs into structured intelligence.
+
+==================================================
+3. CASE FACTS
+==================================================
+
+Create a structured:
+
+CASE FACTS
+
+Separate information into:
+
+CONFIRMED
+
+REPORTED
+
+UNCONFIRMED
+
+AI INFERENCE
+
+MISSING INFORMATION
+
+CONFLICTING INFORMATION
+
+Example:
+
+CONFIRMED:
+GPS location received at 14:22.
+
+REPORTED:
+Citizen says someone attacked them.
+
+UNCONFIRMED:
+Identity of alleged attacker.
+
+AI INFERENCE:
+Possible assault.
+
+MISSING:
+Exact incident time.
+
+This distinction is mandatory.
+
+==================================================
+4. NEVER INVENT INFORMATION
+==================================================
+
+The AI must NEVER:
+
+Invent witnesses.
+
+Invent suspects.
+
+Invent names.
+
+Invent locations.
+
+Invent phone numbers.
+
+Invent police responses.
+
+Invent evidence.
+
+Invent officer actions.
+
+Invent case connections.
+
+Invent timestamps.
+
+Invent medical conditions.
+
+Invent criminal history.
+
+If information is unavailable:
+
+Say:
+
+"Not provided."
+
+"Unknown."
+
+"Requires verification."
+
+==================================================
+5. AI CONFIDENCE
+==================================================
+
+Every AI-generated assessment should have an internal confidence indicator.
+
+Examples:
+
+High
+
+Medium
+
+Low
+
+Do not treat confidence as truth.
+
+For authorized officers:
+
+Show:
+
+AI assessment
+
+Confidence
+
+Evidence supporting assessment
+
+Information missing
+
+==================================================
+6. CASE TIMELINE INTELLIGENCE
+==================================================
+
+Create an intelligent timeline.
+
+Example:
+
+14:21
+Citizen opened SOS.
+
+14:21
+Location acquired.
+
+14:22
+Citizen reported assault.
+
+14:23
+AI classified incident as possible violent crime.
+
+14:24
+Community responder notified.
+
+14:25
+Responder accepted.
+
+14:27
+Police notification sent.
+
+14:30
+Police acknowledged.
+
+14:35
+Officer assigned.
+
+Every event must come from an actual system event.
+
+==================================================
+7. AI EVENT EXTRACTION
+==================================================
+
+Automatically extract important events from conversations.
+
+Example:
+
+Citizen:
+
+"I was walking home around 9pm when two people stopped me."
+
+AI extracts:
+
+Approximate time:
+9:00 PM
+
+Activity:
+Walking home
+
+Reported event:
+Stopped by two people
+
+Number of people:
+2
+
+Location:
+Unknown
+
+These remain:
+
+REPORTED INFORMATION
+
+until verified.
+
+==================================================
+8. SMART QUESTIONING
+==================================================
+
+The AI should ask questions ONE PHASE AT A TIME.
+
+Never overwhelm the citizen.
+
+Example:
+
+Phase 1:
+
+"Are you safe right now?"
+
+Then:
+
+"Do you need immediate medical help?"
+
+Then:
+
+"Where are you now?"
+
+Then:
+
+"What happened?"
+
+Then:
+
+"When did it happen?"
+
+Then:
+
+"Do you know the person involved?"
+
+Then:
+
+"Is anyone else in immediate danger?"
+
+The questions must adapt based on previous answers.
+
+==================================================
+9. QUESTION PRIORITY
+==================================================
+
+Prioritize:
+
+1. Immediate safety
+
+2. Life-threatening conditions
+
+3. Current location
+
+4. Emergency type
+
+5. Immediate danger
+
+6. People involved
+
+7. Time
+
+8. Evidence
+
+9. Witnesses
+
+10. Additional details
+
+Do not ask investigative questions while the citizen is still in immediate danger.
+
+==================================================
+10. AI CONVERSATION STATE
+==================================================
+
+Create conversation states:
+
+INITIAL
+
+SAFETY_CHECK
+
+LOCATION
+
+EMERGENCY_TYPE
+
+SEVERITY
+
+IMMEDIATE_DANGER
+
+INCIDENT_DETAILS
+
+PEOPLE_INVOLVED
+
+MEDIA
+
+WITNESSES
+
+FOLLOW_UP
+
+SUMMARY
+
+ESCALATION
+
+RESOLUTION
+
+The AI should know which phase it is currently in.
+
+==================================================
+11. BEAUTIFUL QUESTION UI
+==================================================
+
+Questions must appear as elegant conversational cards.
+
+Example:
+
+┌─────────────────────────────┐
+│ Are you safe right now?     │
+│                             │
+│ 🟢 Yes, I'm safe            │
+│ 🔴 No, I'm in danger        │
+│ 🟡 I'm not sure             │
+└─────────────────────────────┘
+
+Allow:
+
+Quick answers
+
+Voice input
+
+Text input
+
+Photo upload where relevant
+
+Location sharing where relevant
+
+==================================================
+12. ADAPTIVE QUESTIONS
+==================================================
+
+Questions must change according to the case.
+
+Example:
+
+Medical:
+
+"Is the person conscious?"
+
+"Are they breathing normally?"
+
+"Is there severe bleeding?"
+
+Crime:
+
+"Is the person who harmed you still nearby?"
+
+"Are you currently somewhere safe?"
+
+Missing person:
+
+"When were they last seen?"
+
+"What were they wearing?"
+
+"Where were they last seen?"
+
+Fire:
+
+"Is anyone trapped?"
+
+"Is the fire still active?"
+
+"Are you in a safe location?"
+
+==================================================
+13. DANGER-FIRST LOGIC
+==================================================
+
+If the user indicates immediate danger:
+
+STOP unnecessary questioning.
+
+Show:
+
+"Your safety comes first."
+
+Then provide appropriate emergency actions.
+
+Example:
+
+Move to a safe location.
+
+Contact emergency services.
+
+Activate SOS.
+
+Share location.
+
+Contact trusted person.
+
+Do not make the user complete a long report before receiving emergency assistance.
+
+==================================================
+14. CASE SUMMARY
+==================================================
+
+At any point the AI should be able to generate:
+
+CASE SUMMARY
+
+What happened
+
+When
+
+Where
+
+Who is involved
+
+Current danger
+
+Medical concerns
+
+Evidence
+
+Witnesses
+
+Responder status
+
+Authority status
+
+Unknown information
+
+Recommended next action
+
+==================================================
+15. CITIZEN CONFIRMATION
+==================================================
+
+Before submitting an important report:
+
+Show:
+
+"Here is what I understood."
+
+Then display:
+
+Reported incident
+
+Location
+
+Time
+
+People involved
+
+Uploaded evidence
+
+Ask:
+
+"Is this correct?"
+
+Buttons:
+
+YES, SUBMIT
+
+EDIT
+
+ADD INFORMATION
+
+Never silently alter the citizen's statement.
+
+==================================================
+16. OFFICER CASE BRIEF
+==================================================
+
+Authorized officers receive a concise:
+
+AI CASE BRIEF
+
+Example:
+
+INCIDENT:
+Reported assault
+
+SEVERITY:
+High
+
+CURRENT DANGER:
+Unknown
+
+LOCATION:
+Confirmed
+
+CITIZEN:
+Contact available
+
+COMMUNITY RESPONDER:
+Arrived
+
+OFFICIAL RESPONSE:
+Officer assigned
+
+KEY REPORTED FACTS:
+• Citizen reports being attacked
+• Incident reportedly occurred around 21:00
+• Two people reportedly involved
+
+UNKNOWN:
+• Identity of alleged attackers
+• Exact incident location
+
+RECOMMENDED NEXT QUESTIONS:
+• Is the citizen medically injured?
+• Are there witnesses?
+• Is the alleged attacker still nearby?
+
+==================================================
+17. EVIDENCE INTELLIGENCE
+==================================================
+
+When media is uploaded:
+
+AI can help organize it.
+
+For images:
+
+Identify visible objects or general scene characteristics.
+
+For audio:
+
+Transcribe where technically possible.
+
+For video:
+
+Generate a summary of observable content.
+
+IMPORTANT:
+
+AI observations are NOT automatically evidence conclusions.
+
+Use:
+
+"AI observed..."
+
+not:
+
+"This proves..."
+
+==================================================
+18. IMAGE ANALYSIS
+==================================================
+
+For uploaded images:
+
+Generate:
+
+Image description
+
+Visible objects
+
+Scene characteristics
+
+Potentially relevant details
+
+Timestamp if available from trusted metadata
+
+Location metadata if legitimately available
+
+Do not identify a person as a criminal based on appearance.
+
+Do not make unsupported identity claims.
+
+==================================================
+19. VIDEO ANALYSIS
+==================================================
+
+For uploaded videos:
+
+Create:
+
+Duration
+
+Transcript where available
+
+Scene summary
+
+Important timestamps
+
+Observable events
+
+Potentially relevant segments
+
+Do not fabricate events that cannot be observed.
+
+==================================================
+20. AUDIO ANALYSIS
+==================================================
+
+For uploaded audio:
+
+Transcribe where technically possible.
+
+Store:
+
+Original audio
+
+Transcript
+
+Language
+
+Timestamp
+
+AI confidence
+
+Do not claim a speaker identity unless independently verified.
+
+==================================================
+21. MEDIA TIMELINE
+==================================================
+
+Connect media to the case timeline.
+
+Example:
+
+21:14
+Photo uploaded.
+
+21:16
+Audio uploaded.
+
+21:18
+Citizen added statement.
+
+21:20
+Police accessed media.
+
+All access must be logged.
+
+==================================================
+22. WITNESS MANAGEMENT
+==================================================
+
+Allow authorized users to add:
+
+Witness
+
+Witness status
+
+Contact information
+
+Relationship to incident
+
+Statement
+
+Time
+
+Location
+
+Verification status
+
+Do not expose witness information to unauthorized users.
+
+==================================================
+23. PERSON INVOLVEMENT
+==================================================
+
+Create neutral case relationships:
+
+REPORTING_PERSON
+
+VICTIM
+
+WITNESS
+
+RESPONDER
+
+OFFICER
+
+PERSON_OF_INTEREST
+
+SUSPECT_REPORTED_BY_CITIZEN
+
+UNKNOWN_PERSON
+
+IMPORTANT:
+
+Do NOT automatically label someone:
+
+CRIMINAL
+
+GUILTY
+
+OFFENDER
+
+The system must preserve the presumption that allegations require verification.
+
+==================================================
+24. CASE RELATIONSHIPS
+==================================================
+
+Allow the AI to identify:
+
+Possible related cases
+
+Same approximate location
+
+Similar incident category
+
+Similar time
+
+Overlapping descriptions
+
+Repeated reports
+
+Shared identifiers where lawfully available
+
+The AI must say:
+
+"POSSIBLE CONNECTION"
+
+not:
+
+"These cases are connected."
+
+==================================================
+25. INCIDENT CLUSTERING
+==================================================
+
+Create internal incident clustering.
+
+Example:
+
+Case A:
+Phone theft
+Location A
+20:10
+
+Case B:
+Phone theft
+Location B
+20:35
+
+Case C:
+Phone theft
+Location C
+21:00
+
+AI:
+
+"Possible pattern detected."
+
+Authorized officer can investigate.
+
+Never automatically conclude that one person committed all incidents.
+
+==================================================
+26. LOCATION INTELLIGENCE
+==================================================
+
+For authorized users, provide:
+
+Incident location
+
+Approximate area
+
+Time
+
+Nearby incidents where authorized
+
+Responder activity
+
+Relevant facilities
+
+Police station
+
+Emergency services
+
+Use geographic clustering.
+
+==================================================
+27. PATTERN DETECTION
+==================================================
+
+Analyze aggregated cases for possible:
+
+Repeated incidents
+
+Time patterns
+
+Location clusters
+
+Emergency spikes
+
+Missing-person clusters
+
+Repeated false-report patterns
+
+High-risk areas
+
+The AI should present:
+
+Observed pattern
+
+Supporting cases
+
+Confidence
+
+Limitations
+
+==================================================
+28. INVESTIGATOR QUESTIONS
+==================================================
+
+AI can recommend questions to authorized investigators.
+
+Example:
+
+"Consider verifying the reported incident time."
+
+"Consider checking whether nearby cameras exist."
+
+"Consider identifying possible witnesses."
+
+"Consider confirming the exact location."
+
+The AI must NOT tell officers that a suspect is guilty.
+
+==================================================
+29. INVESTIGATION CHECKLIST
+==================================================
+
+Generate a configurable checklist.
+
+Example:
+
+☐ Confirm victim safety
+
+☐ Confirm location
+
+☐ Record incident time
+
+☐ Identify witnesses
+
+☐ Preserve submitted media
+
+☐ Record officer actions
+
+☐ Check related incidents
+
+☐ Update case status
+
+The checklist should vary by case type.
+
+==================================================
+30. CASE TYPE TEMPLATES
+==================================================
+
+Create intelligent templates for:
+
+Crime
+
+Assault
+
+Theft
+
+Robbery
+
+Domestic violence
+
+Missing person
+
+Missing child
+
+Lost property
+
+Found property
+
+Medical emergency
+
+Fire
+
+Road accident
+
+Suspicious activity
+
+Community safety issue
+
+Other
+
+Administrators must be able to add new templates.
+
+==================================================
+31. MISSING PERSON INTELLIGENCE
+==================================================
+
+For missing-person cases collect:
+
+Name
+
+Age
+
+Photo
+
+Last known location
+
+Last seen time
+
+Clothing
+
+Physical description
+
+Medical/safety considerations
+
+Known contacts
+
+Possible destinations
+
+Emergency circumstances
+
+Do not publicly expose sensitive information automatically.
+
+Allow authorized sharing workflows.
+
+==================================================
+32. LOST & FOUND
+==================================================
+
+Create matching between:
+
+Lost item reports
+
+Found item reports
+
+Use:
+
+Item category
+
+Description
+
+Color
+
+Approximate location
+
+Time
+
+Photos
+
+Identifiers provided by owner
+
+Do not automatically declare ownership.
+
+Require verification.
+
+==================================================
+33. CASE SEARCH
+==================================================
+
+Authorized officers can search cases by:
+
+Case ID
+
+Location
+
+Date
+
+Category
+
+Status
+
+Person
+
+Keyword
+
+Incident type
+
+Do not provide unrestricted access to all cases.
+
+Respect authorization scope.
+
+==================================================
+34. NATURAL LANGUAGE CASE SEARCH
+==================================================
+
+Allow authorized officers to ask:
+
+"Show me unresolved theft reports near this station from the last seven days."
+
+"Which missing-person cases are still open?"
+
+"Show possible related incidents around this area."
+
+The AI should convert the request into a secure database query.
+
+Respect permissions.
+
+==================================================
+35. CASE COMPARISON
+==================================================
+
+Allow authorized officers to compare cases.
+
+Show:
+
+Similarities
+
+Differences
+
+Timeline
+
+Location
+
+Evidence
+
+Witnesses
+
+Reported people
+
+Unknown information
+
+Do not declare a connection automatically.
+
+==================================================
+36. CASE QUESTIONS
+==================================================
+
+AI should highlight:
+
+Missing information
+
+Conflicting information
+
+Unverified information
+
+Potentially important unanswered questions
+
+Example:
+
+"Citizen reported the incident occurred at approximately 9 PM, but uploaded media metadata indicates 8:42 PM. Verify the time."
+
+Use neutral language.
+
+==================================================
+37. CONFLICT DETECTION
+==================================================
+
+Detect contradictions.
+
+Example:
+
+Citizen initially says:
+
+"Two people."
+
+Later:
+
+"Three people."
+
+AI:
+
+"Number of people reported differs between statements."
+
+Ask:
+
+"Would you like to clarify?"
+
+Never accuse the citizen of lying.
+
+==================================================
+38. AI CASE CHAT
+==================================================
+
+Create an authorized:
+
+"Ask Allma about this case"
+
+interface.
+
+Officer can ask:
+
+"What do we know?"
+
+"What is still unknown?"
+
+"What changed?"
+
+"Summarize the timeline."
+
+"What questions should I ask next?"
+
+"Are there possible related cases?"
+
+"What evidence has been submitted?"
+
+"What actions have already been taken?"
+
+==================================================
+39. ANSWER STRUCTURE
+==================================================
+
+AI case answers should use:
+
+ANSWER
+
+EVIDENCE / SOURCE
+
+CONFIDENCE
+
+UNKNOWN
+
+NEXT ACTION
+
+Example:
+
+ANSWER:
+The citizen reported the incident around 9 PM.
+
+SOURCE:
+Citizen statement.
+
+CONFIDENCE:
+Reported, not independently verified.
+
+UNKNOWN:
+Exact incident time.
+
+NEXT ACTION:
+Confirm timing.
+
+==================================================
+40. AI MEMORY
+==================================================
+
+Within a case, Allma must remember:
+
+Previous answers
+
+Previous questions
+
+Uploaded media
+
+Location
+
+Case status
+
+Responder actions
+
+Authority actions
+
+Officer notes
+
+But data must remain scoped to the authorized case.
+
+Do not leak information between cases.
+
+==================================================
+41. CASE NOTES
+==================================================
+
+Authorized officers can add:
+
+Private notes
+
+Official notes
+
+Follow-up notes
+
+Resolution notes
+
+AI-generated suggestions must be clearly labeled.
+
+==================================================
+42. AI VS HUMAN LABELS
+==================================================
+
+Every generated item must clearly indicate:
+
+AI GENERATED
+
+OFFICER ENTERED
+
+CITIZEN REPORTED
+
+SYSTEM GENERATED
+
+AUTHORITY CONFIRMED
+
+This is mandatory.
+
+==================================================
+43. AI RECOMMENDATION ENGINE
+==================================================
+
+AI may recommend:
+
+Ask another question
+
+Request additional evidence
+
+Contact emergency service
+
+Request responder assistance
+
+Escalate case
+
+Check related cases
+
+Verify information
+
+Close case when appropriate
+
+But final decisions belong to authorized humans or configured official workflows.
+
+==================================================
+44. HIGH-RISK ACTIONS
+==================================================
+
+AI MUST NOT independently:
+
+Arrest someone
+
+Accuse someone
+
+Declare guilt
+
+Order police action outside configured workflows
+
+Publish someone's identity
+
+Expose private information
+
+Contact unrelated people
+
+Track people without authorization
+
+Create fabricated evidence
+
+Delete evidence
+
+Close critical cases without authorization
+
+==================================================
+45. CASE PRIORITY
+==================================================
+
+Create priority recommendations:
+
+CRITICAL
+
+HIGH
+
+MEDIUM
+
+LOW
+
+Use factors:
+
+Immediate danger
+
+Life threat
+
+Vulnerable person
+
+Severity
+
+Time sensitivity
+
+Location
+
+Available response
+
+But allow authorized personnel to override AI priority.
+
+==================================================
+46. PRIORITY EXPLANATION
+==================================================
+
+Example:
+
+Priority:
+CRITICAL
+
+Reasons:
+
+• Immediate danger reported
+• Person may be injured
+• Current location available
+
+This is an AI recommendation.
+
+==================================================
+47. CASE ESCALATION RECOMMENDATION
+==================================================
+
+AI can say:
+
+"Official escalation recommended."
+
+"Medical assistance recommended."
+
+"Supervisor review recommended."
+
+"Additional responder may be useful."
+
+But it must not falsely claim that escalation occurred.
+
+==================================================
+48. CASE HEALTH
+==================================================
+
+Create a case health indicator.
+
+Example:
+
+🟢 Well documented
+
+🟡 Missing information
+
+🟠 Requires review
+
+🔴 Critical unresolved
+
+Factors:
+
+Missing location
+
+Missing timeline
+
+No assigned responder
+
+No authority acknowledgement
+
+Unanswered safety question
+
+Unreviewed media
+
+==================================================
+49. CASE COMPLETENESS
+==================================================
+
+Show:
+
+Case completeness:
+
+72%
+
+Breakdown:
+
+Location ✓
+
+Emergency type ✓
+
+Citizen statement ✓
+
+Timeline △
+
+Witnesses ?
+
+Media ✓
+
+Authority response ✓
+
+This is a documentation indicator, not a truth score.
+
+==================================================
+50. AI FOLLOW-UP
+==================================================
+
+For non-critical cases:
+
+Allow AI to remind citizens:
+
+"Would you like to add more information?"
+
+"Has the situation been resolved?"
+
+"Do you still need assistance?"
+
+Do not repeatedly contact users unnecessarily.
+
+==================================================
+51. CASE CLOSURE
+==================================================
+
+Before closure:
+
+AI checks:
+
+Is immediate danger resolved?
+
+Has official response been completed?
+
+Are required fields complete?
+
+Are pending actions complete?
+
+Then:
+
+"Case appears ready for closure."
+
+Authorized officer decides final closure where required.
+
+==================================================
+52. POST-CASE SUMMARY
+==================================================
+
+Generate:
+
+Incident summary
+
+Timeline
+
+Actions taken
+
+Responders involved
+
+Authority response
+
+Evidence received
+
+Outcome
+
+Outstanding issues
+
+The final official case record must distinguish AI-generated summaries from official records.
+
+==================================================
+53. PRIVACY
+==================================================
+
+AI must only process information the current user/session is authorized to access.
+
+Never use one citizen's private information to answer another citizen.
+
+Never expose:
+
+Private addresses
+
+Private phone numbers
+
+Witness details
+
+Officer details
+
+Case evidence
+
+Sensitive media
+
+unless explicitly authorized.
+
+==================================================
+54. DATA RETENTION
+==================================================
+
+Prepare configurable retention policies.
+
+Different categories may have different retention periods.
+
+Do not permanently retain sensitive data by default.
+
+Allow administrators to configure policies according to applicable law and official requirements.
+
+==================================================
+55. AUDIT TRAIL
+==================================================
+
+Log AI access to:
+
+Cases
+
+Media
+
+Location
+
+Searches
+
+AI summaries
+
+AI recommendations
+
+Case comparisons
+
+Natural-language queries
+
+Every access must include:
+
+User
+
+Role
+
+Timestamp
+
+Case ID
+
+Action
+
+==================================================
+56. AI SAFETY LOG
+==================================================
+
+For each important AI recommendation store:
+
+Input context ID
+
+Recommendation
+
+Model/system version
+
+Timestamp
+
+Confidence
+
+Human decision
+
+Final outcome
+
+This helps with auditing and evaluation.
+
+==================================================
+57. HUMAN OVERRIDE
+==================================================
+
+Authorized officers can:
+
+Accept AI recommendation
+
+Reject
+
+Modify
+
+Request more information
+
+Escalate
+
+De-escalate
+
+The system must record the decision.
+
+==================================================
+58. EXPLAINABILITY
+==================================================
+
+Whenever possible, show:
+
+Why Allma recommended something.
+
+Example:
+
+"Recommended additional questioning because the exact incident location has not been confirmed."
+
+==================================================
+59. DEMO MODE
+==================================================
+
+Create realistic demo cases.
+
+Examples:
+
+DEMO CASE 001
+
+Reported assault
+
+DEMO CASE 002
+
+Missing person
+
+DEMO CASE 003
+
+Lost phone
+
+DEMO CASE 004
+
+Road accident
+
+DEMO CASE 005
+
+Medical emergency
+
+All AI intelligence must operate on clearly labeled demo data.
+
+Never mix demo data with real cases.
+
+==================================================
+60. PREMIUM CASE INTELLIGENCE UI
+==================================================
+
+The interface should feel like a modern professional command platform.
+
+Use:
+
+Clean cards
+
+Soft gradients
+
+Subtle Uganda-inspired visual identity
+
+Clear status colors
+
+Smooth transitions
+
+Timeline animations
+
+Expandable AI insights
+
+Evidence previews
+
+Map cards
+
+Priority indicators
+
+Minimal clutter
+
+Excellent mobile responsiveness
+
+Desktop police command-center layout
+
+Do NOT make the interface look like a generic chatbot.
+
+==================================================
+61. AI CASE OVERVIEW
+==================================================
+
+Create a premium overview:
+
+--------------------------------
+CASE ASA-2026-000128
+CRITICAL
+--------------------------------
+
+Reported assault
+
+📍 Location confirmed
+
+👤 Citizen safe: Unknown
+
+👮 Officer: Assigned
+
+🟢 Responder: Arrived
+
+📎 Evidence: 3 files
+
+🕒 Open for: 18 min
+
+--------------------------------
+
+AI CASE BRIEF
+
+What happened
+[summary]
+
+What we know
+[facts]
+
+What is unknown
+[unknowns]
+
+Recommended next step
+[action]
+
+--------------------------------
+
+TIMELINE
+
+14:21 SOS
+14:22 Location
+14:23 Report
+14:25 Responder accepted
+14:30 Police acknowledged
+14:35 Officer assigned
+
+==================================================
+62. AI CASE COPILOT
+==================================================
+
+Add a persistent:
+
+"Ask Allma"
+
+button inside authorized case screens.
+
+Example prompts:
+
+"Summarize this case."
+
+"What information is missing?"
+
+"Show me the timeline."
+
+"What should I verify?"
+
+"Are there possible related cases?"
+
+"Summarize the uploaded evidence."
+
+"Prepare a handover brief."
+
+==================================================
+63. HANDOVER BRIEF
+==================================================
+
+Allow authorized officers to generate a concise handover.
+
+Include:
+
+Case ID
+
+Incident type
+
+Severity
+
+Location
+
+Timeline
+
+Known facts
+
+Unknowns
+
+Evidence
+
+Actions taken
+
+Current status
+
+Pending actions
+
+This must be editable before being sent.
+
+==================================================
+64. MULTILINGUAL CASE INTELLIGENCE
+==================================================
+
+Preserve original citizen language.
+
+Support:
+
+English
+
+Luganda
+
+Swahili
+
+Other configured languages
+
+Store:
+
+Original
+
+Translation
+
+Language
+
+Do not replace the original statement with a translation.
+
+==================================================
+65. PERFORMANCE
+==================================================
+
+AI processing must not block emergency response.
+
+Emergency actions should continue even if AI processing is slow.
+
+Use:
+
+Async processing
+
+Background jobs where appropriate
+
+Cached summaries
+
+Incremental analysis
+
+Real-time events
+
+==================================================
+66. FAILURE HANDLING
+==================================================
+
+If AI fails:
+
+Do NOT stop the emergency.
+
+Show:
+
+"AI assistance temporarily unavailable."
+
+Continue with:
+
+SOS
+
+Location
+
+Calling
+
+Messaging
+
+Responder system
+
+Authority escalation
+
+Manual case management
+
+==================================================
+67. FINAL END-TO-END TEST
+==================================================
+
+Test:
+
+Citizen activates SOS.
+
+↓
+
+AI asks safety question.
+
+↓
+
+Citizen explains incident.
+
+↓
+
+AI asks adaptive questions.
+
+↓
+
+Location confirmed.
+
+↓
+
+Emergency classified.
+
+↓
+
+Case created.
+
+↓
+
+AI extracts facts.
+
+↓
+
+Citizen confirms summary.
+
+↓
+
+Community responder matched.
+
+↓
+
+Official authority notified.
+
+↓
+
+Evidence uploaded.
+
+↓
+
+AI organizes evidence.
+
+↓
+
+Police officer opens case.
+
+↓
+
+AI generates case brief.
+
+↓
+
+Officer asks:
+
+"What do we know?"
+
+↓
+
+AI responds using only authorized case information.
+
+↓
+
+Officer asks:
+
+"What is missing?"
+
+↓
+
+AI identifies missing information.
+
+↓
+
+Officer asks:
+
+"Are there possible related cases?"
+
+↓
+
+AI searches authorized case data.
+
+↓
+
+AI returns:
+
+Possible connections.
+
+↓
+
+Officer decides what to investigate.
+
+↓
+
+Case continues.
+
+↓
+
+Final case summary generated.
+
+↓
+
+Authorized officer closes case.
+
+==================================================
+68. FINAL INTELLIGENCE PRINCIPLE
+==================================================
+
+ALLMA SHOULD THINK LIKE A CAREFUL CASE ASSISTANT.
+
+Not like a fictional detective.
+
+Not like a police officer.
+
+Not like a judge.
+
+Not like an autonomous law-enforcement system.
+
+Its job is to:
+
+UNDERSTAND
+
+STRUCTURE
+
+REMEMBER
+
+CONNECT
+
+SUMMARIZE
+
+QUESTION
+
+ALERT
+
+RECOMMEND
+
+DOCUMENT
+
+ASSIST
+
+while humans and authorized authorities remain responsible for decisions.
+
+==================================================
+FINAL ACCEPTANCE CRITERIA
+==================================================
+
+Phase 6 is complete only when:
+
+✓ AI can conduct adaptive questioning
+
+✓ AI understands case context
+
+✓ AI creates structured case facts
+
+✓ AI separates reported from confirmed information
+
+✓ AI identifies missing information
+
+✓ AI detects conflicting statements
+
+✓ AI organizes evidence
+
+✓ AI creates intelligent timelines
+
+✓ AI generates officer case briefs
+
+✓ AI recommends investigative questions
+
+✓ AI can identify possible related cases
+
+✓ AI supports natural-language case search
+
+✓ AI can compare authorized cases
+
+✓ AI provides explainable recommendations
+
+✓ AI never fabricates facts
+
+✓ AI never declares guilt
+
+✓ AI respects role permissions
+
+✓ AI maintains case-scoped memory
+
+✓ AI failure does not stop emergency functionality
+
+✓ All AI activity is auditable
+
+✓ Demo data is completely separated from real data
+
+DO NOT BREAK PHASE 1, PHASE 2, PHASE 3, PHASE 4 OR PHASE 5.
+
+==================================================
+END OF PHASE 6
+==================================================
