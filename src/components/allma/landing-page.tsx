@@ -25,19 +25,57 @@ import { cn } from "@/lib/utils";
 const FEATURES = [
   { icon: Bot, label: "AI-First", description: "Chat naturally to report and get help" },
   { icon: Check, label: "Step by Step", description: "Guided questions so nothing is missed" },
-  { icon: Siren, label: "Smart Suggestions", description: "Recommended actions for every situation" },
+  {
+    icon: Siren,
+    label: "Smart Suggestions",
+    description: "Recommended actions for every situation",
+  },
   { icon: Upload, label: "Media Support", description: "Photos, video, voice and location" },
-  { icon: MapPin, label: "Built for Uganda", description: "Local emergency numbers and nearby help" },
+  {
+    icon: MapPin,
+    label: "Built for Uganda",
+    description: "Local emergency numbers and nearby help",
+  },
   { icon: Zap, label: "Instant", description: "Responses in seconds, no forms needed" },
 ];
 
 const QUICK_STARTS = [
-  { emoji: "🚨", label: "Emergency SOS", prompt: "This is an emergency. I need help right now.", color: "from-red-500/15 to-red-600/5 border-red-500/25 hover:border-red-500/45" },
-  { emoji: "🚔", label: "Report Crime", prompt: "I want to report a crime.", color: "from-blue-500/15 to-blue-600/5 border-blue-500/25 hover:border-blue-500/45" },
-  { emoji: "👤", label: "Missing Person", prompt: "I need to report a missing person.", color: "from-amber-500/15 to-amber-600/5 border-amber-500/25 hover:border-amber-500/45" },
-  { emoji: "🏥", label: "Find Hospital", prompt: "Find the nearest hospital.", color: "from-emerald-500/15 to-emerald-600/5 border-emerald-500/25 hover:border-emerald-500/45" },
-  { emoji: "👮", label: "Find Police", prompt: "Find the nearest police station.", color: "from-indigo-500/15 to-indigo-600/5 border-indigo-500/25 hover:border-indigo-500/45" },
-  { emoji: "🚑", label: "Ambulance", prompt: "I need an ambulance immediately.", color: "from-rose-500/15 to-rose-600/5 border-rose-500/25 hover:border-rose-500/45" },
+  {
+    emoji: "🚨",
+    label: "Emergency SOS",
+    prompt: "This is an emergency. I need help right now.",
+    color: "from-red-500/15 to-red-600/5 border-red-500/25 hover:border-red-500/45",
+  },
+  {
+    emoji: "🚔",
+    label: "Report Crime",
+    prompt: "I want to report a crime.",
+    color: "from-blue-500/15 to-blue-600/5 border-blue-500/25 hover:border-blue-500/45",
+  },
+  {
+    emoji: "👤",
+    label: "Missing Person",
+    prompt: "I need to report a missing person.",
+    color: "from-amber-500/15 to-amber-600/5 border-amber-500/25 hover:border-amber-500/45",
+  },
+  {
+    emoji: "🏥",
+    label: "Find Hospital",
+    prompt: "Find the nearest hospital.",
+    color: "from-emerald-500/15 to-emerald-600/5 border-emerald-500/25 hover:border-emerald-500/45",
+  },
+  {
+    emoji: "👮",
+    label: "Find Police",
+    prompt: "Find the nearest police station.",
+    color: "from-indigo-500/15 to-indigo-600/5 border-indigo-500/25 hover:border-indigo-500/45",
+  },
+  {
+    emoji: "🚑",
+    label: "Ambulance",
+    prompt: "I need an ambulance immediately.",
+    color: "from-rose-500/15 to-rose-600/5 border-rose-500/25 hover:border-rose-500/45",
+  },
 ];
 
 const STATS = [
@@ -106,7 +144,9 @@ function SosPreview() {
       <div className="relative mt-4">
         <div className="sos-pulse absolute inset-0 rounded-full bg-primary/20" />
         <div className="relative grid h-32 w-32 place-items-center rounded-full bg-gradient-to-br from-primary to-primary-glow shadow-2xl">
-          <span className="font-display text-xl font-black tracking-[0.14em] text-primary-foreground">SOS</span>
+          <span className="font-display text-xl font-black tracking-[0.14em] text-primary-foreground">
+            SOS
+          </span>
         </div>
       </div>
       <p className="mt-6 text-[11px] font-semibold text-primary">Hold to activate</p>
@@ -178,7 +218,6 @@ export function LandingPage() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-6 pb-24">
-
         {/* ── Hero Section ─────────────────────────────────────────────── */}
         <section className="relative mt-8 overflow-hidden rounded-[2.5rem] border border-border/50 bg-card/40 px-8 py-14 sm:px-12 sm:py-20">
           <div className="absolute inset-0 -z-10 hero-glow" />
@@ -215,8 +254,8 @@ export function LandingPage() {
                 transition={{ delay: 0.12, duration: 0.45 }}
                 className="mt-5 text-[15.5px] leading-relaxed text-muted-foreground lg:text-[16px]"
               >
-                Chat with Allma Safety AI to report incidents, raise an SOS, find hospitals
-                and police stations, and get calm, step-by-step safety guidance — built for Uganda.
+                Chat with Allma Safety AI to report incidents, raise an SOS, find hospitals and
+                police stations, and get calm, step-by-step safety guidance — built for Uganda.
               </motion.p>
 
               {/* CTA buttons */}
@@ -237,6 +276,12 @@ export function LandingPage() {
                   className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-7 py-3.5 text-[14.5px] font-bold text-primary transition-all hover:bg-primary/15 hover:scale-[1.01]"
                 >
                   <Siren className="h-4 w-4" /> Emergency SOS
+                </Link>
+                <Link
+                  to="/onboarding"
+                  className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-6 py-3.5 text-[14.5px] font-bold transition-all hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <Shield className="h-4 w-4 text-gold" /> Prepare my safety network
                 </Link>
               </motion.div>
 
@@ -272,7 +317,10 @@ export function LandingPage() {
               <PhoneFrame className="h-[340px] w-[175px] shrink-0 rotate-6 shadow-2xl sm:h-[400px] sm:w-[210px]">
                 <SosPreview />
               </PhoneFrame>
-              <Mascot size={120} className="pointer-events-none absolute -bottom-8 -right-4 hidden opacity-90 lg:flex" />
+              <Mascot
+                size={120}
+                className="pointer-events-none absolute -bottom-8 -right-4 hidden opacity-90 lg:flex"
+              />
             </motion.div>
           </div>
         </section>
@@ -362,10 +410,10 @@ export function LandingPage() {
             </ul>
             <div className="mt-8">
               <Link
-                to="/chat"
+                to="/onboarding"
                 className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-primary to-primary-glow px-6 py-3 text-[13.5px] font-bold text-primary-foreground shadow-soft transition-all hover:scale-[1.02] hover:shadow-lift"
               >
-                Try Allma free <ArrowRight className="h-4 w-4" />
+                Build my Emergency Circle <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
@@ -396,11 +444,26 @@ export function LandingPage() {
           </div>
           <div className="grid gap-6 sm:grid-cols-3">
             {[
-              { step: "01", title: "Tell Allma what happened", desc: "Just type or speak naturally — no forms, no menus." },
-              { step: "02", title: "Answer guided questions", desc: "Allma asks one question at a time to build your report." },
-              { step: "03", title: "Get instant help", desc: "Your report is filed, authorities notified, help found nearby." },
+              {
+                step: "01",
+                title: "Tell Allma what happened",
+                desc: "Just type or speak naturally — no forms, no menus.",
+              },
+              {
+                step: "02",
+                title: "Answer guided questions",
+                desc: "Allma asks one question at a time to build your report.",
+              },
+              {
+                step: "03",
+                title: "Get instant help",
+                desc: "Your report is filed, authorities notified, help found nearby.",
+              },
             ].map((item) => (
-              <div key={item.step} className="relative flex flex-col gap-3 rounded-2xl border border-border/50 bg-background/40 p-6">
+              <div
+                key={item.step}
+                className="relative flex flex-col gap-3 rounded-2xl border border-border/50 bg-background/40 p-6"
+              >
                 <span className="font-display text-[3rem] font-black leading-none tracking-[-0.05em] text-primary/15">
                   {item.step}
                 </span>

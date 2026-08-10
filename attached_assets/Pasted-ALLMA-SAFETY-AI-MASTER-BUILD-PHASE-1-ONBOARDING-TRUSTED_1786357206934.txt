@@ -1,0 +1,757 @@
+ALLMA SAFETY AI
+MASTER BUILD — PHASE 1
+ONBOARDING + TRUSTED EMERGENCY NETWORK
+
+IMPORTANT:
+Do not redesign unrelated existing features.
+Do not replace existing functionality that already works.
+Build this as a production-quality foundation for the Allma Safety AI emergency system.
+
+The application is an AI-powered public safety platform.
+
+The most important concept is:
+
+EVERY USER BUILDS A TRUSTED EMERGENCY CIRCLE.
+
+When that user later activates SOS, Allma can intelligently contact eligible members of that circle through secure in-app communication, based on the emergency type, availability, proximity, permissions and safety rules.
+
+This is NOT a social network.
+
+Connections exist primarily for emergency assistance.
+
+==================================================
+1. PREMIUM DESIGN SYSTEM
+==================================================
+
+Create an extremely premium interface.
+
+Visual inspiration:
+
+Apple
+Linear
+Arc
+Notion
+Google Maps
+modern emergency-response software
+premium AI assistants
+
+Design characteristics:
+
+• Minimal
+• Calm
+• Professional
+• Intelligent
+• High trust
+• Extremely polished
+• Mobile-first
+• Responsive
+• Accessible
+• Fast
+
+Use dark mode as the primary experience.
+
+Use subtle Uganda-inspired gradients:
+
+Black
+Yellow
+Red
+
+Do NOT make the interface look like a literal Ugandan flag.
+
+Use the colors as subtle animated accents.
+
+Use:
+
+• Glass surfaces
+• Soft borders
+• Large rounded corners
+• Elegant typography
+• Micro-interactions
+• Smooth transitions
+• Framer Motion
+• Skeleton loading
+• Animated AI states
+• Beautiful empty states
+• Haptic feedback where supported
+
+Avoid:
+
+• Clutter
+• Excessive cards
+• Generic dashboard UI
+• Huge text everywhere
+• Excessive gradients
+• Cheap-looking animations
+
+==================================================
+2. FIRST-TIME USER ONBOARDING
+==================================================
+
+Create a beautiful step-by-step onboarding experience.
+
+Never display a long form.
+
+One concept per screen.
+
+Show a progress indicator.
+
+Example:
+
+01 Account
+02 Location
+03 Emergency Circle
+04 Permissions
+05 Emergency Plan
+06 Complete
+
+Allow users to go back.
+
+Autosave progress.
+
+If onboarding is interrupted, resume from the last completed step.
+
+==================================================
+3. SCREEN — WELCOME
+==================================================
+
+Headline:
+
+Welcome to Allma Safety AI
+
+Subtitle:
+
+Your intelligent safety assistant.
+
+Supporting text:
+
+"Allma helps you get the right assistance faster when something goes wrong."
+
+Animated AI safety visualization.
+
+Button:
+
+Get Started
+
+==================================================
+4. PROFILE SETUP
+==================================================
+
+Collect:
+
+Full Name
+Profile Photo
+Phone Number
+Email
+
+Optional:
+
+Preferred Language
+
+Emergency profile information should be minimal.
+
+Do not collect unnecessary sensitive information.
+
+Explain why each important field is required.
+
+==================================================
+5. LOCATION PERMISSION
+==================================================
+
+Create a premium location permission screen.
+
+Headline:
+
+Help Allma find you when it matters.
+
+Explain:
+
+"Your precise location can help Allma identify nearby assistance during an active emergency."
+
+Options:
+
+Allow Precise Location
+
+Not Now
+
+Clearly explain:
+
+Location is NOT continuously shared with other users by default.
+
+During an active SOS, location can be shared according to the user's emergency permissions.
+
+If the user denies location:
+
+Do not break onboarding.
+
+Allow them to continue.
+
+Show a reminder that location is strongly recommended for SOS.
+
+==================================================
+6. BUILD YOUR EMERGENCY CIRCLE
+==================================================
+
+Headline:
+
+Build your Emergency Circle
+
+Subtitle:
+
+Choose people you trust who could help if you ever need assistance.
+
+Explain:
+
+"These people will only become part of your Emergency Circle after they accept your invitation."
+
+Main button:
+
++ Add Trusted Person
+
+Categories:
+
+Family
+Friend
+Neighbor
+Partner
+Community Helper
+First Aider
+Other Trusted Person
+
+==================================================
+7. ADD TRUSTED PERSON
+==================================================
+
+Allow discovery through:
+
+Allma username
+Verified phone number
+QR code
+Contacts (with explicit permission)
+
+DO NOT automatically add contacts.
+
+The user must intentionally send an invitation.
+
+==================================================
+8. EMERGENCY CIRCLE INVITATION
+==================================================
+
+When user selects someone:
+
+Create an Emergency Circle invitation.
+
+Display:
+
+Person's name
+Profile photo
+Relationship
+
+Example:
+
+"Add Sarah to your Emergency Circle?"
+
+Explain:
+
+"If you activate SOS, Allma may contact Sarah through the app for emergency assistance, depending on the emergency and Sarah's availability."
+
+Buttons:
+
+Send Request
+
+Cancel
+
+==================================================
+9. RECIPIENT EXPERIENCE
+==================================================
+
+When Sarah receives the request:
+
+Display:
+
+🛡️ Emergency Circle Request
+
+"John wants you to join his Emergency Circle."
+
+Explain clearly:
+
+"If John activates SOS, Allma may contact you through the app to request assistance."
+
+Buttons:
+
+Accept
+
+Decline
+
+Show privacy information.
+
+==================================================
+10. ACCEPTANCE
+==================================================
+
+ONLY after the recipient accepts:
+
+Create the Emergency Circle relationship.
+
+Both users should see:
+
+Connected
+
+Emergency Circle
+
+==================================================
+11. EMERGENCY CIRCLE MANAGEMENT
+==================================================
+
+Create:
+
+Emergency Circle
+
+Screen.
+
+Display connected people.
+
+Each card:
+
+Profile Photo
+Name
+Relationship
+Availability
+Verification
+Emergency permissions
+
+Actions:
+
+Edit
+Remove
+Temporarily Disable
+
+==================================================
+12. PRIORITY ORDER
+==================================================
+
+Allow the user to define contact priority.
+
+Example:
+
+1. Mother
+2. Brother
+3. Neighbor
+4. Friend
+5. Community responder
+
+Use drag-and-drop.
+
+Explain:
+
+"Allma uses this order when deciding who to contact during an emergency."
+
+However:
+
+DO NOT blindly follow priority.
+
+The AI must also consider:
+
+Emergency type
+Distance
+Availability
+Responder capability
+Current status
+Safety
+
+==================================================
+13. EMERGENCY SKILLS
+==================================================
+
+For every Emergency Circle member allow the user to specify relevant capabilities.
+
+Examples:
+
+General Assistance
+First Aid
+Medical
+Transport
+Child Assistance
+Elder Assistance
+Fire Safety
+Community Support
+
+Do not allow users to claim official qualifications unless verified.
+
+Use:
+
+Verified
+
+or
+
+Unverified
+
+badges.
+
+==================================================
+14. AVAILABILITY
+==================================================
+
+Each trusted person can control:
+
+Available for emergencies
+
+ON / OFF
+
+Availability states:
+
+Available
+Busy
+Unavailable
+
+Allow:
+
+Always Available
+
+Usually Available
+
+Custom Availability
+
+The user must be able to disable emergency requests at any time.
+
+==================================================
+15. EMERGENCY CALL PERMISSION
+==================================================
+
+Create explicit consent.
+
+Headline:
+
+Emergency Calling
+
+Explain:
+
+"If someone in your Emergency Circle activates SOS, Allma may call you inside the app to request emergency assistance."
+
+Buttons:
+
+Allow Emergency Calls
+
+Don't Allow
+
+This permission must be stored.
+
+==================================================
+16. EMERGENCY LOCATION PERMISSION
+==================================================
+
+Trusted responders should NOT automatically receive someone's exact location simply because they are connected.
+
+Create clear permissions:
+
+Share approximate location during SOS
+
+Share exact location after accepting SOS
+
+Never share location
+
+Recommended:
+
+Approximate location before acceptance.
+
+More precise location after accepting an emergency request, subject to the user's emergency settings and applicable safety rules.
+
+==================================================
+17. EMERGENCY PREFERENCES
+==================================================
+
+Create:
+
+My Emergency Plan
+
+Options:
+
+☑ Contact Emergency Circle
+☑ Find nearby opted-in responders
+☑ Help contact official emergency services
+☑ Share location during SOS
+☑ Allow emergency in-app calls
+☑ Continue AI voice/chat guidance
+
+Allow the user to configure preferences.
+
+==================================================
+18. EMERGENCY TYPE PREFERENCES
+==================================================
+
+Allow users to specify who should be contacted for different situations.
+
+Medical
+
+Family
+First aider
+Health worker
+
+Crime
+
+Police
+Trusted contact
+
+Fire
+
+Fire service
+Trusted contact
+
+Missing person
+
+Family
+Community responders
+Authorities
+
+Road accident
+
+Medical
+Trusted contact
+Emergency service
+
+Danger / Attack
+
+Police
+Trusted contact
+
+IMPORTANT:
+
+The user can configure preferences, but the AI must still apply safety rules.
+
+For violent or armed emergencies:
+
+Do NOT encourage ordinary users to confront suspects.
+
+Prioritize official emergency services.
+
+==================================================
+19. EMERGENCY CIRCLE NOTIFICATIONS
+==================================================
+
+Create beautiful notification states.
+
+Invitation:
+
+"Sarah wants you in her Emergency Circle."
+
+Emergency:
+
+"John may need your help."
+
+Responder accepted:
+
+"Sarah accepted the emergency request."
+
+Responder declined:
+
+"Sarah is unavailable."
+
+==================================================
+20. CONNECTION SECURITY
+==================================================
+
+Implement:
+
+• Explicit consent
+• Request acceptance
+• Ability to remove connections
+• Block user
+• Report abuse
+• Emergency permission management
+• Audit trail
+
+Never expose:
+
+Private phone number
+Private email
+Exact location
+
+unless explicitly permitted and technically necessary.
+
+==================================================
+21. DATABASE FOUNDATION
+==================================================
+
+Create or extend database structures for:
+
+profiles
+
+emergency_circle_connections
+
+emergency_circle_requests
+
+emergency_circle_preferences
+
+emergency_contact_permissions
+
+responder_profiles
+
+responder_skills
+
+responder_availability
+
+location_permissions
+
+location_sessions
+
+notification_preferences
+
+audit_logs
+
+Use proper foreign keys.
+
+Use timestamps.
+
+Use unique constraints to prevent duplicate relationships.
+
+Use appropriate indexes.
+
+==================================================
+22. SECURITY
+==================================================
+
+Use strict Row Level Security.
+
+A user can only:
+
+• See their own Emergency Circle
+• See requests involving them
+• Modify their own preferences
+• Remove their own connections
+
+A user must NOT be able to query another user's entire emergency network.
+
+Do not expose sensitive data through frontend queries.
+
+Use server-side validation for sensitive actions.
+
+==================================================
+23. REAL-TIME
+==================================================
+
+Use Supabase Realtime where appropriate.
+
+Real-time events:
+
+Emergency request received
+Emergency request accepted
+Emergency request declined
+Availability changed
+Responder status changed
+
+Do not use realtime for unnecessary personal data.
+
+==================================================
+24. ONBOARDING COMPLETION
+==================================================
+
+Final screen:
+
+Your Emergency Network is ready.
+
+Show:
+
+✓ Profile
+✓ Location
+✓ Emergency Circle
+✓ Emergency permissions
+✓ Emergency plan
+
+Primary button:
+
+Enter Allma Safety AI
+
+Secondary:
+
+Review Emergency Settings
+
+==================================================
+25. IMPORTANT UX RULE
+==================================================
+
+The onboarding must feel like the AI is personally helping the user prepare.
+
+Do not make it feel like government paperwork.
+
+Example AI messages:
+
+"Let's choose someone you trust."
+
+"Good. Sarah accepted."
+
+"Now let's decide what Allma should do if you ever need urgent help."
+
+"You're almost ready."
+
+==================================================
+26. PREPARE FOR PHASE 2
+==================================================
+
+Build the architecture so the next phase can seamlessly implement:
+
+SOS activation
+
+Real-time location
+
+AI emergency triage
+
+One-question-at-a-time conversation
+
+Emergency Circle calling
+
+In-app voice calls
+
+Nearby opted-in responders
+
+Responder matching
+
+Emergency escalation
+
+Live emergency timeline
+
+Police coordination
+
+Ambulance coordination
+
+Fire response
+
+Local authority coordination
+
+AI case generation
+
+Do NOT implement fake production integrations.
+
+Clearly separate:
+
+DEMO DATA
+
+from
+
+REAL INTEGRATIONS
+
+The system must be designed so demo responders can later be replaced by authorized real responders and official integrations.
+
+==================================================
+FINAL REQUIREMENT
+==================================================
+
+Do not simply build screens.
+
+Build the complete onboarding workflow and underlying data model.
+
+Every button must work.
+
+Every state must be handled:
+
+Loading
+Success
+Failure
+Empty
+Pending
+Accepted
+Declined
+Expired
+Blocked
+Removed
+Offline
+
+The result should feel like a premium, trustworthy emergency safety platform ready for the next SOS intelligence phase.

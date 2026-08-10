@@ -15,6 +15,7 @@ import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NearbyRouteImport } from './routes/nearby'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SosRouteImport } from './routes/sos'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
@@ -70,6 +71,11 @@ const McpRoute = McpRouteImport.update({
 const NearbyRoute = NearbyRouteImport.update({
   id: '/nearby',
   path: '/nearby',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SosRoute = SosRouteImport.update({
@@ -230,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
+  '/onboarding': typeof OnboardingRoute
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -264,6 +271,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
+  '/onboarding': typeof OnboardingRoute
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
+  '/onboarding': typeof OnboardingRoute
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -335,6 +344,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/nearby'
+    | '/onboarding'
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -369,6 +379,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/nearby'
+    | '/onboarding'
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -403,6 +414,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/nearby'
+    | '/onboarding'
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -439,6 +451,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   McpRoute: typeof McpRoute
   NearbyRoute: typeof NearbyRoute
+  OnboardingRoute: typeof OnboardingRoute
   SosRoute: typeof SosRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -490,6 +503,13 @@ declare module '@tanstack/react-router' {
       path: '/nearby'
       fullPath: '/nearby'
       preLoaderRoute: typeof NearbyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sos': {
@@ -749,6 +769,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   McpRoute: McpRoute,
   NearbyRoute: NearbyRoute,
+  OnboardingRoute: OnboardingRoute,
   SosRoute: SosRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:

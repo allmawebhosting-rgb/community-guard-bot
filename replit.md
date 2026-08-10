@@ -33,6 +33,7 @@ The dev server starts on **port 5000** (`0.0.0.0:5000`) and is configured as the
 src/
   routes/           # File-based TanStack Router pages
     index.tsx       # Homepage → guest AllmaChat
+    onboarding.tsx  # Resumable trusted Emergency Circle setup
     _authenticated/ # Protected pages (chat, dashboard)
     api/chat.ts     # AI chat server route
   components/
@@ -57,3 +58,10 @@ supabase/
 
 - Keep existing project structure and stack; do not restructure or migrate.
 - UI should be premium, mobile-first, and professional with animations and gradients.
+
+## Onboarding
+
+- Visit `/onboarding` to prepare a profile, location preference, trusted Emergency Circle and emergency plan.
+- Progress is autosaved in the browser as `allma-onboarding-draft` so interrupted setup can resume.
+- Location sharing requires explicit browser permission and is never presented as continuously shared.
+- Trusted people remain invitation-pending until they accept; this flow does not invent production connections or responder integrations.
