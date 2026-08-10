@@ -83,3 +83,12 @@ supabase/
 - The voice route authenticates the Supabase bearer token, checks that the caller/recipient is a participant, persists provider-confirmed call/session state, polls authoritative state for reconnection, and rejects connected states that are not confirmed by the provider. An approved provider still needs to be configured before this workspace can make a real call.
 - `src/lib/emergency-communication.ts` contains the consent/eligibility ranking boundary: only opted-in, permissioned, available, unblocked responders with fresh location are eligible.
 - `supabase/migrations/20260810120000_phase3_emergency_communication.sql` adds calls, call sessions, responder assignments, escalation events, emergency chat events and audit records with participant-scoped RLS.
+
+## Phase 4 community responder network
+
+- `/responder` is the authenticated, opt-in Community Responder workspace. New responders complete a safety agreement, choose a responder type, skills, service area and location permission before they can activate.
+- Responder availability supports Available, Busy, Handling emergency and Offline, with temporary 30-minute or 1-hour windows. Requests are limited by service area and are never a public directory.
+- Professional or authority-like responder types remain verification-required; the UI does not claim official qualifications or government approval.
+- Requests show only emergency category, severity, approximate distance, general area and a minimal summary before acceptance. Exact responder coordinates are not exposed to other responders.
+- Dangerous incidents show a stay-safe warning and official-help path instead of encouraging ordinary responders to approach. Demo mode is clearly labeled and never contacts a real person.
+- `supabase/migrations/20260810133000_phase4_community_responder_network.sql` adds responder profiles, skills, private locations, notification states, reports, RLS policies and server-authorized notification/assignment transitions. Apply it before using `/responder` with Supabase.

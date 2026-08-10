@@ -280,6 +280,7 @@ function ProfileScreen() {
                   { to: "/reports", icon: FileText, label: "My reports", desc: "View your filed cases and references" },
                   { to: "/alerts", icon: Bell, label: "Community alerts", desc: "Live safety notices for your area" },
                   { to: "/nearby", icon: MapPin, label: "Nearby help", desc: "Find hospitals and police stations" },
+                  { to: "/responder", icon: Users, label: "Community responder", desc: "Opt in safely to help nearby people" },
                   { to: "/police", icon: Shield, label: "Police command center", desc: "For verified officers only" },
                 ].map(({ to, icon: Icon, label, desc }, idx, arr) => (
                   <Link

@@ -24,6 +24,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedPoliceRouteImport } from './routes/_authenticated/police'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedResponderRouteImport } from './routes/_authenticated/responder'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiVoiceRouteImport } from './routes/api/voice'
@@ -120,6 +121,11 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedResponderRoute = AuthenticatedResponderRouteImport.update({
+  id: '/responder',
+  path: '/responder',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/police': typeof AuthenticatedPoliceRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/_authenticated/police': typeof AuthenticatedPoliceRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -371,6 +380,7 @@ export interface FileRouteTypes {
     | '/police'
     | '/profile'
     | '/reports'
+    | '/responder'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/voice'
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/profile'
     | '/reports'
+    | '/responder'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/voice'
@@ -445,6 +456,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police'
     | '/_authenticated/profile'
     | '/_authenticated/reports'
+    | '/_authenticated/responder'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/voice'
@@ -591,6 +603,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/responder': {
+      id: '/_authenticated/responder'
+      path: '/responder'
+      fullPath: '/responder'
+      preLoaderRoute: typeof AuthenticatedResponderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/chat': {
@@ -786,6 +805,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPoliceRoute: typeof AuthenticatedPoliceRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedResponderRoute: typeof AuthenticatedResponderRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
 }
@@ -796,6 +816,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPoliceRoute: AuthenticatedPoliceRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedResponderRoute: AuthenticatedResponderRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
 }
