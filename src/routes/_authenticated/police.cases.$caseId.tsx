@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Brain, CheckCircle2, ChevronRight, Clock,
+  ArrowLeft, Brain, CheckCircle2, ChevronRight, Clock, Landmark,
   FileText, Fingerprint, Flame, MapPin, Navigation,
   Radio, UserCheck, Zap, AlertTriangle,
 } from "lucide-react";
@@ -278,6 +278,22 @@ function CaseDetail() {
       </div>
 
       {/* ── Two-column layout ─────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/25 bg-gold/[0.06] px-4 py-3">
+        <div className="flex items-start gap-2.5">
+          <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+          <div>
+            <p className="text-xs font-semibold">Authority coordination is available</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Prepare this case for an authorized authority without claiming official notification.</p>
+          </div>
+        </div>
+        <Link
+          to="/police/authority"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-[11px] font-semibold text-gold transition hover:bg-gold/15"
+        >
+          Open coordination <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]">
         {/* LEFT: AI analysis + timeline + notes */}
         <div className="space-y-4">

@@ -6,6 +6,7 @@ import {
   Bot,
   ClipboardList,
   LayoutDashboard,
+  Landmark,
   ListFilter,
   LogOut,
   Map,
@@ -30,6 +31,7 @@ const NAV_GROUPS = [
       { to: "/police/incidents", label: "Incidents",    icon: ListFilter,      exact: false },
       { to: "/police/map",       label: "Live Map",     icon: Map,             exact: false },
       { to: "/police/dispatch",  label: "Dispatch",     icon: Radio,           exact: false },
+      { to: "/police/authority", label: "Authority",    icon: Landmark,        exact: false },
     ],
   },
   {

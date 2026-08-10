@@ -37,6 +37,7 @@ import { Route as AuthenticatedPoliceAiRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPoliceAlertsRouteImport } from './routes/_authenticated/police.alerts'
 import { Route as AuthenticatedPoliceAnalyticsRouteImport } from './routes/_authenticated/police.analytics'
 import { Route as AuthenticatedPoliceAuditRouteImport } from './routes/_authenticated/police.audit'
+import { Route as AuthenticatedPoliceAuthorityRouteImport } from './routes/_authenticated/police.authority'
 import { Route as AuthenticatedPoliceCommsRouteImport } from './routes/_authenticated/police.comms'
 import { Route as AuthenticatedPoliceDispatchRouteImport } from './routes/_authenticated/police.dispatch'
 import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
@@ -194,6 +195,12 @@ const AuthenticatedPoliceAuditRoute =
     path: '/audit',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const AuthenticatedPoliceAuthorityRoute =
+  AuthenticatedPoliceAuthorityRouteImport.update({
+    id: '/authority',
+    path: '/authority',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 const AuthenticatedPoliceCommsRoute =
   AuthenticatedPoliceCommsRouteImport.update({
     id: '/comms',
@@ -274,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
   '/police/audit': typeof AuthenticatedPoliceAuditRoute
+  '/police/authority': typeof AuthenticatedPoliceAuthorityRoute
   '/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
@@ -311,6 +319,7 @@ export interface FileRoutesByTo {
   '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
   '/police/audit': typeof AuthenticatedPoliceAuditRoute
+  '/police/authority': typeof AuthenticatedPoliceAuthorityRoute
   '/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
@@ -351,6 +360,7 @@ export interface FileRoutesById {
   '/_authenticated/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/_authenticated/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
   '/_authenticated/police/audit': typeof AuthenticatedPoliceAuditRoute
+  '/_authenticated/police/authority': typeof AuthenticatedPoliceAuthorityRoute
   '/_authenticated/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/_authenticated/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/_authenticated/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
@@ -391,6 +401,7 @@ export interface FileRouteTypes {
     | '/police/alerts'
     | '/police/analytics'
     | '/police/audit'
+    | '/police/authority'
     | '/police/comms'
     | '/police/dispatch'
     | '/police/incidents'
@@ -428,6 +439,7 @@ export interface FileRouteTypes {
     | '/police/alerts'
     | '/police/analytics'
     | '/police/audit'
+    | '/police/authority'
     | '/police/comms'
     | '/police/dispatch'
     | '/police/incidents'
@@ -467,6 +479,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police/alerts'
     | '/_authenticated/police/analytics'
     | '/_authenticated/police/audit'
+    | '/_authenticated/police/authority'
     | '/_authenticated/police/comms'
     | '/_authenticated/police/dispatch'
     | '/_authenticated/police/incidents'
@@ -696,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceAuditRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/authority': {
+      id: '/_authenticated/police/authority'
+      path: '/authority'
+      fullPath: '/police/authority'
+      preLoaderRoute: typeof AuthenticatedPoliceAuthorityRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
     '/_authenticated/police/comms': {
       id: '/_authenticated/police/comms'
       path: '/comms'
@@ -767,6 +787,7 @@ interface AuthenticatedPoliceRouteChildren {
   AuthenticatedPoliceAlertsRoute: typeof AuthenticatedPoliceAlertsRoute
   AuthenticatedPoliceAnalyticsRoute: typeof AuthenticatedPoliceAnalyticsRoute
   AuthenticatedPoliceAuditRoute: typeof AuthenticatedPoliceAuditRoute
+  AuthenticatedPoliceAuthorityRoute: typeof AuthenticatedPoliceAuthorityRoute
   AuthenticatedPoliceCommsRoute: typeof AuthenticatedPoliceCommsRoute
   AuthenticatedPoliceDispatchRoute: typeof AuthenticatedPoliceDispatchRoute
   AuthenticatedPoliceIncidentsRoute: typeof AuthenticatedPoliceIncidentsRoute
@@ -784,6 +805,7 @@ const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
   AuthenticatedPoliceAlertsRoute: AuthenticatedPoliceAlertsRoute,
   AuthenticatedPoliceAnalyticsRoute: AuthenticatedPoliceAnalyticsRoute,
   AuthenticatedPoliceAuditRoute: AuthenticatedPoliceAuditRoute,
+  AuthenticatedPoliceAuthorityRoute: AuthenticatedPoliceAuthorityRoute,
   AuthenticatedPoliceCommsRoute: AuthenticatedPoliceCommsRoute,
   AuthenticatedPoliceDispatchRoute: AuthenticatedPoliceDispatchRoute,
   AuthenticatedPoliceIncidentsRoute: AuthenticatedPoliceIncidentsRoute,

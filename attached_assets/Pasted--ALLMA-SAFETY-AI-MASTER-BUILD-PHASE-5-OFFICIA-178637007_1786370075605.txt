@@ -1,0 +1,1877 @@
+==================================================
+ALLMA SAFETY AI
+MASTER BUILD — PHASE 5
+OFFICIAL AUTHORITY ESCALATION + POLICE COORDINATION
+==================================================
+
+IMPORTANT:
+
+This is PHASE 5 of Allma Safety AI.
+
+DO NOT rebuild, delete or break:
+
+PHASE 1
+• Citizen onboarding
+• Emergency Circle
+• Trusted connections
+• Permissions
+• Responder profiles
+
+PHASE 2
+• SOS
+• Real location
+• AI emergency assessment
+• Emergency classification
+• Severity
+• Emergency timeline
+
+PHASE 3
+• In-app emergency calling
+• Emergency communication
+• Call escalation
+• Responder assignments
+
+PHASE 4
+• Community responder network
+• Responder matching
+• Responder verification
+• Responder availability
+• Responder location
+• Responder dashboard
+
+Extend the existing architecture.
+
+==================================================
+1. PURPOSE
+==================================================
+
+Create the official authority coordination layer.
+
+Allma must be able to prepare and route emergency cases to appropriate authorized authorities.
+
+Potential authorities:
+
+• Uganda Police Force
+• Ambulance / medical emergency services
+• Fire and rescue services
+• Local government authorities
+• LC1 / authorized local leadership
+• Health facilities
+• Other authorized emergency organizations
+
+IMPORTANT:
+
+Allma must NOT pretend to be an official authority.
+
+Allma is a technology coordination platform.
+
+Official integrations must only be activated after authorization.
+
+==================================================
+2. CORE PRINCIPLE
+==================================================
+
+The system must distinguish between:
+
+TRUSTED CONTACT
+
+COMMUNITY RESPONDER
+
+LOCAL AUTHORITY
+
+OFFICIAL EMERGENCY SERVICE
+
+Each has different permissions.
+
+Example:
+
+Citizen
+↓
+Emergency Circle
+↓
+Community Responder
+↓
+Local Authority
+↓
+Police / Ambulance / Fire
+
+However, critical emergencies may bypass intermediate levels.
+
+==================================================
+3. CRITICAL EMERGENCY ESCALATION
+==================================================
+
+If AI identifies:
+
+• Active attack
+• Serious injury
+• Unconscious person
+• Major fire
+• Person trapped
+• Life-threatening emergency
+• Child in immediate danger
+• Other critical danger
+
+Do NOT make the citizen wait for community responders.
+
+Prioritize official emergency services.
+
+Community responders can operate alongside official escalation when safe.
+
+==================================================
+4. AUTHORITY DIRECTORY
+==================================================
+
+Create an administrator-managed authority directory.
+
+Fields:
+
+Authority ID
+
+Organization
+
+Authority Type
+
+Region
+
+District
+
+County
+
+Sub-county
+
+Town
+
+Parish
+
+Village
+
+Station
+
+Contact method
+
+Emergency number
+
+Dispatch contact
+
+Email
+
+API endpoint
+
+Operating hours
+
+Availability
+
+Verification status
+
+Created by
+
+Updated by
+
+IMPORTANT:
+
+Do not hardcode fake official contacts.
+
+Demo data must clearly show:
+
+DEMO
+
+==================================================
+5. AUTHORITY TYPES
+==================================================
+
+Create:
+
+POLICE
+
+AMBULANCE
+
+FIRE
+
+HEALTH
+
+LOCAL_AUTHORITY
+
+COMMUNITY_LEADER
+
+OTHER_AUTHORIZED_SERVICE
+
+==================================================
+6. POLICE STRUCTURE
+==================================================
+
+Prepare the system for a hierarchical police structure.
+
+Example:
+
+National
+
+Region
+
+District
+
+Division
+
+Station
+
+Unit
+
+Officer
+
+Do not assume that every location has the same structure.
+
+Allow authorized administrators to configure the hierarchy.
+
+==================================================
+7. POLICE STATION
+==================================================
+
+Create station profiles.
+
+Fields:
+
+Station name
+
+Station code
+
+Location
+
+District
+
+Region
+
+Coverage area
+
+Contact methods
+
+Availability
+
+Officer count
+
+Emergency contact
+
+Administrative status
+
+Verification status
+
+==================================================
+8. OFFICER PROFILES
+==================================================
+
+Prepare secure officer profiles.
+
+Fields:
+
+Officer ID
+
+Name
+
+Rank
+
+Unit
+
+Station
+
+Duty status
+
+Authorized role
+
+Contact method
+
+Verification status
+
+Last status update
+
+IMPORTANT:
+
+Do not expose private officer information to ordinary citizens.
+
+Only authorized police administrators can manage officer information.
+
+==================================================
+9. OFFICER DUTY STATUS
+==================================================
+
+Support:
+
+On Duty
+
+Available
+
+Busy
+
+Responding
+
+Unavailable
+
+Off Duty
+
+Unknown
+
+The system must never invent officer availability.
+
+==================================================
+10. LOCATION → AUTHORITY
+==================================================
+
+When SOS location is available:
+
+Use the geographic authority directory to determine:
+
+Nearest appropriate authority
+
+Jurisdiction
+
+Police station
+
+Health facility
+
+Fire station
+
+Local authority
+
+Do not simply choose the closest building.
+
+Determine the appropriate jurisdiction.
+
+==================================================
+11. AUTHORITY MATCHING
+==================================================
+
+Create an authority matching engine.
+
+Inputs:
+
+Emergency category
+
+Severity
+
+Citizen location
+
+Jurisdiction
+
+Authority type
+
+Authority availability
+
+Operating area
+
+Emergency workflow
+
+Return:
+
+Recommended authority
+
+Reason
+
+Contact method
+
+Status
+
+==================================================
+12. CASE PREPARATION
+==================================================
+
+Before sending a case to an authority, Allma creates a structured case summary.
+
+Example:
+
+ALLMA EMERGENCY REPORT
+
+Emergency ID:
+ASA-2026-000128
+
+Category:
+Medical
+
+Severity:
+Critical
+
+Location:
+[Map location]
+
+Location accuracy:
+14 metres
+
+Time:
+13:42
+
+Citizen statement:
+"Someone has collapsed."
+
+AI assessment:
+Unconscious adult reported.
+
+Current status:
+Community responder accepted.
+
+Official assistance:
+Pending
+
+Do not include irrelevant private information.
+
+==================================================
+13. AI SUMMARY
+==================================================
+
+The AI should convert the conversation into a concise official case summary.
+
+It must separate:
+
+USER REPORTED
+
+from
+
+AI INFERRED
+
+from
+
+SYSTEM CONFIRMED
+
+Example:
+
+User reported:
+"Someone attacked me."
+
+AI assessment:
+Possible active assault.
+
+System confirmed:
+GPS location acquired.
+
+Do not present AI assumptions as established facts.
+
+==================================================
+14. AUTHORITY NOTIFICATION
+==================================================
+
+Support multiple communication methods.
+
+Priority:
+
+1. Official API integration
+2. Authorized dispatch system
+3. Secure government portal
+4. Authorized email
+5. SMS
+6. Official phone workflow
+
+Only use methods actually configured.
+
+==================================================
+15. NO FAKE INTEGRATIONS
+==================================================
+
+If no official integration exists:
+
+Show:
+
+"Official integration not configured."
+
+Provide a controlled manual action for an authorized operator.
+
+NEVER show:
+
+"Police notified"
+
+unless notification actually succeeded.
+
+==================================================
+16. NOTIFICATION STATES
+==================================================
+
+Create:
+
+Preparing
+
+Queued
+
+Sending
+
+Sent
+
+Delivered
+
+Acknowledged
+
+Rejected
+
+Failed
+
+Pending
+
+Unknown
+
+Each state must be visible to authorized operators.
+
+==================================================
+17. POLICE ACKNOWLEDGEMENT
+==================================================
+
+When official police infrastructure is integrated:
+
+Police should be able to acknowledge:
+
+Received
+
+Reviewing
+
+Dispatching
+
+Officer Assigned
+
+Responding
+
+Arrived
+
+Resolved
+
+Closed
+
+==================================================
+18. CITIZEN EXPERIENCE
+==================================================
+
+The citizen should see honest status.
+
+Example:
+
+"Emergency report prepared."
+
+"Police notification sent."
+
+"Awaiting acknowledgement."
+
+Then:
+
+"Police acknowledged your report."
+
+Then:
+
+"An officer has been assigned."
+
+Never fabricate these statuses.
+
+==================================================
+19. OFFICIAL RESPONSE STATUS
+==================================================
+
+Citizen view:
+
+🟢 Report Received
+
+🟡 Being Reviewed
+
+🔵 Response Assigned
+
+🟣 Officer Responding
+
+🟢 Assistance Arrived
+
+⚫ Case Closed
+
+Only display states confirmed by the authority system.
+
+==================================================
+20. POLICE DASHBOARD INTEGRATION
+==================================================
+
+Prepare a secure police dashboard.
+
+Dashboard sections:
+
+Emergency Queue
+
+Critical Emergencies
+
+Active Incidents
+
+Map
+
+Unassigned
+
+Assigned
+
+Responding
+
+Resolved
+
+Escalated
+
+Reports
+
+Audit Logs
+
+==================================================
+21. POLICE EMERGENCY QUEUE
+==================================================
+
+Each case card:
+
+Emergency ID
+
+Category
+
+Severity
+
+Time
+
+Location
+
+Jurisdiction
+
+Citizen status
+
+Responder status
+
+Authority status
+
+AI summary
+
+Actions
+
+Open Case
+
+Assign
+
+Escalate
+
+Contact
+
+Update Status
+
+==================================================
+22. CRITICAL CASE DESIGN
+==================================================
+
+Critical cases must be visually prominent.
+
+Example:
+
+🚨 CRITICAL
+
+Active attack
+
+2 minutes ago
+
+Location:
+
+Jinja
+
+Status:
+
+Awaiting dispatch
+
+Use subtle animation.
+
+Do not create flashing interfaces.
+
+==================================================
+23. POLICE MAP
+==================================================
+
+Create a secure operational map.
+
+Show:
+
+Active incidents
+
+Responder locations where authorized
+
+Assigned officers where authorized
+
+Police stations
+
+Relevant authorities
+
+Emergency zones
+
+Use clustering.
+
+Do not expose operational police information publicly.
+
+==================================================
+24. CASE DETAIL
+==================================================
+
+When officer opens a case:
+
+Emergency ID
+
+Citizen information according to authorization
+
+Location
+
+Map
+
+AI summary
+
+Original citizen messages where authorized
+
+Emergency timeline
+
+Responder information
+
+Authority notifications
+
+Call history
+
+Case status
+
+Evidence/media
+
+Audit history
+
+==================================================
+25. MEDIA EVIDENCE
+==================================================
+
+Citizens may upload:
+
+Photos
+
+Videos
+
+Audio
+
+Documents
+
+Evidence related to the incident.
+
+Before upload:
+
+Explain:
+
+"Only upload media that is safe for you to provide."
+
+Do not encourage citizens to approach dangerous situations to collect evidence.
+
+==================================================
+26. MEDIA SECURITY
+==================================================
+
+Sensitive media must be:
+
+Private
+
+Authenticated
+
+Access controlled
+
+Encrypted where supported
+
+Audit logged
+
+Do not put emergency evidence in public storage.
+
+==================================================
+27. MEDIA ACCESS
+==================================================
+
+Access should depend on role.
+
+Citizen:
+
+Own case
+
+Authorized police:
+
+Cases assigned to their jurisdiction
+
+Authorized supervisors:
+
+Cases within their permitted scope
+
+Administrators:
+
+Only according to explicit permission
+
+==================================================
+28. AUTHORITY ROLE SYSTEM
+==================================================
+
+Create roles:
+
+SUPER_ADMIN
+
+POLICE_ADMIN
+
+POLICE_DISPATCHER
+
+POLICE_OFFICER
+
+POLICE_SUPERVISOR
+
+MEDICAL_DISPATCHER
+
+FIRE_DISPATCHER
+
+LOCAL_AUTHORITY
+
+COMMUNITY_RESPONDER
+
+CITIZEN
+
+Permissions must be server-side enforced.
+
+==================================================
+29. POLICE ONBOARDING
+==================================================
+
+Create official onboarding.
+
+Officer enters:
+
+Official identification
+
+Name
+
+Rank
+
+Station
+
+Unit
+
+Role
+
+Contact information
+
+Credentials
+
+The account enters:
+
+Pending Verification
+
+until authorized administrators approve it.
+
+Do NOT allow self-service users to claim police roles.
+
+==================================================
+30. STATION SELECTION
+==================================================
+
+During onboarding:
+
+Select:
+
+Region
+
+District
+
+Division
+
+Station
+
+Unit
+
+Only authorized administrators can change an officer's official assignment.
+
+==================================================
+31. ADMIN APPROVAL
+==================================================
+
+Police administrator sees:
+
+Pending officer accounts
+
+Verify identity
+
+Approve
+
+Reject
+
+Request information
+
+Suspend
+
+Deactivate
+
+Every action must be logged.
+
+==================================================
+32. POLICE DISPATCH
+==================================================
+
+Create dispatch workflow:
+
+New Incident
+
+↓
+
+Reviewed
+
+↓
+
+Dispatch Required
+
+↓
+
+Officer Selected
+
+↓
+
+Officer Assigned
+
+↓
+
+Responding
+
+↓
+
+Arrived
+
+↓
+
+Handled
+
+↓
+
+Closed
+
+==================================================
+33. OFFICER ASSIGNMENT
+==================================================
+
+Authorized dispatcher can assign:
+
+Officer
+
+Patrol unit
+
+Station
+
+Other authorized resource
+
+System should consider:
+
+Location
+
+Availability
+
+Current workload
+
+Incident type
+
+Jurisdiction
+
+Do not automatically assign officers unless the authority has configured automatic dispatch rules.
+
+==================================================
+34. OFFICER RESPONSE
+==================================================
+
+Officer sees:
+
+Incident
+
+Priority
+
+Location
+
+Map
+
+AI summary
+
+Citizen information according to permission
+
+Responder information where authorized
+
+Actions:
+
+Accept
+
+En Route
+
+Arrived
+
+Update
+
+Request Backup
+
+Close
+
+==================================================
+35. BACKUP REQUEST
+==================================================
+
+Officer can request:
+
+Backup
+
+Medical
+
+Fire
+
+Additional unit
+
+Supervisor
+
+Other authorized assistance
+
+This creates a new event in the incident timeline.
+
+==================================================
+36. COMMUNITY RESPONDER → POLICE
+==================================================
+
+Community responders can request official assistance.
+
+Example:
+
+Responder:
+
+"Situation is unsafe."
+
+System:
+
+"Official assistance requested."
+
+Create:
+
+Emergency escalation event.
+
+Police receive:
+
+"Community responder requested official assistance."
+
+==================================================
+37. LOCAL AUTHORITY ESCALATION
+==================================================
+
+Support authorized local leadership.
+
+Example:
+
+Citizen reports:
+
+Flooding
+
+Dangerous road
+
+Community dispute
+
+Missing person
+
+Suspicious activity
+
+The system can route appropriate non-critical cases to the configured local authority.
+
+For serious criminal matters:
+
+Do not use local authorities as a replacement for police.
+
+==================================================
+38. AUTHORITY ESCALATION TREE
+==================================================
+
+Create configurable workflows.
+
+Example:
+
+Medical:
+
+Citizen
+
+↓
+
+AI
+
+↓
+
+Emergency Circle
+
+↓
+
+First Aid Responder
+
+↓
+
+Ambulance / Health Service
+
+Crime:
+
+Citizen
+
+↓
+
+AI
+
+↓
+
+Police
+
+↓
+
+Local authority where appropriate
+
+Fire:
+
+Citizen
+
+↓
+
+AI
+
+↓
+
+Fire Service
+
+↓
+
+Police if required
+
+Missing child:
+
+Citizen
+
+↓
+
+Emergency Circle
+
+↓
+
+Community responders
+
+↓
+
+Local authority
+
+↓
+
+Police
+
+The exact hierarchy must be configurable by authorized administrators.
+
+==================================================
+39. OFFICIAL PHONE CONTACT
+==================================================
+
+Prepare official emergency call actions.
+
+Example:
+
+Call Official Emergency Service
+
+Before initiating:
+
+Show the configured official emergency number.
+
+Only use verified official numbers entered by authorized administrators.
+
+Do not invent numbers.
+
+Track:
+
+Call requested
+
+Call initiated where technically possible
+
+Call completed where verifiable
+
+Call failed
+
+Unknown
+
+==================================================
+40. EMERGENCY NUMBER MANAGEMENT
+==================================================
+
+Create admin-only emergency number management.
+
+Fields:
+
+Country
+
+Service
+
+Number
+
+Region
+
+Coverage
+
+Verification status
+
+Verified by
+
+Verified at
+
+Do not allow ordinary users to modify emergency numbers.
+
+==================================================
+41. CASE ESCALATION
+==================================================
+
+Allow authorized officers to escalate:
+
+Station
+
+↓
+
+Division
+
+↓
+
+District
+
+↓
+
+Regional
+
+↓
+
+National
+
+depending on configured authority structure.
+
+Each escalation creates an audit event.
+
+==================================================
+42. AI ESCALATION RECOMMENDATIONS
+==================================================
+
+The AI can recommend:
+
+"Police escalation recommended."
+
+"Medical assistance recommended."
+
+"Fire response recommended."
+
+But the AI must distinguish:
+
+RECOMMENDED
+
+from
+
+REQUESTED
+
+from
+
+CONFIRMED
+
+Only authorized human/system actions can change actual dispatch status.
+
+==================================================
+43. AI EXPLANATION
+==================================================
+
+For authorized operators:
+
+Show:
+
+Why escalation was recommended.
+
+Example:
+
+"Critical medical emergency because the citizen reported an unconscious person."
+
+"Police escalation recommended because the citizen reported an active assault."
+
+Keep recommendations concise.
+
+==================================================
+44. FALSE POSITIVE HANDLING
+==================================================
+
+Do not automatically dismiss cases because AI confidence is low.
+
+Example:
+
+AI confidence:
+
+62%
+
+Status:
+
+Needs human review
+
+A human dispatcher can decide.
+
+==================================================
+45. EMERGENCY DUPLICATES
+==================================================
+
+If multiple citizens report the same event:
+
+Detect possible duplicate incidents using:
+
+Location
+
+Time
+
+Emergency category
+
+Similarity
+
+Create:
+
+Possible Duplicate
+
+Allow authorized operators to merge cases.
+
+Do not automatically merge critical incidents without review.
+
+==================================================
+46. CASE COMMUNICATION
+==================================================
+
+Authorized police/official personnel can communicate with the citizen through Allma.
+
+Citizen sees:
+
+"Official responder has sent you a message."
+
+Officer sees:
+
+Secure case communication.
+
+All messages must be:
+
+Authenticated
+
+Timestamped
+
+Audited
+
+==================================================
+47. AI TRANSLATION PREPARATION
+==================================================
+
+Prepare multilingual communication.
+
+Citizen may speak:
+
+English
+
+Luganda
+
+Swahili
+
+Other supported languages
+
+The system should preserve:
+
+Original message
+
+Translated message
+
+Language
+
+Do not lose the original statement.
+
+==================================================
+48. AUDIT LOGGING
+==================================================
+
+Every sensitive action must be logged:
+
+Case viewed
+
+Location viewed
+
+Media accessed
+
+Officer assigned
+
+Authority notified
+
+Status changed
+
+Case escalated
+
+Case closed
+
+Information exported
+
+Message sent
+
+Call initiated
+
+Use:
+
+Actor
+
+Role
+
+Timestamp
+
+Case ID
+
+Action
+
+Reason where applicable
+
+==================================================
+49. DATA ACCESS
+==================================================
+
+Implement strict role and geographic scope.
+
+Example:
+
+Police officer:
+
+Only cases assigned to them or within authorized scope.
+
+Station supervisor:
+
+Station jurisdiction.
+
+District administrator:
+
+District jurisdiction.
+
+Regional authority:
+
+Regional jurisdiction.
+
+National administrator:
+
+National scope.
+
+Never rely only on frontend hiding.
+
+Enforce permissions server-side.
+
+==================================================
+50. POLICE DASHBOARD NOTIFICATION
+==================================================
+
+Create:
+
+🚨 New Critical Emergency
+
+Medical emergency
+
+Jinja
+
+2 minutes ago
+
+Location available
+
+Community responder:
+
+Accepted
+
+Official acknowledgement:
+
+Pending
+
+Button:
+
+Open Case
+
+==================================================
+51. AUTHORITY DASHBOARD
+==================================================
+
+Create dashboards appropriate to authority type.
+
+Police:
+
+Incidents
+
+Dispatch
+
+Officers
+
+Stations
+
+Map
+
+Reports
+
+Medical:
+
+Medical emergencies
+
+Ambulance status
+
+Health facilities
+
+Fire:
+
+Fire incidents
+
+Fire stations
+
+Response status
+
+Local Authority:
+
+Community reports
+
+Local incidents
+
+Escalations
+
+Do not give every role access to everything.
+
+==================================================
+52. REPORTING
+==================================================
+
+Create operational reports:
+
+Emergency volume
+
+Response time
+
+Average acknowledgement time
+
+Average dispatch time
+
+Resolution time
+
+Emergency categories
+
+District activity
+
+Responder activity
+
+Escalation rates
+
+No-response incidents
+
+Do not expose personally identifiable information unnecessarily in analytics.
+
+==================================================
+53. REAL-TIME COMMAND CENTER
+==================================================
+
+Use realtime updates for:
+
+New emergency
+
+Emergency acknowledgement
+
+Officer assignment
+
+Officer response
+
+Responder response
+
+Location updates where authorized
+
+Case escalation
+
+Case closure
+
+==================================================
+54. SECURITY
+==================================================
+
+Implement:
+
+Strict RLS
+
+Role-based access control
+
+Server-side authorization
+
+Audit logs
+
+Rate limiting
+
+Secure media access
+
+Short-lived tokens where appropriate
+
+No sensitive credentials in frontend code
+
+No public emergency case endpoints
+
+No public officer location endpoints
+
+==================================================
+55. DEMO MODE
+==================================================
+
+Create a complete DEMO MODE for presentation.
+
+Demo can simulate:
+
+Police station
+
+Officers
+
+Duty status
+
+Emergency notification
+
+Officer acceptance
+
+Dispatch
+
+Arrival
+
+Case closure
+
+But EVERY simulated authority action must display:
+
+DEMO
+
+Example:
+
+DEMO POLICE STATION
+
+DEMO OFFICER
+
+DEMO DISPATCH
+
+Never imply that a real government system is connected.
+
+==================================================
+56. REAL INTEGRATION BOUNDARIES
+==================================================
+
+Create clean integration interfaces for future:
+
+Police APIs
+
+Emergency dispatch systems
+
+SMS gateways
+
+Voice providers
+
+Government identity systems
+
+Government GIS
+
+Health services
+
+Fire services
+
+Other official systems
+
+Do not invent API endpoints.
+
+Keep integrations configurable.
+
+==================================================
+57. PRODUCTION SAFETY
+==================================================
+
+Before any real deployment:
+
+Require:
+
+Official authorization
+
+Data protection review
+
+Security assessment
+
+Integration approval
+
+Emergency workflow validation
+
+Authority contact verification
+
+User privacy review
+
+Operational testing
+
+==================================================
+58. COMPLETE END-TO-END TEST
+==================================================
+
+Test:
+
+Citizen activates SOS.
+
+↓
+
+Real location acquired.
+
+↓
+
+AI asks questions.
+
+↓
+
+AI determines:
+
+Critical crime.
+
+↓
+
+System identifies jurisdiction.
+
+↓
+
+Appropriate police authority determined.
+
+↓
+
+Emergency case generated.
+
+↓
+
+Community responder may be contacted where safe.
+
+↓
+
+Official police escalation begins.
+
+↓
+
+Police dashboard receives case.
+
+↓
+
+Dispatcher acknowledges.
+
+↓
+
+Officer assigned.
+
+↓
+
+Officer accepts.
+
+↓
+
+Citizen receives confirmed status.
+
+↓
+
+Officer responds.
+
+↓
+
+Officer arrives.
+
+↓
+
+Officer updates case.
+
+↓
+
+Emergency closes.
+
+↓
+
+Citizen receives final status.
+
+↓
+
+Complete audit trail created.
+
+==================================================
+59. HONEST STATUS SYSTEM
+==================================================
+
+NEVER say:
+
+"Police are coming"
+
+unless confirmed.
+
+Use:
+
+"Police notification sent."
+
+"Awaiting acknowledgement."
+
+"Police acknowledged the report."
+
+"Officer assigned."
+
+"Officer responding."
+
+"Officer arrived."
+
+Only display states supported by actual system events.
+
+==================================================
+60. FINAL PRODUCT PRINCIPLE
+==================================================
+
+Allma Safety AI should become a bridge between:
+
+CITIZEN
+
+↓
+
+AI SAFETY ASSISTANT
+
+↓
+
+TRUSTED EMERGENCY CIRCLE
+
+↓
+
+COMMUNITY RESPONDERS
+
+↓
+
+LOCAL AUTHORITY
+
+↓
+
+OFFICIAL EMERGENCY SERVICES
+
+The AI coordinates the process.
+
+It does not impersonate authorities.
+
+It does not replace police.
+
+It does not fabricate emergency responses.
+
+It makes the emergency information structured, actionable, secure and easier for authorized responders to handle.
+
+==================================================
+FINAL ACCEPTANCE CRITERIA
+==================================================
+
+The system must successfully demonstrate:
+
+1. Citizen SOS
+
+2. Real location
+
+3. AI triage
+
+4. Emergency classification
+
+5. Appropriate escalation recommendation
+
+6. Authority/jurisdiction matching
+
+7. Structured emergency case
+
+8. Secure authority notification
+
+9. Police dashboard
+
+10. Dispatcher workflow
+
+11. Officer assignment
+
+12. Officer response
+
+13. Citizen status updates
+
+14. Community responder coordination
+
+15. Evidence/media handling
+
+16. Audit logging
+
+17. Role-based access
+
+18. Demo/production separation
+
+19. No false claims
+
+20. Full emergency timeline
+
+DO NOT BREAK PHASE 1, PHASE 2, PHASE 3 OR PHASE 4.
+
+==================================================
+END OF PHASE 5
+==================================================

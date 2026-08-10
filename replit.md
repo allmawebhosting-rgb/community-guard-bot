@@ -92,3 +92,10 @@ supabase/
 - Requests show only emergency category, severity, approximate distance, general area and a minimal summary before acceptance. Exact responder coordinates are not exposed to other responders.
 - Dangerous incidents show a stay-safe warning and official-help path instead of encouraging ordinary responders to approach. Demo mode is clearly labeled and never contacts a real person.
 - `supabase/migrations/20260810133000_phase4_community_responder_network.sql` adds responder profiles, skills, private locations, notification states, reports, RLS policies and server-authorized notification/assignment transitions. Apply it before using `/responder` with Supabase.
+
+## Phase 5 authority coordination
+
+- `/police/authority` is a restricted Authority Coordination workspace for jurisdiction-aware case preparation, escalation recommendations, notification lifecycle visibility, and configured authority directory records.
+- Demo mode is explicit and defaulted on for presentations. Simulated actions are labeled `DEMO` and never imply that a police, ambulance, fire, or government system was contacted.
+- Production mode intentionally stops at `Official integration not configured` until an authorized operator has verified a directory record and connected a real provider.
+- `supabase/migrations/20260810150000_phase5_authority_coordination.sql` adds authority directory, notification, and escalation records with command-staff RLS. Apply it before using live authority configuration.
