@@ -33,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/chat/")({
 function ChatHome() {
   const { q } = Route.useSearch();
   const navigate = useNavigate();
+  useRequireOnboarding();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
   const started = useRef(false);
