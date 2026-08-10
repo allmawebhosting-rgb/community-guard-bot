@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/allma/app-shell";
 import { AllmaChat } from "@/components/allma/allma-chat";
 import { useAuth } from "@/hooks/useAuth";
+import { useRequireOnboarding } from "@/lib/onboarding";
 import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { useQueryClient } from "@tanstack/react-query";
 
