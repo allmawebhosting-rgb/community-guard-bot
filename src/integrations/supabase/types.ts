@@ -689,7 +689,11 @@ export type Database = {
           full_name: string | null
           id: string
           locale: string
+          location_mode: string
+          onboarding_completed: boolean
+          onboarding_step: number
           phone: string | null
+          safety_plan: Json
           updated_at: string
         }
         Insert: {
@@ -698,7 +702,11 @@ export type Database = {
           full_name?: string | null
           id: string
           locale?: string
+          location_mode?: string
+          onboarding_completed?: boolean
+          onboarding_step?: number
           phone?: string | null
+          safety_plan?: Json
           updated_at?: string
         }
         Update: {
@@ -707,7 +715,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           locale?: string
+          location_mode?: string
+          onboarding_completed?: boolean
+          onboarding_step?: number
           phone?: string | null
+          safety_plan?: Json
           updated_at?: string
         }
         Relationships: []
