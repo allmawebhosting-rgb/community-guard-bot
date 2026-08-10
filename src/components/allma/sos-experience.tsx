@@ -33,14 +33,18 @@ import {
   Crosshair,
   Copy,
   ExternalLink,
+  Mic,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase = "idle" | "type-select" | "consent" | "loading" | "help" | "report" | "submitted";
+type LocationState = "finding" | "found" | "approximate" | "denied" | "unavailable" | "skipped";
+type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
 
 type LocationInfo = {
   address: string;
@@ -94,6 +98,12 @@ type ResponseTarget = {
 };
 
 type EscalationAction = "nearest" | "community" | "authority" | "police" | "ambulance";
+
+function createEmergencyId() {
+  const year = new Date().getFullYear();
+  const suffix = Math.floor(100000 + Math.random() * 900000);
+  return `ASA-${year}-${suffix}`;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -489,7 +499,9 @@ async function fetchOverpass(
 function getLocation(): Promise<LocationInfo> {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) {
-      reject(new Error("no geo"));
+      const error = new Error("Location is not available on this device.");
+      error.name = "unavailable";
+      reject(error);
       return;
     }
     let best: GeolocationPosition | null = null;
@@ -546,7 +558,15 @@ function getLocation(): Promise<LocationInfo> {
       (err) => {
         window.clearTimeout(timeout);
         if (best) void finish(best);
-        else reject(err);
+        else {
+          const error = new Error(
+            err.code === 1
+              ? "Location access is turned off."
+              : "Allma couldn't determine your location.",
+          );
+          error.name = err.code === 1 ? "denied" : "unavailable";
+          reject(error);
+        }
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
@@ -654,6 +674,204 @@ function AiChatBubble({ text, typing }: { text: string; typing?: boolean }) {
         {typing && (
           <span className="ml-0.5 inline-block h-3.5 w-0.5 translate-y-0.5 animate-pulse rounded-full bg-secondary/60" />
         )}
+      </div>
+    </div>
+  );
+}
+
+function EmergencyTriage({
+  emergencyType,
+  onAssessment,
+}: {
+  emergencyType: string;
+  onAssessment: (assessment: {
+    category: string;
+    severity: Severity;
+    immediateDanger: "yes" | "no" | "unknown";
+  }) => void;
+}) {
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [draft, setDraft] = useState("");
+  const [messages, setMessages] = useState<string[]>([
+    "Emergency mode is active. I'm going to help you step by step.",
+  ]);
+  const [severity, setSeverity] = useState<Severity>("UNKNOWN");
+  const [immediateDanger, setImmediateDanger] = useState<"yes" | "no" | "unknown">("unknown");
+  const [silentMode, setSilentMode] = useState(false);
+
+  const questionSet = [
+    "First, tell me what is happening.",
+    "Are you in immediate danger right now?",
+    emergencyType === "medical"
+      ? "Is the person conscious and breathing normally?"
+      : emergencyType === "fire"
+        ? "Are people trapped or unable to leave safely?"
+        : emergencyType === "missing"
+          ? "Who is missing, and when were they last seen?"
+          : "Can you move somewhere safer without putting yourself at greater risk?",
+  ];
+  const currentQuestion = questionSet[Math.min(questionIndex, questionSet.length - 1)];
+
+  const classify = (answer: string, nextIndex: number) => {
+    const normalized = answer.toLowerCase();
+    const category =
+      normalized.includes("fire") || normalized.includes("smoke")
+        ? "fire"
+        : normalized.includes("accident") || normalized.includes("crash")
+          ? "accident"
+          : normalized.includes("attack") ||
+              normalized.includes("violence") ||
+              normalized.includes("robbery")
+            ? "attack"
+            : emergencyType;
+    const danger =
+      nextIndex === 1
+        ? normalized.includes("yes") || normalized.includes("can't") || normalized.includes("cannot")
+          ? normalized.includes("yes")
+            ? "yes"
+            : "unknown"
+          : "no"
+        : immediateDanger;
+    const nextSeverity: Severity =
+      danger === "yes"
+        ? "CRITICAL"
+        : category === "missing" || category === "attack" || category === "fire"
+          ? "HIGH"
+          : nextIndex >= 2
+            ? "MEDIUM"
+            : "UNKNOWN";
+    setSeverity(nextSeverity);
+    setImmediateDanger(danger);
+    onAssessment({ category, severity: nextSeverity, immediateDanger: danger });
+  };
+
+  const submit = (value: string) => {
+    const answer = value.trim();
+    if (!answer) return;
+    const nextIndex = Math.min(questionIndex + 1, questionSet.length - 1);
+    setMessages((current) => [...current, `You: ${answer}`]);
+    classify(answer, questionIndex);
+    setTimeout(() => {
+      setMessages((current) => [
+        ...current,
+        questionIndex === 0
+          ? "I understand. I’m checking immediate danger first."
+          : questionIndex === 1 && answer.toLowerCase().startsWith("yes")
+            ? "Stay with me. If it is safe, move away from the danger. Do not confront anyone."
+            : "Thank you. I’m keeping the emergency record updated.",
+      ]);
+    }, 180);
+    setQuestionIndex(nextIndex);
+    setDraft("");
+  };
+
+  const voice = useVoiceInput({
+    onTranscript: (text) => submit(text),
+    onError: (message) => setMessages((current) => [...current, message]),
+  });
+
+  return (
+    <div className="rounded-2xl border border-destructive/25 bg-destructive/10 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center rounded-xl bg-destructive/18">
+            <Brain className="h-4 w-4 text-destructive" />
+          </span>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-destructive">
+              One question at a time
+            </p>
+            <p className="text-[11px] text-muted-foreground">Allma emergency triage</p>
+          </div>
+        </div>
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-success">
+          <span className="online-pulse h-1.5 w-1.5 rounded-full bg-success" /> Listening
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        {messages.slice(-3).map((message, index) => (
+          <div
+            key={`${message}-${index}`}
+            className={cn(
+              "rounded-xl px-3 py-2 text-[12px] leading-relaxed",
+              message.startsWith("You:")
+                ? "ml-8 bg-secondary/60 text-muted-foreground"
+                : "border border-border/50 bg-card/50 text-foreground",
+            )}
+          >
+            {message}
+          </div>
+        ))}
+        <div className="rounded-xl border border-border/50 bg-card/65 px-3 py-2.5 text-[13px] font-semibold leading-relaxed text-foreground">
+          {currentQuestion}
+        </div>
+      </div>
+
+      {questionIndex === 1 && (
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {["Yes", "No", "I'm not sure", "I can't speak"].map((answer) => (
+            <button
+              key={answer}
+              type="button"
+              onClick={() => {
+                if (answer === "I can't speak") setSilentMode(true);
+                submit(answer);
+              }}
+              className="min-h-10 rounded-xl border border-border/60 bg-secondary/60 px-2 py-2 text-[11px] font-bold text-foreground transition hover:border-destructive/40 hover:bg-destructive/10"
+            >
+              {answer}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-end gap-2">
+        <textarea
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              submit(draft);
+            }
+          }}
+          rows={1}
+          placeholder={silentMode ? "Use a short answer or a button…" : "Type what you need Allma to know…"}
+          aria-label="Emergency response"
+          className="min-h-11 flex-1 resize-none rounded-xl border border-border/60 bg-background/70 px-3 py-2.5 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-destructive/50"
+        />
+        <button
+          type="button"
+          onClick={() => void voice.toggle()}
+          aria-label={voice.recording ? "Stop listening" : "Speak to Allma"}
+          className={cn(
+            "grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition",
+            voice.recording
+              ? "border-destructive/40 bg-destructive text-destructive-foreground"
+              : "border-border/60 bg-secondary/60 text-foreground hover:border-destructive/40",
+          )}
+        >
+          {voice.transcribing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Mic className="h-4 w-4" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => submit(draft)}
+          aria-label="Send emergency response"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-destructive text-destructive-foreground transition hover:bg-destructive/90"
+        >
+          <Send className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>{voice.recording ? "🎙 Listening…" : "Voice or text · your choice"}</span>
+        <span className="font-semibold">
+          {severity !== "UNKNOWN" ? `${severity} priority` : "Assessment in progress"}
+        </span>
       </div>
     </div>
   );
@@ -980,6 +1198,8 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   const [shareLocation, setShareLocation] = useState(true);
   const [notifyResponders, setNotifyResponders] = useState(true);
   const [location, setLocation] = useState<LocationInfo | null>(null);
+  const [locationState, setLocationState] = useState<LocationState>("finding");
+  const [emergencyId, setEmergencyId] = useState<string | null>(null);
   const [hospitals, setHospitals] = useState<Facility[]>([]);
   const [officers, setOfficers] = useState<Facility[]>([]);
   const [trustedContacts, setTrustedContacts] = useState<TrustedContact[]>([]);
@@ -1020,7 +1240,10 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   }, [instant]);
 
   function handleSosPress() {
-    setPhase("type-select");
+    setPendingEmergencyType("other");
+    setShareLocation(true);
+    setNotifyResponders(true);
+    void activateEmergency();
   }
 
   function handleTypeSelect(type: string) {
@@ -1034,16 +1257,22 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     const type = pendingEmergencyType;
     if (activated.current) return;
     activated.current = true;
+    setEmergencyId(createEmergencyId());
     setSosActivityId(null);
     setResponderOffers([]);
     setEmergencyType(type);
     setPhase("loading");
+    setLocationState(shareLocation ? "finding" : "skipped");
 
     let loc: LocationInfo | null = null;
     try {
       loc = await getLocation();
-    } catch {
+      setLocationState(loc.accuracy <= 30 ? "found" : "approximate");
+    } catch (error) {
       loc = null;
+      setLocationState(
+        error instanceof Error && error.name === "denied" ? "denied" : "unavailable",
+      );
     }
     setLocation(shareLocation ? loc : null);
 
@@ -1179,7 +1408,9 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
           <HelpScreen
             key="help"
             emergencyType={emergencyType}
+            emergencyId={emergencyId}
             location={location}
+            locationState={locationState}
             hospitals={hospitals}
             officers={officers}
             trustedContacts={trustedContacts}
@@ -1193,6 +1424,19 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
               setEmergencyType(next);
             }}
             onToggleLocation={() => setShareLocation((v) => !v)}
+            onEnableLocation={async () => {
+              setLocationState("finding");
+              try {
+                const nextLocation = await getLocation();
+                setLocation(nextLocation);
+                setShareLocation(true);
+                setLocationState(nextLocation.accuracy <= 30 ? "found" : "approximate");
+              } catch (error) {
+                setLocationState(
+                  error instanceof Error && error.name === "denied" ? "denied" : "unavailable",
+                );
+              }
+            }}
             onToggleResponders={() => setNotifyResponders((v) => !v)}
             onReport={() => setPhase("report")}
 
@@ -1200,6 +1444,9 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
               activated.current = false;
               setSosActivityId(null);
               setResponderOffers([]);
+              setEmergencyId(null);
+              setLocation(null);
+              setLocationState("finding");
               setPhase("idle");
             }}
           />
@@ -1222,6 +1469,9 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
               activated.current = false;
               setSosActivityId(null);
               setResponderOffers([]);
+              setEmergencyId(null);
+              setLocation(null);
+              setLocationState("finding");
               setPhase("idle");
             }}
           />
@@ -1701,7 +1951,9 @@ function LoadingScreen() {
 
 function HelpScreen({
   emergencyType,
+  emergencyId,
   location,
+  locationState,
   hospitals,
   officers,
   trustedContacts,
@@ -1712,12 +1964,15 @@ function HelpScreen({
   activityId,
   onChangeType,
   onToggleLocation,
+  onEnableLocation,
   onToggleResponders,
   onReport,
   onClose,
 }: {
   emergencyType: string;
+  emergencyId: string | null;
   location: LocationInfo | null;
+  locationState: LocationState;
   hospitals: Facility[];
   officers: Facility[];
   trustedContacts: TrustedContact[];
@@ -1728,6 +1983,7 @@ function HelpScreen({
   activityId: string | null;
   onChangeType: (type: string) => void;
   onToggleLocation: () => void;
+  onEnableLocation: () => void;
   onToggleResponders: () => void;
   onReport: () => void;
   onClose: () => void;
@@ -1736,6 +1992,11 @@ function HelpScreen({
   const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
   const TypeIcon = typeInfo?.icon ?? AlertTriangle;
   const showPoliceFirst = ["crime", "attack", "domestic", "missing"].includes(emergencyType);
+  const [assessment, setAssessment] = useState<{
+    category: string;
+    severity: Severity;
+    immediateDanger: "yes" | "no" | "unknown";
+  } | null>(null);
 
   const aiMessages = useRef(getAiMessages(emergencyType, location)).current;
   const { log: aiLog, typing: aiTyping } = useAiChat(aiMessages);
@@ -1744,6 +2005,7 @@ function HelpScreen({
   const [liveOffers, setLiveOffers] = useState(responderOffers);
   const [calledTargets, setCalledTargets] = useState<string[]>([]);
   const [escalationAction, setEscalationAction] = useState<EscalationAction | null>(null);
+  const [closeConfirm, setCloseConfirm] = useState(false);
   const responders: Responder[] = liveOffers.map((offer) => ({
     id: offer.offer_id,
     offerId: offer.offer_id,
@@ -1756,6 +2018,25 @@ function HelpScreen({
 
   const nearestResponder = responders[0];
   const isViolentEmergency = ["crime", "attack", "domestic"].includes(emergencyType);
+  const locationCopy: Record<LocationState, { label: string; detail: string }> = {
+    finding: { label: "Finding your location…", detail: "Please keep location access available." },
+    found: { label: "Location found", detail: "Your precise device location is available." },
+    approximate: {
+      label: "Location is approximate",
+      detail: "We're trying to improve the accuracy.",
+    },
+    denied: { label: "Location access is turned off", detail: "You can continue without GPS." },
+    unavailable: {
+      label: "Location unavailable",
+      detail: "Add an address or landmark if you can.",
+    },
+    skipped: { label: "Location sharing paused", detail: "You can enable it during this emergency." },
+  };
+  const currentLocationCopy = locationCopy[locationState];
+
+  function requestClose() {
+    setCloseConfirm(true);
+  }
 
   function runEscalationAction(action: EscalationAction) {
     setEscalationAction(action);
@@ -1867,6 +2148,18 @@ function HelpScreen({
         ))}
         {aiTyping && <AiChatBubble text={aiTyping} typing />}
       </div>
+      <EmergencyTriage emergencyType={emergencyType} onAssessment={setAssessment} />
+      {assessment && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gold/20 bg-gold/10 px-3 py-2 text-[10px] text-gold">
+          <span className="font-bold uppercase tracking-[0.16em]">Assessment updated</span>
+          <span className="rounded-full bg-gold/15 px-2 py-1 font-semibold">
+            {assessment.category} · {assessment.severity}
+          </span>
+          <span className="text-muted-foreground">
+            Immediate danger: {assessment.immediateDanger}
+          </span>
+        </div>
+      )}
     </div>
   );
 
@@ -2137,6 +2430,63 @@ function HelpScreen({
     </div>
   );
 
+  const LocationSection = (
+    <div
+      className={cn(
+        "rounded-2xl border p-4",
+        locationState === "found" || locationState === "approximate"
+          ? "border-success/25 bg-success/10"
+          : "border-gold/25 bg-gold/10",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-background/50">
+          {locationState === "finding" ? (
+            <Loader2 className="h-4 w-4 animate-spin text-gold" />
+          ) : (
+            <MapPin className="h-4 w-4 text-success" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-bold text-foreground">{currentLocationCopy.label}</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            {location
+              ? `${currentLocationCopy.detail} Last updated ${new Date(location.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
+              : currentLocationCopy.detail}
+          </p>
+        </div>
+        {(locationState === "denied" || locationState === "unavailable" || locationState === "skipped") && (
+          <button
+            type="button"
+            onClick={onEnableLocation}
+            className="shrink-0 rounded-lg border border-gold/30 bg-background/50 px-2.5 py-2 text-[10px] font-bold text-gold transition hover:bg-background/80"
+          >
+            Enable
+          </button>
+        )}
+      </div>
+      {(locationState === "unavailable" || locationState === "denied") && (
+        <div className="mt-3 flex items-center gap-2">
+          <span className="h-px flex-1 bg-gold/15" />
+          <span className="text-[10px] text-muted-foreground">or continue without location</span>
+          <span className="h-px flex-1 bg-gold/15" />
+        </div>
+      )}
+      {(locationState === "unavailable" || locationState === "denied") && (
+        <button
+          type="button"
+          onClick={() => {
+            setCloseConfirm(false);
+            onToggleLocation();
+          }}
+          className="mt-2 w-full rounded-xl border border-border/60 bg-background/35 px-3 py-2 text-[11px] font-semibold text-foreground transition hover:bg-background/60"
+        >
+          Continue without location
+        </button>
+      )}
+    </div>
+  );
+
   const StatusSection = (
     <div>
       <SectionLabel>
@@ -2380,16 +2730,12 @@ function HelpScreen({
             </div>
             <div className="min-w-0">
               <p className="truncate font-display text-[14px] font-bold text-foreground">
-                {typeInfo?.label ?? "Emergency"}{" "}
+                  Emergency Active{" "}
                 <span className="ml-1 text-[11px] font-normal text-destructive">● LIVE</span>
               </p>
-              {location && (
-                <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
-                  <MapPin className="h-2.5 w-2.5 shrink-0" />
-                  {[location.suburb, location.district].filter(Boolean).join(", ") ||
-                    location.address}
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {emergencyId ?? "Preparing emergency ID"} · {typeInfo?.label ?? "Emergency"}
                 </p>
-              )}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -2402,7 +2748,7 @@ function HelpScreen({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="flex min-h-9 items-center gap-1 rounded-xl border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-[10px] font-bold text-destructive transition hover:border-destructive/50 hover:bg-destructive/20 sm:gap-1.5 sm:px-3 sm:text-[11px]"
             >
               <X className="h-3.5 w-3.5 shrink-0" /> Close
@@ -2423,6 +2769,7 @@ function HelpScreen({
             {TrustedContactsSection}
             {StepsSection}
             {StatusSection}
+            {LocationSection}
             {ControlsSection}
 
             {MapSection}
@@ -2438,7 +2785,7 @@ function HelpScreen({
                 <Shield className="h-4 w-4" /> File an incident report
               </button>
               <button
-                onClick={onClose}
+                onClick={requestClose}
                 className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-[12px] font-bold text-destructive transition hover:border-destructive/45 hover:bg-destructive/18"
               >
                 <X className="h-3.5 w-3.5" /> I'm safe — close SOS
@@ -2465,6 +2812,7 @@ function HelpScreen({
               {CallSection}
               {TrustedContactsSection}
               {StatusSection}
+              {LocationSection}
               {ControlsSection}
 
               {MapSection}
@@ -2473,7 +2821,7 @@ function HelpScreen({
 
               <div className="space-y-2 pt-1">
                 <button
-                  onClick={onClose}
+                   onClick={requestClose}
                   className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-[12px] font-bold text-destructive transition hover:border-destructive/45 hover:bg-destructive/18"
                 >
                   <X className="h-3.5 w-3.5" /> I'm safe — close SOS
@@ -2483,6 +2831,50 @@ function HelpScreen({
           </div>
         </div>
       </div>
+      <AnimatePresence>
+        {closeConfirm && (
+          <motion.div
+            className="fixed inset-0 z-20 grid place-items-center bg-background/70 p-5 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="w-full max-w-sm rounded-2xl border border-border/70 bg-card p-5 shadow-lift"
+              initial={{ opacity: 0, y: 12, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">
+                Confirm emergency close
+              </p>
+              <h2 className="mt-2 font-display text-xl font-bold text-foreground">
+                Are you sure the emergency is over?
+              </h2>
+              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+                Ending this session stops active location updates. Keep it active if you still need
+                help.
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCloseConfirm(false)}
+                  className="rounded-xl border border-border/70 bg-secondary/60 px-3 py-3 text-[12px] font-bold text-foreground"
+                >
+                  Keep active
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl bg-success px-3 py-3 text-[12px] font-bold text-success-foreground"
+                >
+                  End emergency
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

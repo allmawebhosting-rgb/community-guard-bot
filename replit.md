@@ -65,3 +65,11 @@ supabase/
 - Progress is autosaved in the browser as `allma-onboarding-draft` so interrupted setup can resume.
 - Location sharing requires explicit browser permission and is never presented as continuously shared.
 - Trusted people remain invitation-pending until they accept; this flow does not invent production connections or responder integrations.
+
+## Phase 2 emergency SOS
+
+- The floating SOS control opens emergency mode with one tap at `/sos?instant=true`.
+- Active SOS keeps a generated emergency ID visible, requests real browser geolocation, shows found/approximate/denied/unavailable states, and watches for live position updates while the session is active.
+- Allma triage asks one question at a time with text, microphone transcription where supported, quick danger responses, and silent mode. It never claims an authority or responder was contacted automatically.
+- Closing an active emergency requires confirmation. Official calls still use the device dialer and require the user's tap.
+- Community responder visibility remains consent-based and approximate; exact coordinates are not shown to ordinary responders.
