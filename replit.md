@@ -73,3 +73,11 @@ supabase/
 - Allma triage asks one question at a time with text, microphone transcription where supported, quick danger responses, and silent mode. It never claims an authority or responder was contacted automatically.
 - Closing an active emergency requires confirmation. Official calls still use the device dialer and require the user's tap.
 - Community responder visibility remains consent-based and approximate; exact coordinates are not shown to ordinary responders.
+
+## Phase 3 emergency communication
+
+- `/calls` is the authenticated emergency communication workspace for the citizen and responder views.
+- The Phase 3 UI supports incoming emergency calls, explicit accept/decline, connected-call controls, secure emergency chat labels, responder status updates, escalation queue visibility, and an audit-style timeline.
+- Voice is explicitly separated behind `src/lib/voice-provider.ts`. Until authenticated WebRTC signaling, STUN/TURN credentials, and a provider are configured, the app uses **DEMO CALL MODE** and never claims a real call occurred.
+- `src/lib/emergency-communication.ts` contains the consent/eligibility ranking boundary: only opted-in, permissioned, available, unblocked responders with fresh location are eligible.
+- `supabase/migrations/20260810120000_phase3_emergency_communication.sql` adds calls, call sessions, responder assignments, escalation events, emergency chat events and audit records with participant-scoped RLS.

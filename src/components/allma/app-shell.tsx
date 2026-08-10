@@ -15,6 +15,7 @@ import {
   Sun,
   UserRound,
   X,
+  PhoneCall,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,13 +30,14 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-type TabPath = "/chat" | "/alerts" | "/reports" | "/profile";
+type TabPath = "/chat" | "/alerts" | "/reports" | "/profile" | "/calls";
 
 const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Home", to: "/chat", icon: Home },
   { label: "Alerts", to: "/alerts", icon: Bell },
   { label: "Reports", to: "/reports", icon: FileText },
   { label: "Profile", to: "/profile", icon: UserRound },
+  { label: "Emergency calls", to: "/calls", icon: PhoneCall },
 ];
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────── */

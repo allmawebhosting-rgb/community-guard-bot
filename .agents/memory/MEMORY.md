@@ -3,3 +3,4 @@
 - [Imported project dependency bootstrap](imported-project-dependency-bootstrap.md) — Restoring missing npm dependencies may rewrite semver-resolved lockfile entries; review and revert incidental drift.
 - [Mobile chat viewport containment](mobile-chat-viewport-containment.md) — Chat shells need both flex-boundary sizing and a route-scoped root scroll lock on mobile.
 - [SSR onboarding animation](onboarding-animation-hydration.md) — First-render onboarding content must not start hidden or hydration can leave the route visually blank.
+- [Phase 3 emergency communication](phase3-emergency-communication.md) — Demo calls must stay visibly separate from provider-confirmed voice and official escalation.

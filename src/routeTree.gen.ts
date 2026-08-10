@@ -19,6 +19,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SosRouteImport } from './routes/sos'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedCallsRouteImport } from './routes/_authenticated/calls'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPoliceRouteImport } from './routes/_authenticated/police'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -95,6 +96,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedCallsRoute = AuthenticatedCallsRouteImport.update({
+  id: '/calls',
+  path: '/calls',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -240,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/calls': typeof AuthenticatedCallsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/police': typeof AuthenticatedPoliceRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
@@ -275,6 +282,7 @@ export interface FileRoutesByTo {
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/calls': typeof AuthenticatedCallsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -311,6 +319,7 @@ export interface FileRoutesById {
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/calls': typeof AuthenticatedCallsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/police': typeof AuthenticatedPoliceRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
@@ -348,6 +357,7 @@ export interface FileRouteTypes {
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/calls'
     | '/dashboard'
     | '/police'
     | '/profile'
@@ -383,6 +393,7 @@ export interface FileRouteTypes {
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/calls'
     | '/dashboard'
     | '/profile'
     | '/reports'
@@ -418,6 +429,7 @@ export interface FileRouteTypes {
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/calls'
     | '/_authenticated/dashboard'
     | '/_authenticated/police'
     | '/_authenticated/profile'
@@ -532,6 +544,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/.well-known/oauth-protected-resource'
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/calls': {
+      id: '/_authenticated/calls'
+      path: '/calls'
+      fullPath: '/calls'
+      preLoaderRoute: typeof AuthenticatedCallsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
@@ -742,6 +761,7 @@ const AuthenticatedPoliceRouteWithChildren =
   AuthenticatedPoliceRoute._addFileChildren(AuthenticatedPoliceRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCallsRoute: typeof AuthenticatedCallsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedPoliceRoute: typeof AuthenticatedPoliceRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
@@ -751,6 +771,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCallsRoute: AuthenticatedCallsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedPoliceRoute: AuthenticatedPoliceRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
