@@ -1403,7 +1403,9 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
             onBack={() => setPhase("type-select")}
           />
         )}
-        {phase === "loading" && <LoadingScreen key="loading" />}
+        {phase === "loading" && (
+          <LoadingScreen key="loading" emergencyId={emergencyId} />
+        )}
         {phase === "help" && (
           <HelpScreen
             key="help"
@@ -1493,22 +1495,23 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
       transition={{ duration: 0.3 }}
     >
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 sm:px-6 sm:py-3.5">
+       <div className="flex items-center justify-between border-b border-border/60 bg-background/35 px-4 py-3 sm:px-6 sm:py-3.5">
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="grid h-7 w-7 place-items-center rounded-full bg-destructive/18">
             <Siren className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
           </div>
           <span className="truncate text-[13px] font-semibold text-foreground">Allma Safety AI</span>
         </div>
-        <span className="rounded-full border border-destructive/25 bg-destructive/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive">
-          Demo
+         <span className="flex items-center gap-1.5 rounded-full border border-destructive/25 bg-destructive/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive">
+           <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+           Demo mode
         </span>
       </div>
 
       {/* Main area — side by side on desktop */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6 sm:py-8 lg:flex lg:flex-row lg:items-center lg:justify-center lg:gap-24 lg:overflow-hidden lg:py-0">
+       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6 sm:py-8 lg:flex lg:flex-row lg:items-center lg:justify-center lg:gap-24 lg:overflow-hidden lg:py-0">
         {/* Left: button */}
-        <div className="flex flex-col items-center text-center">
+         <div className="flex flex-col items-center text-center lg:-translate-y-2">
           <motion.p
             className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-destructive/60"
             initial={{ opacity: 0, y: -8 }}
@@ -1565,13 +1568,14 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
             </button>
           </motion.div>
 
-          <motion.p
-            className="mt-8 text-[11px] text-muted-foreground sm:mt-12"
+           <motion.p
+             className="mt-7 flex items-center gap-1.5 text-[11px] text-muted-foreground sm:mt-10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            Demo · No real services contacted
+             <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+             Demo mode · no real services contacted
           </motion.p>
         </div>
 
@@ -1582,9 +1586,12 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
         >
-          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-            Emergency Numbers
-          </p>
+           <div className="mb-4 flex items-end justify-between gap-3">
+             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+               Official emergency lines
+             </p>
+             <span className="text-[10px] text-muted-foreground">Tap to call</span>
+           </div>
           {EMERGENCY_NUMBERS.map((e) => (
             <a
               key={e.label}
@@ -1850,7 +1857,7 @@ function ConsentOption({
 
 // ─── Loading ──────────────────────────────────────────────────────────────────
 
-function LoadingScreen() {
+function LoadingScreen({ emergencyId }: { emergencyId: string | null }) {
   const steps = [
     "Activating emergency mode…",
     "Detecting precise GPS location…",
@@ -1891,7 +1898,19 @@ function LoadingScreen() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="relative mb-10 flex items-center justify-center">
+      <div className="mb-7 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-destructive">
+          Emergency mode
+        </p>
+        <h1 className="mt-2 font-display text-2xl font-black text-foreground">
+          Allma is here with you
+        </h1>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {emergencyId ? `Session ${emergencyId}` : "Starting your emergency session"}
+        </p>
+      </div>
+
+      <div className="relative mb-9 flex items-center justify-center">
         <span className="absolute h-52 w-52 animate-ping rounded-full bg-destructive/7 [animation-duration:1.6s]" />
         <span className="absolute h-36 w-36 animate-ping rounded-full bg-destructive/11 [animation-duration:1.2s]" />
         <motion.div
@@ -2006,6 +2025,9 @@ function HelpScreen({
   const [calledTargets, setCalledTargets] = useState<string[]>([]);
   const [escalationAction, setEscalationAction] = useState<EscalationAction | null>(null);
   const [closeConfirm, setCloseConfirm] = useState(false);
+  const [isOnline, setIsOnline] = useState(
+    () => typeof navigator === "undefined" || navigator.onLine,
+  );
   const responders: Responder[] = liveOffers.map((offer) => ({
     id: offer.offer_id,
     offerId: offer.offer_id,
@@ -2055,6 +2077,17 @@ function HelpScreen({
   useEffect(() => {
     setLiveOffers(responderOffers);
   }, [responderOffers]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!activityId) return;
@@ -2150,11 +2183,17 @@ function HelpScreen({
 
   // ── Shared sections (rendered on both mobile and desktop) ──
   const AiSection = (
-    <div className="space-y-2.5">
-      <SectionLabel>
-        <Brain className="mr-1.5 inline-block h-3 w-3 align-middle" />
-        Allma AI — live guidance
-      </SectionLabel>
+    <div className="premium-surface space-y-3 rounded-3xl border border-destructive/25 p-4 shadow-soft sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <SectionLabel>
+          <Brain className="mr-1.5 inline-block h-3 w-3 align-middle" />
+          Allma AI — live guidance
+        </SectionLabel>
+        <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-success/20 bg-success/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-success">
+          <span className="online-pulse h-1.5 w-1.5 rounded-full bg-success" />
+          Listening
+        </span>
+      </div>
       <div className="space-y-2">
         {aiLog.map((msg, i) => (
           <AiChatBubble key={i} text={msg} />
@@ -2746,15 +2785,26 @@ function HelpScreen({
             </div>
             <div className="min-w-0">
               <p className="truncate font-display text-[14px] font-bold text-foreground">
-                  Emergency Active{" "}
+                Emergency Active{" "}
                 <span className="ml-1 text-[11px] font-normal text-destructive">● LIVE</span>
               </p>
-                <p className="truncate text-[10px] text-muted-foreground">
-                  {emergencyId ?? "Preparing emergency ID"} · {typeInfo?.label ?? "Emergency"}
-                </p>
+              <p className="truncate text-[10px] text-muted-foreground">
+                {emergencyId ?? "Preparing emergency ID"} · {typeInfo?.label ?? "Emergency"}
+              </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <span
+              className={cn(
+                "hidden items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] sm:flex",
+                isOnline
+                  ? "border-success/20 bg-success/10 text-success"
+                  : "border-gold/25 bg-gold/10 text-gold",
+              )}
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full", isOnline ? "bg-success" : "bg-gold")} />
+              {isOnline ? "Connected" : "Connection weak"}
+            </span>
             <button
               type="button"
               onClick={onReport}
