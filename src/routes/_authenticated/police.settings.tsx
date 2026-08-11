@@ -23,15 +23,6 @@ const TABS = [
 
 type Tab = (typeof TABS)[number]["id"];
 
-const EMERGENCY_NUMBERS = [
-  { service: "Uganda Police", number: "999", description: "National emergency police line" },
-  { service: "Fire Brigade",  number: "0800199999", description: "Uganda Fire Brigade 24/7" },
-  { service: "Ambulance / KCCA", number: "0800300200", description: "Kampala ambulance service" },
-  { service: "Red Cross Uganda",  number: "0800199199", description: "Disaster & emergency relief" },
-  { service: "Interpol Uganda",   number: "+256414340175", description: "International police cooperation" },
-  { service: "Anti-Corruption Unit", number: "0800100004", description: "IGG / Anti-corruption hotline" },
-];
-
 const NOTIFICATION_OPTIONS = [
   { id: "desktop",  label: "Desktop Notifications", description: "Pop-up alerts in your browser" },
   { id: "email",    label: "Email Alerts",           description: "Critical incidents via email" },
@@ -177,19 +168,15 @@ function SettingsPage() {
       {/* Emergency Numbers */}
       {tab === "emergency" && (
         <section className="premium-surface rounded-3xl border border-border/55 shadow-soft">
-          <div className="divide-y divide-border/40">
-            {EMERGENCY_NUMBERS.map((e) => (
-              <div key={e.service} className="flex items-center gap-3 px-5 py-4">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-primary/12 border border-primary/30">
-                  <Hash className="h-4 w-4 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm">{e.service}</p>
-                  <p className="text-[11px] text-muted-foreground">{e.description}</p>
-                </div>
-                <span className="shrink-0 font-mono text-sm font-bold tabular-nums">{e.number}</span>
-              </div>
-            ))}
+          <div className="flex flex-col items-center px-6 py-12 text-center">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-gold/30 bg-gold/10">
+              <Hash className="h-5 w-5 text-gold" />
+            </div>
+            <p className="mt-4 font-display text-sm font-semibold">No verified emergency numbers configured</p>
+            <p className="mt-1.5 max-w-md text-[12px] leading-relaxed text-muted-foreground">
+              Add numbers only after an authorized administrator verifies the service, coverage and source. Ordinary users cannot modify this directory.
+            </p>
+            <span className="mt-4 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gold">Official integration not configured</span>
           </div>
         </section>
       )}

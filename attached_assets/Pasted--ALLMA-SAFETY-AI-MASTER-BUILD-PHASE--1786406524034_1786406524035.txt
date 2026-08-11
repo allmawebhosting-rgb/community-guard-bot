@@ -1,0 +1,2187 @@
+============================================================
+ALLMA SAFETY AI
+MASTER BUILD — PHASE 8
+SAFETY INTELLIGENCE, ANALYTICS & PREVENTION ENGINE
+============================================================
+
+IMPORTANT:
+
+This is PHASE 8.
+
+DO NOT rebuild, remove, or break any functionality from
+PHASES 1–7.
+
+Extend the existing Allma Safety AI system.
+
+The goal of this phase is to create an advanced
+SAFETY INTELLIGENCE AND PREVENTION PLATFORM.
+
+Allma should not only respond to emergencies.
+
+It should help authorized authorities:
+
+• Understand incident patterns
+• Identify emerging trends
+• Detect possible clusters
+• Allocate resources
+• Identify areas requiring attention
+• Monitor response performance
+• Generate intelligence reports
+• Support prevention planning
+• Coordinate different levels of command
+
+IMPORTANT:
+
+AI provides intelligence and recommendations.
+
+AI MUST NOT make final law-enforcement decisions.
+
+Humans and authorized authorities remain responsible
+for operational decisions.
+
+============================================================
+1. INTELLIGENCE CENTER
+============================================================
+
+Create a new command-center section:
+
+INTELLIGENCE
+
+Navigation:
+
+Overview
+Live Intelligence
+Incident Trends
+Geographic Intelligence
+Time Patterns
+Category Analysis
+Resource Intelligence
+Response Intelligence
+Community Safety
+AI Insights
+Reports
+Alerts
+
+Only authorized roles can access this section.
+
+============================================================
+2. INTELLIGENCE DASHBOARD
+============================================================
+
+Create a premium intelligence dashboard.
+
+Header:
+
+ALLMA SAFETY INTELLIGENCE
+
+Subtitle:
+
+"Operational intelligence for safer communities."
+
+Display:
+
+Total incidents
+
+Critical incidents
+
+High-priority incidents
+
+Active incidents
+
+Resolved incidents
+
+Average response time
+
+Average acknowledgement time
+
+Escalation rate
+
+Community responder activity
+
+Use real database calculations.
+
+Never use fake production numbers.
+
+============================================================
+3. TIME RANGE
+============================================================
+
+Allow:
+
+Today
+
+Last 7 days
+
+Last 30 days
+
+Last 90 days
+
+This year
+
+Custom range
+
+Every chart updates according to the selected range.
+
+============================================================
+4. GEOGRAPHIC INTELLIGENCE
+============================================================
+
+Create a map showing authorized aggregated incident activity.
+
+Filters:
+
+District
+
+County
+
+Sub-county
+
+Parish
+
+Station
+
+Incident category
+
+Severity
+
+Date
+
+Time
+
+Display:
+
+Incident density
+
+Incident categories
+
+Critical incidents
+
+Response activity
+
+Community responder activity
+
+Police response activity
+
+============================================================
+5. PRIVACY PROTECTION
+============================================================
+
+Do NOT expose exact citizen locations in public intelligence views.
+
+Use aggregation.
+
+For example:
+
+"12 incidents reported in this area."
+
+NOT:
+
+"John Doe reported an incident at this exact house."
+
+Sensitive location information must only be available
+to authorized personnel with a legitimate operational need.
+
+============================================================
+6. INCIDENT HEATMAP
+============================================================
+
+Create an interactive heatmap.
+
+Allow users to select:
+
+Crime reports
+
+Medical emergencies
+
+Fire
+
+Missing persons
+
+Lost & found
+
+Traffic incidents
+
+Other configured categories
+
+Use neutral terminology.
+
+Do NOT automatically label an area:
+
+"Dangerous neighborhood."
+
+Instead use:
+
+"Elevated incident activity."
+
+============================================================
+7. AI PATTERN DETECTION
+============================================================
+
+Allma continuously analyzes authorized incident data.
+
+It can identify:
+
+Repeated incident categories
+
+Unusual increases
+
+Time-based patterns
+
+Geographic concentrations
+
+Sudden spikes
+
+Possible incident clusters
+
+Response delays
+
+Resource shortages
+
+Community responder gaps
+
+============================================================
+8. IMPORTANT AI RULE
+============================================================
+
+Never present an AI pattern as confirmed fact.
+
+Use language:
+
+"Possible pattern detected."
+
+"Potential increase in reports."
+
+"Possible concentration."
+
+"Further review recommended."
+
+Never say:
+
+"This person is responsible."
+
+"This neighborhood is criminal."
+
+"These people are criminals."
+
+"This incident is definitely connected."
+
+============================================================
+9. INCIDENT CLUSTER DETECTION
+============================================================
+
+If multiple incidents occur:
+
+Close together geographically
+
+Within a similar time period
+
+With similar categories
+
+Allma may generate:
+
+POSSIBLE INCIDENT CLUSTER
+
+Example:
+
+5 similar reports
+
+Area:
+
+Configured locality
+
+Time:
+
+Last 90 minutes
+
+AI assessment:
+
+"Reports share several characteristics.
+Further review may be useful."
+
+Actions:
+
+Review incidents
+
+Open map
+
+Create intelligence note
+
+Notify authorized supervisor
+
+============================================================
+10. SPIKE DETECTION
+============================================================
+
+Detect unusual increases.
+
+Example:
+
+"Reports in this category increased significantly compared
+with the selected historical baseline."
+
+Show:
+
+Current period
+
+Comparison period
+
+Change
+
+Confidence
+
+Possible explanations
+
+Do not claim causation.
+
+============================================================
+11. TIME PATTERN ANALYSIS
+============================================================
+
+Display:
+
+Hourly patterns
+
+Daily patterns
+
+Weekly patterns
+
+Monthly patterns
+
+Seasonal patterns where enough data exists.
+
+Example:
+
+"Reports have historically increased during this period."
+
+============================================================
+12. CATEGORY INTELLIGENCE
+============================================================
+
+Create category analysis.
+
+Examples:
+
+Theft
+
+Assault
+
+Missing persons
+
+Domestic incidents
+
+Traffic incidents
+
+Medical emergencies
+
+Fire
+
+Lost property
+
+Other configured categories
+
+Show:
+
+Volume
+
+Trend
+
+Severity
+
+Location distribution
+
+Response performance
+
+Resolution status
+
+============================================================
+13. RESOURCE INTELLIGENCE
+============================================================
+
+Analyze:
+
+Officer availability
+
+Unit availability
+
+Station workload
+
+Community responder availability
+
+Emergency facility availability
+
+Active assignments
+
+Pending incidents
+
+Display:
+
+Resource pressure
+
+Resource availability
+
+Potential gaps
+
+Do not automatically reassign officers.
+
+============================================================
+14. RESOURCE RECOMMENDATIONS
+============================================================
+
+Allma can recommend:
+
+"Station A currently has higher incident demand."
+
+"Station B currently has more available units."
+
+"Additional coverage may be worth considering."
+
+Every recommendation must show:
+
+WHY
+
+DATA
+
+TIME PERIOD
+
+LIMITATIONS
+
+============================================================
+15. RESPONSE INTELLIGENCE
+============================================================
+
+Analyze:
+
+Incident acknowledgement
+
+Dispatch time
+
+Officer acceptance
+
+Travel/response time where available
+
+Arrival
+
+Resolution
+
+Escalation
+
+Compare:
+
+Stations
+
+Regions
+
+Incident categories
+
+Time periods
+
+Do not use these statistics to unfairly punish individual officers.
+
+============================================================
+16. RESPONSE DELAY DETECTION
+============================================================
+
+Allma can identify:
+
+Repeated delays
+
+Unassigned incidents
+
+Delayed acknowledgement
+
+Communication failures
+
+Resource shortages
+
+Show:
+
+Possible reason
+
+Evidence
+
+Frequency
+
+Affected area
+
+Recommended review
+
+Do not automatically assign blame.
+
+============================================================
+17. COMMUNITY RESPONDER INTELLIGENCE
+============================================================
+
+Display:
+
+Active responders
+
+Available responders
+
+Response participation
+
+Average acknowledgement
+
+Responder coverage
+
+Areas with limited responder availability
+
+Responder requests for assistance
+
+Responder verification status
+
+Do not expose sensitive responder information unnecessarily.
+
+============================================================
+18. COMMUNITY SAFETY VIEW
+============================================================
+
+Create an aggregated community safety dashboard.
+
+Show:
+
+Incident trends
+
+Emergency categories
+
+Response activity
+
+Resolved cases
+
+Public safety alerts
+
+Safety resources
+
+The public version must NOT expose:
+
+Police operational data
+
+Officer locations
+
+Private citizen information
+
+Sensitive case information
+
+============================================================
+19. PUBLIC SAFETY INFORMATION
+============================================================
+
+Create an optional public-facing intelligence layer.
+
+Examples:
+
+"Road safety alert"
+
+"Flood-related emergency activity"
+
+"Temporary safety notice"
+
+"Missing person public notice"
+
+Only publish information explicitly approved
+for public release.
+
+============================================================
+20. APPROVAL WORKFLOW
+============================================================
+
+Any official public safety alert must follow:
+
+Draft
+
+↓
+
+AI assistance
+
+↓
+
+Authorized human review
+
+↓
+
+Approval
+
+↓
+
+Publish
+
+↓
+
+Monitor
+
+↓
+
+Expire / Archive
+
+AI cannot independently publish official alerts.
+
+============================================================
+21. AI SAFETY BRIEF
+============================================================
+
+Create:
+
+GENERATE INTELLIGENCE BRIEF
+
+The AI produces:
+
+Executive Summary
+
+Key Trends
+
+Important Incidents
+
+Geographic Observations
+
+Time Patterns
+
+Resource Situation
+
+Response Performance
+
+Potential Concerns
+
+Recommendations
+
+Limitations
+
+Data Period
+
+============================================================
+22. DAILY COMMAND BRIEF
+============================================================
+
+Authorized commanders can generate:
+
+DAILY SAFETY BRIEF
+
+Example structure:
+
+TODAY'S OVERVIEW
+
+CRITICAL EVENTS
+
+SIGNIFICANT CHANGES
+
+RESOURCE STATUS
+
+RESPONSE PERFORMANCE
+
+COMMUNITY ACTIVITY
+
+POSSIBLE PATTERNS
+
+RECOMMENDED REVIEW AREAS
+
+The report must clearly state:
+
+"AI-generated analysis based on available system data."
+
+============================================================
+23. WEEKLY INTELLIGENCE REPORT
+============================================================
+
+Create:
+
+WEEKLY SAFETY REPORT
+
+Include:
+
+Incident volume
+
+Trend comparison
+
+Category breakdown
+
+Geographic distribution
+
+Response performance
+
+Critical incidents
+
+Escalations
+
+Community responder activity
+
+Resource availability
+
+AI observations
+
+Human notes
+
+============================================================
+24. MONTHLY REPORT
+============================================================
+
+Create:
+
+MONTHLY SAFETY INTELLIGENCE REPORT
+
+Sections:
+
+Executive Summary
+
+Incident Trends
+
+Geographic Analysis
+
+Response Performance
+
+Resource Analysis
+
+Community Safety
+
+Major Events
+
+Emerging Patterns
+
+Recommendations
+
+Appendix
+
+============================================================
+25. AI COPILOT
+============================================================
+
+Add:
+
+ASK ALLMA
+
+Authorized users can ask:
+
+"What changed this week?"
+
+"Which categories increased?"
+
+"Where are incidents concentrated?"
+
+"Which stations are handling the highest workload?"
+
+"Which critical incidents remain open?"
+
+"Are there unusual spikes?"
+
+"Show response performance."
+
+"Prepare today's briefing."
+
+"Summarize this district."
+
+"Compare this month with last month."
+
+============================================================
+26. AI ANSWER FORMAT
+============================================================
+
+Every intelligence answer should contain:
+
+ANSWER
+
+KEY FINDINGS
+
+DATA PERIOD
+
+DATA USED
+
+CONFIDENCE
+
+LIMITATIONS
+
+RECOMMENDED NEXT STEP
+
+Example:
+
+ANSWER:
+
+Reports in this category increased during the selected period.
+
+KEY FINDING:
+
+The increase is concentrated in two areas.
+
+DATA PERIOD:
+
+Last 30 days.
+
+CONFIDENCE:
+
+Moderate.
+
+LIMITATION:
+
+The system does not contain complete reports from
+all jurisdictions.
+
+RECOMMENDED NEXT STEP:
+
+Review the underlying incidents.
+
+============================================================
+27. NATURAL LANGUAGE ANALYTICS
+============================================================
+
+Allow authorized users to ask questions naturally.
+
+Example:
+
+"Show me incidents around Jinja from the last two weeks."
+
+The AI converts this into a safe authorized query.
+
+Never allow the AI to bypass access controls.
+
+============================================================
+28. DATA EXPLANATION
+============================================================
+
+Every chart should allow:
+
+"Explain this"
+
+Allma explains:
+
+What the chart shows
+
+What changed
+
+What data was used
+
+What it does NOT prove
+
+============================================================
+29. ANOMALY DETECTION
+============================================================
+
+Detect:
+
+Sudden spikes
+
+Unexpected drops
+
+Unusual response delays
+
+Unusual geographic concentrations
+
+System anomalies
+
+Missing data
+
+Incomplete reporting
+
+Display:
+
+ANOMALY DETECTED
+
+Not:
+
+CRIME CONFIRMED
+
+============================================================
+30. DATA QUALITY CENTER
+============================================================
+
+Create:
+
+DATA QUALITY
+
+Show:
+
+Missing locations
+
+Incomplete reports
+
+Duplicate cases
+
+Unverified reports
+
+Missing timestamps
+
+Integration failures
+
+Stale records
+
+Allow authorized administrators to review.
+
+============================================================
+31. DUPLICATE DETECTION
+============================================================
+
+Allma can detect potentially duplicated reports.
+
+Example:
+
+"These two reports may describe the same event."
+
+Show:
+
+Similarity
+
+Location
+
+Time
+
+Category
+
+Evidence
+
+Action:
+
+Review
+
+Merge
+
+Keep Separate
+
+Never automatically merge sensitive cases.
+
+============================================================
+32. RELATED CASES
+============================================================
+
+Allma may suggest:
+
+POSSIBLY RELATED CASES
+
+Show why:
+
+Similar category
+
+Nearby location
+
+Similar timeframe
+
+Shared reported characteristics
+
+Never claim legal connection.
+
+============================================================
+33. MISSING PERSON INTELLIGENCE
+============================================================
+
+Authorized workflows can analyze:
+
+Missing-person reports
+
+Last known location
+
+Time
+
+Description
+
+Media
+
+Potential matching reports
+
+If a possible match exists:
+
+POSSIBLE MATCH
+
+Require authorized human review.
+
+Do not publicly identify a person automatically.
+
+============================================================
+34. LOST & FOUND INTELLIGENCE
+============================================================
+
+Allow AI to compare:
+
+Lost item reports
+
+Found item reports
+
+Descriptions
+
+Photos
+
+Location
+
+Time
+
+Generate:
+
+POSSIBLE MATCH
+
+Require human confirmation.
+
+============================================================
+35. MEDIA INTELLIGENCE
+============================================================
+
+Where authorized:
+
+AI may analyze uploaded images/audio/text.
+
+Possible outputs:
+
+Object description
+
+Scene description
+
+Text extraction
+
+Basic similarity
+
+Relevant metadata
+
+BUT:
+
+Never make unsupported identity claims.
+
+Never automatically identify a suspect.
+
+Never make biometric identification decisions.
+
+============================================================
+36. CASE INTELLIGENCE
+============================================================
+
+Authorized case investigators can request:
+
+Timeline summary
+
+Evidence summary
+
+Witness information summary
+
+Outstanding tasks
+
+Missing information
+
+Related reports
+
+Potential inconsistencies
+
+The AI must distinguish:
+
+FACT
+
+REPORTED INFORMATION
+
+AI INFERENCE
+
+UNKNOWN
+
+============================================================
+37. FACT / INFERENCE UI
+============================================================
+
+Every AI-generated insight should use badges:
+
+VERIFIED DATA
+
+REPORTED
+
+AI OBSERVATION
+
+UNCONFIRMED
+
+UNKNOWN
+
+This prevents AI assumptions from becoming official facts.
+
+============================================================
+38. EARLY WARNING
+============================================================
+
+Create:
+
+EARLY WARNING CENTER
+
+Potential signals:
+
+Incident spike
+
+Repeated emergencies
+
+Resource shortage
+
+Response delays
+
+Community responder shortage
+
+Infrastructure-related emergency trends
+
+Show:
+
+Signal
+
+Evidence
+
+Confidence
+
+Affected area
+
+Recommended review
+
+============================================================
+39. PREVENTION RECOMMENDATIONS
+============================================================
+
+Allma can generate non-binding recommendations such as:
+
+"Consider increased community awareness activity."
+
+"Review response coverage during this period."
+
+"Consider additional responder recruitment."
+
+"Review lighting/infrastructure reports if available."
+
+"Review emergency communication coverage."
+
+Never recommend discriminatory profiling.
+
+============================================================
+40. NO PROFILING
+============================================================
+
+Absolutely prohibit AI from recommending action based on:
+
+Race
+
+Ethnicity
+
+Religion
+
+Nationality
+
+Political affiliation
+
+Sexual orientation
+
+Protected characteristics
+
+Or other sensitive personal characteristics.
+
+Do not create criminality scores for people or communities.
+
+============================================================
+41. NO PREDICTIVE POLICING ON INDIVIDUALS
+============================================================
+
+Do not build:
+
+"Person likely to commit crime"
+
+"Neighborhood criminality score"
+
+"Citizen risk score"
+
+"Suspect probability"
+
+"Future offender prediction"
+
+The system must focus on:
+
+Reported events
+
+Operational conditions
+
+Response performance
+
+Resource needs
+
+Aggregated trends
+
+============================================================
+42. COMMAND ALERTS
+============================================================
+
+Create intelligence alerts:
+
+Trend detected
+
+Possible cluster
+
+Resource shortage
+
+Response delay
+
+Data anomaly
+
+Critical incident
+
+System issue
+
+Every alert includes:
+
+Timestamp
+
+Source
+
+Severity
+
+Evidence
+
+Status
+
+============================================================
+43. ALERT WORKFLOW
+============================================================
+
+New
+
+↓
+
+Reviewing
+
+↓
+
+Acknowledged
+
+↓
+
+Action Recommended
+
+↓
+
+Human Decision
+
+↓
+
+Resolved
+
+↓
+
+Archived
+
+============================================================
+44. INTELLIGENCE CASE
+============================================================
+
+Allow authorized personnel to create:
+
+INTELLIGENCE REVIEW
+
+Fields:
+
+Title
+
+Reason
+
+Area
+
+Time period
+
+Related incidents
+
+Notes
+
+AI analysis
+
+Human assessment
+
+Actions
+
+Outcome
+
+Audit trail
+
+============================================================
+45. HUMAN OVERSIGHT
+============================================================
+
+Every significant AI recommendation must allow:
+
+Accept
+
+Reject
+
+Modify
+
+Request Review
+
+Add Note
+
+The system must record the human decision.
+
+============================================================
+46. AUDIT TRAIL
+============================================================
+
+Record:
+
+Who viewed intelligence
+
+Who generated report
+
+AI query
+
+Data used
+
+Recommendation generated
+
+Human decision
+
+Alert created
+
+Report exported
+
+Public alert approved
+
+Changes made
+
+============================================================
+47. EXPORT
+============================================================
+
+Authorized users can export:
+
+PDF
+
+CSV
+
+Excel where supported
+
+Reports should contain:
+
+Generated by
+
+Generated date
+
+Data period
+
+Method
+
+Limitations
+
+Classification/access label
+
+============================================================
+48. INFORMATION CLASSIFICATION
+============================================================
+
+Support:
+
+PUBLIC
+
+INTERNAL
+
+RESTRICTED
+
+CONFIDENTIAL
+
+Classification must control access.
+
+Do not expose restricted intelligence through public APIs.
+
+============================================================
+49. NATIONAL OVERVIEW
+============================================================
+
+Authorized national command can view aggregated:
+
+Regions
+
+Districts
+
+Incident categories
+
+Critical events
+
+Trends
+
+Response performance
+
+Resource availability
+
+============================================================
+50. REGIONAL OVERVIEW
+============================================================
+
+Regional command sees:
+
+District comparisons
+
+Regional incidents
+
+Station performance
+
+Resource distribution
+
+Critical events
+
+Trends
+
+============================================================
+51. DISTRICT OVERVIEW
+============================================================
+
+District command sees:
+
+Local incidents
+
+Stations
+
+Officers
+
+Responders
+
+Response activity
+
+Local trends
+
+============================================================
+52. STATION OVERVIEW
+============================================================
+
+Station command sees:
+
+Station incidents
+
+Units
+
+Officers
+
+Response performance
+
+Community responders
+
+Local alerts
+
+============================================================
+53. DRILL-DOWN
+============================================================
+
+Allow:
+
+National
+
+↓
+
+Region
+
+↓
+
+District
+
+↓
+
+Station
+
+↓
+
+Incident
+
+↓
+
+Case
+
+Every drill-down must respect permissions.
+
+============================================================
+54. PERFORMANCE
+============================================================
+
+Analytics must use:
+
+Server-side aggregation
+
+Indexed queries
+
+Pagination
+
+Caching
+
+Incremental loading
+
+Lazy-loaded maps
+
+Do not download the entire incident database to the browser.
+
+============================================================
+55. REAL-TIME INTELLIGENCE
+============================================================
+
+Where safe and appropriate:
+
+Update:
+
+Incident counts
+
+Critical alerts
+
+Resource status
+
+Response metrics
+
+Command notifications
+
+Do not continuously stream sensitive information
+to users who do not require it.
+
+============================================================
+56. UGANDA-READY GEOGRAPHY
+============================================================
+
+Design the geographic structure to support:
+
+Country
+
+Region
+
+District
+
+County
+
+Sub-county
+
+Parish
+
+Local area
+
+Station jurisdiction
+
+Do not hardcode the hierarchy in a way that prevents
+future configuration.
+
+============================================================
+57. LOW-CONNECTIVITY SUPPORT
+============================================================
+
+Show:
+
+Online
+
+Limited connectivity
+
+Offline
+
+Last updated
+
+Synchronizing
+
+Do not claim that intelligence is current when the data
+has not synchronized.
+
+============================================================
+58. PREMIUM UI
+============================================================
+
+The design must feel like a serious national operations
+and intelligence platform.
+
+NOT:
+
+A generic CRM.
+
+NOT:
+
+A colorful social-media dashboard.
+
+NOT:
+
+A gaming interface.
+
+Use:
+
+Clean typography
+
+Deep professional surfaces
+
+Subtle gradients
+
+Elegant cards
+
+Premium charts
+
+Clear hierarchy
+
+Smooth transitions
+
+Minimal animation
+
+Excellent spacing
+
+Responsive design
+
+============================================================
+59. COMMAND VISUAL LANGUAGE
+============================================================
+
+Critical:
+
+Red
+
+Warning:
+
+Amber
+
+Information:
+
+Blue
+
+Available:
+
+Green
+
+Neutral:
+
+Slate/gray
+
+Do not rely on color alone.
+
+Use:
+
+Icons
+
+Labels
+
+Status indicators
+
+============================================================
+60. AI INSIGHT CARDS
+============================================================
+
+Create cards such as:
+
+AI INSIGHT
+
+"Incident reports increased during the selected period."
+
+DATA
+
+Last 30 days
+
+CONFIDENCE
+
+Moderate
+
+ACTION
+
+Review underlying incidents
+
+============================================================
+61. COMMAND SCREEN
+============================================================
+
+Create an optional large-screen mode.
+
+Suitable for:
+
+Command centers
+
+Operations rooms
+
+Situation rooms
+
+Display:
+
+Critical incidents
+
+Live activity
+
+Map
+
+Alerts
+
+Resources
+
+Trends
+
+============================================================
+62. WALLBOARD MODE
+============================================================
+
+Create:
+
+COMMAND WALLBOARD
+
+Minimal controls.
+
+Large:
+
+Critical incidents
+
+Active incidents
+
+Unassigned
+
+Response alerts
+
+Major incident status
+
+Resource availability
+
+Refresh automatically.
+
+Ensure sensitive information is not displayed
+on public/shared screens.
+
+============================================================
+63. AI BRIEFING MODE
+============================================================
+
+Button:
+
+BRIEF ME
+
+Allma reads authorized current data and produces:
+
+"What command needs to know right now."
+
+Structure:
+
+3 Most Important Developments
+
+Critical Incidents
+
+Resource Issues
+
+Emerging Patterns
+
+Required Decisions
+
+Unknowns
+
+============================================================
+64. DECISION SUPPORT
+============================================================
+
+Allma can help compare options.
+
+Example:
+
+"Which station has more available units?"
+
+Show:
+
+Station A
+
+Available units
+
+Current workload
+
+Station B
+
+Available units
+
+Current workload
+
+Then:
+
+"Based on current data, Station B appears to have
+more available capacity."
+
+Do not make the final deployment decision.
+
+============================================================
+65. PREVENTION PLANNER
+============================================================
+
+Create:
+
+PREVENTION PLANNER
+
+Users can select:
+
+Area
+
+Time period
+
+Problem category
+
+Then Allma generates:
+
+Observed issue
+
+Evidence
+
+Possible contributing factors
+
+Potential interventions
+
+Responsible authority
+
+Measurement method
+
+Review date
+
+============================================================
+66. OUTCOME TRACKING
+============================================================
+
+After prevention action:
+
+Track:
+
+Action
+
+Date
+
+Area
+
+Expected result
+
+Observed result
+
+Review
+
+This allows authorities to learn what interventions work.
+
+============================================================
+67. COMMUNITY FEEDBACK
+============================================================
+
+Where enabled:
+
+Citizens can provide:
+
+Safety concerns
+
+Infrastructure concerns
+
+Lighting issues
+
+Road hazards
+
+Community reports
+
+The system routes them into the appropriate workflow.
+
+Do not automatically classify every complaint as a crime.
+
+============================================================
+68. COMMUNITY SAFETY SIGNALS
+============================================================
+
+Allma may identify aggregated signals such as:
+
+Repeated lighting complaints
+
+Repeated road hazard reports
+
+Repeated emergency reports
+
+Missing-person trends
+
+These can become:
+
+COMMUNITY SAFETY SIGNAL
+
+rather than crime predictions.
+
+============================================================
+69. OFFICIAL ACTION TRACKING
+============================================================
+
+Authorities can record:
+
+Action taken
+
+Responsible office
+
+Date
+
+Status
+
+Outcome
+
+Notes
+
+This closes the loop:
+
+REPORT
+
+↓
+
+ANALYSIS
+
+↓
+
+ACTION
+
+↓
+
+OUTCOME
+
+============================================================
+70. TRANSPARENCY
+============================================================
+
+Where appropriate, create public aggregated statistics.
+
+Example:
+
+"Emergency reports this month"
+
+"Average response time"
+
+"Community responder participation"
+
+Never expose private case information.
+
+============================================================
+71. PUBLIC DATA DASHBOARD
+============================================================
+
+Optional public dashboard:
+
+Safety statistics
+
+Aggregated trends
+
+Public alerts
+
+Emergency resources
+
+Safety education
+
+No:
+
+Officer tracking
+
+Citizen tracking
+
+Active operational details
+
+Sensitive investigations
+
+============================================================
+72. SYSTEM HEALTH
+============================================================
+
+Create:
+
+SYSTEM HEALTH
+
+Monitor:
+
+Database
+
+Realtime
+
+AI
+
+Maps
+
+Notifications
+
+Voice
+
+SMS
+
+Authority integrations
+
+Storage
+
+Show:
+
+Operational
+
+Degraded
+
+Unavailable
+
+Never hide failures.
+
+============================================================
+73. AI HEALTH
+============================================================
+
+Show:
+
+AI status
+
+Last model response
+
+Fallback status
+
+Data freshness
+
+AI unavailable mode
+
+If AI fails:
+
+The core emergency workflow must continue.
+
+============================================================
+74. FALLBACK MODE
+============================================================
+
+Allma must continue basic operations without AI:
+
+SOS
+
+Location
+
+Incident creation
+
+Dispatch
+
+Notifications
+
+Calls where configured
+
+Case updates
+
+Manual reporting
+
+AI should enhance the system,
+not become the single point of failure.
+
+============================================================
+75. FINAL END-TO-END TEST
+============================================================
+
+SIMULATE:
+
+50 incidents
+
+↓
+
+AI processes authorized data
+
+↓
+
+Detects trend
+
+↓
+
+Detects possible cluster
+
+↓
+
+Flags resource pressure
+
+↓
+
+Generates command alert
+
+↓
+
+Supervisor reviews
+
+↓
+
+Commander opens intelligence dashboard
+
+↓
+
+AI generates briefing
+
+↓
+
+Human approves prevention recommendation
+
+↓
+
+Action recorded
+
+↓
+
+Outcome tracked
+
+↓
+
+Monthly report updated
+
+Everything must appear in the audit trail.
+
+============================================================
+76. ACCEPTANCE CRITERIA
+============================================================
+
+PHASE 8 IS COMPLETE WHEN:
+
+✓ Intelligence Center exists
+
+✓ Analytics work
+
+✓ Geographic intelligence works
+
+✓ Incident trends work
+
+✓ Time analysis works
+
+✓ Category analysis works
+
+✓ Resource intelligence works
+
+✓ Response intelligence works
+
+✓ Community responder analytics work
+
+✓ AI pattern detection works
+
+✓ Cluster detection works
+
+✓ Spike detection works
+
+✓ Data-quality center exists
+
+✓ Duplicate detection exists
+
+✓ Related-case suggestions exist
+
+✓ AI briefing works
+
+✓ Daily reports work
+
+✓ Weekly reports work
+
+✓ Monthly reports work
+
+✓ Prevention planner exists
+
+✓ Outcome tracking exists
+
+✓ Public aggregated dashboard exists
+
+✓ Privacy controls work
+
+✓ Role-based access works
+
+✓ Audit logs work
+
+✓ AI limitations are clearly shown
+
+✓ Human approval is required
+
+✓ No predictive policing of individuals
+
+✓ No discriminatory profiling
+
+✓ No fabricated data
+
+✓ No fabricated authority integrations
+
+✓ Offline/degraded states work
+
+✓ Existing phases remain functional
+
+============================================================
+FINAL PRINCIPLE
+============================================================
+
+ALLMA SAFETY AI SHOULD EVOLVE FROM:
+
+"HELP ME NOW"
+
+TO:
+
+"UNDERSTAND WHAT IS HAPPENING"
+
+TO:
+
+"HELP AUTHORITIES RESPOND"
+
+TO:
+
+"HELP COMMUNITIES PREVENT FUTURE HARM."
+
+BUT:
+
+AI ASSISTS.
+
+AI ANALYZES.
+
+AI RECOMMENDS.
+
+HUMANS DECIDE.
+
+AUTHORIZED AUTHORITIES REMAIN IN CONTROL.
+
+============================================================
+END OF PHASE 8
+============================================================

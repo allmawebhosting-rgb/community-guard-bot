@@ -1,0 +1,1617 @@
+==================================================
+ALLMA SAFETY AI
+MASTER BUILD — PHASE 3
+IN-APP EMERGENCY CALLING + INTELLIGENT ESCALATION
+==================================================
+
+IMPORTANT:
+
+This is PHASE 3.
+
+PHASE 1 created:
+
+• User onboarding
+• Emergency Circle
+• Trusted connections
+• Connection requests
+• Responder profiles
+• Availability
+• Emergency permissions
+
+PHASE 2 created:
+
+• SOS activation
+• Real device location
+• Emergency sessions
+• AI emergency conversation
+• Emergency classification
+• Severity detection
+• Live location
+• Emergency timeline
+• Emergency assessment
+
+DO NOT rebuild or delete these systems.
+
+Extend them.
+
+The purpose of this phase is to build the REAL-TIME IN-APP EMERGENCY COMMUNICATION SYSTEM.
+
+When a citizen activates SOS, Allma should intelligently determine who can help and attempt to contact appropriate people through the Allma app.
+
+IMPORTANT:
+
+Do NOT implement fake calls as real calls.
+
+The architecture must support genuine in-app voice communication using a proper WebRTC/voice infrastructure.
+
+If production voice infrastructure is not configured yet, create a clearly labelled DEMO CALL MODE and keep the integration boundary ready for a real provider.
+
+Never claim that a real call occurred when it did not.
+
+==================================================
+1. CORE CONCEPT
+==================================================
+
+Allma has two emergency networks.
+
+NETWORK 1:
+
+Trusted Emergency Circle
+
+People personally selected and accepted by the citizen.
+
+NETWORK 2:
+
+Opt-in Community Responders
+
+Verified or approved Allma users who have explicitly agreed to receive emergency assistance requests.
+
+The AI may use either network depending on:
+
+Emergency type
+Severity
+Distance
+Availability
+Skills
+Permissions
+Responder status
+Safety
+
+==================================================
+2. CALLING PRINCIPLE
+==================================================
+
+Do NOT randomly call nearby Allma users.
+
+Only contact users who:
+
+• Have explicitly opted in
+• Have accepted the required emergency permissions
+• Are eligible for the emergency category
+• Are available
+• Are not blocked
+• Are not already handling another emergency
+• Can legally and safely participate
+
+==================================================
+3. IN-APP CALLING
+==================================================
+
+Build an Allma-to-Allma voice calling system.
+
+When a call is initiated:
+
+Caller sees:
+
+Calling...
+
+Recipient sees:
+
+🚨 Emergency Assistance Call
+
+Example:
+
+"Sarah may need your help."
+
+Emergency:
+
+Medical
+
+Approximate distance:
+
+420m
+
+AI summary:
+
+"Sarah reports that her brother has collapsed."
+
+Buttons:
+
+Accept
+
+Decline
+
+Do Not Disturb
+
+==================================================
+4. INCOMING EMERGENCY CALL
+==================================================
+
+Create an unmistakable emergency incoming-call interface.
+
+Show:
+
+Emergency Assistance
+
+Caller name
+
+Profile image
+
+Emergency category
+
+Approximate location
+
+Emergency severity
+
+Time
+
+Buttons:
+
+🟢 Accept
+
+🔴 Decline
+
+Do NOT expose sensitive information before acceptance.
+
+==================================================
+5. CALL ACCEPTANCE
+==================================================
+
+When responder accepts:
+
+Start the in-app voice call.
+
+Display:
+
+Connected
+
+Emergency ID
+
+Call duration
+
+Emergency status
+
+Location status
+
+Actions:
+
+Mute
+
+Speaker
+
+End Call
+
+Chat
+
+View Emergency
+
+Navigate
+
+Report Problem
+
+==================================================
+6. CITIZEN CALL SCREEN
+==================================================
+
+Citizen sees:
+
+🚨 Emergency Active
+
+Connected to:
+
+Sarah
+
+Verified First Aider
+
+Approximate distance
+
+Live response status
+
+AI assistance
+
+Controls:
+
+Mute
+
+Speaker
+
+End
+
+Chat
+
+Location
+
+Emergency details
+
+==================================================
+7. AI DURING THE CALL
+==================================================
+
+The AI remains available but should NOT interrupt the conversation unnecessarily.
+
+The AI can provide:
+
+Emergency summary
+
+Location updates
+
+Responder status
+
+Important safety instructions
+
+Example:
+
+"Sarah has accepted your emergency request."
+
+"Your location is being shared according to your emergency settings."
+
+"Official assistance has not yet been confirmed."
+
+Never pretend the AI is physically present.
+
+==================================================
+8. CALL PRIORITY ENGINE
+==================================================
+
+Create a server-side emergency contact decision engine.
+
+Inputs:
+
+Emergency category
+
+Severity
+
+Immediate danger
+
+Citizen Emergency Circle
+
+Responder availability
+
+Responder distance
+
+Responder skills
+
+Responder verification
+
+Responder permissions
+
+Location accuracy
+
+Current responder assignments
+
+Official emergency availability
+
+The engine returns:
+
+Priority score
+
+Recommended contacts
+
+Reason for recommendation
+
+==================================================
+9. EXAMPLE — MEDICAL EMERGENCY
+==================================================
+
+Citizen reports:
+
+"My mother has collapsed."
+
+AI determines:
+
+Category:
+Medical
+
+Severity:
+Critical
+
+Possible sequence:
+
+1. Nearby verified first aider
+2. Trusted medical contact
+3. Nearby trusted family member
+4. Ambulance / official emergency service
+
+Do not wait unnecessarily for one person if the emergency is critical.
+
+==================================================
+10. EXAMPLE — BREAK-IN
+==================================================
+
+Citizen:
+
+"Someone broke into my house."
+
+AI determines:
+
+Crime
+
+Potential immediate danger
+
+Priority:
+
+1. Official emergency service
+2. Trusted emergency contact
+
+Do NOT send ordinary community members to confront the suspect.
+
+==================================================
+11. EXAMPLE — FIRE
+==================================================
+
+Potential sequence:
+
+1. Fire service
+2. Nearby verified emergency responder if safe
+3. Trusted contact
+4. Local authority
+
+Do not encourage anyone to enter a burning building.
+
+==================================================
+12. EXAMPLE — ROAD ACCIDENT
+==================================================
+
+Potential sequence:
+
+1. Nearby verified first aider
+2. Nearby trained responder
+3. Trusted contact
+4. Ambulance
+5. Relevant authorities
+
+==================================================
+13. AUTOMATIC ESCALATION
+==================================================
+
+Create an intelligent escalation engine.
+
+Possible states:
+
+PENDING
+
+CALLING
+
+RINGING
+
+ACCEPTED
+
+DECLINED
+
+NO_ANSWER
+
+BUSY
+
+UNAVAILABLE
+
+CONNECTED
+
+RESPONDING
+
+ARRIVED
+
+COMPLETED
+
+FAILED
+
+CANCELLED
+
+==================================================
+14. ESCALATION TIMEOUT
+==================================================
+
+Configurable timeout.
+
+Example:
+
+Responder 1
+
+15 seconds
+
+No answer
+
+Responder 2
+
+15 seconds
+
+No answer
+
+Responder 3
+
+15 seconds
+
+No answer
+
+Then escalate.
+
+IMPORTANT:
+
+For CRITICAL emergencies:
+
+Do not create excessive delays.
+
+Allow appropriate emergency-service escalation immediately.
+
+==================================================
+15. PARALLEL CALLING
+==================================================
+
+For high-risk emergencies, allow multiple eligible contacts to be notified simultaneously.
+
+Example:
+
+Critical medical emergency:
+
+Nearby first aider
++
+Trusted family member
++
+Official emergency service workflow
+
+The AI should avoid unnecessary duplicate calls.
+
+==================================================
+16. CALL QUEUE
+==================================================
+
+Create an internal emergency communication queue.
+
+Example:
+
+Emergency #ASA-000128
+
+1. Sarah — First Aider
+Status: Calling
+
+2. David — Family
+Status: Queued
+
+3. Grace — Neighbor
+Status: Queued
+
+4. Ambulance
+Status: Pending
+
+==================================================
+17. FIRST ACCEPTANCE
+==================================================
+
+When a suitable responder accepts:
+
+Update:
+
+Responder assigned
+
+Other queued responders should receive:
+
+"Assistance has already been accepted."
+
+Depending on emergency severity, official emergency services may still remain active.
+
+Do not cancel critical official escalation merely because a community responder accepted.
+
+==================================================
+18. RESPONDER ASSIGNMENT
+==================================================
+
+When accepted:
+
+Create:
+
+responder_assignment
+
+Fields:
+
+id
+
+sos_session_id
+
+responder_id
+
+assignment_type
+
+status
+
+distance_at_assignment
+
+assigned_at
+
+accepted_at
+
+arrived_at
+
+completed_at
+
+notes
+
+==================================================
+19. RESPONDER STATUS
+==================================================
+
+Responder can update:
+
+Accepted
+
+On the way
+
+Arrived
+
+Assisting
+
+Need official help
+
+Completed
+
+Unable to continue
+
+The citizen receives real-time updates.
+
+==================================================
+20. LIVE ETA
+==================================================
+
+Where technically possible:
+
+Calculate estimated arrival time.
+
+Use:
+
+Responder location
+
+Citizen location
+
+Navigation/route provider
+
+Travel mode
+
+Do not claim an exact ETA if route information is unavailable.
+
+Show:
+
+Estimated arrival
+
+or
+
+Location unavailable
+
+==================================================
+21. RESPONDER NAVIGATION
+==================================================
+
+After accepting:
+
+Show:
+
+Emergency location
+
+Approximate location before authorization
+
+More precise destination according to permission rules
+
+Navigate
+
+Open map
+
+Call in Allma
+
+Chat
+
+==================================================
+22. LOCATION DISCLOSURE
+==================================================
+
+Before accepting:
+
+Approximate area.
+
+After accepting:
+
+Share more precise location according to:
+
+Citizen permissions
+
+Responder authorization
+
+Emergency severity
+
+System safety policy
+
+Never expose exact location to unrelated users.
+
+==================================================
+23. COMMUNITY RESPONDER SEARCH
+==================================================
+
+Create a secure geospatial search.
+
+Search only:
+
+Opted-in responders
+
+Available responders
+
+Authorized users
+
+Use current/recent permitted location.
+
+DO NOT search every Allma user.
+
+DO NOT notify people who have not opted in.
+
+Rank by:
+
+Distance
+
+Skills
+
+Verification
+
+Availability
+
+Emergency compatibility
+
+Response history
+
+Current workload
+
+==================================================
+24. "LAST ACTIVE" RULE
+==================================================
+
+Do NOT assume that someone who last opened Allma hours or days ago is nearby.
+
+Use:
+
+Current location
+
+or
+
+Recent location within a configurable freshness window.
+
+If location is stale:
+
+Mark:
+
+Location unavailable
+
+Do not use stale location for precise emergency routing.
+
+==================================================
+25. EMERGENCY CALL PRIVACY
+==================================================
+
+Do not expose:
+
+Private phone numbers
+
+Private email addresses
+
+Unnecessary personal information
+
+The call is:
+
+Allma → Allma
+
+using secure in-app communication.
+
+==================================================
+26. WEBRTC ARCHITECTURE
+==================================================
+
+Prepare a production-grade real-time voice architecture.
+
+Use:
+
+WebRTC
+
+Secure signaling
+
+STUN
+
+TURN
+
+Encrypted media transport
+
+Authenticated session tokens
+
+Do NOT expose service credentials in the client.
+
+The architecture should support:
+
+1-to-1 calls
+
+Future group emergency calls
+
+Poor network handling
+
+Call reconnection
+
+Microphone permission handling
+
+Speaker switching
+
+Mute
+
+Call termination
+
+==================================================
+27. CALL STATES
+==================================================
+
+Handle:
+
+Connecting
+
+Ringing
+
+Connected
+
+Reconnecting
+
+Poor Connection
+
+Disconnected
+
+Declined
+
+No Answer
+
+Busy
+
+Permission Denied
+
+Microphone Error
+
+Network Error
+
+Server Error
+
+==================================================
+28. POOR NETWORK
+==================================================
+
+If network quality drops:
+
+Show:
+
+Weak connection
+
+Trying to reconnect...
+
+Do not automatically end the emergency session.
+
+The SOS session continues independently from the call.
+
+==================================================
+29. CALL RECORDING
+==================================================
+
+DO NOT automatically record calls.
+
+If call recording is ever introduced:
+
+Require explicit legal and user consent.
+
+Design the architecture so recording can be added later without enabling it now.
+
+==================================================
+30. EMERGENCY CHAT
+==================================================
+
+Alongside voice calling:
+
+Allow secure emergency chat.
+
+Responder can send:
+
+"I'm on my way."
+
+"I've arrived."
+
+"Please stay where you are."
+
+"Police are here."
+
+But the system must distinguish:
+
+User-generated messages
+
+AI-generated messages
+
+System events
+
+Official notifications
+
+==================================================
+31. AI CALL SUMMARY
+==================================================
+
+Before connecting a responder, show a concise AI-generated summary.
+
+Example:
+
+"Medical emergency.
+Citizen reports an unconscious adult.
+Location acquired with 14m accuracy.
+Citizen is currently with the patient.
+No responder has arrived yet."
+
+Only include information relevant to the responder's role.
+
+==================================================
+32. AI CONTINUOUS COORDINATION
+==================================================
+
+The AI monitors the emergency state.
+
+Example:
+
+SOS activated
+
+↓
+
+Location acquired
+
+↓
+
+Emergency identified
+
+↓
+
+Responder search
+
+↓
+
+Responder called
+
+↓
+
+Responder accepted
+
+↓
+
+Responder travelling
+
+↓
+
+Responder arrived
+
+↓
+
+Official assistance confirmed
+
+↓
+
+Emergency closed
+
+The AI should not take actions that require official authority unless an authorized integration exists.
+
+==================================================
+33. OFFICIAL EMERGENCY SERVICES
+==================================================
+
+Prepare the system for future official integrations.
+
+Possible services:
+
+Police
+
+Ambulance
+
+Fire
+
+Local authorities
+
+Do NOT create fake integrations.
+
+If no official API exists:
+
+Display the configured official contact option.
+
+If the device supports direct emergency calling:
+
+Provide a clear call action.
+
+Do not claim the call succeeded until the system can verify the action.
+
+==================================================
+34. LOCAL AUTHORITY ESCALATION PREPARATION
+==================================================
+
+Prepare support for:
+
+LC1
+
+Community policing contacts
+
+Village authorities
+
+Health workers
+
+Other authorized local emergency contacts
+
+These must be managed by authorized administrators.
+
+Do not allow ordinary users to create fake official authorities.
+
+==================================================
+35. EMERGENCY CONTACT TREE
+==================================================
+
+Create configurable escalation paths.
+
+Example:
+
+Medical:
+
+First Aider
+→ Health Worker
+→ Ambulance
+
+Crime:
+
+Police
+→ Local Authority
+→ Trusted Contact
+
+Fire:
+
+Fire Service
+→ Local Authority
+→ Trusted Contact
+
+Missing Child:
+
+Trusted Circle
+→ Community Responders
+→ Local Authority
+→ Police
+
+Administrators should be able to configure these workflows.
+
+==================================================
+36. EMERGENCY COMMAND STATE
+==================================================
+
+Create a central state machine.
+
+Example:
+
+SOS_ACTIVE
+
+LOCATION_ACQUIRING
+
+ASSESSING
+
+CLASSIFIED
+
+RESPONDER_SEARCHING
+
+CONTACTING
+
+RESPONDER_ACCEPTED
+
+RESPONDER_EN_ROUTE
+
+RESPONDER_ARRIVED
+
+OFFICIAL_ASSISTANCE_PENDING
+
+OFFICIAL_ASSISTANCE_CONFIRMED
+
+RESOLVED
+
+CANCELLED
+
+==================================================
+37. EMERGENCY TIMELINE
+==================================================
+
+Every communication event should appear in the timeline.
+
+Example:
+
+13:41
+SOS activated
+
+13:41
+Location acquired
+
+13:42
+Medical emergency identified
+
+13:42
+Sarah selected as potential responder
+
+13:42
+In-app emergency call initiated
+
+13:42
+Sarah accepted
+
+13:43
+Sarah marked "On the way"
+
+13:45
+Sarah arrived
+
+13:47
+Emergency assistance completed
+
+==================================================
+38. AUDIT LOG
+==================================================
+
+Create immutable audit events for:
+
+Call initiated
+
+Call accepted
+
+Call declined
+
+Call failed
+
+Responder assigned
+
+Location shared
+
+Location stopped
+
+Emergency escalated
+
+Emergency closed
+
+Include:
+
+Timestamp
+
+Actor
+
+Action
+
+Emergency ID
+
+Relevant metadata
+
+Do not expose audit internals to ordinary users.
+
+==================================================
+39. ABUSE PREVENTION
+==================================================
+
+Emergency calling can be abused.
+
+Implement:
+
+Rate limiting
+
+Connection blocking
+
+Report abuse
+
+Block user
+
+Emergency request limits
+
+Suspicious activity detection
+
+Repeated false emergency detection
+
+However:
+
+Never automatically punish a user simply because an emergency was cancelled.
+
+==================================================
+40. CALL SECURITY
+==================================================
+
+Use:
+
+Authentication
+
+Authorization
+
+Short-lived call tokens
+
+Secure signaling
+
+Encrypted WebRTC media
+
+Server-side validation
+
+RLS
+
+Rate limits
+
+No service credentials in frontend code
+
+==================================================
+41. DATABASE
+==================================================
+
+Create or extend:
+
+emergency_calls
+
+Fields:
+
+id
+
+sos_session_id
+
+caller_id
+
+recipient_id
+
+call_type
+
+status
+
+started_at
+
+ringing_at
+
+accepted_at
+
+connected_at
+
+ended_at
+
+duration
+
+failure_reason
+
+created_at
+
+call_sessions
+
+id
+
+emergency_call_id
+
+webrtc_session_id
+
+status
+
+created_at
+
+responder_assignments
+
+id
+
+sos_session_id
+
+responder_id
+
+status
+
+priority
+
+distance
+
+assigned_at
+
+accepted_at
+
+arrived_at
+
+completed_at
+
+emergency_escalations
+
+id
+
+sos_session_id
+
+from_state
+
+to_state
+
+reason
+
+created_at
+
+==================================================
+42. REAL-TIME EVENTS
+==================================================
+
+Use secure realtime channels for:
+
+Incoming call
+
+Call status
+
+Responder accepted
+
+Responder declined
+
+Responder status
+
+Emergency status
+
+Location status
+
+Timeline updates
+
+Do not broadcast sensitive information globally.
+
+Only authorized participants should receive the event.
+
+==================================================
+43. CALL UI
+==================================================
+
+Make the calling experience extremely premium.
+
+Incoming:
+
+Large profile image
+
+Emergency icon
+
+Emergency type
+
+Approximate distance
+
+AI summary
+
+Accept
+
+Decline
+
+During call:
+
+Large caller identity
+
+Emergency status
+
+Call duration
+
+Connection quality
+
+Mute
+
+Speaker
+
+Chat
+
+Map
+
+End
+
+Use subtle animations.
+
+Do not create distracting visual effects.
+
+==================================================
+44. CITIZEN EXPERIENCE
+==================================================
+
+Example:
+
+Citizen taps SOS.
+
+AI:
+
+"Emergency mode is active."
+
+AI:
+
+"I'm checking your location."
+
+AI:
+
+"I understand this is a medical emergency."
+
+System:
+
+"Looking for available assistance."
+
+Then:
+
+"Sarah is a verified first aider 420 metres away."
+
+System:
+
+"Calling Sarah through Allma."
+
+Sarah answers.
+
+AI:
+
+"Sarah has accepted your emergency request."
+
+Citizen sees:
+
+🟢 Responder connected
+
+Sarah
+Verified First Aider
+420m away
+
+==================================================
+45. RESPONDER EXPERIENCE
+==================================================
+
+Responder receives:
+
+🚨 Emergency Assistance
+
+Medical emergency
+
+Approximately 420m away
+
+AI summary
+
+Buttons:
+
+Accept
+
+Decline
+
+After accepting:
+
+You're responding.
+
+Show:
+
+Map
+
+Navigation
+
+Call
+
+Chat
+
+Emergency details
+
+Status:
+
+On the way
+
+==================================================
+46. CRITICAL EMERGENCY RULE
+==================================================
+
+If the AI determines:
+
+Immediate danger
+Life-threatening emergency
+Active violent attack
+Major fire
+Serious accident
+
+DO NOT delay official emergency escalation merely because a community responder is being contacted.
+
+Community assistance is supplementary.
+
+Official emergency services remain the appropriate primary response for serious emergencies.
+
+==================================================
+47. NO FALSE CLAIMS
+==================================================
+
+NEVER display:
+
+"Police have been notified"
+
+unless the system actually confirmed notification.
+
+NEVER display:
+
+"Ambulance is coming"
+
+unless the system actually confirmed the request.
+
+NEVER display:
+
+"Responder accepted"
+
+unless the responder actually accepted.
+
+Use precise states:
+
+Calling
+
+Notification Sent
+
+Awaiting Response
+
+Accepted
+
+Confirmed
+
+Failed
+
+Unknown
+
+==================================================
+48. DEMO MODE
+==================================================
+
+If real WebRTC infrastructure or official emergency integrations are not configured:
+
+Use:
+
+DEMO CALL MODE
+
+Clearly display:
+
+DEMO
+
+Never mix demo events with production events.
+
+Create a clean integration boundary so a real voice provider can be connected later.
+
+==================================================
+49. PREPARE FOR PHASE 4
+==================================================
+
+The architecture must be ready for:
+
+Nearby responder intelligence
+
+Geospatial responder matching
+
+Responder ranking
+
+Community responder notifications
+
+Verified responder levels
+
+Live responder maps
+
+Responder availability
+
+Responder skills
+
+Responder safety
+
+==================================================
+50. FINAL ACCEPTANCE TEST
+==================================================
+
+Test this complete scenario:
+
+USER A
+
+Activates SOS.
+
+↓
+
+Location acquired.
+
+↓
+
+AI determines:
+
+Medical emergency
+
+Critical
+
+↓
+
+AI loads Emergency Circle.
+
+↓
+
+System checks:
+
+Permissions
+
+Availability
+
+Distance
+
+Skills
+
+↓
+
+System selects appropriate responder.
+
+↓
+
+In-app emergency call appears on USER B.
+
+↓
+
+USER B accepts.
+
+↓
+
+Secure voice call starts.
+
+↓
+
+USER B becomes responder.
+
+↓
+
+USER A sees:
+
+Responder Connected.
+
+↓
+
+USER B selects:
+
+I'm on the way.
+
+↓
+
+Citizen sees:
+
+Responder En Route.
+
+↓
+
+Responder selects:
+
+I've Arrived.
+
+↓
+
+Citizen sees:
+
+Responder Arrived.
+
+↓
+
+Emergency is resolved.
+
+↓
+
+Both sessions close.
+
+↓
+
+Location sharing ends.
+
+↓
+
+Emergency timeline is saved.
+
+↓
+
+Incident summary is generated.
+
+==================================================
+FINAL REQUIREMENT
+==================================================
+
+This must feel like a real emergency communication system, not a normal social calling feature.
+
+Every interaction must prioritize:
+
+Speed
+
+Safety
+
+Privacy
+
+Reliability
+
+Clarity
+
+Consent
+
+Auditability
+
+The architecture must support real in-app emergency voice communication while keeping demo integrations clearly separated from real production services.
+
+DO NOT break PHASE 1 or PHASE 2.
+
+==================================================
+END OF PHASE 3
+==================================================

@@ -1,0 +1,1514 @@
+============================================================
+ALLMA SAFETY AI
+MASTER BUILD SPECIFICATION — PHASE 4
+INTELLIGENT COMMUNITY RESPONDER NETWORK
+============================================================
+
+Document status: Implementation specification
+Product area: Community safety and emergency assistance
+Geographic readiness: Uganda first; expandable by country and region
+
+============================================================
+0. PURPOSE AND NON-NEGOTIABLE BOUNDARIES
+============================================================
+
+This document defines Phase 4 of Allma Safety AI: the Intelligent
+Community Responder Network.
+
+The goal is to help Allma identify and safely coordinate suitable,
+opted-in community responders near an emergency.
+
+Allma must:
+
+• Find the right person, at the right location, at the right time.
+• Match capability, permissions, availability, and safety conditions.
+• Use real location and real system events where available.
+• Protect the privacy of citizens and responders.
+• Prioritize official emergency services for serious incidents.
+• Fail safely when data, permissions, routing, or verification is unavailable.
+
+Allma must not:
+
+• Simply search for the nearest user.
+• Create a public directory or map of responders.
+• Expose exact responder locations.
+• Claim a responder, authority, call, or escalation exists when it does not.
+• Allow a user to self-declare as police, a doctor, a paramedic, or another
+  official authority.
+• Encourage ordinary community responders to enter danger zones.
+• Replace police, ambulance, fire services, or other official responders.
+
+Community responders are supplementary emergency assistance only.
+
+============================================================
+1. EXTEND, DO NOT REBUILD
+============================================================
+
+This is Phase 4. Existing functionality from earlier phases must remain
+intact and must not be removed or replaced.
+
+PHASE 1 — TRUST AND ONBOARDING
+
+• Onboarding
+• Emergency Circle
+• Trusted connections
+• Permissions
+• Responder profiles
+
+PHASE 2 — SOS AND EMERGENCY ASSESSMENT
+
+• SOS activation
+• AI emergency assessment
+• Real device location
+• Emergency classification
+• Live emergency timeline
+
+PHASE 3 — EMERGENCY COMMUNICATION
+
+• In-app emergency calls
+• Emergency call states
+• Responder assignments
+• Escalation engine
+• Real-time emergency communication
+
+Phase 4 must integrate with these systems through their existing interfaces.
+Do not create a parallel SOS, authentication, call, or emergency-state system.
+
+============================================================
+2. CORE PRODUCT EXPERIENCE
+============================================================
+
+The intended experience is:
+
+1. A citizen activates SOS.
+2. Allma obtains location with explicit permission.
+3. Allma assesses the emergency and classifies category, severity, and danger.
+4. The secure server searches only eligible, opted-in responders.
+5. The system filters by capability, location, freshness, availability,
+   permissions, workload, safety policy, and service radius.
+6. A small, appropriate group receives a privacy-safe request.
+7. A responder accepts only if they can help safely.
+8. Allma creates an authorized assignment.
+9. The responder receives only the information needed for the assignment.
+10. The citizen sees verified status updates from actual system events.
+11. The responder can travel, check in, assist, request official help, or stop.
+12. The emergency closes, tracking stops, and an audit trail is retained.
+
+The product should feel intelligent, trustworthy, fast, calm, and premium.
+
+============================================================
+3. COMMUNITY RESPONDER DEFINITION
+============================================================
+
+A Community Responder is an ordinary person who has explicitly opted in to
+receive selected emergency assistance requests and has accepted Allma's
+safety rules.
+
+Possible responder types:
+
+• Community Volunteer
+• First Aid Responder
+• Medical Professional — verification required
+• Fire Safety Volunteer
+• Search & Rescue Volunteer
+• Transport Assistance
+• Child Safety Volunteer
+• Community Leader — verification or administrator approval required
+• Other approved emergency helper
+
+Users may not self-assign official titles.
+
+Examples of titles that must never be displayed as confirmed without
+appropriate verification:
+
+• Doctor
+• Nurse
+• Paramedic
+• Police
+• Fire officer
+• Government official
+• Authorized emergency responder
+
+If a user selects a professional or authority-related type, display:
+
+    Verification required
+
+Until verification is completed, show a neutral responder label and do not
+imply that the person is a licensed professional or official authority.
+
+============================================================
+4. RESPONDER ONBOARDING
+============================================================
+
+Provide a dedicated onboarding path separate from ordinary citizen onboarding.
+
+Entry point:
+
+    I want to help my community.
+
+Introductory screen:
+
+    Become an Allma Community Responder
+
+Explain:
+
+    You may receive emergency assistance requests from people near you.
+    Only accept requests when you are able and it is safe.
+
+Before activation, the responder must:
+
+• Review the role and its limitations.
+• Provide the required profile information.
+• Grant location permission explicitly.
+• Select the area and categories they can support.
+• Accept the responder safety agreement.
+• Explicitly opt in to emergency requests.
+• Start in Offline status unless activation is deliberate.
+
+Onboarding must be resumable and must not activate a responder silently.
+
+============================================================
+5. RESPONDER PROFILE
+============================================================
+
+Collect and store, subject to consent and applicable privacy rules:
+
+IDENTITY
+
+• Full name
+• Profile photo
+• Phone number
+• Phone verification status
+
+PREFERENCES
+
+• Preferred language
+• Area of operation
+• Geographic hierarchy:
+  country, region, district, county, sub-county, town, parish, village
+
+CAPABILITY
+
+• Responder type
+• Emergency skills
+• Emergency categories they can assist with
+• Verification status for each skill
+
+AVAILABILITY
+
+• Availability status
+• Temporary availability window
+• Preferred response radius
+• Current assignment capacity
+
+PERMISSIONS
+
+• Emergency request opt-in
+• Location permission
+• Relevant communication permissions
+• Safety agreement acknowledgement
+
+Do not collect or expose more information than the emergency requires.
+
+============================================================
+6. VERIFICATION LEVELS AND RESPONDER LEVELS
+============================================================
+
+6.1 VERIFICATION STATUS
+
+Create the following verification levels:
+
+UNVERIFIED
+
+No identity, skill, organization, or authority verification has been
+completed. The user may not be presented as professionally qualified.
+
+BASIC VERIFIED
+
+Identity verification has been completed.
+
+SKILL VERIFIED
+
+A specific emergency skill has been verified. Verification is attached to the
+skill, not automatically to every capability.
+
+ORGANIZATION VERIFIED
+
+The responder has been verified through an approved organization.
+
+AUTHORIZED RESPONDER
+
+The responder has been approved by the relevant Allma, government, or partner
+authority. This status must never be invented or granted automatically.
+
+6.2 RESPONDER LEVEL
+
+Create the following responder levels:
+
+• Citizen Helper
+• Community Responder
+• Verified Responder
+• Specialist Responder
+• Authorized Responder
+
+Each level must have explicit permissions. A higher level must never be
+granted automatically because of a profile selection or a single response.
+
+============================================================
+7. RESPONDER SAFETY AGREEMENT
+============================================================
+
+Before a responder becomes active, show:
+
+    Only respond when it is safe.
+
+The responder must acknowledge:
+
+• Do not confront armed suspects.
+• Do not approach active violence.
+• Do not enter dangerous buildings.
+• Do not chase criminals.
+• Do not enter fires.
+• Do not provide professional medical treatment unless qualified.
+• Do not put yourself or others in danger.
+• Stay at a safe distance when official help is required.
+• Wait for official emergency services when appropriate.
+
+The responder can decline or stop an assignment without penalty for choosing
+personal safety.
+
+One declined request must not automatically punish, deactivate, or downgrade
+the responder.
+
+============================================================
+8. AVAILABILITY AND CAPACITY
+============================================================
+
+Provide a prominent availability control with these states:
+
+🟢 AVAILABLE
+
+The responder may receive eligible emergency requests.
+
+🟡 BUSY
+
+The responder may receive critical requests only, according to system policy.
+Do not send new non-critical requests.
+
+🔴 HANDLING EMERGENCY
+
+The responder is actively assigned and must not receive new assignments.
+
+⚫ OFFLINE
+
+The responder must not receive emergency requests.
+
+Also support:
+
+• Unavailable
+• Temporary availability
+• Availability until a selected time
+
+Temporary availability options:
+
+• Available for 30 minutes
+• Available for 1 hour
+• Available until a selected time
+• Always available
+
+Availability must expire automatically when a temporary window ends.
+The user must be able to go offline at any time.
+
+============================================================
+9. SERVICE AREA
+============================================================
+
+Allow the responder to select a preferred response radius:
+
+• 500 m
+• 1 km
+• 2 km
+• 5 km
+• 10 km
+• Custom
+
+The matching engine must not send requests outside the selected area unless
+the responder explicitly permits wider coverage for that request.
+
+Service-area selection must work with the geographic hierarchy defined in
+Section 20 and must not be hardcoded to one city.
+
+============================================================
+10. LOCATION PRIVACY
+============================================================
+
+This is a critical safety requirement.
+
+Never:
+
+• Show responders publicly on a map.
+• Expose a responder's exact coordinates to citizens or other responders.
+• Allow users to browse everyone nearby.
+• Return raw location tables to the client.
+• Treat an old location as current.
+
+Before acceptance, show only:
+
+• Emergency category
+• Severity
+• Approximate distance
+• General location area
+• Minimal AI-generated summary
+• Safety prompt
+
+Example:
+
+    Approximately 650 m away.
+
+Do not show before acceptance:
+
+• Full address
+• Exact GPS coordinates
+• Private contact details
+• Sensitive citizen information
+• Unnecessary identity details
+
+After acceptance, disclose only information necessary for the authorized
+assignment and only to authorized participants.
+
+============================================================
+11. RESPONDER LOCATION
+============================================================
+
+Use device location only after the responder has explicitly granted permission.
+
+Store securely:
+
+• Latitude
+• Longitude
+• Accuracy
+• Recorded timestamp
+• Availability at the time of recording
+• Location freshness
+• Current-location marker
+
+Do not continuously track a responder unnecessarily.
+
+Use recent location only when:
+
+• The responder has opted in.
+• Location permission is active.
+• The responder is eligible.
+• The location is within the configured freshness window.
+
+When location becomes stale:
+
+• Mark the location unavailable.
+• Remove the responder from ordinary proximity matching.
+• Do not present the responder as nearby.
+• Do not fabricate a replacement timestamp or distance.
+
+While actively responding, location updates are permitted only according to:
+
+• Responder consent
+• Emergency policy
+• System configuration
+• Authorized participant access
+
+Stop response tracking when:
+
+• The responder completes the assignment.
+• The emergency closes.
+• The assignment is cancelled.
+• The responder withdraws.
+• The responder is marked unable to continue.
+
+============================================================
+12. SERVER-SIDE MATCHING ENGINE
+============================================================
+
+Matching must run on a secure server-side worker, function, or equivalent
+trusted backend boundary. The client must never discover responders directly.
+
+Inputs:
+
+• Emergency location
+• Emergency category
+• Severity
+• Immediate-danger flag
+• Responder location
+• Location freshness
+• Responder availability
+• Responder skills
+• Skill verification
+• Responder verification level
+• Service radius
+• Current assignments
+• Emergency permissions
+• Response history
+• Block and report relationships
+• Emergency Circle relationship
+• Emergency-specific safety policy
+
+Required eligibility filters:
+
+• Explicit opt-in
+• Valid location permission
+• Fresh location
+• Eligible availability
+• Matching service area
+• Matching capability or approved general-response capability
+• No active block
+• No incompatible current assignment
+• Appropriate verification for the incident
+• No policy restriction for the incident category
+
+The server must fail closed when required information is missing.
+
+============================================================
+13. MATCHING SCORE
+============================================================
+
+Use a configurable internal score. Example weights:
+
+• Distance: 35%
+• Emergency skill match: 25%
+• Availability: 15%
+• Verification: 10%
+• Emergency-category compatibility: 10%
+• Current workload: 5%
+
+These values must be configuration, not hardcoded business logic.
+
+Additional policy adjustments may account for:
+
+• Emergency Circle relationship
+• Immediate danger
+• Responder safety authorization
+• Response history
+• Current workload
+• Area-specific policies
+
+Never expose the raw score to ordinary citizens or responders.
+
+Administrators may see a controlled explanation such as:
+
+    Selected because:
+    ✓ Approximately 650 m away
+    ✓ First Aid skill
+    ✓ Available
+    ✓ Skill verified
+    ✓ Suitable for a medical emergency
+
+Do not expose security-sensitive scoring details.
+
+============================================================
+14. REAL GEOGRAPHIC DISTANCE
+============================================================
+
+Calculate distance from real latitude and longitude.
+
+Do not use:
+
+• Random numbers
+• Placeholder distances presented as real
+• Stale coordinates treated as current
+• Client-only distance calculations for authorization
+
+Use geospatial calculations and, where supported, PostGIS or equivalent
+geospatial indexes.
+
+Example internal ordering:
+
+• Responder A — 420 m
+• Responder B — 1.1 km
+• Responder C — 2.7 km
+
+Return only an approximate, privacy-safe distance to the responder.
+
+============================================================
+15. LOCATION FRESHNESS
+============================================================
+
+Use clear freshness states:
+
+CURRENT
+
+Excellent. Updated seconds ago.
+
+RECENT
+
+Good. Updated within the recent operating window.
+
+STALE
+
+Poor. The location is too old for ordinary matching.
+
+UNAVAILABLE
+
+No recent usable location.
+
+Example display:
+
+• Excellent — Updated 8 seconds ago
+• Good — Updated 2 minutes ago
+• Poor — Updated 20 minutes ago
+• Unavailable — No recent location
+
+Freshness thresholds must be configurable. Never use stale location as if it
+were current and never claim certainty that the data does not support.
+
+============================================================
+16. EMERGENCY COMPATIBILITY
+============================================================
+
+Medical emergency:
+
+Prioritize:
+
+• First Aid Responder
+• Verified medical skill
+• Appropriate health responder
+• General community responder when safe
+
+Crime, active violence, or dangerous incident:
+
+Prioritize:
+
+• Official emergency pathway
+• Authorized or specifically trained responders
+• Trusted contacts where appropriate
+
+Do not send ordinary responders toward active violent crime, armed attacks,
+fires, or dangerous crime.
+
+Fire:
+
+• Prioritize official fire services.
+• Do not encourage ordinary responders to enter a fire or dangerous building.
+• Use only specifically trained and authorized responders when policy permits.
+
+Road accident:
+
+• Consider a verified first aider.
+• Consider a traffic or community safety responder.
+• Avoid unnecessary crowding.
+
+Missing or vulnerable person:
+
+• Consider approved community responders.
+• Consider trusted contacts.
+• Notify relevant authorities when appropriate.
+
+Official emergency response remains the priority for serious incidents.
+
+============================================================
+17. CRITICAL AND NON-CRITICAL EMERGENCIES
+============================================================
+
+17.1 CRITICAL EMERGENCIES
+
+For critical emergencies, the system may notify multiple appropriate
+responders without unnecessarily waiting for one response.
+
+Example:
+
+• Nearby first aider
+• Trusted emergency contact
+• Official medical emergency pathway
+
+Use configured notification waves and avoid unnecessary crowding.
+
+17.2 NON-CRITICAL EMERGENCIES
+
+For lower-severity emergencies, notify fewer responders.
+
+Example — lost elderly person:
+
+• Nearby approved community responders
+• Trusted contacts
+• Relevant authorities when appropriate
+
+Severity and immediate-danger rules must be evaluated server-side.
+
+============================================================
+18. RESPONDER NOTIFICATIONS
+============================================================
+
+When a responder is selected, send a secure real-time notification.
+
+Example:
+
+    🚨 Emergency Near You
+
+    Medical emergency
+    Approximately 650 m away
+    General area: [area]
+
+    Can you safely assist?
+
+Actions:
+
+• ACCEPT
+• DECLINE
+• NOT NOW
+
+Before acceptance, show only the minimum information defined in Section 10.
+
+Notification states:
+
+• Pending
+• Sent
+• Delivered
+• Viewed
+• Accepted
+• Declined
+• Expired
+• Cancelled
+
+Every state change must be timestamped and auditable.
+
+============================================================
+19. ACCEPT FLOW
+============================================================
+
+When a responder taps ACCEPT:
+
+1. Revalidate eligibility on the server.
+2. Confirm the request is still available.
+3. Confirm the responder can safely accept.
+4. Create a Responder Assignment atomically.
+5. Set assignment status to ACCEPTED.
+6. Update responder capacity to Handling Emergency where appropriate.
+7. Share only the authorized emergency details.
+8. Emit an authorized responder-accepted event.
+9. Notify the citizen using the actual event.
+
+Citizen message:
+
+    [Responder name] has accepted your emergency request.
+
+The responder may then receive:
+
+• Relevant emergency details
+• Authorized map or emergency area
+• Navigation
+• In-app call
+• Emergency chat
+• Verified emergency status
+
+Do not expose personal phone numbers.
+
+Acceptance must be idempotent. A duplicate tap must not create duplicate
+assignments.
+
+============================================================
+20. DECLINE AND NOT-NOW FLOW
+============================================================
+
+Decline reasons are optional:
+
+• Unavailable
+• Too far
+• Unsafe
+• Not my skill
+• Other
+
+Do not require a reason.
+
+After decline:
+
+• Mark the notification declined.
+• Preserve the reason only when supplied.
+• Do not punish the responder automatically.
+• Do not notify the same responder again for the same emergency.
+• Continue to the next eligible responder or wave when appropriate.
+
+NOT NOW should dismiss or defer the request according to configured policy
+without implying acceptance.
+
+============================================================
+21. MULTIPLE RESPONDERS AND FLOOD CONTROL
+============================================================
+
+Multiple responders may be useful for some incidents, such as:
+
+• Road accident:
+  First Aid Responder + traffic/community responder
+• Critical medical emergency:
+  First Aid Responder + trusted contact + official pathway
+
+Do not create unnecessary crowds or duplicate assignments.
+
+Use staged notification waves:
+
+Example:
+
+• First wave: 3 appropriate responders
+• If nobody accepts: next wave of 3
+• Critical emergencies: larger configured wave when justified
+
+Every emergency must have a configured maximum notification and assignment
+capacity.
+
+============================================================
+22. RESPONDER STATUS LIFECYCLE
+============================================================
+
+Responder workflow:
+
+    Notification Received
+            ↓
+       Considering
+            ↓
+        Accepted
+            ↓
+        On The Way
+            ↓
+          Nearby
+            ↓
+          Arrived
+            ↓
+         Assisting
+            ↓
+        Completed
+
+Alternative terminal state:
+
+    Unable To Continue
+
+Additional assignment states:
+
+• Assigned
+• Need Official Help
+• Cancelled
+
+Only authorized participants may change an assignment state.
+The server must reject invalid transitions.
+
+============================================================
+23. RESPONDER SAFETY CHECK
+============================================================
+
+Before navigation or active response, show:
+
+    Are you able to respond safely?
+
+Actions:
+
+• Yes, I'm safe to respond
+• No
+
+If the responder selects No:
+
+• Stop or cancel the assignment.
+• Mark the responder unavailable for that assignment.
+• Return them to the responder workspace.
+• Consider another eligible responder.
+• Do not penalize the responder for choosing safety.
+
+For dangerous incidents, ordinary responders must see:
+
+    Do not approach the scene. Stay at a safe distance and wait for
+    authorized emergency services.
+
+Specifically trained and authorized responders may be handled by a separate
+administrator-controlled safety policy.
+
+============================================================
+24. RESPONDER CHECK-IN AND ARRIVAL
+============================================================
+
+When the responder is near the emergency, prompt:
+
+    Have you reached the location safely?
+
+Actions:
+
+• I've Arrived
+• Unable To Reach
+• Need Official Assistance
+
+If the responder selects Need Official Assistance:
+
+• Escalate the emergency through the existing official pathway.
+• Notify authorized participants.
+• Record the event in the audit trail.
+
+GPS proximity may support a suggestion, but it must not automatically claim
+that the responder arrived.
+
+The responder must explicitly select:
+
+    I've Arrived
+
+============================================================
+25. COMPLETION AND CLOSURE
+============================================================
+
+Responder completion options:
+
+• Assistance Complete
+• Official Help Arrived
+• No Assistance Needed
+• Unable To Assist
+• Unsafe Situation
+
+The citizen may also close the emergency.
+
+When an emergency or assignment closes:
+
+• Stop responder tracking.
+• Stop unnecessary location updates.
+• Stop new assignment notifications for the closed event.
+• Persist the final status.
+• Create an audit record.
+• Preserve authorized history without exposing sensitive citizen data.
+
+============================================================
+26. CITIZEN VIEW
+============================================================
+
+The citizen may see:
+
+    Emergency Active
+
+    Community assistance:
+    🟢 [Responder name]
+    [Neutral responder type or verified skill]
+    On the way
+    Approx. 4 minutes
+
+Only show information necessary to understand the emergency status.
+
+Do not expose:
+
+• Responder's exact location
+• Personal phone number
+• Private profile information
+• Raw internal match score
+• Unverified professional titles
+
+ETA must come from an actual routing source. If routing is unavailable, show
+approximate distance or a clear unavailable state. Never invent an ETA.
+
+============================================================
+27. RESPONDER MAP AND NAVIGATION
+============================================================
+
+After acceptance, the authorized responder may receive:
+
+• Citizen emergency area or location as policy allows
+• The responder's own location
+• Authorized route
+• Navigation action
+• Open Map action
+• Approximate distance
+• Estimated arrival when provided by a real routing source
+
+Never display:
+
+• Other responders' exact locations
+• A public responder map
+• A map of everyone nearby
+
+If routing is unavailable:
+
+• Show approximate distance.
+• Clearly label route or ETA as unavailable.
+• Do not fabricate navigation data.
+
+============================================================
+28. REAL-TIME COMMUNICATION
+============================================================
+
+Authorized responders may communicate through:
+
+• In-app voice call
+• Emergency chat
+• System status updates
+
+All in-app communication must:
+
+• Use authenticated participants.
+• Avoid exposing personal phone numbers.
+• Preserve emergency context.
+• Respect Phase 3 call-provider boundaries.
+• Distinguish demo communication from provider-confirmed communication.
+
+The AI may coordinate actual system events:
+
+    [Responder name] is approximately 600 metres away and has accepted.
+
+    [Responder name] is now travelling to the emergency area.
+
+    [Responder name] has marked themselves as arrived.
+
+The AI must never fabricate a status, call, arrival, or official notification.
+
+============================================================
+29. REAL-TIME EVENTS
+============================================================
+
+Use secure, participant-scoped realtime channels.
+
+Supported events:
+
+• Responder Matched
+• Responder Notified
+• Responder Accepted
+• Responder Declined
+• Responder En Route
+• Responder Nearby
+• Responder Arrived
+• Responder Completed
+• Responder Unavailable
+• Official Assistance Requested
+• Location Sharing Started
+• Location Sharing Stopped
+
+Only authorized participants and administrators may receive relevant events.
+
+============================================================
+30. DATABASE MODEL
+============================================================
+
+Create or extend the following structures.
+
+30.1 community_responders
+
+Required fields:
+
+• id
+• user_id
+• full_name
+• profile_photo
+• phone
+• phone_verification_status
+• preferred_language
+• responder_type
+• responder_level
+• verification_status
+• availability_status
+• availability_until
+• service_radius
+• emergency_permissions
+• opted_in
+• location_permission_granted
+• safety_acknowledged
+• country
+• region
+• district
+• county
+• sub_county
+• town
+• parish
+• village
+• created_at
+• updated_at
+
+30.2 responder_skills
+
+Required fields:
+
+• id
+• responder_id
+• skill
+• verification_status
+• verified_at
+• created_at
+
+Enforce uniqueness for responder_id + skill.
+
+30.3 responder_locations
+
+Required fields:
+
+• id
+• responder_id
+• latitude
+• longitude
+• accuracy
+• recorded_at
+• is_current
+
+Raw location data must never be publicly readable.
+
+30.4 responder_assignments
+
+Required fields:
+
+• id
+• sos_session_id
+• responder_id
+• responder_profile_id where applicable
+• priority
+• match_score — internal only
+• distance — privacy-controlled
+• status
+• assigned_at
+• accepted_at
+• en_route_at
+• arrived_at
+• completed_at
+• unable_at
+• response_outcome
+• notes
+• updated_at
+
+Enforce a unique emergency_id + responder_id relationship so the same
+responder cannot receive repeated assignments for one emergency.
+
+30.5 responder_notifications
+
+Required fields:
+
+• id
+• sos_session_id
+• responder_id
+• notification_status
+• emergency_category
+• severity
+• approximate_distance
+• area
+• minimal_summary
+• decline_reason
+• sent_at
+• viewed_at
+• responded_at
+• created_at
+
+Enforce uniqueness for sos_session_id + responder_id.
+
+30.6 responder_reports
+
+Required fields:
+
+• id
+• responder_id
+• sos_session_id
+• report_type
+• description
+• created_at
+
+Supported report types include:
+
+• Unsafe situation
+• Abuse
+• False emergency
+• Citizen
+• Responder
+• Other
+
+============================================================
+31. SECURITY AND ROW-LEVEL ACCESS
+============================================================
+
+Use strict row-level security and server-side authorization.
+
+Responders may:
+
+• View and update their own responder profile.
+• Manage their own skills.
+• Write their own location after permission is granted.
+• View only their own notifications.
+• Submit their own reports.
+• View and act on assignments for which they are authorized.
+
+Responders must not:
+
+• Browse all responders.
+• Read raw location tables.
+• Read another responder's exact location.
+• Read emergency information before authorization beyond the minimal request.
+• Change another responder's assignment.
+• Change their own verification level.
+• Self-approve a professional or authority status.
+
+After acceptance, share only relevant emergency information with authorized
+participants.
+
+Only authorized administrators may:
+
+• View responder management data.
+• Verify identity.
+• Verify skills.
+• Approve or suspend responders.
+• Deactivate responders.
+• Review reports and abuse flags.
+• View participation and audit history.
+• Manage responder categories and service areas.
+• View controlled match explanations.
+
+============================================================
+32. PERFORMANCE AND SCALABILITY
+============================================================
+
+The matching engine must be efficient at national scale.
+
+Do not query every responder in Uganda for every SOS.
+
+Use:
+
+• Geospatial indexes
+• Service-radius prefilters
+• Availability filters
+• Skill filters
+• Location-freshness filters
+• Server-side filtering
+• Pagination
+• Configurable notification waves
+• Duplicate prevention
+• Regional partitioning or equivalent geographic strategy
+
+Matching should return a small eligible set, not an unbounded responder list.
+
+============================================================
+33. UGANDA-READY GEOGRAPHIC ARCHITECTURE
+============================================================
+
+Support the following hierarchy:
+
+• Country
+• Region
+• District
+• County
+• Sub-county
+• Town
+• Parish
+• Village
+
+Do not hardcode only Kampala or one other city.
+
+The architecture must support expansion across Uganda and future countries
+without changing the responder data model.
+
+============================================================
+34. COMMUNITY AUTHORITY SUPPORT
+============================================================
+
+Prepare administrator-managed support for:
+
+• LC1
+• Community leaders
+• Health workers
+• Community policing structures
+• Other approved local responders
+
+These roles require administrator-managed verification.
+Users must never self-declare official authority status.
+
+============================================================
+35. ANTI-ABUSE AND TRUST
+============================================================
+
+Implement safeguards for:
+
+• Rate limiting
+• Emergency request limits
+• Block system
+• Report responder
+• Report citizen
+• Suspicious activity monitoring
+• Duplicate emergency detection
+• False emergency review
+• Spam prevention
+• Audit history
+
+Do not automatically deny genuine emergencies because of previous
+cancellations or a single declined request.
+
+Track internal responder reliability metrics:
+
+• Acceptance rate
+• Response completion
+• Cancellation rate
+• Average response time
+• Verified skills
+• Reports
+• Abuse flags
+
+Create an internal trust and reliability model for administrators.
+
+Do not expose a public popularity score.
+
+Use internal signals to identify:
+
+• Reliable responders
+• Inactive responders
+• Potential abuse
+• Training needs
+
+============================================================
+36. ADMIN RESPONDER MANAGEMENT
+============================================================
+
+Prepare administrator tools to:
+
+• View responders
+• Search and filter responders
+• Verify identity
+• Verify skills
+• Approve responders
+• Suspend responders
+• Deactivate responders
+• Review reports
+• Review abuse flags
+• View emergency participation
+• View audit history
+• Manage responder categories
+• Manage service areas
+• Review controlled match explanations
+
+Administrative actions must be permissioned and auditable.
+
+============================================================
+37. RESPONDER DASHBOARD
+============================================================
+
+Create a premium responder home screen.
+
+Header:
+
+    Good evening, [first name]
+
+Show:
+
+• Current availability status
+• Temporary availability window
+• Location freshness
+• Verification status
+• Service radius
+• Active response count
+
+Primary sections:
+
+• Emergency Requests
+• Nearby Assistance
+• Active Response
+• Response History
+• My Skills
+• My Verification
+• Availability
+• Emergency Circle
+• Settings
+
+The dashboard must be mobile-first, accessible, responsive, and clear under
+stress. Use calm hierarchy and prominent safety actions.
+
+============================================================
+38. ACTIVE RESPONSE CARD
+============================================================
+
+When actively responding, show:
+
+    🚨 Active Response
+
+    Medical emergency
+    Approximately 650 m away
+
+    Status:
+    On the way
+
+    ETA:
+    4 min
+
+Actions:
+
+• Call through Allma
+• Emergency chat
+• Navigate
+• I've Arrived
+• Need Official Help
+
+Only show ETA when produced by an available routing source.
+Otherwise show approximate distance or route unavailable.
+
+============================================================
+39. RESPONDER HISTORY
+============================================================
+
+Show:
+
+• Completed responses
+• Cancelled responses
+• Unable-to-continue responses
+• Response times
+• Emergency categories
+• Safety outcomes
+
+Do not expose sensitive citizen information unnecessarily.
+
+History must distinguish:
+
+• Real emergency participation
+• Demo activity
+
+============================================================
+40. DEMO MODE
+============================================================
+
+Provide a realistic developer-only DEMO MODE.
+
+Demo mode may simulate:
+
+• Responder locations
+• Availability
+• Accept
+• Decline
+• No answer
+• En route
+• Arrived
+• Completed
+
+All simulated content must be clearly labeled:
+
+    DEMO
+
+    Simulated information — no real responder or citizen is involved.
+
+Never:
+
+• Present demo responders as real.
+• Send demo notifications to real people.
+• Create a fake official escalation.
+• Claim a real call connected.
+• Mix demo events into real emergency history without a visible label.
+
+============================================================
+41. FINAL END-TO-END TEST
+============================================================
+
+Test the complete flow:
+
+1. Citizen activates SOS.
+2. Real device location is obtained with permission.
+3. AI classifies a critical medical emergency.
+4. The secure server searches opted-in responders.
+5. The engine filters by:
+   • Availability
+   • Distance
+   • Skill
+   • Verification
+   • Location freshness
+   • Service radius
+   • Permissions
+   • Current workload
+   • Safety policy
+6. The top eligible responders are selected.
+7. A privacy-safe notification is sent.
+8. A responder accepts.
+9. A unique assignment is created.
+10. The citizen sees a verified responder-accepted event.
+11. The responder receives authorized navigation information.
+12. The responder marks On The Way.
+13. The citizen sees the verified live status.
+14. The responder explicitly marks I've Arrived.
+15. The citizen sees Responder Arrived.
+16. The responder assists.
+17. The responder marks Assistance Complete.
+18. The emergency closes.
+19. Location tracking stops.
+20. An audit trail is created.
+
+Also test:
+
+• Decline with no reason
+• Decline with each optional reason
+• Request expiry
+• No answer and staged escalation
+• Duplicate notification prevention
+• Stale location
+• Location permission denied
+• Responder goes offline
+• Responder chooses unsafe
+• Dangerous incident
+• Need Official Help
+• Citizen closes the emergency
+• Multiple appropriate responders
+• Unauthorized data access
+• Demo mode separation
+
+============================================================
+42. RELEASE ACCEPTANCE CRITERIA
+============================================================
+
+The phase is not ready for production emergency traffic until:
+
+• Matching is server-side and authorization-protected.
+• Only explicitly opted-in responders can be considered.
+• Exact responder coordinates are not publicly exposed.
+• Stale locations are excluded from ordinary matching.
+• Professional and authority claims require verification.
+• Dangerous incidents do not direct ordinary responders into danger.
+• Official response pathways remain prioritized.
+• Notification and assignment transitions are idempotent.
+• Duplicate emergency contacts are prevented.
+• Realtime events are participant-scoped.
+• Demo mode is visibly separate from real emergency state.
+• Every important action is auditable.
+• The Phase 1, Phase 2, and Phase 3 flows continue to work.
+
+============================================================
+43. CRITICAL FINAL RULE
+============================================================
+
+Allma Community Responders are supplementary emergency assistance.
+
+They do not replace:
+
+• Police
+• Ambulance
+• Fire services
+• Other official emergency services
+
+For serious emergencies, Allma must prioritize official emergency response
+pathways.
+
+Community responders must never be instructed to put themselves or others in
+danger.
+
+============================================================
+FINAL PRODUCT PRINCIPLE
+============================================================
+
+The experience should feel like:
+
+    “I pressed SOS.”
+
+    ↓
+
+    “Allma understood what was happening.”
+
+    ↓
+
+    “It found people who are actually capable of helping.”
+
+    ↓
+
+    “It contacted the right person.”
+
+    ↓
+
+    “They accepted.”
+
+    ↓
+
+    “I can see that they are responding.”
+
+    ↓
+
+    “They arrived.”
+
+    ↓
+
+    “The emergency was resolved.”
+
+The system must feel intelligent, trustworthy, fast, calm, and extremely
+premium.
+
+Do not break Phase 1, Phase 2, or Phase 3.
+
+============================================================
+END OF PHASE 4
+============================================================

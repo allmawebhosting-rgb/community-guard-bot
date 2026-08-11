@@ -3,14 +3,27 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Brain, CheckCircle2, ChevronRight, Clock,
-  FileText, Fingerprint, Flame, MapPin, Navigation,
-  Radio, UserCheck, Zap, AlertTriangle,
+  ArrowLeft,
+  Brain,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Landmark,
+  FileText,
+  Fingerprint,
+  Flame,
+  MapPin,
+  Navigation,
+  Radio,
+  UserCheck,
+  Zap,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { CaseSidePanels } from "@/components/police/case-side-panels";
+import { CaseIntelligencePanel } from "@/components/police/case-intelligence-panel";
 import {
   caseNotesQuery,
   dispatchesForCaseQuery,
@@ -34,17 +47,28 @@ export const Route = createFileRoute("/_authenticated/police/cases/$caseId")({
 });
 
 const DISPATCH_STATUS_META: Record<string, { dot: string; chip: string }> = {
-  assigned:   { dot: "bg-gold",             chip: "border-gold/40 bg-gold/12 text-gold" },
-  notified:   { dot: "bg-primary",          chip: "border-primary/40 bg-primary/12 text-primary" },
-  en_route:   { dot: "bg-alert",            chip: "border-alert/40 bg-alert/12 text-alert" },
-  on_scene:   { dot: "bg-success",          chip: "border-success/40 bg-success/12 text-success" },
-  completed:  { dot: "bg-success",          chip: "border-success/40 bg-success/12 text-success" },
-  reassigned: { dot: "bg-muted-foreground", chip: "border-border bg-secondary/40 text-muted-foreground" },
-  cancelled:  { dot: "bg-muted-foreground", chip: "border-border bg-secondary/40 text-muted-foreground" },
+  assigned: { dot: "bg-gold", chip: "border-gold/40 bg-gold/12 text-gold" },
+  notified: { dot: "bg-primary", chip: "border-primary/40 bg-primary/12 text-primary" },
+  en_route: { dot: "bg-alert", chip: "border-alert/40 bg-alert/12 text-alert" },
+  on_scene: { dot: "bg-success", chip: "border-success/40 bg-success/12 text-success" },
+  completed: { dot: "bg-success", chip: "border-success/40 bg-success/12 text-success" },
+  reassigned: {
+    dot: "bg-muted-foreground",
+    chip: "border-border bg-secondary/40 text-muted-foreground",
+  },
+  cancelled: {
+    dot: "bg-muted-foreground",
+    chip: "border-border bg-secondary/40 text-muted-foreground",
+  },
 };
 
 const STATUS_STEPPER = [
-  "submitted", "under_review", "assigned", "dispatched", "resolved", "closed",
+  "submitted",
+  "under_review",
+  "assigned",
+  "dispatched",
+  "resolved",
+  "closed",
 ] as const;
 
 function CaseDetail() {
@@ -62,17 +86,31 @@ function CaseDetail() {
   useEffect(() => {
     const channel = supabase
       .channel(`case-${caseId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "reports", filter: `id=eq.${caseId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["police", "incident", caseId] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "dispatches", filter: `report_id=eq.${caseId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["police", "dispatches", caseId] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "case_notes", filter: `report_id=eq.${caseId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["police", "notes", caseId] });
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reports", filter: `id=eq.${caseId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["police", "incident", caseId] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dispatches", filter: `report_id=eq.${caseId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["police", "dispatches", caseId] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "case_notes", filter: `report_id=eq.${caseId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["police", "notes", caseId] });
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [caseId, qc]);
 
   const updateStatus = useMutation({
@@ -85,7 +123,10 @@ function CaseDetail() {
       await supabase.from("report_status_history").insert({ report_id: caseId, status });
       await logAudit("case_status_change", "reports", caseId, { status });
     },
-    onSuccess: () => { toast.success("Status updated"); qc.invalidateQueries({ queryKey: ["police"] }); },
+    onSuccess: () => {
+      toast.success("Status updated");
+      qc.invalidateQueries({ queryKey: ["police"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -97,7 +138,10 @@ function CaseDetail() {
       if (error) throw error;
       await logAudit("case_note_added", "reports", caseId);
     },
-    onSuccess: () => { setNote(""); qc.invalidateQueries({ queryKey: ["police", "notes", caseId] }); },
+    onSuccess: () => {
+      setNote("");
+      qc.invalidateQueries({ queryKey: ["police", "notes", caseId] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -106,20 +150,29 @@ function CaseDetail() {
       if (!dispatchOfficerId) throw new Error("Select an officer first");
       const { data: auth } = await supabase.auth.getUser();
       const { data: me } = await supabase
-        .from("officer_profiles").select("id").eq("user_id", auth.user!.id).maybeSingle();
+        .from("officer_profiles")
+        .select("id")
+        .eq("user_id", auth.user!.id)
+        .maybeSingle();
       const { error } = await supabase.from("dispatches").insert({
-        report_id: caseId, officer_id: dispatchOfficerId,
-        assigned_by: me?.id ?? null, status: "assigned",
+        report_id: caseId,
+        officer_id: dispatchOfficerId,
+        assigned_by: me?.id ?? null,
+        status: "assigned",
         note: dispatchNote.trim() || null,
       });
       if (error) throw error;
       await supabase.from("reports").update({ status: "dispatched" }).eq("id", caseId);
-      await supabase.from("report_status_history").insert({ report_id: caseId, status: "dispatched" });
+      await supabase
+        .from("report_status_history")
+        .insert({ report_id: caseId, status: "dispatched" });
       await logAudit("officer_dispatched", "reports", caseId, { officer_id: dispatchOfficerId });
     },
     onSuccess: () => {
       toast.success("Officer dispatched");
-      setDispatchOfficerId(""); setDispatchNote(""); setShowDispatchForm(false);
+      setDispatchOfficerId("");
+      setDispatchNote("");
+      setShowDispatchForm(false);
       qc.invalidateQueries({ queryKey: ["police"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -160,9 +213,11 @@ function CaseDetail() {
 
   const meta = PRIORITY_META[incident.priority as IncidentPriority];
   const actions = Array.isArray(incident.ai_recommended_actions)
-    ? (incident.ai_recommended_actions as unknown[]).map(String) : [];
+    ? (incident.ai_recommended_actions as unknown[]).map(String)
+    : [];
   const availableOfficers = officers.filter(
-    (o) => o.status === "verified" && (o.duty_status === "available" || o.duty_status === "on_duty"),
+    (o) =>
+      o.status === "verified" && (o.duty_status === "available" || o.duty_status === "on_duty"),
   );
 
   // Build timeline from notes + key incident events
@@ -171,22 +226,41 @@ function CaseDetail() {
     ...dispatches.map((d) => ({
       time: d.created_at,
       label: `Officer dispatched — ${(d.officer as { full_name?: string } | null)?.full_name ?? "Officer"}`,
-      icon: Navigation, color: "text-alert",
+      icon: Navigation,
+      color: "text-alert",
     })),
-    ...dispatches.filter((d) => d.en_route_at).map((d) => ({
-      time: d.en_route_at!, label: "Officer en route", icon: Navigation, color: "text-alert",
-    })),
-    ...dispatches.filter((d) => d.on_scene_at).map((d) => ({
-      time: d.on_scene_at!, label: "Officer on scene", icon: CheckCircle2, color: "text-success",
-    })),
+    ...dispatches
+      .filter((d) => d.en_route_at)
+      .map((d) => ({
+        time: d.en_route_at!,
+        label: "Officer en route",
+        icon: Navigation,
+        color: "text-alert",
+      })),
+    ...dispatches
+      .filter((d) => d.on_scene_at)
+      .map((d) => ({
+        time: d.on_scene_at!,
+        label: "Officer on scene",
+        icon: CheckCircle2,
+        color: "text-success",
+      })),
     ...notes.map((n) => ({
-      time: n.created_at, label: `Note: ${n.body.slice(0, 60)}${n.body.length > 60 ? "…" : ""}`,
-      icon: FileText, color: "text-muted-foreground",
+      time: n.created_at,
+      label: `Note: ${n.body.slice(0, 60)}${n.body.length > 60 ? "…" : ""}`,
+      icon: FileText,
+      color: "text-muted-foreground",
     })),
-    ...(incident.resolved_at ? [{
-      time: incident.resolved_at, label: "Case resolved",
-      icon: CheckCircle2, color: "text-success",
-    }] : []),
+    ...(incident.resolved_at
+      ? [
+          {
+            time: incident.resolved_at,
+            label: "Case resolved",
+            icon: CheckCircle2,
+            color: "text-success",
+          },
+        ]
+      : []),
   ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
   const stepIdx = STATUS_STEPPER.indexOf(incident.status as (typeof STATUS_STEPPER)[number]);
@@ -195,7 +269,9 @@ function CaseDetail() {
     <div className="w-full space-y-4">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-        <Link to="/police/incidents" className="hover:text-foreground transition">Incidents</Link>
+        <Link to="/police/incidents" className="hover:text-foreground transition">
+          Incidents
+        </Link>
         <ChevronRight className="h-3 w-3" />
         <span className="font-mono text-foreground">{incident.reference}</span>
       </div>
@@ -205,20 +281,36 @@ function CaseDetail() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={cn("rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest", meta?.chip)}>
+              <span
+                className={cn(
+                  "rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest",
+                  meta?.chip,
+                )}
+              >
                 {meta?.label}
               </span>
-              <span className="font-mono text-[11px] text-muted-foreground">{incident.reference}</span>
-              <span className="text-[11px] text-muted-foreground">{timeAgo(incident.created_at)}</span>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {incident.reference}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {timeAgo(incident.created_at)}
+              </span>
             </div>
-            <h1 className="mt-2 font-display text-lg font-semibold leading-snug">{incident.title}</h1>
+            <h1 className="mt-2 font-display text-lg font-semibold leading-snug">
+              {incident.title}
+            </h1>
             <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
               {incident.location_text && (
-                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{incident.location_text}</span>
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {incident.location_text}
+                </span>
               )}
               {incident.district && <span>{incident.district}</span>}
               {incident.category && (
-                <span className="rounded-md bg-secondary/60 px-1.5 py-0.5 capitalize">{incident.category}</span>
+                <span className="rounded-md bg-secondary/60 px-1.5 py-0.5 capitalize">
+                  {incident.category}
+                </span>
               )}
             </div>
           </div>
@@ -256,19 +348,36 @@ function CaseDetail() {
                     className="flex flex-col items-center gap-1 group"
                     title={statusLabel(s)}
                   >
-                    <div className={cn(
-                      "h-2 w-2 rounded-full transition-all",
-                      done ? "bg-primary" : current ? "bg-primary ring-2 ring-primary/30 ring-offset-1 ring-offset-background" : "bg-border",
-                    )} />
-                    <span className={cn(
-                      "hidden text-[9px] uppercase tracking-wider lg:block transition-colors",
-                      current ? "font-semibold text-primary" : done ? "text-muted-foreground" : "text-muted-foreground/50",
-                    )}>
+                    <div
+                      className={cn(
+                        "h-2 w-2 rounded-full transition-all",
+                        done
+                          ? "bg-primary"
+                          : current
+                            ? "bg-primary ring-2 ring-primary/30 ring-offset-1 ring-offset-background"
+                            : "bg-border",
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "hidden text-[9px] uppercase tracking-wider lg:block transition-colors",
+                        current
+                          ? "font-semibold text-primary"
+                          : done
+                            ? "text-muted-foreground"
+                            : "text-muted-foreground/50",
+                      )}
+                    >
                       {statusLabel(s)}
                     </span>
                   </button>
                   {!isLast && (
-                    <div className={cn("h-px flex-1 transition-colors", done ? "bg-primary" : "bg-border/40")} />
+                    <div
+                      className={cn(
+                        "h-px flex-1 transition-colors",
+                        done ? "bg-primary" : "bg-border/40",
+                      )}
+                    />
                   )}
                 </div>
               );
@@ -278,6 +387,26 @@ function CaseDetail() {
       </div>
 
       {/* ── Two-column layout ─────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/25 bg-gold/[0.06] px-4 py-3">
+        <div className="flex items-start gap-2.5">
+          <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+          <div>
+            <p className="text-xs font-semibold">Authority coordination is available</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Prepare this case for an authorized authority without claiming official notification.
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/police/authority"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-[11px] font-semibold text-gold transition hover:bg-gold/15"
+        >
+          Open coordination <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
+      <CaseIntelligencePanel incident={incident} dispatches={dispatches} timeline={timeline} />
+
       <div className="grid gap-4 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]">
         {/* LEFT: AI analysis + timeline + notes */}
         <div className="space-y-4">
@@ -288,15 +417,22 @@ function CaseDetail() {
                 <div className="grid h-6 w-6 place-items-center rounded-lg bg-gold/15">
                   <Brain className="h-3.5 w-3.5 text-gold" />
                 </div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gold">AI Case Analysis</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gold">
+                  AI Case Analysis
+                </p>
               </div>
               <p className="text-[13px] leading-relaxed">{incident.ai_summary}</p>
               {actions.length > 0 && (
                 <div className="mt-3 border-t border-gold/15 pt-3">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Recommended Actions</p>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Recommended Actions
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     {actions.map((action) => (
-                      <span key={action} className="rounded-md border border-gold/25 bg-gold/8 px-2.5 py-1 text-[11px] text-gold">
+                      <span
+                        key={action}
+                        className="rounded-md border border-gold/25 bg-gold/8 px-2.5 py-1 text-[11px] text-gold"
+                      >
                         {action}
                       </span>
                     ))}
@@ -308,19 +444,29 @@ function CaseDetail() {
 
           {/* Case meta grid */}
           <div className="card-desktop">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Incident Details</p>
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Incident Details
+            </p>
             <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-[12px] lg:grid-cols-3">
               {[
-                { label: "Priority",  value: meta?.label, icon: Flame },
-                { label: "Status",    value: statusLabel(incident.status), icon: AlertTriangle },
-                { label: "Reported",  value: new Date(incident.created_at).toLocaleString("en-UG", { dateStyle: "medium", timeStyle: "short" }), icon: Clock },
-                { label: "District",  value: incident.district ?? "—", icon: MapPin },
-                { label: "Location",  value: incident.location_text ?? "—", icon: MapPin },
+                { label: "Priority", value: meta?.label, icon: Flame },
+                { label: "Status", value: statusLabel(incident.status), icon: AlertTriangle },
+                {
+                  label: "Reported",
+                  value: new Date(incident.created_at).toLocaleString("en-UG", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }),
+                  icon: Clock,
+                },
+                { label: "District", value: incident.district ?? "—", icon: MapPin },
+                { label: "Location", value: incident.location_text ?? "—", icon: MapPin },
                 { label: "Reference", value: incident.reference ?? "—", icon: Fingerprint },
               ].map(({ label, value, icon: Icon }) => (
                 <div key={label}>
                   <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                    <Icon className="h-2.5 w-2.5" />{label}
+                    <Icon className="h-2.5 w-2.5" />
+                    {label}
                   </p>
                   <p className="mt-0.5 font-medium">{value}</p>
                 </div>
@@ -331,7 +477,9 @@ function CaseDetail() {
           {/* Timeline */}
           {timeline.length > 0 && (
             <div className="card-desktop">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Case Timeline</p>
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Case Timeline
+              </p>
               <div className="relative space-y-0">
                 {timeline.map((event, i) => {
                   const Icon = event.icon;
@@ -339,7 +487,12 @@ function CaseDetail() {
                   return (
                     <div key={i} className="flex gap-3">
                       <div className="flex flex-col items-center">
-                        <div className={cn("mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-secondary/80", event.color)}>
+                        <div
+                          className={cn(
+                            "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-secondary/80",
+                            event.color,
+                          )}
+                        >
                           <Icon className="h-2.5 w-2.5" />
                         </div>
                         {!isLast && <div className="w-px flex-1 bg-border/40 my-1" />}
@@ -363,7 +516,10 @@ function CaseDetail() {
             {notes.length > 0 && (
               <div className="mb-3 space-y-2">
                 {notes.map((entry) => (
-                  <div key={entry.id} className="rounded-lg border border-border/40 bg-secondary/30 px-3.5 py-2.5">
+                  <div
+                    key={entry.id}
+                    className="rounded-lg border border-border/40 bg-secondary/30 px-3.5 py-2.5"
+                  >
                     <p className="text-[13px] leading-snug">{entry.body}</p>
                     <p className="mt-1 text-[10px] text-muted-foreground">
                       {entry.author_kind === "officer" ? "Officer · " : ""}
@@ -403,7 +559,9 @@ function CaseDetail() {
           {/* Dispatch panel */}
           <div className="card-desktop">
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Dispatch</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Dispatch
+              </p>
               {!showDispatchForm && (
                 <button
                   onClick={() => setShowDispatchForm(true)}
@@ -434,7 +592,13 @@ function CaseDetail() {
                       )}
                     >
                       <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary/30 to-gold/30 text-[9px] font-bold">
-                        {(o.full_name || "O").split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase()}
+                        {(o.full_name || "O")
+                          .split(" ")
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((p) => p[0])
+                          .join("")
+                          .toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[12px] font-medium">{o.full_name}</p>
@@ -465,7 +629,10 @@ function CaseDetail() {
                     size="sm"
                     variant="ghost"
                     className="rounded-lg"
-                    onClick={() => { setShowDispatchForm(false); setDispatchOfficerId(""); }}
+                    onClick={() => {
+                      setShowDispatchForm(false);
+                      setDispatchOfficerId("");
+                    }}
                   >
                     Cancel
                   </Button>
@@ -476,17 +643,28 @@ function CaseDetail() {
             {/* Active dispatches */}
             <div className="space-y-2">
               {dispatches.length === 0 && !showDispatchForm && (
-                <p className="py-2 text-[12px] text-muted-foreground">No officers dispatched yet.</p>
+                <p className="py-2 text-[12px] text-muted-foreground">
+                  No officers dispatched yet.
+                </p>
               )}
               {dispatches.map((d) => {
                 const statusMeta = DISPATCH_STATUS_META[d.status] ?? DISPATCH_STATUS_META.assigned;
-                const officerName = (d.officer as { full_name?: string } | null)?.full_name ?? "Officer";
+                const officerName =
+                  (d.officer as { full_name?: string } | null)?.full_name ?? "Officer";
                 return (
-                  <div key={d.id} className="rounded-lg border border-border/40 bg-secondary/20 p-3">
+                  <div
+                    key={d.id}
+                    className="rounded-lg border border-border/40 bg-secondary/20 p-3"
+                  >
                     <div className="flex items-center gap-2">
                       <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusMeta.dot)} />
                       <p className="flex-1 truncate text-[12px] font-medium">{officerName}</p>
-                      <span className={cn("rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider", statusMeta.chip)}>
+                      <span
+                        className={cn(
+                          "rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                          statusMeta.chip,
+                        )}
+                      >
                         {dispatchStatusLabel(d.status)}
                       </span>
                     </div>
@@ -495,7 +673,11 @@ function CaseDetail() {
                       {d.en_route_at && ` · En route ${timeAgo(d.en_route_at)}`}
                       {d.on_scene_at && ` · On scene ${timeAgo(d.on_scene_at)}`}
                     </p>
-                    {d.note && <p className="mt-0.5 pl-3.5 text-[11px] text-muted-foreground italic">"{d.note}"</p>}
+                    {d.note && (
+                      <p className="mt-0.5 pl-3.5 text-[11px] text-muted-foreground italic">
+                        "{d.note}"
+                      </p>
+                    )}
                     {!["completed", "cancelled"].includes(d.status) && (
                       <div className="mt-2 flex flex-wrap gap-1 pl-3.5">
                         {DISPATCH_STATUS_FLOW.filter(
@@ -526,7 +708,9 @@ function CaseDetail() {
 
           {/* Status quick-change */}
           <div className="card-desktop">
-            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Change Status</p>
+            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Change Status
+            </p>
             <div className="grid grid-cols-2 gap-1.5">
               {STATUS_FLOW.map((status) => (
                 <button

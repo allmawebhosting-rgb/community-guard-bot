@@ -77,6 +77,241 @@ export type Database = {
         }
         Relationships: []
       }
+      authority_directory: {
+        Row: {
+          api_endpoint: string | null
+          authority_type: string
+          availability: string
+          contact_method: string | null
+          county: string | null
+          created_at: string
+          created_by: string | null
+          dispatch_contact: string | null
+          district: string | null
+          email: string | null
+          emergency_number: string | null
+          id: string
+          is_demo: boolean
+          operating_hours: string | null
+          organization: string
+          parish: string | null
+          region: string | null
+          station: string | null
+          sub_county: string | null
+          town: string | null
+          updated_at: string
+          updated_by: string | null
+          verification_status: string
+          village: string | null
+        }
+        Insert: {
+          api_endpoint?: string | null
+          authority_type: string
+          availability?: string
+          contact_method?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          dispatch_contact?: string | null
+          district?: string | null
+          email?: string | null
+          emergency_number?: string | null
+          id?: string
+          is_demo?: boolean
+          operating_hours?: string | null
+          organization: string
+          parish?: string | null
+          region?: string | null
+          station?: string | null
+          sub_county?: string | null
+          town?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verification_status?: string
+          village?: string | null
+        }
+        Update: {
+          api_endpoint?: string | null
+          authority_type?: string
+          availability?: string
+          contact_method?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          dispatch_contact?: string | null
+          district?: string | null
+          email?: string | null
+          emergency_number?: string | null
+          id?: string
+          is_demo?: boolean
+          operating_hours?: string | null
+          organization?: string
+          parish?: string | null
+          region?: string | null
+          station?: string | null
+          sub_county?: string | null
+          town?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verification_status?: string
+          village?: string | null
+        }
+        Relationships: []
+      }
+      authority_escalations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          from_level: string | null
+          id: string
+          is_demo: boolean
+          reason: string
+          report_id: string
+          status: string
+          to_level: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          from_level?: string | null
+          id?: string
+          is_demo?: boolean
+          reason: string
+          report_id: string
+          status?: string
+          to_level: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          from_level?: string | null
+          id?: string
+          is_demo?: boolean
+          reason?: string
+          report_id?: string
+          status?: string
+          to_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authority_escalations_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      authority_notifications: {
+        Row: {
+          acknowledged_at: string | null
+          authority_id: string | null
+          authority_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_demo: boolean
+          method: string
+          provider_reference: string | null
+          reason: string | null
+          report_id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          authority_id?: string | null
+          authority_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_demo?: boolean
+          method: string
+          provider_reference?: string | null
+          reason?: string | null
+          report_id: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          authority_id?: string | null
+          authority_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_demo?: boolean
+          method?: string
+          provider_reference?: string | null
+          reason?: string | null
+          report_id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authority_notifications_authority_id_fkey"
+            columns: ["authority_id"]
+            isOneToOne: false
+            referencedRelation: "authority_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "authority_notifications_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_sessions: {
+        Row: {
+          created_at: string
+          emergency_call_id: string
+          id: string
+          last_provider_event_at: string
+          provider_confirmed: boolean
+          provider_expires_at: string | null
+          status: string
+          updated_at: string
+          webrtc_session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          emergency_call_id: string
+          id?: string
+          last_provider_event_at?: string
+          provider_confirmed?: boolean
+          provider_expires_at?: string | null
+          status?: string
+          updated_at?: string
+          webrtc_session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          emergency_call_id?: string
+          id?: string
+          last_provider_event_at?: string
+          provider_confirmed?: boolean
+          provider_expires_at?: string | null
+          status?: string
+          updated_at?: string
+          webrtc_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_emergency_call_id_fkey"
+            columns: ["emergency_call_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_calls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_notes: {
         Row: {
           author_kind: string
@@ -178,6 +413,102 @@ export type Database = {
           },
         ]
       }
+      community_responders: {
+        Row: {
+          active_response_count: number
+          area_of_operation: string | null
+          availability_status: string
+          availability_until: string | null
+          country: string
+          county: string | null
+          created_at: string
+          district: string | null
+          emergency_permissions: boolean
+          full_name: string
+          id: string
+          location_permission_granted: boolean
+          opted_in: boolean
+          parish: string | null
+          phone: string | null
+          phone_verification_status: string
+          photo_url: string | null
+          preferred_language: string
+          region: string | null
+          responder_level: string
+          responder_type: string
+          safety_acknowledged: boolean
+          service_radius_m: number
+          sub_county: string | null
+          town: string | null
+          updated_at: string
+          user_id: string
+          verification_status: string
+          village: string | null
+        }
+        Insert: {
+          active_response_count?: number
+          area_of_operation?: string | null
+          availability_status?: string
+          availability_until?: string | null
+          country?: string
+          county?: string | null
+          created_at?: string
+          district?: string | null
+          emergency_permissions?: boolean
+          full_name: string
+          id?: string
+          location_permission_granted?: boolean
+          opted_in?: boolean
+          parish?: string | null
+          phone?: string | null
+          phone_verification_status?: string
+          photo_url?: string | null
+          preferred_language?: string
+          region?: string | null
+          responder_level?: string
+          responder_type?: string
+          safety_acknowledged?: boolean
+          service_radius_m?: number
+          sub_county?: string | null
+          town?: string | null
+          updated_at?: string
+          user_id: string
+          verification_status?: string
+          village?: string | null
+        }
+        Update: {
+          active_response_count?: number
+          area_of_operation?: string | null
+          availability_status?: string
+          availability_until?: string | null
+          country?: string
+          county?: string | null
+          created_at?: string
+          district?: string | null
+          emergency_permissions?: boolean
+          full_name?: string
+          id?: string
+          location_permission_granted?: boolean
+          opted_in?: boolean
+          parish?: string | null
+          phone?: string | null
+          phone_verification_status?: string
+          photo_url?: string | null
+          preferred_language?: string
+          region?: string | null
+          responder_level?: string
+          responder_type?: string
+          safety_acknowledged?: boolean
+          service_radius_m?: number
+          sub_county?: string | null
+          town?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_status?: string
+          village?: string | null
+        }
+        Relationships: []
+      }
       dispatches: {
         Row: {
           assigned_by: string | null
@@ -251,6 +582,120 @@ export type Database = {
           },
         ]
       }
+      emergency_audit_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          sos_session_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          sos_session_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          sos_session_id?: string | null
+        }
+        Relationships: []
+      }
+      emergency_calls: {
+        Row: {
+          accepted_at: string | null
+          call_type: string
+          caller_id: string
+          connected_at: string | null
+          created_at: string
+          duration: number | null
+          ended_at: string | null
+          failure_reason: string | null
+          id: string
+          provider_confirmed: boolean
+          provider_mode: string
+          recipient_id: string
+          ringing_at: string | null
+          sos_session_id: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          call_type?: string
+          caller_id: string
+          connected_at?: string | null
+          created_at?: string
+          duration?: number | null
+          ended_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          provider_confirmed?: boolean
+          provider_mode?: string
+          recipient_id: string
+          ringing_at?: string | null
+          sos_session_id?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          call_type?: string
+          caller_id?: string
+          connected_at?: string | null
+          created_at?: string
+          duration?: number | null
+          ended_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          provider_confirmed?: boolean
+          provider_mode?: string
+          recipient_id?: string
+          ringing_at?: string | null
+          sos_session_id?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      emergency_chat_events: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          event_type: string
+          id: string
+          sos_session_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          event_type: string
+          id?: string
+          sos_session_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          sos_session_id?: string | null
+        }
+        Relationships: []
+      }
       emergency_contacts: {
         Row: {
           created_at: string
@@ -275,6 +720,33 @@ export type Database = {
           phone?: string
           relationship?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      emergency_escalations: {
+        Row: {
+          created_at: string
+          from_state: string | null
+          id: string
+          reason: string | null
+          sos_session_id: string | null
+          to_state: string
+        }
+        Insert: {
+          created_at?: string
+          from_state?: string | null
+          id?: string
+          reason?: string | null
+          sos_session_id?: string | null
+          to_state: string
+        }
+        Update: {
+          created_at?: string
+          from_state?: string | null
+          id?: string
+          reason?: string | null
+          sos_session_id?: string | null
+          to_state?: string
         }
         Relationships: []
       }
@@ -314,6 +786,255 @@ export type Database = {
           longitude?: number | null
           name?: string
           phone?: string | null
+        }
+        Relationships: []
+      }
+      institutional_handover_acceptance: {
+        Row: {
+          acceptance_date: string | null
+          acceptance_status: string
+          authorized_representative: string | null
+          created_at: string
+          created_by: string | null
+          digital_signature_supported: boolean
+          id: string
+          institution: string
+          operational_representative: string | null
+          outstanding_issues: string | null
+          scope: string | null
+          system_version: string | null
+          technical_representative: string | null
+          updated_at: string
+        }
+        Insert: {
+          acceptance_date?: string | null
+          acceptance_status?: string
+          authorized_representative?: string | null
+          created_at?: string
+          created_by?: string | null
+          digital_signature_supported?: boolean
+          id?: string
+          institution: string
+          operational_representative?: string | null
+          outstanding_issues?: string | null
+          scope?: string | null
+          system_version?: string | null
+          technical_representative?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acceptance_date?: string | null
+          acceptance_status?: string
+          authorized_representative?: string | null
+          created_at?: string
+          created_by?: string | null
+          digital_signature_supported?: boolean
+          id?: string
+          institution?: string
+          operational_representative?: string | null
+          outstanding_issues?: string | null
+          scope?: string | null
+          system_version?: string | null
+          technical_representative?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      institutional_hierarchy_nodes: {
+        Row: {
+          code: string | null
+          community: string | null
+          country: string | null
+          county: string | null
+          created_at: string
+          created_by: string | null
+          district: string | null
+          id: string
+          is_active: boolean
+          metadata: Json
+          name: string
+          node_type: string
+          parent_id: string | null
+          parish: string | null
+          region: string | null
+          sub_county: string | null
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          community?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          district?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name: string
+          node_type: string
+          parent_id?: string | null
+          parish?: string | null
+          region?: string | null
+          sub_county?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          community?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          district?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name?: string
+          node_type?: string
+          parent_id?: string | null
+          parish?: string | null
+          region?: string | null
+          sub_county?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institutional_hierarchy_nodes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "institutional_hierarchy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institutional_organization_members: {
+        Row: {
+          created_at: string
+          id: string
+          last_activity_at: string | null
+          organization_id: string
+          role: string
+          status: string
+          updated_at: string
+          user_id: string
+          verification_status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_activity_at?: string | null
+          organization_id: string
+          role: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          verification_status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_activity_at?: string | null
+          organization_id?: string
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institutional_organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "institutional_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institutional_organizations: {
+        Row: {
+          contact_email: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          jurisdiction_node_id: string | null
+          metadata: Json
+          name: string
+          organization_type: string
+          status: string
+          updated_at: string
+          verification_status: string
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          jurisdiction_node_id?: string | null
+          metadata?: Json
+          name: string
+          organization_type: string
+          status?: string
+          updated_at?: string
+          verification_status?: string
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          jurisdiction_node_id?: string | null
+          metadata?: Json
+          name?: string
+          organization_type?: string
+          status?: string
+          updated_at?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institutional_organizations_jurisdiction_node_id_fkey"
+            columns: ["jurisdiction_node_id"]
+            isOneToOne: false
+            referencedRelation: "institutional_hierarchy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institutional_system_status: {
+        Row: {
+          checked_at: string | null
+          created_at: string
+          detail: string | null
+          display_name: string
+          environment: string
+          id: string
+          service_key: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          checked_at?: string | null
+          created_at?: string
+          detail?: string | null
+          display_name: string
+          environment?: string
+          id?: string
+          service_key: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          checked_at?: string | null
+          created_at?: string
+          detail?: string | null
+          display_name?: string
+          environment?: string
+          id?: string
+          service_key?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -378,6 +1099,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      major_incidents: {
+        Row: {
+          affected_locations: number | null
+          affected_people: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          incident_commander_id: string | null
+          is_demo: boolean
+          priority: string
+          reference: string
+          resolved_at: string | null
+          scope_level: string
+          situation_summary: string | null
+          started_at: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_locations?: number | null
+          affected_people?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incident_commander_id?: string | null
+          is_demo?: boolean
+          priority?: string
+          reference: string
+          resolved_at?: string | null
+          scope_level?: string
+          situation_summary?: string | null
+          started_at?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_locations?: number | null
+          affected_people?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incident_commander_id?: string | null
+          is_demo?: boolean
+          priority?: string
+          reference?: string
+          resolved_at?: string | null
+          scope_level?: string
+          situation_summary?: string | null
+          started_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -689,7 +1467,11 @@ export type Database = {
           full_name: string | null
           id: string
           locale: string
+          location_mode: string
+          onboarding_completed: boolean
+          onboarding_step: number
           phone: string | null
+          safety_plan: Json
           updated_at: string
         }
         Insert: {
@@ -698,7 +1480,11 @@ export type Database = {
           full_name?: string | null
           id: string
           locale?: string
+          location_mode?: string
+          onboarding_completed?: boolean
+          onboarding_step?: number
           phone?: string | null
+          safety_plan?: Json
           updated_at?: string
         }
         Update: {
@@ -707,7 +1493,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           locale?: string
+          location_mode?: string
+          onboarding_completed?: boolean
+          onboarding_step?: number
           phone?: string | null
+          safety_plan?: Json
           updated_at?: string
         }
         Relationships: []
@@ -906,6 +1696,244 @@ export type Database = {
           },
         ]
       }
+      responder_assignments: {
+        Row: {
+          accepted_at: string | null
+          arrived_at: string | null
+          assigned_at: string
+          assignment_type: string
+          completed_at: string | null
+          distance: number | null
+          en_route_at: string | null
+          id: string
+          match_score: number | null
+          notes: string | null
+          priority: number
+          responder_id: string
+          responder_profile_id: string | null
+          response_outcome: string | null
+          sos_session_id: string | null
+          status: string
+          unable_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          arrived_at?: string | null
+          assigned_at?: string
+          assignment_type?: string
+          completed_at?: string | null
+          distance?: number | null
+          en_route_at?: string | null
+          id?: string
+          match_score?: number | null
+          notes?: string | null
+          priority?: number
+          responder_id: string
+          responder_profile_id?: string | null
+          response_outcome?: string | null
+          sos_session_id?: string | null
+          status?: string
+          unable_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          arrived_at?: string | null
+          assigned_at?: string
+          assignment_type?: string
+          completed_at?: string | null
+          distance?: number | null
+          en_route_at?: string | null
+          id?: string
+          match_score?: number | null
+          notes?: string | null
+          priority?: number
+          responder_id?: string
+          responder_profile_id?: string | null
+          response_outcome?: string | null
+          sos_session_id?: string | null
+          status?: string
+          unable_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responder_assignments_responder_profile_id_fkey"
+            columns: ["responder_profile_id"]
+            isOneToOne: false
+            referencedRelation: "community_responders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      responder_locations: {
+        Row: {
+          accuracy: number | null
+          id: string
+          is_current: boolean
+          latitude: number
+          longitude: number
+          recorded_at: string
+          responder_id: string
+        }
+        Insert: {
+          accuracy?: number | null
+          id?: string
+          is_current?: boolean
+          latitude: number
+          longitude: number
+          recorded_at?: string
+          responder_id: string
+        }
+        Update: {
+          accuracy?: number | null
+          id?: string
+          is_current?: boolean
+          latitude?: number
+          longitude?: number
+          recorded_at?: string
+          responder_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responder_locations_responder_id_fkey"
+            columns: ["responder_id"]
+            isOneToOne: false
+            referencedRelation: "community_responders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      responder_notifications: {
+        Row: {
+          approximate_distance_m: number | null
+          area: string | null
+          created_at: string
+          decline_reason: string | null
+          emergency_category: string
+          id: string
+          minimal_summary: string | null
+          notification_status: string
+          responded_at: string | null
+          responder_id: string
+          sent_at: string | null
+          severity: string
+          sos_session_id: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          approximate_distance_m?: number | null
+          area?: string | null
+          created_at?: string
+          decline_reason?: string | null
+          emergency_category?: string
+          id?: string
+          minimal_summary?: string | null
+          notification_status?: string
+          responded_at?: string | null
+          responder_id: string
+          sent_at?: string | null
+          severity?: string
+          sos_session_id?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          approximate_distance_m?: number | null
+          area?: string | null
+          created_at?: string
+          decline_reason?: string | null
+          emergency_category?: string
+          id?: string
+          minimal_summary?: string | null
+          notification_status?: string
+          responded_at?: string | null
+          responder_id?: string
+          sent_at?: string | null
+          severity?: string
+          sos_session_id?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responder_notifications_responder_id_fkey"
+            columns: ["responder_id"]
+            isOneToOne: false
+            referencedRelation: "community_responders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      responder_reports: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          report_type: string
+          responder_id: string
+          sos_session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          report_type: string
+          responder_id: string
+          sos_session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          report_type?: string
+          responder_id?: string
+          sos_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responder_reports_responder_id_fkey"
+            columns: ["responder_id"]
+            isOneToOne: false
+            referencedRelation: "community_responders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      responder_skills: {
+        Row: {
+          created_at: string
+          id: string
+          responder_id: string
+          skill: string
+          verification_status: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          responder_id: string
+          skill: string
+          verification_status?: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          responder_id?: string
+          skill?: string
+          verification_status?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responder_skills_responder_id_fkey"
+            columns: ["responder_id"]
+            isOneToOne: false
+            referencedRelation: "community_responders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       safety_activity: {
         Row: {
           activity_type: string
@@ -1090,9 +2118,50 @@ export type Database = {
       }
       is_command_staff: { Args: { _user_id: string }; Returns: boolean }
       is_verified_officer: { Args: { _user_id: string }; Returns: boolean }
+      respond_to_responder_notification: {
+        Args: {
+          p_accept: boolean
+          p_notification_id: string
+          p_reason?: string
+        }
+        Returns: string
+      }
       respond_to_sos_offer: {
         Args: { p_offer_id: string; p_status: string }
         Returns: string
+      }
+      update_responder_assignment: {
+        Args: {
+          p_assignment_id: string
+          p_next_status: string
+          p_reason?: string
+        }
+        Returns: {
+          accepted_at: string | null
+          arrived_at: string | null
+          assigned_at: string
+          assignment_type: string
+          completed_at: string | null
+          distance: number | null
+          en_route_at: string | null
+          id: string
+          match_score: number | null
+          notes: string | null
+          priority: number
+          responder_id: string
+          responder_profile_id: string | null
+          response_outcome: string | null
+          sos_session_id: string | null
+          status: string
+          unable_at: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "responder_assignments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

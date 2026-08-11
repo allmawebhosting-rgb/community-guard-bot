@@ -5,7 +5,9 @@ import {
   BarChart2,
   Bot,
   ClipboardList,
+  Globe2,
   LayoutDashboard,
+  Landmark,
   ListFilter,
   LogOut,
   Map,
@@ -26,10 +28,12 @@ const NAV_GROUPS = [
   {
     label: "Operations",
     items: [
-      { to: "/police",           label: "Command",      icon: LayoutDashboard, exact: true },
+      { to: "/police",           label: "Command",         icon: LayoutDashboard, exact: true },
+      { to: "/police/national",  label: "National Safety", icon: Globe2,          exact: false },
       { to: "/police/incidents", label: "Incidents",    icon: ListFilter,      exact: false },
       { to: "/police/map",       label: "Live Map",     icon: Map,             exact: false },
       { to: "/police/dispatch",  label: "Dispatch",     icon: Radio,           exact: false },
+      { to: "/police/authority", label: "Authority",    icon: Landmark,        exact: false },
     ],
   },
   {
@@ -44,7 +48,7 @@ const NAV_GROUPS = [
   {
     label: "Intelligence",
     items: [
-      { to: "/police/analytics", label: "Analytics",    icon: BarChart2,     exact: false },
+      { to: "/police/analytics", label: "Intelligence", icon: BarChart2,     exact: false },
       { to: "/police/search",    label: "Search",       icon: Search,        exact: false },
       { to: "/police/ai",        label: "AI Assistant", icon: Bot,           exact: false },
     ],

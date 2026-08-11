@@ -3,3 +3,7 @@
 - [Imported project dependency bootstrap](imported-project-dependency-bootstrap.md) — Restoring missing npm dependencies may rewrite semver-resolved lockfile entries; review and revert incidental drift.
 - [Mobile chat viewport containment](mobile-chat-viewport-containment.md) — Chat shells need both flex-boundary sizing and a route-scoped root scroll lock on mobile.
 - [SSR onboarding animation](onboarding-animation-hydration.md) — First-render onboarding content must not start hidden or hydration can leave the route visually blank.
+- [Phase 3 emergency communication](phase3-emergency-communication.md) — Demo calls must stay visibly separate from provider-confirmed voice and official escalation.
+- [Phase 4 responder rollout](phase4-responder-rollout.md) — The responder UI and schema are safe foundations, but real SOS fan-out still requires a server-side matching worker.
+- [Phase 9 emergency UI boundary](phase9-emergency-ui-boundary.md) — Emergency UI must separate confirmed events, available actions, simulated states, and queued updates.
+- [Phase 10 institutional boundary](phase10-institutional-boundary.md) — National command is an aggregate, human-controlled infrastructure layer; missing institutional records must remain visibly unconfigured.

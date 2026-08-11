@@ -1,0 +1,2068 @@
+============================================================
+ALLMA SAFETY AI
+MASTER BUILD — PHASE 9
+EMERGENCY COMMUNICATION & RESPONSE NETWORK
+============================================================
+
+IMPORTANT:
+
+This is PHASE 9.
+
+DO NOT rebuild or remove functionality from PHASES 1–8.
+
+Extend the existing Allma Safety AI platform.
+
+The goal of this phase is to create a reliable,
+multi-level emergency communication system.
+
+Allma should be able to coordinate an emergency
+across multiple available response channels.
+
+The system should intelligently determine:
+
+1. WHO needs help
+2. WHERE they are
+3. WHAT appears to be happening
+4. HOW serious the situation may be
+5. WHO is available to help
+6. WHO should be contacted first
+7. WHEN to escalate
+8. WHETHER someone acknowledged the emergency
+9. WHAT happened afterward
+
+IMPORTANT:
+
+Allma AI coordinates communication.
+
+It does NOT impersonate police, ambulance services,
+fire services, or government authorities.
+
+Do not claim an official integration unless an actual
+integration exists and has been verified.
+
+============================================================
+1. RESPONSE NETWORK
+============================================================
+
+Create a response network with multiple levels:
+
+LEVEL 1
+Trusted Contacts
+
+LEVEL 2
+Community Responders
+
+LEVEL 3
+Local Community Authorities
+
+LEVEL 4
+Authorized Emergency Responders
+
+LEVEL 5
+Police / Medical / Fire / Other Official Services
+
+The exact available levels depend on the user's location
+and configured integrations.
+
+============================================================
+2. EMERGENCY CONTACT ONBOARDING
+============================================================
+
+During citizen onboarding create:
+
+"BUILD YOUR SAFETY NETWORK"
+
+Explain:
+
+"Choose people who may be able to help you during an
+emergency."
+
+Allow the user to add:
+
+Family
+
+Friends
+
+Neighbors
+
+Work colleagues
+
+Community leaders
+
+Caregivers
+
+Other trusted people
+
+============================================================
+3. CONTACT INVITATION
+============================================================
+
+Do NOT automatically add another person to someone's
+emergency network.
+
+Instead:
+
+User enters contact details.
+
+System sends:
+
+"Safety Network Invitation"
+
+The invited person can:
+
+Accept
+
+Decline
+
+Review permissions
+
+Choose notification preferences
+
+============================================================
+4. CONTACT PERMISSIONS
+============================================================
+
+When accepting, explain exactly what can be shared.
+
+Options:
+
+Emergency alerts
+
+Approximate location
+
+Live location during active SOS
+
+Emergency type
+
+User's name
+
+Medical information if voluntarily provided
+
+Allow the contact to call the user
+
+Allow the contact to respond
+
+Allow contact to decline alerts
+
+============================================================
+5. SAFETY NETWORK STATUS
+============================================================
+
+Display:
+
+Connected
+
+Invitation Pending
+
+Unavailable
+
+Declined
+
+Offline
+
+Do Not Disturb
+
+Recently Active
+
+Never expose unnecessary personal information.
+
+============================================================
+6. EMERGENCY PROFILE
+============================================================
+
+Allow the citizen to optionally configure:
+
+Name
+
+Emergency contacts
+
+Medical information
+
+Allergies
+
+Accessibility needs
+
+Preferred language
+
+Emergency notes
+
+Blood type only if voluntarily supplied
+
+Important medications only if voluntarily supplied
+
+Never require sensitive medical information.
+
+============================================================
+7. SOS ACTIVATION
+============================================================
+
+When the user taps:
+
+SOS
+
+immediately create an emergency session.
+
+Do NOT require the user to hold the button.
+
+Display:
+
+EMERGENCY ACTIVATED
+
+Finding your location...
+
+Assessing emergency...
+
+Building response network...
+
+============================================================
+8. LOCATION ACQUISITION
+============================================================
+
+Request location permission appropriately.
+
+If permission exists:
+
+Get current location.
+
+If high accuracy is available:
+
+Use high accuracy.
+
+If unavailable:
+
+Use the best available location.
+
+Display:
+
+Location accuracy
+
+Last updated
+
+Timestamp
+
+Location status
+
+Never pretend to know a precise location if the system
+does not have one.
+
+============================================================
+9. LIVE LOCATION
+============================================================
+
+During an active emergency session:
+
+Where technically supported and consented:
+
+Update location periodically.
+
+Display:
+
+LIVE LOCATION ACTIVE
+
+Last updated:
+
+XX seconds ago
+
+Allow authorized responders to see the location
+according to permissions.
+
+Stop sharing when:
+
+Emergency is resolved
+
+User stops sharing
+
+Session expires
+
+Or configured safety policy requires termination.
+
+============================================================
+10. EMERGENCY TRIAGE
+============================================================
+
+Immediately after SOS activation, Allma should ask
+simple questions.
+
+Do NOT ask long forms.
+
+First question:
+
+"What kind of emergency are you experiencing?"
+
+Options:
+
+🚨 Crime / Attack
+
+🏥 Medical Emergency
+
+🔥 Fire
+
+🚗 Road / Traffic Emergency
+
+👤 Missing Person
+
+⚠️ Other
+
+"I can't answer"
+
+============================================================
+11. SECOND QUESTION
+============================================================
+
+Ask:
+
+"Are you in immediate danger right now?"
+
+Options:
+
+YES
+
+NO
+
+I'M NOT SURE
+
+If YES:
+
+Prioritize emergency escalation.
+
+If NO:
+
+Continue gathering information.
+
+============================================================
+12. SAFETY QUESTION
+============================================================
+
+If appropriate:
+
+"Can you safely move to a safer location?"
+
+Options:
+
+YES
+
+NO
+
+I'M NOT SURE
+
+Never instruct someone to move if movement could increase
+their danger.
+
+============================================================
+13. MINIMAL QUESTIONING
+============================================================
+
+During an active emergency:
+
+Never overwhelm the user.
+
+Ask only information that can improve response.
+
+Examples:
+
+"Is anyone injured?"
+
+"Is the person still there?"
+
+"Is there fire or smoke?"
+
+"Are you alone?"
+
+"Can you speak safely?"
+
+============================================================
+14. SILENT RESPONSE MODE
+============================================================
+
+Provide:
+
+"I CAN'T SPEAK"
+
+button.
+
+If selected:
+
+Stop requiring voice interaction.
+
+Switch to:
+
+Silent chat
+
+Quick response buttons
+
+Location sharing
+
+Text communication
+
+Emergency network escalation
+
+============================================================
+15. VOICE RESPONSE
+============================================================
+
+Where supported:
+
+Allow speech input.
+
+Convert speech to text.
+
+Show the recognized text before using it where practical.
+
+Do not continuously record the user.
+
+Only activate microphone when the user explicitly
+starts voice interaction or has configured a supported
+emergency voice feature.
+
+============================================================
+16. EMERGENCY SESSION
+============================================================
+
+Create:
+
+EMERGENCY SESSION ID
+
+Store:
+
+User
+
+Timestamp
+
+Location
+
+Emergency category
+
+Severity
+
+Responses
+
+Contacts notified
+
+Responders contacted
+
+Acknowledgements
+
+Escalations
+
+Status
+
+Resolution
+
+Audit trail
+
+============================================================
+17. RESPONSE PLAN
+============================================================
+
+After initial triage Allma generates:
+
+RESPONSE PLAN
+
+Example:
+
+Priority:
+CRITICAL
+
+Location:
+Available location
+
+Emergency:
+Medical
+
+Primary:
+Emergency service if integrated
+
+Secondary:
+Trusted contact
+
+Community:
+Nearby verified responder
+
+Status:
+Waiting for acknowledgement
+
+============================================================
+18. CONTACT ESCALATION
+============================================================
+
+Allma should contact configured responders according
+to a safe escalation policy.
+
+Example:
+
+Trusted Contact 1
+
+↓
+
+Trusted Contact 2
+
+↓
+
+Community Responder
+
+↓
+
+Local Authority
+
+↓
+
+Official Emergency Service
+
+BUT:
+
+Only use channels actually available.
+
+Never claim a call was made if the call failed.
+
+============================================================
+19. RESPONSE ACKNOWLEDGEMENT
+============================================================
+
+Every recipient receives:
+
+EMERGENCY ALERT
+
+"Someone in your safety network may need help."
+
+Buttons:
+
+I CAN HELP
+
+CALL USER
+
+VIEW LOCATION
+
+I'M UNAVAILABLE
+
+ESCALATE
+
+============================================================
+20. ACKNOWLEDGEMENT TIMER
+============================================================
+
+Display:
+
+Waiting for response...
+
+If no acknowledgement:
+
+Continue according to configured escalation policy.
+
+Example:
+
+00:00
+First contact notified
+
+00:20
+Second contact notified
+
+00:45
+Community responder notified
+
+01:00
+Escalation recommended
+
+These timings must be configurable.
+
+Do not hardcode emergency response guarantees.
+
+============================================================
+21. PARALLEL ESCALATION
+============================================================
+
+For critical emergencies, allow authorized configurations
+to notify multiple response levels simultaneously.
+
+Example:
+
+Trusted contacts
++
+Community responders
++
+Official emergency channel
+
+This prevents dangerous delays.
+
+============================================================
+22. RESPONSE PRIORITIZATION
+============================================================
+
+Allma ranks available responders based on:
+
+Availability
+
+Distance where authorized
+
+Verification
+
+Response capability
+
+Emergency type
+
+Current active emergency assignments
+
+Connection status
+
+Previous acknowledgement reliability
+
+Do NOT rank people using sensitive characteristics.
+
+============================================================
+23. COMMUNITY RESPONDER DISCOVERY
+============================================================
+
+Only verified and opted-in community responders
+can receive emergency requests.
+
+Possible roles:
+
+First aider
+
+Community safety responder
+
+Local leader
+
+Security responder
+
+Volunteer
+
+Medical responder
+
+Other approved role
+
+============================================================
+24. RESPONDER LOCATION
+============================================================
+
+Do not continuously expose responder locations.
+
+During an active emergency:
+
+Show only what is necessary.
+
+Example:
+
+"Verified responder approximately nearby."
+
+Exact location should only be shared when appropriate
+and authorized.
+
+============================================================
+25. RESPONDER ACCEPTANCE
+============================================================
+
+Responder receives:
+
+NEW EMERGENCY
+
+Category
+
+Approximate location
+
+Distance where authorized
+
+Urgency
+
+Time
+
+Available information
+
+Buttons:
+
+ACCEPT
+
+DECLINE
+
+CANNOT RESPOND
+
+REQUEST BACKUP
+
+============================================================
+26. RESPONDER STATUS
+============================================================
+
+Responder states:
+
+Available
+
+Busy
+
+Responding
+
+At scene
+
+Need backup
+
+Completed
+
+Unavailable
+
+============================================================
+27. LIVE RESPONSE TRACKING
+============================================================
+
+Citizen sees:
+
+Emergency activated
+
+Help requested
+
+Responder notified
+
+Responder accepted
+
+Responder approaching
+
+Responder arrived
+
+Official help notified
+
+Emergency resolved
+
+Do NOT show unnecessary sensitive operational details.
+
+============================================================
+28. "HELP IS COMING" SCREEN
+============================================================
+
+Create a beautiful calming emergency interface.
+
+Show:
+
+HELP REQUEST ACTIVE
+
+Current location
+
+Emergency type
+
+Response status
+
+People contacted
+
+Next escalation
+
+Large:
+
+CALL EMERGENCY SERVICES
+
+button when an official number/integration is available.
+
+Also:
+
+SEND UPDATE
+
+I AM SAFE
+
+CANCEL EMERGENCY
+
+============================================================
+29. FALSE ACTIVATION
+============================================================
+
+Allow:
+
+"I'M SAFE"
+
+before escalation becomes irreversible where safe.
+
+However:
+
+Do NOT make cancellation unnecessarily easy during
+a confirmed critical emergency.
+
+Require confirmation.
+
+============================================================
+30. EMERGENCY UPDATES
+============================================================
+
+Citizen can send:
+
+Text
+
+Photo
+
+Video
+
+Voice message
+
+Location update
+
+Quick status
+
+Examples:
+
+"I am injured."
+
+"The person left."
+
+"Fire is spreading."
+
+"I am safe now."
+
+============================================================
+31. MEDIA UPLOAD
+============================================================
+
+Allow media upload during the emergency.
+
+Show:
+
+Uploading...
+
+Uploaded
+
+Failed
+
+Retry
+
+Do not block the emergency workflow because media
+upload fails.
+
+============================================================
+32. LOW BANDWIDTH
+============================================================
+
+For poor connectivity prioritize:
+
+Emergency event
+
+Coordinates
+
+Text
+
+Small compressed image
+
+Only then:
+
+Video
+
+High-resolution media
+
+============================================================
+33. OFFLINE EMERGENCY
+============================================================
+
+If internet is unavailable:
+
+Show:
+
+LIMITED CONNECTIVITY
+
+Attempt available emergency communication methods.
+
+Queue non-critical information for synchronization.
+
+Never tell the user that help has been contacted
+unless the system confirms transmission.
+
+============================================================
+34. MULTI-CHANNEL COMMUNICATION
+============================================================
+
+Architecture should support:
+
+In-app notifications
+
+In-app messaging
+
+Push notifications
+
+SMS where configured
+
+Phone calls where configured
+
+Email where appropriate
+
+Official emergency APIs where actually integrated
+
+Never fake integrations.
+
+============================================================
+35. IN-APP CALLING
+============================================================
+
+Design an architecture for real in-app voice calls.
+
+Call states:
+
+Calling
+
+Ringing
+
+Connected
+
+Reconnecting
+
+Ended
+
+Failed
+
+No answer
+
+Do not build fake call screens that claim a real call
+occurred.
+
+If a real voice provider is configured, connect through
+that provider.
+
+============================================================
+36. EMERGENCY CALL FALLBACK
+============================================================
+
+If in-app calling fails and a configured official
+emergency number is available:
+
+Display:
+
+"Call emergency services now."
+
+Allow the user to initiate the call.
+
+Never automatically call a public emergency number
+without a clear, lawful, technically supported workflow
+and appropriate configuration.
+
+============================================================
+37. AUTHORITY COMMUNICATION
+============================================================
+
+Create authority integration architecture.
+
+Possible channels:
+
+Police
+
+Fire
+
+Medical
+
+Local government
+
+Other authorized services
+
+Each integration must have:
+
+Provider
+
+Status
+
+Authentication
+
+API
+
+Connection health
+
+Last successful communication
+
+============================================================
+38. POLICE INTEGRATION
+============================================================
+
+If police integration exists:
+
+Send structured emergency data:
+
+Incident ID
+
+Category
+
+Priority
+
+Location
+
+Timestamp
+
+Citizen information permitted by policy
+
+Media
+
+Responder status
+
+Do not expose unnecessary private data.
+
+============================================================
+39. NO INTEGRATION FALLBACK
+============================================================
+
+If police integration is not connected:
+
+Show clearly:
+
+"Police integration is not currently connected."
+
+Provide configured emergency contact options.
+
+Never say:
+
+"Police have been notified"
+
+unless confirmed.
+
+============================================================
+40. LOCAL AUTHORITY ESCALATION
+============================================================
+
+Where configured:
+
+Local authority may receive:
+
+Emergency category
+
+Approximate location
+
+Citizen-provided details
+
+Response status
+
+Allow authority to:
+
+Acknowledge
+
+Accept
+
+Decline
+
+Escalate
+
+Add notes
+
+============================================================
+41. MULTI-AUTHORITY COORDINATION
+============================================================
+
+For major emergencies:
+
+Police
+
+Medical
+
+Fire
+
+Local authority
+
+Community responders
+
+may be coordinated within the same emergency session.
+
+Show each party's status.
+
+============================================================
+42. COMMAND CENTER
+============================================================
+
+Add:
+
+LIVE EMERGENCY OPERATIONS
+
+Display:
+
+Active emergencies
+
+Critical emergencies
+
+Waiting for acknowledgement
+
+Responder activity
+
+Escalations
+
+Location map
+
+Resource availability
+
+============================================================
+43. INCIDENT COMMUNICATION TIMELINE
+============================================================
+
+Every emergency should have:
+
+TIMELINE
+
+Example:
+
+10:42:01
+SOS activated
+
+10:42:03
+Location obtained
+
+10:42:06
+Emergency classified as medical
+
+10:42:10
+Trusted contact notified
+
+10:42:18
+Community responder notified
+
+10:42:30
+Responder accepted
+
+10:43:10
+Official service contacted
+
+Every timestamp must come from actual system events.
+
+============================================================
+44. AI ORCHESTRATOR
+============================================================
+
+Create:
+
+ALLMA EMERGENCY ORCHESTRATOR
+
+Responsibilities:
+
+Interpret user responses
+
+Determine missing information
+
+Recommend urgency
+
+Find eligible response channels
+
+Coordinate notifications
+
+Track acknowledgements
+
+Recommend escalation
+
+Summarize the emergency
+
+Keep the citizen informed
+
+============================================================
+45. AI MUST NOT
+============================================================
+
+AI must NOT:
+
+Pretend to be a police officer
+
+Pretend to be an ambulance
+
+Invent responders
+
+Invent phone numbers
+
+Invent locations
+
+Invent emergency service integrations
+
+Guarantee arrival times
+
+Claim someone answered when they did not
+
+Declare someone guilty
+
+Make medical diagnoses with certainty
+
+Make law-enforcement decisions
+
+============================================================
+46. AI COMMUNICATION STYLE
+============================================================
+
+During emergencies:
+
+Short
+
+Calm
+
+Clear
+
+Human
+
+Direct
+
+Examples:
+
+"I've activated your emergency session."
+
+"I'm checking your location."
+
+"Are you injured?"
+
+"You can answer with one tap."
+
+"Help has been requested from your selected contacts."
+
+"Nobody has acknowledged yet. I recommend the next
+available escalation."
+
+============================================================
+47. ACCESSIBILITY
+============================================================
+
+Emergency interface must support:
+
+Large buttons
+
+High contrast
+
+Screen readers
+
+Voice input
+
+Text input
+
+Minimal typing
+
+Haptic feedback where supported
+
+Reduced motion
+
+Multiple languages architecture
+
+============================================================
+48. LANGUAGE SUPPORT
+============================================================
+
+Prepare localization architecture.
+
+Initial language:
+
+English
+
+Architecture should support future:
+
+Luganda
+
+Swahili
+
+Runyankole
+
+Acholi
+
+Ateso
+
+Other supported languages.
+
+Do not translate emergency terminology incorrectly.
+
+============================================================
+49. EMERGENCY SAFETY UX
+============================================================
+
+Never hide:
+
+SOS
+
+Emergency status
+
+Location status
+
+Help status
+
+Cancel/resolve controls
+
+Emergency calling options
+
+============================================================
+50. TRUSTED CONTACT DASHBOARD
+============================================================
+
+Create:
+
+MY SAFETY NETWORK
+
+Show:
+
+Name
+
+Relationship
+
+Availability
+
+Permission
+
+Last active
+
+Emergency capability
+
+Buttons:
+
+Message
+
+Call
+
+Remove
+
+Edit
+
+============================================================
+51. RESPONDER DASHBOARD
+============================================================
+
+Create:
+
+RESPONDER HOME
+
+Show:
+
+Availability
+
+Nearby eligible requests
+
+Active response
+
+Response history
+
+Training/verification status
+
+Safety settings
+
+============================================================
+52. AUTHORITY DASHBOARD
+============================================================
+
+Add emergency communication module:
+
+ACTIVE EMERGENCIES
+
+Filters:
+
+Critical
+
+Medical
+
+Crime
+
+Fire
+
+Missing person
+
+Traffic
+
+Other
+
+Status:
+
+Unacknowledged
+
+Acknowledged
+
+Dispatched
+
+Responding
+
+Resolved
+
+============================================================
+53. SUPERVISOR CONTROL
+============================================================
+
+Authorized supervisors can:
+
+Assign
+
+Reassign
+
+Escalate
+
+Close
+
+Request backup
+
+Add notes
+
+View timeline
+
+Review communications
+
+============================================================
+54. ESCALATION ENGINE
+============================================================
+
+Create configurable rules.
+
+Example:
+
+IF:
+
+Critical emergency
+
+AND
+
+No responder acknowledgement
+
+THEN:
+
+Recommend next escalation.
+
+Rules must be configurable by authorized administrators.
+
+Do not hardcode one universal emergency policy.
+
+============================================================
+55. EMERGENCY PRIORITY
+============================================================
+
+Use:
+
+Critical
+
+High
+
+Medium
+
+Low
+
+Unknown
+
+Do not allow AI to silently downgrade a critical
+user-reported emergency.
+
+============================================================
+56. AI CONFIDENCE
+============================================================
+
+When AI classifies an emergency show:
+
+High confidence
+
+Moderate confidence
+
+Low confidence
+
+User-reported
+
+AI-assisted
+
+Never confuse AI confidence with actual emergency severity.
+
+============================================================
+57. SECURITY
+============================================================
+
+Implement:
+
+Authentication
+
+Role-based authorization
+
+Row-level access controls
+
+Encrypted communication where supported
+
+Secure media storage
+
+Audit logging
+
+Session expiration
+
+Rate limiting
+
+Abuse prevention
+
+============================================================
+58. LOCATION SECURITY
+============================================================
+
+Location must be:
+
+Encrypted in transit
+
+Access controlled
+
+Stored only as necessary
+
+Visible only to authorized parties
+
+Automatically expired according to retention policy.
+
+============================================================
+59. EMERGENCY ABUSE PREVENTION
+============================================================
+
+Detect:
+
+Repeated false reports
+
+Spam
+
+Automated abuse
+
+Malicious responder behavior
+
+Do not automatically punish users.
+
+Flag for authorized review.
+
+============================================================
+60. TEST MODE
+============================================================
+
+Create:
+
+DEMO / TEST MODE
+
+Clearly label:
+
+DEMO MODE
+
+Use fake responders and numbers ONLY in demo mode.
+
+Never mix demo data with real production data.
+
+============================================================
+61. SIMULATION
+============================================================
+
+Create an emergency simulation:
+
+Citizen activates SOS
+
+↓
+
+Location obtained
+
+↓
+
+AI asks triage question
+
+↓
+
+Emergency classified
+
+↓
+
+Trusted contacts notified
+
+↓
+
+Responder notified
+
+↓
+
+Responder accepts
+
+↓
+
+Authority notified
+
+↓
+
+Command center receives event
+
+↓
+
+Responder updates status
+
+↓
+
+Emergency resolved
+
+↓
+
+Citizen confirms safe
+
+↓
+
+Case archived
+
+Every step must update in real time.
+
+============================================================
+62. FAILURE SIMULATION
+============================================================
+
+Test:
+
+No location
+
+No internet
+
+No responder
+
+Responder declines
+
+No answer
+
+Call failure
+
+Notification failure
+
+Media upload failure
+
+Authority integration unavailable
+
+AI unavailable
+
+System timeout
+
+The emergency workflow must degrade gracefully.
+
+============================================================
+63. AI FAILURE
+============================================================
+
+If AI becomes unavailable:
+
+Show:
+
+"AI assistance is temporarily unavailable."
+
+Continue:
+
+SOS
+
+Location
+
+Emergency session
+
+Notifications
+
+Manual response
+
+Calls where configured
+
+============================================================
+64. PREMIUM UI
+============================================================
+
+The communication interface must feel:
+
+Premium
+
+Calm
+
+Trustworthy
+
+Professional
+
+Fast
+
+Modern
+
+Use:
+
+Soft gradients
+
+Glass effects where appropriate
+
+Large accessible controls
+
+Subtle motion
+
+Clear status transitions
+
+Excellent typography
+
+Avoid excessive decoration.
+
+During emergencies:
+
+Function over decoration.
+
+============================================================
+65. EMERGENCY STATUS COLORS
+============================================================
+
+Critical:
+Red
+
+Active:
+Orange
+
+Responding:
+Blue
+
+Safe/Resolved:
+Green
+
+Waiting:
+Amber
+
+Unavailable:
+Gray
+
+Always combine color with text and icons.
+
+============================================================
+66. CITIZEN EMERGENCY SCREEN
+============================================================
+
+Create a beautiful real-time screen:
+
+--------------------------------
+
+        SOS ACTIVE
+
+     ● HELP REQUEST ACTIVE
+
+     Location:
+     Obtaining / Available
+
+     Emergency:
+     Medical
+
+--------------------------------
+
+CONTACTS
+
+✓ Sarah — notified
+✓ David — notified
+◷ Community responder — waiting
+
+--------------------------------
+
+RESPONSE
+
+Community responder:
+WAITING
+
+Official service:
+NOTIFIED / NOT CONNECTED
+
+--------------------------------
+
+[ SEND UPDATE ]
+
+[ CALL EMERGENCY SERVICES ]
+
+[ I'M SAFE ]
+
+--------------------------------
+
+============================================================
+67. RESPONDER EMERGENCY SCREEN
+============================================================
+
+Display:
+
+NEW EMERGENCY
+
+Priority
+
+Category
+
+Approximate location
+
+Distance if authorized
+
+Available information
+
+[ ACCEPT ]
+
+[ DECLINE ]
+
+[ REQUEST BACKUP ]
+
+============================================================
+68. COMMAND CENTER SCREEN
+============================================================
+
+Display:
+
+LIVE EMERGENCIES
+
+Critical:
+
+X
+
+Active:
+
+X
+
+Awaiting response:
+
+X
+
+Escalations:
+
+X
+
+Map
+
+Incident list
+
+Responder availability
+
+Response timeline
+
+============================================================
+69. ANALYTICS
+============================================================
+
+Connect with PHASE 8 intelligence.
+
+Track:
+
+Average acknowledgement time
+
+Average escalation time
+
+Responder acceptance rate
+
+Notification success rate
+
+Call success rate
+
+Emergency resolution time
+
+Failed communications
+
+Coverage gaps
+
+============================================================
+70. RESPONSE QUALITY
+============================================================
+
+Show trends.
+
+Example:
+
+"Community responder acknowledgement improved
+during the selected period."
+
+Never use analytics to automatically punish individuals.
+
+============================================================
+71. PRIVACY
+============================================================
+
+Citizen emergency data must not become public.
+
+Public users cannot access:
+
+Live SOS locations
+
+Responder locations
+
+Private emergency conversations
+
+Police operational information
+
+Sensitive case information
+
+============================================================
+72. AUDIT LOG
+============================================================
+
+Record:
+
+SOS activation
+
+Location acquisition
+
+AI questions
+
+User responses
+
+Notifications
+
+Calls
+
+Acknowledgements
+
+Escalations
+
+Media uploads
+
+Authority actions
+
+Resolution
+
+Cancellation
+
+============================================================
+73. DATA RETENTION
+============================================================
+
+Create configurable retention rules.
+
+Allow administrators to configure:
+
+Emergency session retention
+
+Location retention
+
+Media retention
+
+Communication logs
+
+Audit logs
+
+Never keep sensitive information indefinitely
+without a legitimate reason.
+
+============================================================
+74. FINAL END-TO-END ACCEPTANCE TEST
+============================================================
+
+TEST CASE:
+
+User signs up.
+
+↓
+
+User creates safety network.
+
+↓
+
+Contacts receive invitations.
+
+↓
+
+Contacts accept.
+
+↓
+
+User activates SOS.
+
+↓
+
+Location is obtained.
+
+↓
+
+Emergency session created.
+
+↓
+
+AI asks:
+
+"What kind of emergency?"
+
+↓
+
+User selects:
+
+Crime / Attack
+
+↓
+
+AI asks:
+
+"Are you in immediate danger?"
+
+↓
+
+User selects:
+
+YES
+
+↓
+
+AI switches to emergency mode.
+
+↓
+
+Trusted contacts notified.
+
+↓
+
+Eligible community responders notified.
+
+↓
+
+Authority workflow initiated where configured.
+
+↓
+
+Responder accepts.
+
+↓
+
+Citizen sees:
+
+"Help is responding."
+
+↓
+
+Responder updates:
+
+"At scene."
+
+↓
+
+Authority receives update.
+
+↓
+
+Citizen confirms safe.
+
+↓
+
+Emergency resolved.
+
+↓
+
+Timeline stored.
+
+↓
+
+Analytics updated.
+
+↓
+
+Audit trail completed.
+
+============================================================
+75. IMPORTANT REAL-WORLD REQUIREMENT
+============================================================
+
+Do not create fake emergency integrations.
+
+The UI may demonstrate integrations in DEMO MODE,
+but production must distinguish:
+
+CONNECTED
+
+NOT CONNECTED
+
+SIMULATED
+
+UNAVAILABLE
+
+PENDING CONFIGURATION
+
+============================================================
+76. FINAL PRINCIPLE
+============================================================
+
+ALLMA SAFETY AI IS A COORDINATION LAYER.
+
+The system connects:
+
+CITIZEN
+
+↓
+
+AI
+
+↓
+
+TRUSTED CONTACTS
+
+↓
+
+COMMUNITY RESPONDERS
+
+↓
+
+LOCAL AUTHORITIES
+
+↓
+
+OFFICIAL EMERGENCY SERVICES
+
+The objective is:
+
+FASTER COMMUNICATION
+
+BETTER COORDINATION
+
+CLEARER INFORMATION
+
+SAFER RESPONSE
+
+MORE ACCOUNTABILITY
+
+WITHOUT CLAIMING TO REPLACE OFFICIAL EMERGENCY SERVICES.
+
+============================================================
+END OF PHASE 9
+============================================================

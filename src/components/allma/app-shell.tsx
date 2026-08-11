@@ -15,6 +15,8 @@ import {
   Sun,
   UserRound,
   X,
+  PhoneCall,
+  Users,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,13 +31,14 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-type TabPath = "/chat" | "/alerts" | "/reports" | "/profile";
+type TabPath = "/chat" | "/alerts" | "/reports" | "/profile" | "/calls";
 
 const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Home", to: "/chat", icon: Home },
   { label: "Alerts", to: "/alerts", icon: Bell },
   { label: "Reports", to: "/reports", icon: FileText },
   { label: "Profile", to: "/profile", icon: UserRound },
+  { label: "Emergency calls", to: "/calls", icon: PhoneCall },
 ];
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────── */
@@ -119,6 +122,19 @@ function DesktopSidebar() {
           {pathname === "/nearby" && (
             <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
           )}
+        </Link>
+        <Link
+          to="/responder"
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-all",
+            pathname === "/responder"
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
+        >
+          <Users className="h-4 w-4 shrink-0" />
+          Community responder
+          {pathname === "/responder" && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
         </Link>
         <Link
           to="/police"
@@ -438,6 +454,20 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                     <MapPin className="h-4 w-4 text-primary" />
                   </span>
                   <span className="flex-1 text-[13px] font-medium">Nearby help</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                </Link>
+                <Link
+                  to="/responder"
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors hover:bg-accent",
+                    pathname === "/responder" ? "bg-primary/10 text-primary" : "text-foreground",
+                  )}
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/12">
+                    <Users className="h-4 w-4 text-primary" />
+                  </span>
+                  <span className="flex-1 text-[13px] font-medium">Community responder</span>
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
                 </Link>
                 {QUICK_ACTIONS.map((action) => (

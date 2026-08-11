@@ -19,12 +19,15 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SosRouteImport } from './routes/sos'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedCallsRouteImport } from './routes/_authenticated/calls'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPoliceRouteImport } from './routes/_authenticated/police'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedResponderRouteImport } from './routes/_authenticated/responder'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as ApiVoiceRouteImport } from './routes/api/voice'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
@@ -34,10 +37,12 @@ import { Route as AuthenticatedPoliceAiRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPoliceAlertsRouteImport } from './routes/_authenticated/police.alerts'
 import { Route as AuthenticatedPoliceAnalyticsRouteImport } from './routes/_authenticated/police.analytics'
 import { Route as AuthenticatedPoliceAuditRouteImport } from './routes/_authenticated/police.audit'
+import { Route as AuthenticatedPoliceAuthorityRouteImport } from './routes/_authenticated/police.authority'
 import { Route as AuthenticatedPoliceCommsRouteImport } from './routes/_authenticated/police.comms'
 import { Route as AuthenticatedPoliceDispatchRouteImport } from './routes/_authenticated/police.dispatch'
 import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
 import { Route as AuthenticatedPoliceMapRouteImport } from './routes/_authenticated/police.map'
+import { Route as AuthenticatedPoliceNationalRouteImport } from './routes/_authenticated/police.national'
 import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authenticated/police.officers'
 import { Route as AuthenticatedPolicePersonsRouteImport } from './routes/_authenticated/police.persons'
 import { Route as AuthenticatedPoliceSearchRouteImport } from './routes/_authenticated/police.search'
@@ -95,6 +100,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedCallsRoute = AuthenticatedCallsRouteImport.update({
+  id: '/calls',
+  path: '/calls',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -115,6 +125,11 @@ const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedResponderRoute = AuthenticatedResponderRouteImport.update({
+  id: '/responder',
+  path: '/responder',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -123,6 +138,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   id: '/api/transcribe',
   path: '/api/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVoiceRoute = ApiVoiceRouteImport.update({
+  id: '/api/voice',
+  path: '/api/voice',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
@@ -176,6 +196,12 @@ const AuthenticatedPoliceAuditRoute =
     path: '/audit',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const AuthenticatedPoliceAuthorityRoute =
+  AuthenticatedPoliceAuthorityRouteImport.update({
+    id: '/authority',
+    path: '/authority',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 const AuthenticatedPoliceCommsRoute =
   AuthenticatedPoliceCommsRouteImport.update({
     id: '/comms',
@@ -199,6 +225,12 @@ const AuthenticatedPoliceMapRoute = AuthenticatedPoliceMapRouteImport.update({
   path: '/map',
   getParentRoute: () => AuthenticatedPoliceRoute,
 } as any)
+const AuthenticatedPoliceNationalRoute =
+  AuthenticatedPoliceNationalRouteImport.update({
+    id: '/national',
+    path: '/national',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 const AuthenticatedPoliceOfficersRoute =
   AuthenticatedPoliceOfficersRouteImport.update({
     id: '/officers',
@@ -240,12 +272,15 @@ export interface FileRoutesByFullPath {
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/calls': typeof AuthenticatedCallsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/police': typeof AuthenticatedPoliceRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/voice': typeof ApiVoiceRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -253,10 +288,12 @@ export interface FileRoutesByFullPath {
   '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
   '/police/audit': typeof AuthenticatedPoliceAuditRoute
+  '/police/authority': typeof AuthenticatedPoliceAuthorityRoute
   '/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
+  '/police/national': typeof AuthenticatedPoliceNationalRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/police/search': typeof AuthenticatedPoliceSearchRoute
@@ -275,11 +312,14 @@ export interface FileRoutesByTo {
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/calls': typeof AuthenticatedCallsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/voice': typeof ApiVoiceRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -287,10 +327,12 @@ export interface FileRoutesByTo {
   '/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
   '/police/audit': typeof AuthenticatedPoliceAuditRoute
+  '/police/authority': typeof AuthenticatedPoliceAuthorityRoute
   '/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
+  '/police/national': typeof AuthenticatedPoliceNationalRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/police/search': typeof AuthenticatedPoliceSearchRoute
@@ -311,12 +353,15 @@ export interface FileRoutesById {
   '/sos': typeof SosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/calls': typeof AuthenticatedCallsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/police': typeof AuthenticatedPoliceRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/voice': typeof ApiVoiceRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -324,10 +369,12 @@ export interface FileRoutesById {
   '/_authenticated/police/alerts': typeof AuthenticatedPoliceAlertsRoute
   '/_authenticated/police/analytics': typeof AuthenticatedPoliceAnalyticsRoute
   '/_authenticated/police/audit': typeof AuthenticatedPoliceAuditRoute
+  '/_authenticated/police/authority': typeof AuthenticatedPoliceAuthorityRoute
   '/_authenticated/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/_authenticated/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/_authenticated/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/_authenticated/police/map': typeof AuthenticatedPoliceMapRoute
+  '/_authenticated/police/national': typeof AuthenticatedPoliceNationalRoute
   '/_authenticated/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/_authenticated/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/_authenticated/police/search': typeof AuthenticatedPoliceSearchRoute
@@ -348,12 +395,15 @@ export interface FileRouteTypes {
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/calls'
     | '/dashboard'
     | '/police'
     | '/profile'
     | '/reports'
+    | '/responder'
     | '/api/chat'
     | '/api/transcribe'
+    | '/api/voice'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -361,10 +411,12 @@ export interface FileRouteTypes {
     | '/police/alerts'
     | '/police/analytics'
     | '/police/audit'
+    | '/police/authority'
     | '/police/comms'
     | '/police/dispatch'
     | '/police/incidents'
     | '/police/map'
+    | '/police/national'
     | '/police/officers'
     | '/police/persons'
     | '/police/search'
@@ -383,11 +435,14 @@ export interface FileRouteTypes {
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/calls'
     | '/dashboard'
     | '/profile'
     | '/reports'
+    | '/responder'
     | '/api/chat'
     | '/api/transcribe'
+    | '/api/voice'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -395,10 +450,12 @@ export interface FileRouteTypes {
     | '/police/alerts'
     | '/police/analytics'
     | '/police/audit'
+    | '/police/authority'
     | '/police/comms'
     | '/police/dispatch'
     | '/police/incidents'
     | '/police/map'
+    | '/police/national'
     | '/police/officers'
     | '/police/persons'
     | '/police/search'
@@ -418,12 +475,15 @@ export interface FileRouteTypes {
     | '/sos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/calls'
     | '/_authenticated/dashboard'
     | '/_authenticated/police'
     | '/_authenticated/profile'
     | '/_authenticated/reports'
+    | '/_authenticated/responder'
     | '/api/chat'
     | '/api/transcribe'
+    | '/api/voice'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/chat/$threadId'
@@ -431,10 +491,12 @@ export interface FileRouteTypes {
     | '/_authenticated/police/alerts'
     | '/_authenticated/police/analytics'
     | '/_authenticated/police/audit'
+    | '/_authenticated/police/authority'
     | '/_authenticated/police/comms'
     | '/_authenticated/police/dispatch'
     | '/_authenticated/police/incidents'
     | '/_authenticated/police/map'
+    | '/_authenticated/police/national'
     | '/_authenticated/police/officers'
     | '/_authenticated/police/persons'
     | '/_authenticated/police/search'
@@ -457,6 +519,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
+  ApiVoiceRoute: typeof ApiVoiceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
@@ -533,6 +596,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/calls': {
+      id: '/_authenticated/calls'
+      path: '/calls'
+      fullPath: '/calls'
+      preLoaderRoute: typeof AuthenticatedCallsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -561,6 +631,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/responder': {
+      id: '/_authenticated/responder'
+      path: '/responder'
+      fullPath: '/responder'
+      preLoaderRoute: typeof AuthenticatedResponderRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -573,6 +650,13 @@ declare module '@tanstack/react-router' {
       path: '/api/transcribe'
       fullPath: '/api/transcribe'
       preLoaderRoute: typeof ApiTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/voice': {
+      id: '/api/voice'
+      path: '/api/voice'
+      fullPath: '/api/voice'
+      preLoaderRoute: typeof ApiVoiceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -638,6 +722,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceAuditRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/authority': {
+      id: '/_authenticated/police/authority'
+      path: '/authority'
+      fullPath: '/police/authority'
+      preLoaderRoute: typeof AuthenticatedPoliceAuthorityRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
     '/_authenticated/police/comms': {
       id: '/_authenticated/police/comms'
       path: '/comms'
@@ -664,6 +755,13 @@ declare module '@tanstack/react-router' {
       path: '/map'
       fullPath: '/police/map'
       preLoaderRoute: typeof AuthenticatedPoliceMapRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
+    '/_authenticated/police/national': {
+      id: '/_authenticated/police/national'
+      path: '/national'
+      fullPath: '/police/national'
+      preLoaderRoute: typeof AuthenticatedPoliceNationalRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
     '/_authenticated/police/officers': {
@@ -709,10 +807,12 @@ interface AuthenticatedPoliceRouteChildren {
   AuthenticatedPoliceAlertsRoute: typeof AuthenticatedPoliceAlertsRoute
   AuthenticatedPoliceAnalyticsRoute: typeof AuthenticatedPoliceAnalyticsRoute
   AuthenticatedPoliceAuditRoute: typeof AuthenticatedPoliceAuditRoute
+  AuthenticatedPoliceAuthorityRoute: typeof AuthenticatedPoliceAuthorityRoute
   AuthenticatedPoliceCommsRoute: typeof AuthenticatedPoliceCommsRoute
   AuthenticatedPoliceDispatchRoute: typeof AuthenticatedPoliceDispatchRoute
   AuthenticatedPoliceIncidentsRoute: typeof AuthenticatedPoliceIncidentsRoute
   AuthenticatedPoliceMapRoute: typeof AuthenticatedPoliceMapRoute
+  AuthenticatedPoliceNationalRoute: typeof AuthenticatedPoliceNationalRoute
   AuthenticatedPoliceOfficersRoute: typeof AuthenticatedPoliceOfficersRoute
   AuthenticatedPolicePersonsRoute: typeof AuthenticatedPolicePersonsRoute
   AuthenticatedPoliceSearchRoute: typeof AuthenticatedPoliceSearchRoute
@@ -726,10 +826,12 @@ const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
   AuthenticatedPoliceAlertsRoute: AuthenticatedPoliceAlertsRoute,
   AuthenticatedPoliceAnalyticsRoute: AuthenticatedPoliceAnalyticsRoute,
   AuthenticatedPoliceAuditRoute: AuthenticatedPoliceAuditRoute,
+  AuthenticatedPoliceAuthorityRoute: AuthenticatedPoliceAuthorityRoute,
   AuthenticatedPoliceCommsRoute: AuthenticatedPoliceCommsRoute,
   AuthenticatedPoliceDispatchRoute: AuthenticatedPoliceDispatchRoute,
   AuthenticatedPoliceIncidentsRoute: AuthenticatedPoliceIncidentsRoute,
   AuthenticatedPoliceMapRoute: AuthenticatedPoliceMapRoute,
+  AuthenticatedPoliceNationalRoute: AuthenticatedPoliceNationalRoute,
   AuthenticatedPoliceOfficersRoute: AuthenticatedPoliceOfficersRoute,
   AuthenticatedPolicePersonsRoute: AuthenticatedPolicePersonsRoute,
   AuthenticatedPoliceSearchRoute: AuthenticatedPoliceSearchRoute,
@@ -742,19 +844,23 @@ const AuthenticatedPoliceRouteWithChildren =
   AuthenticatedPoliceRoute._addFileChildren(AuthenticatedPoliceRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCallsRoute: typeof AuthenticatedCallsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedPoliceRoute: typeof AuthenticatedPoliceRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedResponderRoute: typeof AuthenticatedResponderRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCallsRoute: AuthenticatedCallsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedPoliceRoute: AuthenticatedPoliceRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedResponderRoute: AuthenticatedResponderRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
 }
@@ -776,6 +882,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiChatRoute: ApiChatRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
+  ApiVoiceRoute: ApiVoiceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
