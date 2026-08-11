@@ -28,8 +28,8 @@ const NAV_GROUPS = [
   {
     label: "Operations",
     items: [
-        { to: "/police",           label: "Command",        icon: LayoutDashboard, exact: true },
-        { to: "/police/national",  label: "National Safety", icon: Globe2,          exact: false },
+      { to: "/police",           label: "Command",         icon: LayoutDashboard, exact: true },
+      { to: "/police/national",  label: "National Safety", icon: Globe2,          exact: false },
       { to: "/police/incidents", label: "Incidents",    icon: ListFilter,      exact: false },
       { to: "/police/map",       label: "Live Map",     icon: Map,             exact: false },
       { to: "/police/dispatch",  label: "Dispatch",     icon: Radio,           exact: false },
