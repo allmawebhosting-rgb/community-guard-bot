@@ -2250,7 +2250,7 @@ function HelpScreen({
   );
 
   const UpdateSection = (
-    <div className="rounded-2xl border border-info/20 bg-info/8 p-4">
+    <div id="emergency-update" className="rounded-2xl border border-info/20 bg-info/8 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <SectionLabel>
@@ -2484,7 +2484,7 @@ function HelpScreen({
   );
 
   const CallSection = (
-    <div>
+    <div id="official-call">
       <SectionLabel>
         <Phone className="mr-1.5 inline-block h-3 w-3 align-middle" />
         Call now — your consent required
@@ -2731,12 +2731,17 @@ function HelpScreen({
   );
 
   const StatusSection = (
-    <div>
-      <SectionLabel>
-        <Radio className="mr-1.5 inline-block h-3 w-3 align-middle" />
-        Live status
-      </SectionLabel>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="premium-surface rounded-2xl border border-border/60 p-3.5">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <SectionLabel>
+          <Radio className="mr-1.5 inline-block h-3 w-3 align-middle" />
+          Live status
+        </SectionLabel>
+        <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          Updates live
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatusTile
           icon={MapPin}
           label="Location"
@@ -2783,6 +2788,49 @@ function HelpScreen({
   );
 
   const MapSection = location ? <LiveLocationMap location={location} /> : null;
+
+  const QuickActionsSection = (
+    <div className="rounded-2xl border border-border/60 bg-secondary/35 p-3">
+      <p className="mb-2.5 px-1 text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        Quick actions
+      </p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <a
+          href={`tel:${officialNumber.number}`}
+          onClick={() =>
+            setCalledTargets((current) =>
+              current.includes(officialNumber.label) ? current : [...current, officialNumber.label],
+            )
+          }
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-destructive px-3 py-2.5 text-[11px] font-bold text-destructive-foreground shadow-soft transition hover:bg-destructive/90 active:scale-[0.98]"
+        >
+          <Phone className="h-3.5 w-3.5" />
+          Call {officialNumber.label}
+        </a>
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById("emergency-update")
+              ?.scrollIntoView({ behavior: "smooth", block: "center" })
+          }
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-info/25 bg-info/10 px-3 py-2.5 text-[11px] font-bold text-info transition hover:bg-info/20 active:scale-[0.98]"
+        >
+          <Send className="h-3.5 w-3.5" /> Send update
+        </button>
+        <button
+          type="button"
+          onClick={requestClose}
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-success/25 bg-success/10 px-3 py-2.5 text-[11px] font-bold text-success transition hover:bg-success/20 active:scale-[0.98]"
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" /> I'm safe
+        </button>
+      </div>
+      <p className="mt-2 px-1 text-[10px] leading-relaxed text-muted-foreground">
+        Calls open your device dialer. Allma never calls official services automatically.
+      </p>
+    </div>
+  );
 
   const RespondersSection = (
     <AnimatePresence>
@@ -3018,6 +3066,7 @@ function HelpScreen({
           <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
             {EmergencySummarySection}
             {AiSection}
+            {QuickActionsSection}
             {EscalationSection}
             {ResponsePlanSection}
             {CallSection}
@@ -3055,6 +3104,7 @@ function HelpScreen({
           <div className="space-y-5 px-6 py-5 pb-14">
             {EmergencySummarySection}
             {AiSection}
+            {QuickActionsSection}
             {EscalationSection}
             {ResponsePlanSection}
             {StepsSection}
