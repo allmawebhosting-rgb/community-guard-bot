@@ -77,6 +77,197 @@ export type Database = {
         }
         Relationships: []
       }
+      authority_directory: {
+        Row: {
+          api_endpoint: string | null
+          authority_type: string
+          availability: string
+          contact_method: string | null
+          county: string | null
+          created_at: string
+          created_by: string | null
+          dispatch_contact: string | null
+          district: string | null
+          email: string | null
+          emergency_number: string | null
+          id: string
+          is_demo: boolean
+          operating_hours: string | null
+          organization: string
+          parish: string | null
+          region: string | null
+          station: string | null
+          sub_county: string | null
+          town: string | null
+          updated_at: string
+          updated_by: string | null
+          verification_status: string
+          village: string | null
+        }
+        Insert: {
+          api_endpoint?: string | null
+          authority_type: string
+          availability?: string
+          contact_method?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          dispatch_contact?: string | null
+          district?: string | null
+          email?: string | null
+          emergency_number?: string | null
+          id?: string
+          is_demo?: boolean
+          operating_hours?: string | null
+          organization: string
+          parish?: string | null
+          region?: string | null
+          station?: string | null
+          sub_county?: string | null
+          town?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verification_status?: string
+          village?: string | null
+        }
+        Update: {
+          api_endpoint?: string | null
+          authority_type?: string
+          availability?: string
+          contact_method?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          dispatch_contact?: string | null
+          district?: string | null
+          email?: string | null
+          emergency_number?: string | null
+          id?: string
+          is_demo?: boolean
+          operating_hours?: string | null
+          organization?: string
+          parish?: string | null
+          region?: string | null
+          station?: string | null
+          sub_county?: string | null
+          town?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verification_status?: string
+          village?: string | null
+        }
+        Relationships: []
+      }
+      authority_escalations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          from_level: string | null
+          id: string
+          is_demo: boolean
+          reason: string
+          report_id: string
+          status: string
+          to_level: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          from_level?: string | null
+          id?: string
+          is_demo?: boolean
+          reason: string
+          report_id: string
+          status?: string
+          to_level: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          from_level?: string | null
+          id?: string
+          is_demo?: boolean
+          reason?: string
+          report_id?: string
+          status?: string
+          to_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authority_escalations_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      authority_notifications: {
+        Row: {
+          acknowledged_at: string | null
+          authority_id: string | null
+          authority_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_demo: boolean
+          method: string
+          provider_reference: string | null
+          reason: string | null
+          report_id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          authority_id?: string | null
+          authority_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_demo?: boolean
+          method: string
+          provider_reference?: string | null
+          reason?: string | null
+          report_id: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          authority_id?: string | null
+          authority_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_demo?: boolean
+          method?: string
+          provider_reference?: string | null
+          reason?: string | null
+          report_id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authority_notifications_authority_id_fkey"
+            columns: ["authority_id"]
+            isOneToOne: false
+            referencedRelation: "authority_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "authority_notifications_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_sessions: {
         Row: {
           created_at: string
