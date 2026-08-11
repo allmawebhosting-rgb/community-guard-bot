@@ -77,6 +77,50 @@ export type Database = {
         }
         Relationships: []
       }
+      call_sessions: {
+        Row: {
+          created_at: string
+          emergency_call_id: string
+          id: string
+          last_provider_event_at: string
+          provider_confirmed: boolean
+          provider_expires_at: string | null
+          status: string
+          updated_at: string
+          webrtc_session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          emergency_call_id: string
+          id?: string
+          last_provider_event_at?: string
+          provider_confirmed?: boolean
+          provider_expires_at?: string | null
+          status?: string
+          updated_at?: string
+          webrtc_session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          emergency_call_id?: string
+          id?: string
+          last_provider_event_at?: string
+          provider_confirmed?: boolean
+          provider_expires_at?: string | null
+          status?: string
+          updated_at?: string
+          webrtc_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_emergency_call_id_fkey"
+            columns: ["emergency_call_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_calls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_notes: {
         Row: {
           author_kind: string
@@ -251,6 +295,120 @@ export type Database = {
           },
         ]
       }
+      emergency_audit_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          sos_session_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          sos_session_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          sos_session_id?: string | null
+        }
+        Relationships: []
+      }
+      emergency_calls: {
+        Row: {
+          accepted_at: string | null
+          call_type: string
+          caller_id: string
+          connected_at: string | null
+          created_at: string
+          duration: number | null
+          ended_at: string | null
+          failure_reason: string | null
+          id: string
+          provider_confirmed: boolean
+          provider_mode: string
+          recipient_id: string
+          ringing_at: string | null
+          sos_session_id: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          call_type?: string
+          caller_id: string
+          connected_at?: string | null
+          created_at?: string
+          duration?: number | null
+          ended_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          provider_confirmed?: boolean
+          provider_mode?: string
+          recipient_id: string
+          ringing_at?: string | null
+          sos_session_id?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          call_type?: string
+          caller_id?: string
+          connected_at?: string | null
+          created_at?: string
+          duration?: number | null
+          ended_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          provider_confirmed?: boolean
+          provider_mode?: string
+          recipient_id?: string
+          ringing_at?: string | null
+          sos_session_id?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      emergency_chat_events: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          event_type: string
+          id: string
+          sos_session_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          event_type: string
+          id?: string
+          sos_session_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          sos_session_id?: string | null
+        }
+        Relationships: []
+      }
       emergency_contacts: {
         Row: {
           created_at: string
@@ -275,6 +433,33 @@ export type Database = {
           phone?: string
           relationship?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      emergency_escalations: {
+        Row: {
+          created_at: string
+          from_state: string | null
+          id: string
+          reason: string | null
+          sos_session_id: string | null
+          to_state: string
+        }
+        Insert: {
+          created_at?: string
+          from_state?: string | null
+          id?: string
+          reason?: string | null
+          sos_session_id?: string | null
+          to_state: string
+        }
+        Update: {
+          created_at?: string
+          from_state?: string | null
+          id?: string
+          reason?: string | null
+          sos_session_id?: string | null
+          to_state?: string
         }
         Relationships: []
       }
@@ -917,6 +1102,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      responder_assignments: {
+        Row: {
+          accepted_at: string | null
+          arrived_at: string | null
+          assigned_at: string
+          assignment_type: string
+          completed_at: string | null
+          distance: number | null
+          id: string
+          notes: string | null
+          priority: number
+          responder_id: string
+          sos_session_id: string | null
+          status: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          arrived_at?: string | null
+          assigned_at?: string
+          assignment_type?: string
+          completed_at?: string | null
+          distance?: number | null
+          id?: string
+          notes?: string | null
+          priority?: number
+          responder_id: string
+          sos_session_id?: string | null
+          status?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          arrived_at?: string | null
+          assigned_at?: string
+          assignment_type?: string
+          completed_at?: string | null
+          distance?: number | null
+          id?: string
+          notes?: string | null
+          priority?: number
+          responder_id?: string
+          sos_session_id?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       safety_activity: {
         Row: {
