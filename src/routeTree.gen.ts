@@ -42,6 +42,7 @@ import { Route as AuthenticatedPoliceCommsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedPoliceDispatchRouteImport } from './routes/_authenticated/police.dispatch'
 import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
 import { Route as AuthenticatedPoliceMapRouteImport } from './routes/_authenticated/police.map'
+import { Route as AuthenticatedPoliceNationalRouteImport } from './routes/_authenticated/police.national'
 import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authenticated/police.officers'
 import { Route as AuthenticatedPolicePersonsRouteImport } from './routes/_authenticated/police.persons'
 import { Route as AuthenticatedPoliceSearchRouteImport } from './routes/_authenticated/police.search'
@@ -224,6 +225,12 @@ const AuthenticatedPoliceMapRoute = AuthenticatedPoliceMapRouteImport.update({
   path: '/map',
   getParentRoute: () => AuthenticatedPoliceRoute,
 } as any)
+const AuthenticatedPoliceNationalRoute =
+  AuthenticatedPoliceNationalRouteImport.update({
+    id: '/national',
+    path: '/national',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 const AuthenticatedPoliceOfficersRoute =
   AuthenticatedPoliceOfficersRouteImport.update({
     id: '/officers',
@@ -286,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
+  '/police/national': typeof AuthenticatedPoliceNationalRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/police/search': typeof AuthenticatedPoliceSearchRoute
@@ -324,6 +332,7 @@ export interface FileRoutesByTo {
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
+  '/police/national': typeof AuthenticatedPoliceNationalRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/police/search': typeof AuthenticatedPoliceSearchRoute
@@ -365,6 +374,7 @@ export interface FileRoutesById {
   '/_authenticated/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/_authenticated/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
   '/_authenticated/police/map': typeof AuthenticatedPoliceMapRoute
+  '/_authenticated/police/national': typeof AuthenticatedPoliceNationalRoute
   '/_authenticated/police/officers': typeof AuthenticatedPoliceOfficersRoute
   '/_authenticated/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/_authenticated/police/search': typeof AuthenticatedPoliceSearchRoute
@@ -406,6 +416,7 @@ export interface FileRouteTypes {
     | '/police/dispatch'
     | '/police/incidents'
     | '/police/map'
+    | '/police/national'
     | '/police/officers'
     | '/police/persons'
     | '/police/search'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/police/dispatch'
     | '/police/incidents'
     | '/police/map'
+    | '/police/national'
     | '/police/officers'
     | '/police/persons'
     | '/police/search'
@@ -484,6 +496,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police/dispatch'
     | '/_authenticated/police/incidents'
     | '/_authenticated/police/map'
+    | '/_authenticated/police/national'
     | '/_authenticated/police/officers'
     | '/_authenticated/police/persons'
     | '/_authenticated/police/search'
@@ -744,6 +757,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceMapRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/national': {
+      id: '/_authenticated/police/national'
+      path: '/national'
+      fullPath: '/police/national'
+      preLoaderRoute: typeof AuthenticatedPoliceNationalRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
     '/_authenticated/police/officers': {
       id: '/_authenticated/police/officers'
       path: '/officers'
@@ -792,6 +812,7 @@ interface AuthenticatedPoliceRouteChildren {
   AuthenticatedPoliceDispatchRoute: typeof AuthenticatedPoliceDispatchRoute
   AuthenticatedPoliceIncidentsRoute: typeof AuthenticatedPoliceIncidentsRoute
   AuthenticatedPoliceMapRoute: typeof AuthenticatedPoliceMapRoute
+  AuthenticatedPoliceNationalRoute: typeof AuthenticatedPoliceNationalRoute
   AuthenticatedPoliceOfficersRoute: typeof AuthenticatedPoliceOfficersRoute
   AuthenticatedPolicePersonsRoute: typeof AuthenticatedPolicePersonsRoute
   AuthenticatedPoliceSearchRoute: typeof AuthenticatedPoliceSearchRoute
@@ -810,6 +831,7 @@ const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
   AuthenticatedPoliceDispatchRoute: AuthenticatedPoliceDispatchRoute,
   AuthenticatedPoliceIncidentsRoute: AuthenticatedPoliceIncidentsRoute,
   AuthenticatedPoliceMapRoute: AuthenticatedPoliceMapRoute,
+  AuthenticatedPoliceNationalRoute: AuthenticatedPoliceNationalRoute,
   AuthenticatedPoliceOfficersRoute: AuthenticatedPoliceOfficersRoute,
   AuthenticatedPolicePersonsRoute: AuthenticatedPolicePersonsRoute,
   AuthenticatedPoliceSearchRoute: AuthenticatedPoliceSearchRoute,

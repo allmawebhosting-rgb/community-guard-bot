@@ -99,3 +99,11 @@ supabase/
 - Demo mode is explicit and defaulted on for presentations. Simulated actions are labeled `DEMO` and never imply that a police, ambulance, fire, or government system was contacted.
 - Production mode intentionally stops at `Official integration not configured` until an authorized operator has verified a directory record and connected a real provider.
 - `supabase/migrations/20260810150000_phase5_authority_coordination.sql` adds authority directory, notification, and escalation records with command-staff RLS. Apply it before using live authority configuration.
+
+## Phase 10 institutional infrastructure
+
+- `/police/national` is the protected National Safety Command workspace for authorized aggregate visibility across active emergencies, critical cases, response capacity, configured hierarchy, major incidents, system health and institutional readiness.
+- The command scope selector supports national, regional, district and station views as permission-scoped UI boundaries. It does not fabricate drill-down records or expose exact citizen, officer or responder locations.
+- National KPIs use existing authorized incident, officer and dispatch records. New institutional panels show explicit configuration-pending or empty states until real records exist.
+- Allma remains an intelligence and coordination layer, not police, government or an emergency service. AI observations are advisory and official actions require authorized human approval and confirmed provider responses.
+- `supabase/migrations/20260811100000_phase10_institutional_infrastructure.sql` adds configurable hierarchy nodes, organizations, organization members, major incidents, system status and institutional handover records with command-staff RLS. Apply it before using live institutional configuration.
