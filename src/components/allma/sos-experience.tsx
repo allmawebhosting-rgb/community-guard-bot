@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Siren,
   MapPin,
@@ -33,14 +34,60 @@ import {
   Crosshair,
   Copy,
   ExternalLink,
+  Mic,
+  Wifi,
+  WifiOff,
+  RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase = "idle" | "type-select" | "consent" | "loading" | "help" | "report" | "submitted";
+type LocationState = "finding" | "found" | "low" | "denied" | "unavailable" | "not-shared";
+type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+type TriageMessage = { role: "ai" | "user"; text: string };
+
+function createEmergencyId() {
+  const year = new Date().getFullYear();
+  const suffix = Math.floor(100000 + Math.random() * 900000);
+  return `ASA-${year}-${suffix}`;
+}
+
+function classifyEmergency(text: string, fallback: string): { category: string; severity: Severity } {
+  const value = text.toLowerCase();
+  if (/(fire|smoke|burning|flames)/.test(value)) return { category: "fire", severity: "HIGH" };
+  if (/(attack|attacking|assault|stab|gun|threat|violence)/.test(value)) {
+    return { category: "attack", severity: "CRITICAL" };
+  }
+  if (/(unconscious|not breathing|can't breathe|heavy bleeding|collapsed)/.test(value)) {
+    return { category: "medical", severity: "CRITICAL" };
+  }
+  if (/(ambulance|injured|injury|bleeding|fell|sick|medical)/.test(value)) {
+    return { category: "medical", severity: "HIGH" };
+  }
+  if (/(accident|crash|collision|vehicle)/.test(value)) return { category: "accident", severity: "HIGH" };
+  if (/(missing|lost child|kidnapped)/.test(value)) {
+    return { category: "missing", severity: value.includes("child") ? "HIGH" : "MEDIUM" };
+  }
+  if (/(stolen|robbery|burglary|crime|suspect)/.test(value)) return { category: "crime", severity: "HIGH" };
+  return { category: fallback, severity: fallback === "other" ? "UNKNOWN" : "MEDIUM" };
+}
+
+function nextTriageQuestion(category: string, immediateDanger?: boolean) {
+  if (immediateDanger === undefined) return "Are you in immediate danger right now?";
+  if (category === "medical") return "Is the person conscious and breathing normally?";
+  if (category === "fire") return "Are you inside the building, and can you safely leave?";
+  if (category === "attack" || category === "crime" || category === "domestic") {
+    return "Can you move somewhere safe without confronting anyone?";
+  }
+  if (category === "accident") return "Is anyone injured, unconscious, or trapped?";
+  if (category === "missing") return "Who is missing, and when were they last seen?";
+  return "Where are you, and what help do you need most?";
+}
 
 type LocationInfo = {
   address: string;
@@ -489,7 +536,7 @@ async function fetchOverpass(
 function getLocation(): Promise<LocationInfo> {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) {
-      reject(new Error("no geo"));
+      reject(new Error("unavailable"));
       return;
     }
     let best: GeolocationPosition | null = null;
@@ -531,7 +578,7 @@ function getLocation(): Promise<LocationInfo> {
       else {
         settled = true;
         if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-        reject(new Error("location timeout"));
+        reject(new Error("unavailable"));
       }
     }, 15000);
     watchId = navigator.geolocation.watchPosition(
@@ -546,11 +593,37 @@ function getLocation(): Promise<LocationInfo> {
       (err) => {
         window.clearTimeout(timeout);
         if (best) void finish(best);
-        else reject(err);
+        else reject(new Error(err.code === 1 ? "denied" : "unavailable"));
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
   });
+}
+
+async function insertPhase2Row(table: string, values: Record<string, unknown>) {
+  const db = supabase as unknown as {
+    from: (
+      name: string,
+    ) => {
+      insert: (
+        row: Record<string, unknown>,
+      ) => { select: (columns: string) => { single: () => Promise<{ data: { id: string } | null; error: unknown }> } };
+    };
+  };
+  return db.from(table).insert(values).select("id").single();
+}
+
+async function updatePhase2Row(table: string, id: string, values: Record<string, unknown>) {
+  const db = supabase as unknown as {
+    from: (
+      name: string,
+    ) => {
+      update: (
+        row: Record<string, unknown>,
+      ) => { eq: (column: string, value: string) => Promise<{ error: unknown }> };
+    };
+  };
+  return db.from(table).update(values).eq("id", id);
 }
 
 async function createResponderOffers(
@@ -973,6 +1046,7 @@ function StatusTile({
 
 export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>(instant ? "loading" : "idle");
 
   const [emergencyType, setEmergencyType] = useState("other");
@@ -980,6 +1054,10 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   const [shareLocation, setShareLocation] = useState(true);
   const [notifyResponders, setNotifyResponders] = useState(true);
   const [location, setLocation] = useState<LocationInfo | null>(null);
+  const [locationState, setLocationState] = useState<LocationState>("finding");
+  const [locationError, setLocationError] = useState("");
+  const [emergencyId, setEmergencyId] = useState("");
+  const [sosSessionId, setSosSessionId] = useState<string | null>(null);
   const [hospitals, setHospitals] = useState<Facility[]>([]);
   const [officers, setOfficers] = useState<Facility[]>([]);
   const [trustedContacts, setTrustedContacts] = useState<TrustedContact[]>([]);
@@ -989,12 +1067,25 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const activated = useRef(false);
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
 
   useEffect(() => {
-    if (phase !== "help" || !location || !("geolocation" in navigator)) return;
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "help" || !shareLocation || !location || !("geolocation" in navigator)) return;
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude: lat, longitude: lng, accuracy } = position.coords;
+        setLocationState(accuracy > 100 ? "low" : "found");
         setLocation((current) =>
           current
             ? {
@@ -1006,12 +1097,22 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
               }
             : current,
         );
+        if (sosSessionId) {
+          void insertPhase2Row("location_sessions", {
+            sos_session_id: sosSessionId,
+            user_id: user?.id ?? null,
+            latitude: lat,
+            longitude: lng,
+            accuracy,
+            recorded_at: new Date().toISOString(),
+          });
+        }
       },
       (error) => console.warn("Live GPS update unavailable", error),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [phase, Boolean(location)]);
+  }, [phase, Boolean(location), shareLocation, sosSessionId, user?.id]);
 
   useEffect(() => {
     if (!instant || activated.current) return;
@@ -1020,7 +1121,10 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   }, [instant]);
 
   function handleSosPress() {
-    setPhase("type-select");
+    setPendingEmergencyType("other");
+    setShareLocation(true);
+    setNotifyResponders(true);
+    void activateEmergency("other");
   }
 
   function handleTypeSelect(type: string) {
@@ -1030,20 +1134,29 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     setPhase("consent");
   }
 
-  async function activateEmergency() {
-    const type = pendingEmergencyType;
+  async function activateEmergency(requestedType = pendingEmergencyType) {
+    const type = requestedType;
     if (activated.current) return;
     activated.current = true;
+    const sessionId = createEmergencyId();
+    setEmergencyId(sessionId);
     setSosActivityId(null);
     setResponderOffers([]);
+    setSosSessionId(null);
     setEmergencyType(type);
     setPhase("loading");
+    setLocationState(shareLocation ? "finding" : "not-shared");
+    setLocationError("");
 
     let loc: LocationInfo | null = null;
     try {
       loc = await getLocation();
-    } catch {
+      setLocationState(loc.accuracy > 100 ? "low" : "found");
+    } catch (error) {
       loc = null;
+      const reason = error instanceof Error ? error.message : "unavailable";
+      setLocationState(reason === "denied" ? "denied" : "unavailable");
+      setLocationError(reason === "denied" ? "Location access is turned off." : "Allma couldn't determine your location.");
     }
     setLocation(shareLocation ? loc : null);
 
@@ -1062,6 +1175,8 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
           longitude: shareLocation ? loc.lng : null,
           details: {
             channel: "sos",
+              emergency_id: sessionId,
+              status: "active",
             emergency_type: type,
             accuracy_m: loc.accuracy,
             location_consent: shareLocation,
@@ -1074,6 +1189,42 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
       activityId = activity?.id ?? null;
       setSosActivityId(activityId);
       if (error) console.error("Failed to record SOS activity", error);
+    }
+
+    if (user) {
+      const { data: session, error: sessionError } = await insertPhase2Row("sos_sessions", {
+        user_id: user.id,
+        emergency_code: sessionId,
+        status: "active",
+        emergency_type: type,
+        severity: "CRITICAL",
+        latitude: shareLocation ? loc?.lat ?? null : null,
+        longitude: shareLocation ? loc?.lng ?? null : null,
+        location_accuracy: shareLocation ? loc?.accuracy ?? null : null,
+        location_timestamp: shareLocation && loc ? new Date(loc.capturedAt).toISOString() : null,
+        started_at: new Date().toISOString(),
+      });
+      if (sessionError) console.error("Failed to create SOS session", sessionError);
+      if (session?.id) {
+        setSosSessionId(session.id);
+        await insertPhase2Row("sos_events", {
+          sos_session_id: session.id,
+          event_type: "sos_activated",
+          metadata: { emergency_code: sessionId, location_state: loc ? "found" : "unavailable" },
+        });
+        await insertPhase2Row("emergency_timeline", {
+          sos_session_id: session.id,
+          event: "SOS activated",
+          description: "Emergency mode engaged.",
+        });
+        await insertPhase2Row("emergency_conversations", {
+          sos_session_id: session.id,
+          role: "assistant",
+          message:
+            "Emergency mode is active. I'm going to help you step by step. First, tell me what is happening.",
+          message_type: "triage",
+        });
+      }
     }
 
     if (user) {
@@ -1111,6 +1262,17 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     setPhase("help");
   }
 
+  function resetEmergency() {
+    activated.current = false;
+    setSosActivityId(null);
+    setResponderOffers([]);
+    setLocation(null);
+    setLocationError("");
+    setLocationState("finding");
+    setEmergencyId("");
+    setPhase("idle");
+  }
+
   async function handleSubmitReport() {
     setSubmitting(true);
     let ref = `ASA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000 + 100000))}`;
@@ -1143,6 +1305,26 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     setPhase("submitted");
   }
 
+  async function closeEmergency() {
+    if (sosSessionId) {
+      await updatePhase2Row("sos_sessions", sosSessionId, {
+        status: "closed",
+        ended_at: new Date().toISOString(),
+      });
+      await insertPhase2Row("sos_events", {
+        sos_session_id: sosSessionId,
+        event_type: "emergency_closed",
+        metadata: { reason: "user_confirmed_safe" },
+      });
+      await insertPhase2Row("emergency_timeline", {
+        sos_session_id: sosSessionId,
+        event: "Emergency resolved",
+        description: "The citizen confirmed the emergency was over.",
+      });
+    }
+    resetEmergency();
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex h-[100dvh] w-screen max-w-full flex-col overflow-hidden bg-background">
       {/* Ambient brand glow — same signal-streak wash as the onboarding wizard */}
@@ -1158,7 +1340,13 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
       />
 
       <AnimatePresence mode="wait">
-        {phase === "idle" && <IdleScreen key="idle" onActivate={handleSosPress} />}
+        {phase === "idle" && (
+          <IdleScreen
+            key="idle"
+            onActivate={handleSosPress}
+            onExit={() => navigate({ to: "/chat", replace: true })}
+          />
+        )}
         {phase === "type-select" && (
           <TypeSelectScreen key="type-select" onSelect={handleTypeSelect} />
         )}
@@ -1179,7 +1367,11 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
           <HelpScreen
             key="help"
             emergencyType={emergencyType}
-            location={location}
+             location={location}
+             locationState={locationState}
+             locationError={locationError}
+             emergencyId={emergencyId}
+             online={online}
             hospitals={hospitals}
             officers={officers}
             trustedContacts={trustedContacts}
@@ -1192,15 +1384,18 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
               setPendingEmergencyType(next);
               setEmergencyType(next);
             }}
-            onToggleLocation={() => setShareLocation((v) => !v)}
+            onToggleLocation={() =>
+              setShareLocation((v) => {
+                const next = !v;
+                setLocationState(next ? (location ? "found" : "finding") : "not-shared");
+                return next;
+              })
+            }
             onToggleResponders={() => setNotifyResponders((v) => !v)}
             onReport={() => setPhase("report")}
 
             onClose={() => {
-              activated.current = false;
-              setSosActivityId(null);
-              setResponderOffers([]);
-              setPhase("idle");
+              void closeEmergency();
             }}
           />
         )}
@@ -1219,10 +1414,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
             key="submitted"
             reference={reference}
             onDone={() => {
-              activated.current = false;
-              setSosActivityId(null);
-              setResponderOffers([]);
-              setPhase("idle");
+              resetEmergency();
             }}
           />
         )}
@@ -1233,7 +1425,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
 
 // ─── Idle ─────────────────────────────────────────────────────────────────────
 
-function IdleScreen({ onActivate }: { onActivate: () => void }) {
+function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: () => void }) {
   return (
     <motion.div
       className="flex min-h-0 flex-1 flex-col"
@@ -1250,9 +1442,19 @@ function IdleScreen({ onActivate }: { onActivate: () => void }) {
           </div>
           <span className="truncate text-[13px] font-semibold text-foreground">Allma Safety AI</span>
         </div>
-        <span className="rounded-full border border-destructive/25 bg-destructive/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive">
-          Demo
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="hidden rounded-full border border-destructive/25 bg-destructive/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive sm:inline-flex">
+            Demo
+          </span>
+          <button
+            type="button"
+            onClick={onExit}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-border/70 bg-secondary/70 px-3 py-1.5 text-[11px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            aria-label="Exit SOS and return to Allma AI"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Allma AI
+          </button>
+        </div>
       </div>
 
       {/* Main area — side by side on desktop */}
@@ -1702,6 +1904,10 @@ function LoadingScreen() {
 function HelpScreen({
   emergencyType,
   location,
+  locationState,
+  locationError,
+  emergencyId,
+  online,
   hospitals,
   officers,
   trustedContacts,
@@ -1718,6 +1924,10 @@ function HelpScreen({
 }: {
   emergencyType: string;
   location: LocationInfo | null;
+  locationState: LocationState;
+  locationError: string;
+  emergencyId: string;
+  online: boolean;
   hospitals: Facility[];
   officers: Facility[];
   trustedContacts: TrustedContact[];
@@ -1736,9 +1946,59 @@ function HelpScreen({
   const typeInfo = EMERGENCY_TYPES.find((t) => t.id === emergencyType);
   const TypeIcon = typeInfo?.icon ?? AlertTriangle;
   const showPoliceFirst = ["crime", "attack", "domestic", "missing"].includes(emergencyType);
+  const [triageMessages, setTriageMessages] = useState<TriageMessage[]>([
+    {
+      role: "ai",
+      text: "Emergency mode is active. I'm going to help you step by step.",
+    },
+    {
+      role: "ai",
+      text: "First, tell me what is happening. You can type, use your voice, or choose a short response.",
+    },
+  ]);
+  const [triageInput, setTriageInput] = useState("");
+  const [immediateDanger, setImmediateDanger] = useState<boolean | undefined>(undefined);
+  const [severity, setSeverity] = useState<Severity>("UNKNOWN");
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [listeningError, setListeningError] = useState("");
+  const voice = useVoiceInput({
+    onTranscript: (text) => setTriageInput((current) => `${current}${current ? " " : ""}${text}`),
+    onError: setListeningError,
+  });
 
-  const aiMessages = useRef(getAiMessages(emergencyType, location)).current;
-  const { log: aiLog, typing: aiTyping } = useAiChat(aiMessages);
+  function submitTriageResponse(value = triageInput.trim()) {
+    if (!value) return;
+    const next = classifyEmergency(value, emergencyType);
+    const dangerAnswer =
+      immediateDanger === undefined
+        ? /^(yes|y|immediate|can't talk|cannot talk)/i.test(value)
+          ? true
+          : /^(no|n)/i.test(value)
+            ? false
+            : undefined
+        : immediateDanger;
+    setTriageMessages((current) => [
+      ...current,
+      { role: "user", text: value },
+      {
+        role: "ai",
+        text:
+          dangerAnswer === true
+            ? "Stay with me. If it is safe, move away from the danger. Do not confront anyone."
+            : `I understand. I’m treating this as a ${next.category} emergency.`,
+      },
+      { role: "ai", text: nextTriageQuestion(next.category, dangerAnswer) },
+    ]);
+    setImmediateDanger(dangerAnswer);
+    setSeverity(dangerAnswer ? "CRITICAL" : next.severity);
+    if (next.category !== emergencyType) onChangeType(next.category);
+    setTriageInput("");
+  }
+
+  function requestClose() {
+    if (confirmClose) onClose();
+    else setConfirmClose(true);
+  }
 
   const [status, setStatus] = useState({ police: false, hospital: false, community: false });
   const [liveOffers, setLiveOffers] = useState(responderOffers);
@@ -1862,10 +2122,73 @@ function HelpScreen({
         Allma AI — live guidance
       </SectionLabel>
       <div className="space-y-2">
-        {aiLog.map((msg, i) => (
-          <AiChatBubble key={i} text={msg} />
-        ))}
-        {aiTyping && <AiChatBubble text={aiTyping} typing />}
+        {triageMessages.map((message, i) =>
+          message.role === "ai" ? (
+            <AiChatBubble key={i} text={message.text} />
+          ) : (
+            <div key={i} className="ml-10 rounded-2xl rounded-br-sm bg-primary px-4 py-3 text-[13px] leading-relaxed text-primary-foreground">
+              {message.text}
+            </div>
+          ),
+        )}
+      </div>
+      <div className="rounded-2xl border border-border/60 bg-secondary/40 p-2">
+        <div className="flex items-end gap-2">
+          <textarea
+            value={triageInput}
+            onChange={(event) => setTriageInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                submitTriageResponse();
+              }
+            }}
+            rows={2}
+            placeholder={voice.recording ? "Listening…" : "Describe what is happening…"}
+            aria-label="Tell Allma what is happening"
+            className="min-h-12 flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] outline-none placeholder:text-muted-foreground/70"
+          />
+          <button
+            type="button"
+            onClick={() => void voice.toggle()}
+            aria-label={voice.recording ? "Stop listening" : "Speak to Allma"}
+            className={cn(
+              "grid h-10 w-10 shrink-0 place-items-center rounded-xl transition",
+              voice.recording ? "mic-recording bg-destructive text-destructive-foreground" : "bg-accent text-foreground hover:bg-primary/15",
+            )}
+          >
+            <Mic className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => submitTriageResponse()}
+            disabled={!triageInput.trim()}
+            aria-label="Send response"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground transition hover:bg-primary/90 disabled:opacity-40"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {(immediateDanger === undefined ? ["Yes", "No", "I'm not sure", "I can't talk"] : ["Yes", "No"]).map(
+            (answer) => (
+              <button
+                key={answer}
+                type="button"
+                onClick={() => submitTriageResponse(answer)}
+                className="rounded-full border border-border/70 bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/10"
+              >
+                {answer}
+              </button>
+            ),
+          )}
+        </div>
+        {voice.recording && (
+          <p className="mt-2 flex items-center gap-1.5 text-[10px] font-semibold text-destructive">
+            <span className="h-1.5 w-1.5 rounded-full bg-destructive" /> Listening… {voice.seconds}s
+          </p>
+        )}
+        {listeningError && <p className="mt-2 text-[10px] text-destructive">{listeningError}</p>}
       </div>
     </div>
   );
@@ -2143,16 +2466,39 @@ function HelpScreen({
         <Radio className="mr-1.5 inline-block h-3 w-3 align-middle" />
         Live status
       </SectionLabel>
+      <div
+        className={cn(
+          "mb-2 flex items-center gap-2 rounded-xl border px-3 py-2.5 text-[11px]",
+          online
+            ? "border-success/20 bg-success/10 text-success"
+            : "border-gold/25 bg-gold/10 text-gold",
+        )}
+      >
+        {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+        <span>
+          {online
+            ? "Connection is active. Emergency state is being kept current."
+            : "Connection is weak. Allma will continue trying to reconnect."}
+        </span>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <StatusTile
           icon={MapPin}
           label="Location"
           value={
-            locationShared && location
-              ? `Shared · ±${Math.round(location.accuracy)} m`
-              : "Not shared"
+            !locationShared
+              ? "Not shared"
+              : locationState === "finding"
+                ? "Finding…"
+                : locationState === "denied"
+                  ? "Access off"
+                  : locationState === "unavailable"
+                    ? "Unavailable"
+                    : location
+                      ? `${locationState === "low" ? "Approx." : "Found"} · ±${Math.round(location.accuracy)} m`
+                      : "Finding…"
           }
-          color="green"
+          color={locationState === "denied" || locationState === "unavailable" ? "amber" : "green"}
           visible
         />
         <StatusTile
@@ -2380,19 +2726,18 @@ function HelpScreen({
             </div>
             <div className="min-w-0">
               <p className="truncate font-display text-[14px] font-bold text-foreground">
-                {typeInfo?.label ?? "Emergency"}{" "}
+                🚨 Emergency Active{" "}
                 <span className="ml-1 text-[11px] font-normal text-destructive">● LIVE</span>
               </p>
-              {location && (
-                <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
-                  <MapPin className="h-2.5 w-2.5 shrink-0" />
-                  {[location.suburb, location.district].filter(Boolean).join(", ") ||
-                    location.address}
-                </p>
-              )}
+              <p className="truncate text-[11px] text-muted-foreground">
+                Allma is here with you · {emergencyId || "Preparing session"}
+              </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <span className="hidden rounded-full border border-destructive/25 bg-destructive/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-destructive sm:inline-flex">
+              {severity} · {typeInfo?.label ?? "Emergency"}
+            </span>
             <button
               type="button"
               onClick={onReport}
@@ -2402,10 +2747,10 @@ function HelpScreen({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="flex min-h-9 items-center gap-1 rounded-xl border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-[10px] font-bold text-destructive transition hover:border-destructive/50 hover:bg-destructive/20 sm:gap-1.5 sm:px-3 sm:text-[11px]"
             >
-              <X className="h-3.5 w-3.5 shrink-0" /> Close
+              <X className="h-3.5 w-3.5 shrink-0" /> {confirmClose ? "End emergency" : "Close"}
             </button>
           </div>
         </div>
@@ -2438,10 +2783,10 @@ function HelpScreen({
                 <Shield className="h-4 w-4" /> File an incident report
               </button>
               <button
-                onClick={onClose}
+                onClick={requestClose}
                 className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-[12px] font-bold text-destructive transition hover:border-destructive/45 hover:bg-destructive/18"
               >
-                <X className="h-3.5 w-3.5" /> I'm safe — close SOS
+                <X className="h-3.5 w-3.5" /> {confirmClose ? "End emergency" : "I'm safe — close SOS"}
               </button>
             </div>
           </div>
@@ -2473,10 +2818,10 @@ function HelpScreen({
 
               <div className="space-y-2 pt-1">
                 <button
-                  onClick={onClose}
+                  onClick={requestClose}
                   className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-[12px] font-bold text-destructive transition hover:border-destructive/45 hover:bg-destructive/18"
                 >
-                  <X className="h-3.5 w-3.5" /> I'm safe — close SOS
+                  <X className="h-3.5 w-3.5" /> {confirmClose ? "End emergency" : "I'm safe — close SOS"}
                 </button>
               </div>
             </div>

@@ -1,0 +1,1192 @@
+==================================================
+ALLMA SAFETY AI
+MASTER BUILD — PHASE 2
+INTELLIGENT SOS + REAL-TIME LOCATION + AI EMERGENCY TRIAGE
+==================================================
+
+IMPORTANT:
+
+This is PHASE 2 of the Allma Safety AI build.
+
+PHASE 1 already created:
+
+• User onboarding
+• Emergency Circle
+• Emergency Circle invitations
+• Accepted trusted connections
+• Emergency permissions
+• Responder profiles
+• Responder availability
+• Location permissions
+• Emergency preferences
+• Database foundation
+
+DO NOT REBUILD OR DELETE PHASE 1.
+
+Extend the existing architecture.
+
+The goal of this phase is to create an extremely intelligent, fast, calm and premium SOS experience.
+
+When a user activates SOS, Allma should behave like an intelligent emergency assistant.
+
+It should:
+
+• Immediately activate emergency mode
+• Acquire the user's real location with permission
+• Understand what is happening
+• Ask one question at a time
+• Determine emergency severity
+• Determine emergency category
+• Decide what assistance is appropriate
+• Prepare the emergency information
+• Keep the citizen informed
+• Prepare the system for the emergency-contact and responder calling system in PHASE 3
+
+==================================================
+1. SOS ENTRY POINT
+==================================================
+
+Create a highly visible SOS button throughout the citizen application.
+
+The button must be:
+
+• Extremely clear
+• Easy to reach
+• Accessible
+• Visually premium
+• Fast
+• Responsive
+
+Do NOT require the user to hold the button.
+
+ONE TAP activates SOS.
+
+Before activation, show a subtle confirmation mechanism only if required by the existing UX.
+
+Do NOT introduce unnecessary confirmation screens that could delay a genuine emergency.
+
+==================================================
+2. SOS ACTIVATION
+==================================================
+
+When the user taps SOS:
+
+Immediately transition into:
+
+EMERGENCY MODE
+
+Use a premium full-screen interface.
+
+Display:
+
+🚨 Emergency Mode
+
+"Allma is here with you."
+
+Start:
+
+• SOS session
+• Emergency ID
+• Location acquisition
+• AI emergency conversation
+• Emergency timeline
+
+Generate a unique emergency session ID.
+
+Example:
+
+ASA-2026-000128
+
+==================================================
+3. ACTIVATION ANIMATION
+==================================================
+
+Create a powerful but calm animation.
+
+Use:
+
+• Pulsing emergency indicator
+• Subtle location pulse
+• AI listening animation
+• Smooth transitions
+• Minimal movement
+
+DO NOT create flashing or visually overwhelming effects.
+
+The user may be frightened.
+
+The interface must communicate:
+
+"I am handling this with you."
+
+==================================================
+4. LOCATION ACQUISITION
+==================================================
+
+Immediately request precise device location if permission has not already been granted.
+
+Use the device/browser location APIs.
+
+Capture:
+
+Latitude
+Longitude
+Accuracy
+Timestamp
+
+Do not fake GPS.
+
+Do not use demo coordinates when real location permission is available.
+
+Display:
+
+📍 Location found
+
+or
+
+📍 Finding your location...
+
+==================================================
+5. LOCATION STATES
+==================================================
+
+Handle all states.
+
+LOCATION FOUND
+
+"Your location has been found."
+
+LOCATION ACCURACY LOW
+
+"Your location is approximate. We're trying to improve it."
+
+LOCATION DENIED
+
+"Location access is turned off."
+
+Button:
+
+Enable Location
+
+Also provide:
+
+Continue Without Location
+
+LOCATION UNAVAILABLE
+
+"Allma couldn't determine your location."
+
+Allow the user to manually provide:
+
+• Address
+• Landmark
+• Village
+• Town
+• Nearby location
+
+Do not prevent emergency assistance simply because GPS failed.
+
+==================================================
+6. REAL-TIME LOCATION SESSION
+==================================================
+
+During an active SOS:
+
+Continue receiving location updates while the platform and user permissions allow.
+
+Track:
+
+Current latitude
+Current longitude
+Accuracy
+Last update
+Movement
+
+Display:
+
+Live Location
+
+Location updated 5 seconds ago
+
+Use configurable update intervals.
+
+Do not unnecessarily drain battery.
+
+Stop active emergency location tracking when:
+
+• Emergency is closed
+• User cancels SOS
+• User explicitly stops location sharing
+• Session expires according to configured safety rules
+
+==================================================
+7. LOCATION SECURITY
+==================================================
+
+Never expose the user's exact GPS coordinates to ordinary users.
+
+Exact location should only be available to:
+
+• The citizen
+• Authorized emergency personnel
+• Authorized responders when appropriate
+• Systems explicitly authorized by the emergency workflow
+
+Nearby community responders should initially receive approximate location.
+
+More precise location may be shared after an authorized responder accepts the emergency, according to the user's settings and safety rules.
+
+==================================================
+8. AI START
+==================================================
+
+After SOS activation:
+
+AI says:
+
+"Emergency mode is active.
+
+I'm going to help you step by step.
+
+First, tell me what is happening."
+
+Provide:
+
+🎤 Voice
+⌨️ Text
+
+The user can speak or type.
+
+==================================================
+9. VOICE INPUT
+==================================================
+
+Support voice interaction where browser/device capabilities permit.
+
+When microphone is active:
+
+Display:
+
+🎙️ Listening...
+
+Convert speech to text.
+
+Show transcription.
+
+Example:
+
+User:
+
+"Someone is attacking me."
+
+AI:
+
+"I understand. Are you currently in immediate danger?"
+
+Buttons:
+
+Yes
+
+No
+
+Can't Talk
+
+==================================================
+10. ONE QUESTION AT A TIME
+==================================================
+
+THIS IS CRITICAL.
+
+The AI must NEVER overwhelm the user with a long questionnaire.
+
+Ask one question.
+
+Wait for response.
+
+Analyze.
+
+Then ask the next most important question.
+
+Example:
+
+Question 1:
+
+"What is happening?"
+
+User:
+
+"Someone broke into the house."
+
+Question 2:
+
+"Are you currently inside the house?"
+
+User:
+
+"Yes."
+
+Question 3:
+
+"Are you injured?"
+
+User:
+
+"No."
+
+Question 4:
+
+"Can you safely move to a secure location?"
+
+User:
+
+"Yes."
+
+The AI then changes the response strategy.
+
+==================================================
+11. EMERGENCY CATEGORIES
+==================================================
+
+The AI should classify emergencies into categories.
+
+Medical
+
+Crime
+
+Attack / Violence
+
+Fire
+
+Road Accident
+
+Missing Person
+
+Child Emergency
+
+Domestic Emergency
+
+Natural Disaster
+
+Flood
+
+Mental Health Crisis
+
+Suspicious Activity
+
+Lost Property
+
+Other
+
+Unknown
+
+The AI must be able to change the category if new information changes the situation.
+
+==================================================
+12. SEVERITY
+==================================================
+
+Classify:
+
+CRITICAL
+
+HIGH
+
+MEDIUM
+
+LOW
+
+UNKNOWN
+
+Examples:
+
+CRITICAL:
+
+Active attack
+Serious injury
+Unconscious person
+Fire with people trapped
+Life-threatening medical emergency
+
+HIGH:
+
+Threatening situation
+Accident with injuries
+Missing child
+
+MEDIUM:
+
+Minor injury
+Suspicious activity
+Non-urgent incident
+
+LOW:
+
+Lost property
+General safety report
+
+IMPORTANT:
+
+The AI's classification must NEVER prevent a user from seeking official emergency assistance.
+
+==================================================
+13. IMMEDIATE DANGER
+==================================================
+
+Determine whether the user is currently in immediate danger.
+
+Ask:
+
+"Are you in immediate danger right now?"
+
+Options:
+
+Yes
+
+No
+
+I'm not sure
+
+I can't speak
+
+If YES:
+
+Prioritize immediate safety guidance.
+
+Do not ask unnecessary questions.
+
+If NO:
+
+Continue gathering information.
+
+==================================================
+14. SILENT MODE
+==================================================
+
+Create:
+
+"I can't speak"
+
+mode.
+
+This is extremely important.
+
+A user may be:
+
+• Hiding
+• Being watched
+• Unable to speak
+• In a dangerous situation
+
+Allow interaction through:
+
+• Buttons
+• Short text
+• Icons
+• Predefined responses
+
+Do not require voice.
+
+==================================================
+15. SAFETY GUIDANCE
+==================================================
+
+The AI should provide calm, context-appropriate instructions.
+
+Examples:
+
+"If it is safe, move away from the danger."
+
+"Do not confront the person."
+
+"Stay somewhere visible and secure if possible."
+
+"Do not put yourself at greater risk to collect information."
+
+For violent incidents:
+
+NEVER instruct ordinary citizens to confront suspects.
+
+==================================================
+16. MEDICAL TRIAGE
+==================================================
+
+For medical emergencies ask relevant questions such as:
+
+What happened?
+
+Is the person conscious?
+
+Are they breathing normally?
+
+Are they bleeding heavily?
+
+Is the person trapped?
+
+Are you with them?
+
+Only ask questions relevant to the situation.
+
+Do not produce unnecessary medical interrogation.
+
+Provide conservative first-aid guidance where appropriate.
+
+Always encourage professional emergency assistance for serious situations.
+
+==================================================
+17. FIRE TRIAGE
+==================================================
+
+Ask:
+
+Is there a fire?
+
+Are people trapped?
+
+Are you inside the building?
+
+Is smoke present?
+
+Can you safely leave?
+
+Prioritize evacuation and official fire services.
+
+Do NOT instruct users to enter burning buildings.
+
+==================================================
+18. CRIME / ATTACK TRIAGE
+==================================================
+
+Ask:
+
+What is happening?
+
+Are you currently in danger?
+
+Is the suspect still nearby?
+
+Are you injured?
+
+Can you move somewhere safe?
+
+Do not encourage confrontation.
+
+Do not instruct citizens to chase suspects.
+
+==================================================
+19. ROAD ACCIDENT
+==================================================
+
+Ask:
+
+Where is the accident?
+
+Are people injured?
+
+Is anyone unconscious?
+
+Is anyone trapped?
+
+Is traffic still moving around the accident?
+
+Advise users to stay safe from traffic and request appropriate emergency assistance.
+
+==================================================
+20. MISSING PERSON
+==================================================
+
+Ask:
+
+Who is missing?
+
+Name
+
+Age
+
+Last known location
+
+When last seen
+
+Clothing
+
+Relevant identifying information
+
+Do not expose sensitive information publicly.
+
+Prepare a structured missing-person report.
+
+==================================================
+21. CHILD EMERGENCY
+==================================================
+
+Treat child-related emergencies with enhanced safeguards.
+
+Ask only necessary questions.
+
+Prioritize:
+
+Guardian
+Authorities
+Appropriate emergency responders
+
+Do not publicly expose a child's sensitive information.
+
+==================================================
+22. AI MEMORY DURING SOS
+==================================================
+
+The AI must maintain context throughout the emergency.
+
+Example:
+
+User:
+
+"My brother fell."
+
+AI:
+
+"Is your brother conscious?"
+
+User:
+
+"Yes."
+
+AI must understand that:
+
+Subject = brother
+Incident = medical
+Status = conscious
+
+Do not ask the same question again unnecessarily.
+
+==================================================
+23. AI CASE SUMMARY
+==================================================
+
+As information becomes available, build a structured internal emergency record.
+
+Example:
+
+Emergency ID:
+ASA-2026-000128
+
+Category:
+Medical
+
+Severity:
+Critical
+
+Location:
+GPS coordinates
+
+Accuracy:
+12m
+
+Reported:
+13:41
+
+Person affected:
+User's brother
+
+Conscious:
+Yes
+
+Breathing:
+Unknown
+
+Immediate danger:
+No
+
+AI status:
+Active
+
+Do NOT expose technical JSON to the citizen.
+
+==================================================
+24. LIVE EMERGENCY TIMELINE
+==================================================
+
+Create a beautiful timeline.
+
+Example:
+
+13:41
+SOS activated
+
+13:41
+Location acquired
+
+13:42
+Emergency identified
+
+13:42
+Medical emergency classified
+
+13:43
+Emergency information collected
+
+13:43
+Assistance preparation started
+
+Later:
+
+Responder contacted
+
+Responder accepted
+
+Official authority notified
+
+Responder arrived
+
+Emergency resolved
+
+==================================================
+25. CITIZEN EMERGENCY SCREEN
+==================================================
+
+Create a premium emergency interface.
+
+Header:
+
+🚨 Emergency Active
+
+Main:
+
+AI conversation
+
+Bottom:
+
+Voice button
+
+Text composer
+
+Quick response buttons
+
+Location status
+
+Emergency status
+
+==================================================
+26. LIVE LOCATION CARD
+==================================================
+
+Show:
+
+📍 Your location
+
+Location sharing active
+
+Accuracy
+
+Last updated
+
+Button:
+
+View Map
+
+Do not expose unnecessary coordinates.
+
+==================================================
+27. EMERGENCY ACTIONS
+==================================================
+
+Provide:
+
+Cancel Emergency
+
+I'm Safe
+
+Need More Help
+
+Share Location
+
+Call Official Emergency Service
+
+The actual contact mechanisms should be integrated later.
+
+Do not fake a completed call.
+
+==================================================
+28. CANCELLING SOS
+==================================================
+
+If user taps:
+
+I'm Safe
+
+Ask:
+
+"Are you sure the emergency is over?"
+
+Buttons:
+
+End Emergency
+
+Keep Emergency Active
+
+If ended:
+
+Stop active location session.
+
+Update timeline.
+
+Save incident.
+
+==================================================
+29. FALSE ACTIVATION
+==================================================
+
+If user accidentally activates SOS:
+
+Allow:
+
+Cancel Emergency
+
+Do not punish users for accidental activation.
+
+Create an audit record.
+
+==================================================
+30. OFFLINE / POOR NETWORK
+==================================================
+
+The emergency screen must remain usable during poor connectivity.
+
+Display:
+
+Connection status.
+
+Cache critical emergency state locally where technically safe.
+
+If network is lost:
+
+"Connection is weak. Allma will continue trying to reconnect."
+
+Do NOT falsely claim that a responder or authority was contacted.
+
+==================================================
+31. REAL-TIME BACKEND
+==================================================
+
+Use Supabase for:
+
+SOS sessions
+Emergency events
+Location sessions
+AI conversation state
+Emergency timeline
+Emergency classifications
+Notifications
+
+Use secure server-side functions for sensitive operations.
+
+==================================================
+32. DATABASE
+==================================================
+
+Create/extend:
+
+sos_sessions
+
+Fields:
+
+id
+user_id
+status
+emergency_type
+severity
+latitude
+longitude
+location_accuracy
+location_timestamp
+started_at
+ended_at
+created_at
+
+sos_events
+
+id
+sos_session_id
+event_type
+metadata
+created_at
+
+emergency_conversations
+
+id
+sos_session_id
+role
+message
+message_type
+created_at
+
+emergency_assessments
+
+id
+sos_session_id
+category
+severity
+immediate_danger
+confidence
+created_at
+updated_at
+
+location_sessions
+
+id
+sos_session_id
+user_id
+latitude
+longitude
+accuracy
+recorded_at
+
+emergency_timeline
+
+id
+sos_session_id
+event
+description
+created_at
+
+==================================================
+33. SECURITY
+==================================================
+
+Implement strict Row Level Security.
+
+Users can access only their own active SOS sessions and emergency information.
+
+Do not expose:
+
+Raw GPS
+Private conversations
+Emergency Circle data
+
+to unauthorized users.
+
+Sensitive emergency processing should occur server-side.
+
+==================================================
+34. AI SAFETY RULES
+==================================================
+
+The AI must:
+
+• Stay calm
+• Be concise during emergencies
+• Ask one question at a time
+• Prioritize immediate danger
+• Avoid unnecessary questions
+• Never fabricate actions
+• Never claim authorities were contacted unless confirmed
+• Never claim a responder accepted unless confirmed
+• Never encourage confrontation
+• Never encourage dangerous behavior
+• Escalate serious situations appropriately
+• Respect user privacy
+• Maintain context
+
+==================================================
+35. AI RESPONSE STYLE
+==================================================
+
+During an emergency:
+
+Short sentences.
+
+Clear language.
+
+No unnecessary explanations.
+
+Example:
+
+"Stay with me."
+
+"Are you somewhere safe?"
+
+"Yes or No?"
+
+"Good."
+
+"I'm checking your location."
+
+"Your location has been found."
+
+"Don't approach the person."
+
+"I'm preparing your emergency request."
+
+The AI should feel human, calm and intelligent without pretending to be a human emergency dispatcher.
+
+==================================================
+36. MULTILINGUAL FOUNDATION
+==================================================
+
+Architect the AI interaction so future languages can be added.
+
+Initially support:
+
+English
+
+Prepare the architecture for:
+
+Luganda
+Swahili
+Other Ugandan languages
+
+Do not hardcode text throughout the application.
+
+==================================================
+37. DEMO MODE
+==================================================
+
+Create a clear DEMO MODE for development.
+
+Demo mode may simulate:
+
+Responder availability
+Emergency responses
+Police dashboard updates
+Call states
+
+But every simulated action must be visibly identified as:
+
+DEMO
+
+Never present simulated responders, calls or authorities as real.
+
+==================================================
+38. PREPARE FOR PHASE 3
+==================================================
+
+Do not build fake calling.
+
+Prepare the SOS architecture for:
+
+In-app voice calling
+
+Emergency Circle calls
+
+Automatic call escalation
+
+Nearby responder notifications
+
+Responder acceptance
+
+Real-time responder status
+
+Later phases will implement these.
+
+==================================================
+39. PREMIUM MICRO-INTERACTIONS
+==================================================
+
+Add subtle animations for:
+
+SOS activation
+Location found
+AI listening
+AI thinking
+AI response
+Emergency classification
+Timeline updates
+Connection status
+Location updates
+
+Animations must never delay emergency actions.
+
+==================================================
+40. FINAL ACCEPTANCE CRITERIA
+==================================================
+
+The implementation is complete only when this complete flow works:
+
+USER
+
+Tap SOS
+
+↓
+
+Emergency Mode opens immediately
+
+↓
+
+Location permission handled
+
+↓
+
+Real location acquired when available
+
+↓
+
+AI begins conversation
+
+↓
+
+AI asks one question
+
+↓
+
+User responds
+
+↓
+
+AI understands context
+
+↓
+
+AI asks next relevant question
+
+↓
+
+Emergency category determined
+
+↓
+
+Severity determined
+
+↓
+
+Immediate danger determined
+
+↓
+
+Emergency record updated
+
+↓
+
+Live location continues
+
+↓
+
+Timeline updates
+
+↓
+
+Citizen remains informed
+
+↓
+
+User can cancel or continue
+
+↓
+
+Emergency can be closed safely
+
+AND:
+
+All architecture must be ready for PHASE 3:
+
+Emergency Circle in-app calling
+Automatic call escalation
+Nearby responder matching
+Real-time responder communication
+
+Do not break the existing onboarding and Emergency Circle functionality from PHASE 1.
+
+The final experience should feel like:
+
+"An intelligent emergency assistant that stays with me from the moment I press SOS until the situation is resolved."
+==================================================
+END OF PHASE 2
+==================================================
