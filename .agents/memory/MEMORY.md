@@ -5,3 +5,4 @@
 - [SSR onboarding animation](onboarding-animation-hydration.md) — First-render onboarding content must not start hidden or hydration can leave the route visually blank.
 - [Phase 3 emergency communication](phase3-emergency-communication.md) — Demo calls must stay visibly separate from provider-confirmed voice and official escalation.
 - [Phase 4 responder rollout](phase4-responder-rollout.md) — The responder UI and schema are safe foundations, but real SOS fan-out still requires a server-side matching worker.
+- [Phase 9 emergency UI boundary](phase9-emergency-ui-boundary.md) — Emergency UI must separate confirmed events, available actions, simulated states, and queued updates.

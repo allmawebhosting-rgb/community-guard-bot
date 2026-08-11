@@ -34,6 +34,7 @@ import {
   Copy,
   ExternalLink,
   Mic,
+  WifiOff,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
@@ -98,11 +99,17 @@ type ResponseTarget = {
 };
 
 type EscalationAction = "nearest" | "community" | "authority" | "police" | "ambulance";
+type UpdateState = "idle" | "saving" | "recorded" | "queued" | "failed";
 
 function createEmergencyId() {
   const year = new Date().getFullYear();
   const suffix = Math.floor(100000 + Math.random() * 900000);
   return `ASA-${year}-${suffix}`;
+}
+
+function formatEmergencyTime(timestamp: number | null) {
+  if (!timestamp) return "Pending";
+  return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1200,6 +1207,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [locationState, setLocationState] = useState<LocationState>("finding");
   const [emergencyId, setEmergencyId] = useState<string | null>(null);
+  const [activatedAt, setActivatedAt] = useState<number | null>(null);
   const [hospitals, setHospitals] = useState<Facility[]>([]);
   const [officers, setOfficers] = useState<Facility[]>([]);
   const [trustedContacts, setTrustedContacts] = useState<TrustedContact[]>([]);
@@ -1258,6 +1266,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     if (activated.current) return;
     activated.current = true;
     setEmergencyId(createEmergencyId());
+    setActivatedAt(Date.now());
     setSosActivityId(null);
     setResponderOffers([]);
     setEmergencyType(type);
@@ -1411,6 +1420,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
             key="help"
             emergencyType={emergencyType}
             emergencyId={emergencyId}
+            activatedAt={activatedAt}
             location={location}
             locationState={locationState}
             hospitals={hospitals}
@@ -1447,6 +1457,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
               setSosActivityId(null);
               setResponderOffers([]);
               setEmergencyId(null);
+               setActivatedAt(null);
               setLocation(null);
               setLocationState("finding");
               setPhase("idle");
@@ -1472,6 +1483,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
               setSosActivityId(null);
               setResponderOffers([]);
               setEmergencyId(null);
+               setActivatedAt(null);
               setLocation(null);
               setLocationState("finding");
               setPhase("idle");
@@ -1971,6 +1983,7 @@ function LoadingScreen({ emergencyId }: { emergencyId: string | null }) {
 function HelpScreen({
   emergencyType,
   emergencyId,
+  activatedAt,
   location,
   locationState,
   hospitals,
@@ -1990,6 +2003,7 @@ function HelpScreen({
 }: {
   emergencyType: string;
   emergencyId: string | null;
+  activatedAt: number | null;
   location: LocationInfo | null;
   locationState: LocationState;
   hospitals: Facility[];
@@ -2025,6 +2039,8 @@ function HelpScreen({
   const [calledTargets, setCalledTargets] = useState<string[]>([]);
   const [escalationAction, setEscalationAction] = useState<EscalationAction | null>(null);
   const [closeConfirm, setCloseConfirm] = useState(false);
+  const [updateText, setUpdateText] = useState("");
+  const [updateState, setUpdateState] = useState<UpdateState>("idle");
   const [isOnline, setIsOnline] = useState(
     () => typeof navigator === "undefined" || navigator.onLine,
   );
@@ -2055,6 +2071,27 @@ function HelpScreen({
     skipped: { label: "Location sharing paused", detail: "You can enable it during this emergency." },
   };
   const currentLocationCopy = locationCopy[locationState];
+  const officialNumber = info.primaryNumbers[0] ?? EMERGENCY_NUMBERS[0];
+  const contactedContacts = trustedContacts.filter((contact) => calledTargets.includes(contact.id));
+  const acceptedResponder = responders.find((responder) =>
+    ["accepted", "en_route", "arrived"].includes(responder.status),
+  );
+
+  const responseStatus = acceptedResponder
+    ? acceptedResponder.status === "arrived"
+      ? "Responder arrived"
+      : acceptedResponder.status === "en_route"
+        ? "Responder approaching"
+        : "Responder accepted"
+    : respondersNotified
+      ? liveOffers.length
+        ? "Responder notified"
+        : "Waiting for acknowledgement"
+      : "No responder notified";
+
+  const nextEscalation = calledTargets.includes(officialNumber.label)
+    ? "Awaiting operator response"
+    : `Tap to call ${officialNumber.label}`;
 
   function requestClose() {
     setCloseConfirm(true);
@@ -2072,6 +2109,16 @@ function HelpScreen({
         current.includes("Ambulance") ? current : [...current, "Ambulance"],
       );
     }
+  }
+
+  function submitUpdate() {
+    const text = updateText.trim();
+    if (!text) return;
+    setUpdateState("saving");
+    window.setTimeout(() => {
+      setUpdateState(isOnline ? "recorded" : "queued");
+      setUpdateText("");
+    }, 450);
   }
 
   useEffect(() => {
@@ -2118,6 +2165,147 @@ function HelpScreen({
       void supabase.removeChannel(channel);
     };
   }, [activityId]);
+
+  const EmergencySummarySection = (
+    <motion.div
+      className="premium-surface overflow-hidden rounded-3xl border border-destructive/30 shadow-soft"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.08 }}
+    >
+      <div className="border-b border-destructive/20 bg-gradient-to-r from-destructive/18 via-destructive/8 to-transparent p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-destructive">
+              SOS active
+            </p>
+            <h2 className="mt-1 font-display text-xl font-black text-foreground">
+              Help request active
+            </h2>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Activated {formatEmergencyTime(activatedAt)} · {emergencyId ?? "Session starting"}
+            </p>
+          </div>
+          <span className="rounded-full border border-destructive/25 bg-destructive/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-destructive">
+            {typeInfo?.label ?? "Emergency"}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 divide-x divide-y divide-border/60 sm:grid-cols-4 sm:divide-y-0">
+        <div className="p-3.5 sm:p-4">
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Location</p>
+          <p className="mt-1.5 text-[12px] font-semibold text-foreground">{currentLocationCopy.label}</p>
+          <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+            {locationShared ? "Shared for this session" : "Not shared"}
+          </p>
+        </div>
+        <div className="p-3.5 sm:p-4">
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Response</p>
+          <p className="mt-1.5 text-[12px] font-semibold text-foreground">{responseStatus}</p>
+          <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+            {respondersNotified ? "Opt-in search path" : "Community search off"}
+          </p>
+        </div>
+        <div className="p-3.5 sm:p-4">
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">People contacted</p>
+          <p className="mt-1.5 text-[12px] font-semibold text-foreground">
+            {contactedContacts.length ? `${contactedContacts.length} trusted contact` : "None yet"}
+          </p>
+          <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+            {liveOffers.length ? `${liveOffers.length} responder offer${liveOffers.length === 1 ? "" : "s"} returned` : "No automatic calls"}
+          </p>
+        </div>
+        <div className="p-3.5 sm:p-4">
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Next escalation</p>
+          <p className="mt-1.5 text-[12px] font-semibold text-foreground">{nextEscalation}</p>
+          <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+            Official services require your tap
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3">
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          Official service
+        </span>
+        <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-gold">
+          {calledTargets.includes(officialNumber.label) ? "Dialer opened" : "Not connected"}
+        </span>
+        <span className="text-[10px] text-muted-foreground">
+          Allma has not contacted authorities automatically.
+        </span>
+      </div>
+
+      {!isOnline && (
+        <div className="flex items-start gap-2 border-t border-gold/20 bg-gold/10 px-4 py-3 text-[11px] leading-relaxed text-gold">
+          <WifiOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            <strong className="font-bold">Limited connectivity.</strong> Keep the emergency active.
+            Critical details may queue in this session until the connection returns.
+          </span>
+        </div>
+      )}
+    </motion.div>
+  );
+
+  const UpdateSection = (
+    <div className="rounded-2xl border border-info/20 bg-info/8 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <SectionLabel>
+            <Send className="mr-1.5 inline-block h-3 w-3 align-middle" />
+            Send an update
+          </SectionLabel>
+          <p className="mt-[-0.35rem] text-[11px] leading-relaxed text-muted-foreground">
+            Share a short text update. Add media only when it is safe.
+          </p>
+        </div>
+        <span className="rounded-full border border-info/20 bg-info/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-info">
+          Text first
+        </span>
+      </div>
+      <div className="mt-3 flex items-end gap-2">
+        <textarea
+          value={updateText}
+          onChange={(event) => {
+            setUpdateText(event.target.value);
+            if (updateState !== "idle") setUpdateState("idle");
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              submitUpdate();
+            }
+          }}
+          rows={2}
+          maxLength={500}
+          placeholder="e.g. I am injured / The person left / I am safe now"
+          aria-label="Emergency update"
+          className="min-h-11 flex-1 resize-none rounded-xl border border-border/60 bg-background/60 px-3 py-2.5 text-[12px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-info/50"
+        />
+        <button
+          type="button"
+          onClick={submitUpdate}
+          disabled={!updateText.trim() || updateState === "saving"}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-info text-info-foreground transition hover:bg-info/90 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Send emergency update"
+        >
+          {updateState === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </button>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-muted-foreground">
+        <span>
+          {updateState === "recorded"
+            ? "Update staged for this emergency session."
+            : updateState === "queued"
+              ? "Connection limited — update queued in this session."
+              : "Text is prioritized on slower connections."}
+        </span>
+        <span>{updateText.length}/500</span>
+      </div>
+    </div>
+  );
 
   const TIMELINE = [
     { label: "SOS Activated", sub: "Emergency mode engaged" },
@@ -2828,11 +3016,13 @@ function HelpScreen({
         {/* Mobile: single scrolling column with everything */}
         <div className="flex-1 overflow-y-auto lg:hidden">
           <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
+            {EmergencySummarySection}
             {AiSection}
             {EscalationSection}
             {ResponsePlanSection}
             {CallSection}
             {TrustedContactsSection}
+            {UpdateSection}
             {StepsSection}
             {StatusSection}
             {LocationSection}
@@ -2863,6 +3053,7 @@ function HelpScreen({
         {/* Desktop LEFT column — AI + steps + timeline */}
         <div className="hidden flex-1 overflow-y-auto lg:block">
           <div className="space-y-5 px-6 py-5 pb-14">
+            {EmergencySummarySection}
             {AiSection}
             {EscalationSection}
             {ResponsePlanSection}
@@ -2877,6 +3068,7 @@ function HelpScreen({
             <div className="space-y-5 p-5 pb-14">
               {CallSection}
               {TrustedContactsSection}
+              {UpdateSection}
               {StatusSection}
               {LocationSection}
               {ControlsSection}
