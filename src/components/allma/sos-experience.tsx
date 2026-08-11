@@ -71,6 +71,7 @@ type Responder = {
   id: string;
   offerId: string;
   name: string;
+  phone: string | null;
   distance: string;
   eta: string;
   status: ResponderStatus;
@@ -81,6 +82,7 @@ type ResponderOffer = {
   offer_id: string;
   responder_id: string;
   display_name: string;
+  phone: string | null;
   distance_m: number;
   status: ResponderStatus;
 };
@@ -589,9 +591,9 @@ async function createResponderOffers(
     rpc: (
       name: string,
       args: Record<string, unknown>,
-    ) => Promise<{ data: ResponderOffer[] | null; error: unknown }>;
+    ) => Promise<{ data: unknown; error: unknown }>;
   };
-  const { data, error } = await client.rpc("create_sos_responder_offers", {
+  const { data: rawOffers, error } = await client.rpc("create_sos_responder_offers", {
     p_sos_activity_id: activityId,
     p_radius_meters: radiusMeters,
   });
@@ -599,7 +601,24 @@ async function createResponderOffers(
     console.warn("Responder offer creation unavailable", error);
     return [];
   }
-  return data ?? [];
+  const offers = (rawOffers as Omit<ResponderOffer, "phone">[] | null) ?? [];
+  if (!offers.length) return [];
+
+  const { data: rawContacts, error: contactError } = await client.rpc(
+    "get_sos_responder_contacts",
+    { p_sos_activity_id: activityId },
+  );
+  if (contactError) {
+    console.warn("Responder phone lookup unavailable", contactError);
+  }
+
+  const contacts = (rawContacts as Array<{ offer_id: string; phone: string | null }> | null) ?? [];
+  const phonesByOffer = new Map(contacts.map((contact) => [contact.offer_id, contact.phone]));
+
+  return offers.map((offer) => ({
+    ...offer,
+    phone: phonesByOffer.get(offer.offer_id) ?? null,
+  }));
 }
 
 function formatDistanceMeters(meters: number) {
@@ -905,12 +924,7 @@ function ResponderCard({ responder }: { responder: Responder }) {
       transition={{ type: "spring", stiffness: 280, damping: 22 }}
     >
       <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-secondary to-secondary/40 text-sm font-bold text-foreground">
-        {responder.name
-          .split(" ")
-          .map((p) => p[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase()}
+        <Phone className="h-4 w-4" />
         {responder.verified && (
           <span className="absolute -right-0.5 -top-0.5 grid h-4 w-4 place-items-center rounded-full bg-info text-[9px] font-black text-info-foreground">
             ✓
@@ -919,17 +933,29 @@ function ResponderCard({ responder }: { responder: Responder }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="text-[13px] font-semibold text-foreground">{responder.name}</p>
+          <p className="truncate text-[13px] font-semibold text-foreground">
+            {responder.phone ?? "Phone unavailable"}
+          </p>
           {responder.verified && (
             <span className="rounded-full border border-info/30 bg-info/18 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-info">
-              Verified
+              Verified phone
             </span>
           )}
         </div>
         <p className="text-[11px] text-muted-foreground">
+          {responder.phone ? `${responder.name} · ` : ""}
           Approx. {responder.distance} away · {responder.eta}
         </p>
       </div>
+      {responder.phone && (
+        <a
+          href={`tel:${responder.phone.replace(/[^\d+]/g, "")}`}
+          aria-label={`Call responder at ${responder.phone}`}
+          className="flex shrink-0 items-center gap-1 rounded-lg bg-gold/18 px-2.5 py-1.5 text-[10px] font-bold text-gold transition hover:bg-gold/25"
+        >
+          <Phone className="h-3 w-3" /> Call
+        </a>
+      )}
       <AnimatePresence mode="wait">
         <motion.span
           key={responder.status}
@@ -2069,7 +2095,7 @@ function HelpScreen({
     distance: formatDistanceMeters(offer.distance_m),
     eta: "available",
     status: offer.status,
-    verified: false,
+    verified: Boolean(offer.phone),
   }));
 
   const nearestResponder = responders[0];
@@ -2904,12 +2930,12 @@ function HelpScreen({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[12px] font-semibold text-foreground">
-              {nearestResponder?.name ?? "Verified responder search"}
+              {nearestResponder?.phone ?? "Responder phone unavailable"}
             </p>
             <p className="text-[10px] text-muted-foreground">
               {nearestResponder
-                ? `Approx. ${nearestResponder.distance} · ${nearestResponder.eta}`
-                : "Only recently active, location-sharing responders are considered"}
+                ? `${nearestResponder.name} · Approx. ${nearestResponder.distance} · ${nearestResponder.eta}`
+                : "Only matched responders with shared contact details can be called"}
             </p>
           </div>
           {nearestResponder?.verified && (
