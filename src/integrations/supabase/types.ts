@@ -789,6 +789,255 @@ export type Database = {
         }
         Relationships: []
       }
+      institutional_handover_acceptance: {
+        Row: {
+          acceptance_date: string | null
+          acceptance_status: string
+          authorized_representative: string | null
+          created_at: string
+          created_by: string | null
+          digital_signature_supported: boolean
+          id: string
+          institution: string
+          operational_representative: string | null
+          outstanding_issues: string | null
+          scope: string | null
+          system_version: string | null
+          technical_representative: string | null
+          updated_at: string
+        }
+        Insert: {
+          acceptance_date?: string | null
+          acceptance_status?: string
+          authorized_representative?: string | null
+          created_at?: string
+          created_by?: string | null
+          digital_signature_supported?: boolean
+          id?: string
+          institution: string
+          operational_representative?: string | null
+          outstanding_issues?: string | null
+          scope?: string | null
+          system_version?: string | null
+          technical_representative?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acceptance_date?: string | null
+          acceptance_status?: string
+          authorized_representative?: string | null
+          created_at?: string
+          created_by?: string | null
+          digital_signature_supported?: boolean
+          id?: string
+          institution?: string
+          operational_representative?: string | null
+          outstanding_issues?: string | null
+          scope?: string | null
+          system_version?: string | null
+          technical_representative?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      institutional_hierarchy_nodes: {
+        Row: {
+          code: string | null
+          community: string | null
+          country: string | null
+          county: string | null
+          created_at: string
+          created_by: string | null
+          district: string | null
+          id: string
+          is_active: boolean
+          metadata: Json
+          name: string
+          node_type: string
+          parent_id: string | null
+          parish: string | null
+          region: string | null
+          sub_county: string | null
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          community?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          district?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name: string
+          node_type: string
+          parent_id?: string | null
+          parish?: string | null
+          region?: string | null
+          sub_county?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          community?: string | null
+          country?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          district?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name?: string
+          node_type?: string
+          parent_id?: string | null
+          parish?: string | null
+          region?: string | null
+          sub_county?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institutional_hierarchy_nodes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "institutional_hierarchy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institutional_organization_members: {
+        Row: {
+          created_at: string
+          id: string
+          last_activity_at: string | null
+          organization_id: string
+          role: string
+          status: string
+          updated_at: string
+          user_id: string
+          verification_status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_activity_at?: string | null
+          organization_id: string
+          role: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          verification_status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_activity_at?: string | null
+          organization_id?: string
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institutional_organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "institutional_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institutional_organizations: {
+        Row: {
+          contact_email: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          jurisdiction_node_id: string | null
+          metadata: Json
+          name: string
+          organization_type: string
+          status: string
+          updated_at: string
+          verification_status: string
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          jurisdiction_node_id?: string | null
+          metadata?: Json
+          name: string
+          organization_type: string
+          status?: string
+          updated_at?: string
+          verification_status?: string
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          jurisdiction_node_id?: string | null
+          metadata?: Json
+          name?: string
+          organization_type?: string
+          status?: string
+          updated_at?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institutional_organizations_jurisdiction_node_id_fkey"
+            columns: ["jurisdiction_node_id"]
+            isOneToOne: false
+            referencedRelation: "institutional_hierarchy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      institutional_system_status: {
+        Row: {
+          checked_at: string | null
+          created_at: string
+          detail: string | null
+          display_name: string
+          environment: string
+          id: string
+          service_key: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          checked_at?: string | null
+          created_at?: string
+          detail?: string | null
+          display_name: string
+          environment?: string
+          id?: string
+          service_key: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          checked_at?: string | null
+          created_at?: string
+          detail?: string | null
+          display_name?: string
+          environment?: string
+          id?: string
+          service_key?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lost_found_items: {
         Row: {
           claimed_by: string | null
@@ -850,6 +1099,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      major_incidents: {
+        Row: {
+          affected_locations: number | null
+          affected_people: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          incident_commander_id: string | null
+          is_demo: boolean
+          priority: string
+          reference: string
+          resolved_at: string | null
+          scope_level: string
+          situation_summary: string | null
+          started_at: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_locations?: number | null
+          affected_people?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incident_commander_id?: string | null
+          is_demo?: boolean
+          priority?: string
+          reference: string
+          resolved_at?: string | null
+          scope_level?: string
+          situation_summary?: string | null
+          started_at?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_locations?: number | null
+          affected_people?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incident_commander_id?: string | null
+          is_demo?: boolean
+          priority?: string
+          reference?: string
+          resolved_at?: string | null
+          scope_level?: string
+          situation_summary?: string | null
+          started_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       messages: {
         Row: {
