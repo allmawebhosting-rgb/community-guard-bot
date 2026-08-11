@@ -1514,8 +1514,8 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Top bar */}
-       <div className="flex items-center justify-between border-b border-border/60 bg-background/35 px-4 py-3 sm:px-6 sm:py-3.5">
+       {/* Top bar */}
+       <div className="flex items-center justify-between border-b border-border/60 bg-background/45 px-4 py-3 backdrop-blur-md sm:px-6 sm:py-3.5">
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="grid h-7 w-7 place-items-center rounded-full bg-destructive/18">
             <Siren className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
@@ -1539,9 +1539,9 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
       </div>
 
       {/* Main area — side by side on desktop */}
-       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6 sm:py-8 lg:flex lg:flex-row lg:items-center lg:justify-center lg:gap-24 lg:overflow-hidden lg:py-0">
+       <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 items-center gap-5 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:gap-8 lg:overflow-hidden lg:px-10 lg:py-8 xl:gap-12">
         {/* Left: button */}
-         <div className="flex flex-col items-center text-center lg:-translate-y-2">
+         <div className="flex flex-col items-center rounded-[2rem] border border-destructive/15 bg-background/25 px-4 py-7 text-center shadow-soft backdrop-blur-sm sm:px-8 sm:py-9 lg:-translate-y-1 lg:px-10 lg:py-10">
           <motion.p
             className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-destructive/60"
             initial={{ opacity: 0, y: -8 }}
@@ -1559,7 +1559,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
             SOS
           </motion.h1>
           <motion.p
-            className="mb-8 text-[13px] text-muted-foreground sm:mb-12"
+             className="mb-7 text-[13px] text-muted-foreground sm:mb-9"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -1579,7 +1579,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
             <button
               onClick={onActivate}
               aria-label="Activate Emergency SOS"
-              className="relative h-[min(13rem,58vw)] w-[min(13rem,58vw)] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background sm:h-52 sm:w-52"
+             className="relative h-[min(13rem,58vw)] w-[min(13rem,58vw)] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background sm:h-52 sm:w-52 lg:h-56 lg:w-56"
             >
               <span
                 className="absolute inset-0 rounded-full"
@@ -1599,7 +1599,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
           </motion.div>
 
            <motion.p
-             className="mt-7 flex items-center gap-1.5 text-[11px] text-muted-foreground sm:mt-10"
+            className="mt-6 flex items-center gap-1.5 text-[11px] text-muted-foreground sm:mt-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -1611,7 +1611,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
 
         {/* Right: info panel — stacked below the button on mobile */}
         <motion.div
-          className="mb-5 mt-8 w-full max-w-sm space-y-3 lg:mb-0 lg:mt-10 lg:w-72 lg:max-w-none"
+           className="w-full space-y-3 rounded-[2rem] border border-border/60 bg-secondary/25 p-4 shadow-soft backdrop-blur-sm sm:p-5 lg:p-6"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
@@ -1647,7 +1647,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
           <div className="rounded-2xl border border-border/60 bg-secondary/40 px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
             Allma AI guides you through an emergency, helps locate nearby services, and keeps you in
             control of every contact.
-          </div>
+       </div>
         </motion.div>
       </div>
     </motion.div>
@@ -3078,7 +3078,7 @@ function HelpScreen({
       </div>
 
       {/* ── Body ── */}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden lg:mx-auto lg:w-full lg:max-w-[90rem]">
         {/* Mobile: single scrolling column with everything */}
         <div className="flex-1 overflow-y-auto lg:hidden">
           <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
@@ -3118,8 +3118,8 @@ function HelpScreen({
         </div>
 
         {/* Desktop LEFT column — AI + steps + timeline */}
-        <div className="hidden flex-1 overflow-y-auto lg:block">
-          <div className="space-y-5 px-6 py-5 pb-14">
+        <div className="hidden flex-1 overflow-y-auto bg-background/10 lg:block">
+          <div className="mx-auto w-full max-w-4xl space-y-5 px-6 py-5 pb-14 xl:px-8">
             {EmergencySummarySection}
             {AiSection}
             {QuickActionsSection}
@@ -3131,9 +3131,9 @@ function HelpScreen({
         </div>
 
         {/* Desktop RIGHT column — call + status + map + responders + facilities */}
-        <div className="hidden w-[360px] shrink-0 border-l border-border/60 lg:flex lg:flex-col">
+        <div className="hidden w-[22rem] shrink-0 border-l border-border/60 bg-secondary/10 lg:flex lg:flex-col xl:w-[24rem]">
           <div className="flex-1 overflow-y-auto">
-            <div className="space-y-5 p-5 pb-14">
+            <div className="space-y-5 p-5 pb-14 xl:p-6">
               {CallSection}
               {TrustedContactsSection}
               {UpdateSection}
