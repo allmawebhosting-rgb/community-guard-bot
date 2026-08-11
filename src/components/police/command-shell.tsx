@@ -46,7 +46,7 @@ const NAV_GROUPS = [
   {
     label: "Intelligence",
     items: [
-      { to: "/police/analytics", label: "Analytics",    icon: BarChart2,     exact: false },
+      { to: "/police/analytics", label: "Intelligence", icon: BarChart2,     exact: false },
       { to: "/police/search",    label: "Search",       icon: Search,        exact: false },
       { to: "/police/ai",        label: "AI Assistant", icon: Bot,           exact: false },
     ],
