@@ -2095,6 +2095,7 @@ function HelpScreen({
     distance: formatDistanceMeters(offer.distance_m),
     eta: "available",
     status: offer.status,
+    phone: offer.phone ?? null,
     verified: Boolean(offer.phone),
   }));
 

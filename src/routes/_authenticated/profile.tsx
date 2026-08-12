@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/allma/app-shell";
 import { MascotAvatar } from "@/components/allma/mascot";
+import { SafetyNetworkPanel } from "@/components/allma/safety-network/safety-network-panel";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/lib/theme";
@@ -303,6 +304,12 @@ function ProfileScreen() {
 
             {/* Responder inbox */}
             <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                Safety network
+              </p>
+              <div className="mb-4 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
+                <SafetyNetworkPanel />
+              </div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Nearby SOS alerts</p>
                 {sosOffers.some((offer) => offer.status === "offered") && (
