@@ -2097,14 +2097,6 @@ export type Database = {
           status: string
         }[]
       }
-      get_sos_responder_contacts: {
-        Args: { p_sos_activity_id: string }
-        Returns: {
-          offer_id: string
-          phone: string | null
-          responder_id: string
-        }[]
-      }
       get_my_sos_offers: {
         Args: never
         Returns: {
@@ -2115,6 +2107,14 @@ export type Database = {
           offer_id: string
           sos_activity_id: string
           status: string
+        }[]
+      }
+      get_sos_responder_contacts: {
+        Args: { p_sos_activity_id: string }
+        Returns: {
+          offer_id: string
+          phone: string
+          responder_id: string
         }[]
       }
       has_role: {
