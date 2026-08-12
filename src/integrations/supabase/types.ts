@@ -1409,6 +1409,30 @@ export type Database = {
           },
         ]
       }
+      phone_lookup_log: {
+        Row: {
+          created_at: string
+          found: boolean
+          id: string
+          phone_hash: string
+          searcher_id: string
+        }
+        Insert: {
+          created_at?: string
+          found?: boolean
+          id?: string
+          phone_hash: string
+          searcher_id: string
+        }
+        Update: {
+          created_at?: string
+          found?: boolean
+          id?: string
+          phone_hash?: string
+          searcher_id?: string
+        }
+        Relationships: []
+      }
       police_stations: {
         Row: {
           code: string | null
@@ -1464,6 +1488,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          discoverable_by_phone: boolean
           full_name: string | null
           id: string
           locale: string
@@ -1471,12 +1496,15 @@ export type Database = {
           onboarding_completed: boolean
           onboarding_step: number
           phone: string | null
+          phone_e164: string | null
+          phone_verified: boolean
           safety_plan: Json
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          discoverable_by_phone?: boolean
           full_name?: string | null
           id: string
           locale?: string
@@ -1484,12 +1512,15 @@ export type Database = {
           onboarding_completed?: boolean
           onboarding_step?: number
           phone?: string | null
+          phone_e164?: string | null
+          phone_verified?: boolean
           safety_plan?: Json
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          discoverable_by_phone?: boolean
           full_name?: string | null
           id?: string
           locale?: string
@@ -1497,6 +1528,8 @@ export type Database = {
           onboarding_completed?: boolean
           onboarding_step?: number
           phone?: string | null
+          phone_e164?: string | null
+          phone_verified?: boolean
           safety_plan?: Json
           updated_at?: string
         }
@@ -1987,6 +2020,110 @@ export type Database = {
           },
         ]
       }
+      safety_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      safety_connection_requests: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          recipient_id: string
+          requester_id: string
+          responded_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          recipient_id: string
+          requester_id: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          recipient_id?: string
+          requester_id?: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      safety_connections: {
+        Row: {
+          allow_emergency_calls: boolean
+          created_at: string
+          id: string
+          member_id: string
+          notify_on_sos: boolean
+          owner_id: string
+          priority: number
+          request_id: string | null
+          safety_role: string
+          share_location_on_sos: boolean
+          updated_at: string
+        }
+        Insert: {
+          allow_emergency_calls?: boolean
+          created_at?: string
+          id?: string
+          member_id: string
+          notify_on_sos?: boolean
+          owner_id: string
+          priority?: number
+          request_id?: string | null
+          safety_role?: string
+          share_location_on_sos?: boolean
+          updated_at?: string
+        }
+        Update: {
+          allow_emergency_calls?: boolean
+          created_at?: string
+          id?: string
+          member_id?: string
+          notify_on_sos?: boolean
+          owner_id?: string
+          priority?: number
+          request_id?: string | null
+          safety_role?: string
+          share_location_on_sos?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_connections_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "safety_connection_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sos_responder_offers: {
         Row: {
           created_at: string
@@ -2097,6 +2234,16 @@ export type Database = {
           status: string
         }[]
       }
+      find_allma_member_by_phone: {
+        Args: { _phone: string }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          phone_verified: boolean
+          relationship_state: string
+          user_id: string
+        }[]
+      }
       get_my_sos_offers: {
         Args: never
         Returns: {
@@ -2126,6 +2273,36 @@ export type Database = {
       }
       is_command_staff: { Args: { _user_id: string }; Returns: boolean }
       is_verified_officer: { Args: { _user_id: string }; Returns: boolean }
+      list_safety_connection_requests: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          created_at: string
+          direction: string
+          full_name: string
+          id: string
+          note: string
+          other_user_id: string
+          phone_verified: boolean
+        }[]
+      }
+      list_safety_connections: {
+        Args: never
+        Returns: {
+          allow_emergency_calls: boolean
+          avatar_url: string
+          created_at: string
+          full_name: string
+          id: string
+          member_id: string
+          notify_on_sos: boolean
+          phone_verified: boolean
+          priority: number
+          safety_role: string
+          share_location_on_sos: boolean
+        }[]
+      }
+      normalize_phone_ug: { Args: { _raw: string }; Returns: string }
       respond_to_responder_notification: {
         Args: {
           p_accept: boolean
@@ -2134,8 +2311,16 @@ export type Database = {
         }
         Returns: string
       }
+      respond_to_safety_connection_request: {
+        Args: { _action: string; _request_id: string }
+        Returns: string
+      }
       respond_to_sos_offer: {
         Args: { p_offer_id: string; p_status: string }
+        Returns: string
+      }
+      send_safety_connection_request: {
+        Args: { _note?: string; _recipient_id: string }
         Returns: string
       }
       update_responder_assignment: {

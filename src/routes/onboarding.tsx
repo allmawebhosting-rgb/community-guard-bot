@@ -25,6 +25,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { BrandLockup } from "@/components/allma/brand";
 import { Mascot } from "@/components/allma/mascot";
+import { SafetyNetworkPanel } from "@/components/allma/safety-network/safety-network-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -387,6 +388,7 @@ function OnboardingPage() {
               {step === 3 && (
                 <CircleStep
                   members={draft.members}
+                  signedIn={Boolean(userId)}
                   name={memberName}
                   relationship={relationship}
                   method={inviteMethod}
@@ -700,6 +702,7 @@ function LocationStep({
 
 function CircleStep({
   members,
+  signedIn,
   name,
   relationship,
   method,
@@ -716,6 +719,7 @@ function CircleStep({
   onBack,
 }: {
   members: CircleMember[];
+  signedIn: boolean;
   name: string;
   relationship: string;
   method: CircleMember["method"];
@@ -746,8 +750,17 @@ function CircleStep({
           their availability and the permissions they give.
         </p>
       </div>
+      {signedIn && (
+        <div className="mb-6">
+          <SafetyNetworkPanel />
+        </div>
+      )}
       <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        <span>{members.length ? `${members.length} invited` : "No one invited yet"}</span>
+        <span>
+          {members.length
+            ? `${members.length} contact${members.length > 1 ? "s" : ""} not on Allma`
+            : "Contacts not on Allma"}
+        </span>
         {members.length > 0 && (
           <span className="flex items-center gap-1 text-trusted">
             <SlidersHorizontal className="h-3 w-3" /> Priority order
