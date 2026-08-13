@@ -19,6 +19,8 @@ import {
   ALLMA_ONBOARDING_BLOCK,
   ALLMA_REPORTING_BLOCK,
 } from "@/lib/allma-prompt";
+import { ALLMA_MARKER_CONTRACT, parseAllmaMarkers } from "@/lib/allma-markers";
+
 
 import {
   createLovableAiGatewayProvider,
