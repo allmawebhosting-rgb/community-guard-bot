@@ -1268,10 +1268,8 @@ export function AllmaChat({
     }
 
     // The assistant asked where the user is: always give a one-tap GPS share.
-    const assistantText = parts
-      .filter((p) => (p as { type: string }).type === "text")
-      .map((p) => String((p as unknown as { text?: string }).text ?? ""))
-      .join(" ");
+    const assistantText = markers.text;
+
     const locationChip: Suggestion[] = LOCATION_ASK.test(assistantText)
       ? [{ label: "Share my location", prompt: LOCATION_CHIP }]
       : [];
