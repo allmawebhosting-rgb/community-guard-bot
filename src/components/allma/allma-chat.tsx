@@ -102,9 +102,18 @@ const IDLE_CHIPS: Suggestion[] = [
   { label: "Emergency numbers", prompt: "Show me the emergency numbers" },
 ];
 
+// Topic-derived answers, used whenever the assistant asks something without
+// supplying options. Ordered most-specific first; the first match wins.
 const STEP_FALLBACK_CHIPS: Array<{ matches: RegExp; chips: Suggestion[] }> = [
   {
-    matches: /safe|danger|immediate|threat/i,
+    matches: /\b(lose|lost)\b.*\b(or|vs)\b.*\bfound\b|did you lose|lost or found|lose an item|find someone else/i,
+    chips: [
+      { label: "I lost something", prompt: "I lost something" },
+      { label: "I found something", prompt: "I found something" },
+    ],
+  },
+  {
+    matches: /safe|danger|immediate|threat|hurt|injur/i,
     chips: [
       { label: "Yes, I'm safe", prompt: "Yes, I'm safe" },
       { label: "No, I'm in danger", prompt: "No, I'm in danger" },
@@ -112,15 +121,48 @@ const STEP_FALLBACK_CHIPS: Array<{ matches: RegExp; chips: Suggestion[] }> = [
     ],
   },
   {
-    matches: /photo|video|evidence|attach|upload/i,
+    matches: /photo|picture|image|video|evidence|attach|upload/i,
     chips: [
-      { label: "Attach a photo", prompt: "I'd like to attach a photo" },
-      { label: "I have a video", prompt: "I have a video to attach" },
+      { label: "Attach a photo", prompt: ATTACH_CHIP },
       { label: "Skip for now", prompt: "Skip for now" },
     ],
   },
   {
-    matches: /where|location|place|area|happen/i,
+    matches: /adult or child|how old|\bage\b|child|minor/i,
+    chips: [
+      { label: "An adult", prompt: "The person is an adult" },
+      { label: "A child", prompt: "The person is a child" },
+      { label: "I'll type the age", prompt: "I'll type the age" },
+    ],
+  },
+  {
+    matches: /police|hospital|clinic|fire brigade|ambulance|which service|kind of help/i,
+    chips: [
+      { label: "Police station", prompt: "I need the nearest police station" },
+      { label: "Hospital", prompt: "I need the nearest hospital" },
+      { label: "Fire station", prompt: "I need the nearest fire station" },
+    ],
+  },
+  {
+    matches: /what (kind|type) of (crime|incident)|theft|robbery|assault|burglar|fraud|what happened/i,
+    chips: [
+      { label: "Theft", prompt: "It was a theft" },
+      { label: "Robbery", prompt: "It was a robbery" },
+      { label: "Assault", prompt: "It was an assault" },
+      { label: "Something else", prompt: "It was something else, I'll describe it" },
+    ],
+  },
+  {
+    matches: /\bwhat (item|was lost|did you)\b|describe the item|kind of item|phone|wallet|bag|document/i,
+    chips: [
+      { label: "Phone", prompt: "It is a phone" },
+      { label: "Wallet or purse", prompt: "It is a wallet or purse" },
+      { label: "Documents", prompt: "They are documents" },
+      { label: "I'll describe it", prompt: "I'll describe the item myself" },
+    ],
+  },
+  {
+    matches: /where|location|place|area|landmark|district/i,
     chips: [
       { label: "Share my location", prompt: LOCATION_CHIP },
       { label: "Type the location", prompt: "I'll type the location" },
@@ -128,14 +170,38 @@ const STEP_FALLBACK_CHIPS: Array<{ matches: RegExp; chips: Suggestion[] }> = [
     ],
   },
   {
-    matches: /when|time|date|last seen/i,
+    matches: /when|time|date|last seen|how long/i,
     chips: [
       { label: "Today", prompt: "It happened today" },
       { label: "Yesterday", prompt: "It happened yesterday" },
       { label: "I'm not sure", prompt: "I'm not sure when it happened" },
     ],
   },
+  {
+    matches: /file (this|the) report|submit|shall I|should I file|confirm|is that right|correct\?/i,
+    chips: [
+      { label: "Yes, file it", prompt: "Yes, please file the report" },
+      { label: "Let me correct something", prompt: "I need to correct something first" },
+      { label: "Not yet", prompt: "Not yet" },
+    ],
+  },
+  {
+    matches: /contact|phone number|name|reach you/i,
+    chips: [
+      { label: "Use my profile details", prompt: "Use the contact details on my profile" },
+      { label: "I'll type them", prompt: "I'll type my contact details" },
+      { label: "Keep me anonymous", prompt: "Please keep me anonymous" },
+    ],
+  },
 ];
+
+// Sentences the model sometimes leads with even when the user opened with a
+// concrete request. Presentation-only: the stored message keeps its text.
+const GREETING_LEAD =
+  /^\s*(?:👋|🙏|hi|hello|hey)?[^.!?\n]*\b(?:i(?:'|’)?m|i am)\s+allma[^.!?\n]*[.!?]\s*/i;
+const INTENT_OPENER =
+  /\b(report|lost|found|missing|stolen|theft|robbery|assault|crime|sos|emergency|ambulance|police|hospital|fire|help near|nearest)\b/i;
+
 
 const QUICK_ACTIONS: Array<{ label: string; prompt: string; icon: typeof Camera }> = [
   { label: "Report a crime", prompt: "I want to report a crime", icon: ShieldAlert },
