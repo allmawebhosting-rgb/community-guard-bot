@@ -88,6 +88,10 @@ const FLOW_ICONS: Record<string, typeof ShieldAlert> = {
   emergency: Siren,
 };
 
+// Sentinel prompt: this chip opens the attachment picker instead of sending text.
+const ATTACH_CHIP = "__attach__";
+
+
 const IDLE_CHIPS: Suggestion[] = [
   { label: "Report a crime", prompt: "I want to report a crime" },
   { label: "Find help nearby", prompt: "Find help near me" },
