@@ -512,23 +512,14 @@ function ToolCard({
               <p className="text-sm font-semibold text-foreground leading-tight">{facName}</p>
             </div>
           </div>
-          {status ? (
+          {openAlways ? (
             <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              {status}
+              Open 24/7
             </span>
           ) : null}
         </div>
-        {address ? <p className="mb-2 text-xs text-muted-foreground">{address}</p> : null}
-        <div className="mb-2.5 flex gap-3 text-xs">
-          <span className="flex items-center gap-1 text-foreground font-medium">
-            <MapPin className="h-3 w-3 text-primary" />
-            {distanceKm} km
-          </span>
-          <span className="flex items-center gap-1 text-foreground font-medium">
-            <Clock className="h-3 w-3 text-primary" />
-            {estimatedMinutes} min
-          </span>
-        </div>
+        {address ? <p className="mb-2.5 text-xs text-muted-foreground">{address}</p> : null}
+
         {phone ? (
           <a
             href={`tel:${phone}`}
