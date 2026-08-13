@@ -55,6 +55,8 @@ import { AssistantHero } from "@/components/allma/assistant-hero";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
+
 
 type ToolPart = {
   type: string;
