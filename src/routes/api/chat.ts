@@ -176,6 +176,22 @@ export const Route = createFileRoute("/api/chat")({
             }. Ask the NEXT thing only — never repeat a step already asked, never announce step numbers in your text, and never ask two things in one turn.`
           : "";
 
+        // ---- Coordinates the user already shared (from "My current location is: lat, lng")
+        const coordMatch = /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/.exec(intakeText);
+        const sharedCoords = coordMatch
+          ? { latitude: Number(coordMatch[1]), longitude: Number(coordMatch[2]) }
+          : null;
+        const coordBlock = sharedCoords
+          ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. Call location_intelligence immediately with these latitude and longitude values. Do NOT ask them for an area, landmark or district again.`
+          : "";
+
+        // ---- Anti-repeat guard: the model must not restate its previous message.
+        const lastAssistant = [...uiMessages].reverse().find((m) => m.role === "assistant");
+        const lastAssistantText = lastAssistant ? textOf(lastAssistant).slice(0, 400) : "";
+        const repeatBlock = lastAssistantText
+          ? `\n\nYOUR PREVIOUS MESSAGE IN THIS CONVERSATION WAS: "${lastAssistantText}". Never repeat it or re-introduce yourself. Move the conversation forward instead.`
+          : "";
+
         const modelMessages = await convertToModelMessages(uiMessages);
 
 
@@ -183,7 +199,8 @@ export const Route = createFileRoute("/api/chat")({
           model: gateway(modelId),
           system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }${memoryBlock}${flowBlock}`,
+          }${memoryBlock}${flowBlock}${coordBlock}${repeatBlock}`,
+
 
           messages: modelMessages,
           stopWhen: stepCountIs(50),
