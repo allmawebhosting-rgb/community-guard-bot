@@ -1,9 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, stepCountIs, tool, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  streamText,
+  stepCountIs,
+  tool,
+  type UIMessage,
+} from "ai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { ALLMA_SYSTEM_PROMPT } from "@/lib/allma-prompt";
+import {
+  ALLMA_CORE_PROMPT,
+  ALLMA_DETAIL_BLOCK,
+  ALLMA_LOCATION_BLOCK,
+  ALLMA_MEMORY_BLOCK,
+  ALLMA_ONBOARDING_BLOCK,
+  ALLMA_REPORTING_BLOCK,
+} from "@/lib/allma-prompt";
+
 import {
   createLovableAiGatewayProvider,
   getLovableAiGatewayResponseHeaders,
