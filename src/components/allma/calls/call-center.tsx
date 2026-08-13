@@ -127,6 +127,8 @@ export function CallCenter() {
           const id = await startVoiceCall(requested.id);
           callIdRef.current = id;
           setCallId(id);
+          // Best-effort: rings the recipient's device even if their app is closed.
+          void notifyIncomingCall({ data: { callId: id } }).catch(() => undefined);
           await beginEngine(id, true);
           ringTimerRef.current = setTimeout(() => {
             void setCallStatus(id, "missed").catch(() => undefined);
