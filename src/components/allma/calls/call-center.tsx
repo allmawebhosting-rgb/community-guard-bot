@@ -57,6 +57,7 @@ export function CallCenter() {
     setMuted(false);
     setQuality("connecting");
     setEndedNote(note);
+    setRelay(null);
     setPhase(note ? "ended" : "idle");
     if (note) setTimeout(() => setPhase((current) => (current === "ended" ? "idle" : current)), 2600);
   }, []);
