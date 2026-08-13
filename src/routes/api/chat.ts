@@ -911,7 +911,8 @@ export const Route = createFileRoute("/api/chat")({
                 generated_at: new Date().toISOString(),
               }),
             }),
-          },
+          }),
+
         });
 
         const CHAT_MODELS = [
