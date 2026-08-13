@@ -813,6 +813,9 @@ export function AllmaChat({
   const [composerText, setComposerText] = useState("");
   const [pendingAccept, setPendingAccept] = useState<string | undefined>();
   const [pendingCapture, setPendingCapture] = useState<"environment" | undefined>();
+  // Storage paths of everything uploaded in this conversation, so a report filed
+  // later in the same conversation can be linked to the real evidence objects.
+  const evidencePathsRef = useRef<Array<{ path: string; mediaType: string }>>([]);
 
   const transport = useMemo(
     () =>
@@ -824,13 +827,14 @@ export function AllmaChat({
           const headers: Record<string, string> = {};
           if (token) headers.Authorization = `Bearer ${token}`;
           return {
-            body: { ...body, messages, threadId },
+            body: { ...body, messages, threadId, evidence: evidencePathsRef.current },
             headers,
           };
         },
       }),
     [threadId],
   );
+
 
   const { messages, sendMessage, status, error } = useChat({
     id: threadId ?? "guest",
