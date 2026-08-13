@@ -297,11 +297,26 @@ export function CallCenter() {
           role="dialog"
           aria-label="Allma voice call"
         >
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-primary/12 to-transparent" />
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b to-transparent",
+              isEmergencyCall ? "from-destructive/20" : "from-primary/12",
+            )}
+          />
 
           <div className="relative flex flex-1 flex-col items-center justify-center px-6 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
-              {phase === "incoming" ? "Allma call" : "Allma voice call"}
+            <p
+              className={cn(
+                "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em]",
+                isEmergencyCall ? "text-destructive" : "text-muted-foreground",
+              )}
+            >
+              {isEmergencyCall && <TriangleAlert className="h-3.5 w-3.5" />}
+              {isEmergencyCall
+                ? "Allma emergency call"
+                : phase === "incoming"
+                  ? "Allma call"
+                  : "Allma voice call"}
             </p>
 
             <motion.div
@@ -313,7 +328,26 @@ export function CallCenter() {
             </motion.div>
 
             <h2 className="mt-6 text-2xl font-bold tracking-tight">{peer?.name ?? "Allma member"}</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">{statusLine}</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {emergency && phase === "incoming"
+                ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
+                : statusLine}
+            </p>
+
+            {emergency && phase !== "ended" && (
+              <div className="mt-4 w-full max-w-xs rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-left">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
+                  Emergency
+                </p>
+                <p className="mt-1 text-[12px] font-semibold capitalize text-foreground">
+                  {emergency.emergency_type.replace(/_/g, " ")} · {emergency.severity}
+                </p>
+                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {emergency.location_shared ? emergency.area : "Location not shared with you"}
+                </p>
+              </div>
+            )}
 
             {phase === "active" && quality !== "connecting" && (
               <p className="mt-3 font-mono text-3xl font-semibold tabular-nums">
