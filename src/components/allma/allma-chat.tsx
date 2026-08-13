@@ -862,9 +862,13 @@ export function AllmaChat({
       if ((!trimmed && attachments.length === 0) || busy) return;
 
       const parts: UIMessage["parts"] = [];
-      if (trimmed) {
-        parts.push({ type: "text", text: trimmed });
-      }
+      const caption =
+        trimmed ||
+        (attachments.some((a) => a.mediaType.startsWith("image/"))
+          ? "Here is the photo you asked for."
+          : "Here is the file you asked for.");
+      parts.push({ type: "text", text: caption });
+
       for (const attachment of attachments) {
         parts.push({
           type: "file",
