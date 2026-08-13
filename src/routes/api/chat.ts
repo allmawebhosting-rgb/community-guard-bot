@@ -467,6 +467,22 @@ export const Route = createFileRoute("/api/chat")({
                  });
                  if (activityError) console.error("Failed to record report activity", activityError);
 
+                // Attach the photos and files uploaded in this conversation to the report
+                // so the evidence survives outside the chat transcript.
+                if (evidence.length) {
+                  const { error: evidenceError } = await supabase.from("report_evidence").insert(
+                    evidence.map((item) => ({
+                      report_id: data.id,
+                      user_id: userId,
+                      storage_path: item.path,
+                      media_type: item.mediaType,
+                    })),
+                  );
+                  if (evidenceError) console.error("Failed to link evidence", evidenceError);
+                }
+
+
+
                 return { ok: true, ...data };
               },
             }),
