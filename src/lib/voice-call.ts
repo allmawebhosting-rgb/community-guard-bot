@@ -68,10 +68,23 @@ export function formatDuration(totalSeconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-/** Public STUN only. Peers behind symmetric NAT need a TURN server (see README note). */
-const ICE_SERVERS: RTCIceServer[] = [
+/**
+ * Last-resort fallback if the ICE endpoint itself is unreachable. Public STUN
+ * alone cannot traverse symmetric / carrier-grade NAT, so relay-less calls can
+ * still fail on some mobile networks — the UI says so rather than pretending.
+ */
+const FALLBACK_ICE: RTCIceServer[] = [
   { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
 ];
+
+async function fetchIceConfig(callId: string): Promise<{ iceServers: RTCIceServer[]; relay: boolean }> {
+  try {
+    const config = await getIceConfig({ data: { callId } });
+    return { iceServers: config.iceServers as RTCIceServer[], relay: config.relay };
+  } catch {
+    return { iceServers: FALLBACK_ICE, relay: false };
+  }
+}
 
 export function microphoneErrorMessage(error: unknown) {
   const name = (error as { name?: string } | null)?.name;
