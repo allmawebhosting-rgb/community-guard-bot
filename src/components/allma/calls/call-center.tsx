@@ -301,6 +301,26 @@ export function CallCenter() {
               <ShieldCheck className="h-3.5 w-3.5 text-success" />
               In-app call · phone numbers stay private
             </p>
+
+            {relay !== null && phase !== "ended" && (
+              <p
+                className={cn(
+                  "mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium",
+                  relay ? "text-muted-foreground" : "text-warning",
+                )}
+              >
+                {relay ? (
+                  <>
+                    <Network className="h-3.5 w-3.5" /> Relay active — works on mobile networks
+                  </>
+                ) : (
+                  <>
+                    <Network className="h-3.5 w-3.5" /> Direct connection only — may fail on some
+                    mobile networks
+                  </>
+                )}
+              </p>
+            )}
           </div>
 
           <div className="relative px-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
