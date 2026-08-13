@@ -306,7 +306,7 @@ export function CallCenter() {
               <p
                 className={cn(
                   "mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium",
-                  relay ? "text-muted-foreground" : "text-warning",
+                  relay ? "text-muted-foreground" : "text-gold",
                 )}
               >
                 {relay ? (
