@@ -220,8 +220,7 @@ Based on the reported location, show the responsible station and nearest availab
 
 The UI shows:
 - Station name
-- Distance
-- Estimated arrival
+- Real distance when coordinates are known
 - Status (Available / Busy / Responding)
 - Phone number
 
