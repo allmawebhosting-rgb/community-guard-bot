@@ -10,6 +10,7 @@ import { AppShell } from "@/components/allma/app-shell";
 import { MascotAvatar } from "@/components/allma/mascot";
 import { SafetyNetworkPanel } from "@/components/allma/safety-network/safety-network-panel";
 import { BackgroundCallAlerts } from "@/components/allma/calls/background-call-alerts";
+import { RelayHealthCheck } from "@/components/allma/calls/relay-health-check";
 import { CallHistory } from "@/components/allma/calls/call-history";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -318,9 +319,13 @@ function ProfileScreen() {
               <div className="mb-3 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
                 <CallHistory />
               </div>
-              <div className="mb-4">
+              <div className="mb-3">
                 <BackgroundCallAlerts />
               </div>
+              <div className="mb-4">
+                <RelayHealthCheck />
+              </div>
+
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Nearby SOS alerts</p>
                 {sosOffers.some((offer) => offer.status === "offered") && (
