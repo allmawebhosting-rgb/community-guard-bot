@@ -171,7 +171,7 @@ export class VoiceCallEngine {
           this.events.onQuality("reconnecting");
           break;
         case "failed":
-          this.events.onFailed("The connection dropped. Please try calling again.");
+          void this.retryWithFreshIce();
           break;
         default:
           break;
