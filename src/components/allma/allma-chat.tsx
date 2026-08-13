@@ -1236,6 +1236,18 @@ export function AllmaChat({
 
   const showChips = contextualChips.length > 0;
 
+  // If the user opened with a concrete request, drop any "I'm Allma Safety AI"
+  // lead-in from replies so the answer starts on topic.
+  const suppressGreeting = useMemo(() => {
+    const firstUser = messages.find((m) => m.role === "user");
+    if (!firstUser) return false;
+    const text = (firstUser.parts ?? [])
+      .map((p) => ("text" in p && typeof p.text === "string" ? p.text : ""))
+      .join(" ");
+    return INTENT_OPENER.test(text);
+  }, [messages]);
+
+
   // Photo asks open the camera/gallery picker straight away; other media use the sheet.
   const openAttach = useCallback((mediaType?: string) => {
     if (mediaType === "photo" && attachInputRef.current) {
