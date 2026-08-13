@@ -90,6 +90,10 @@ const FLOW_ICONS: Record<string, typeof ShieldAlert> = {
 
 // Sentinel prompt: this chip opens the attachment picker instead of sending text.
 const ATTACH_CHIP = "__attach__";
+const LOCATION_CHIP = "__share_location__";
+/** Assistant prose that is asking where the user is. */
+const LOCATION_ASK = /\b(where are you|your area|area, |neighbourhood|neighborhood|landmark|nearest landmark|share your (?:current )?location|which (?:area|district)|what area)\b/i;
+
 
 
 const IDLE_CHIPS: Suggestion[] = [
