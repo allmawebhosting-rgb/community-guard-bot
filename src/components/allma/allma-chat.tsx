@@ -793,6 +793,45 @@ function ToolCard({
   );
 }
 
+/**
+ * Signed storage links expire, so history keeps only the object path and mints a
+ * fresh link when the attachment is actually opened.
+ */
+function FileAttachmentChip({ url, filename }: { url: string; filename: string }) {
+  const [opening, setOpening] = useState(false);
+
+  const open = async () => {
+    const match = /\/object\/(?:sign|public)\/evidence\/([^?]+)/.exec(url);
+    if (!match) {
+      toast.error("This attachment link is no longer available.");
+      return;
+    }
+    setOpening(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from("evidence")
+        .createSignedUrl(decodeURIComponent(match[1]), 300);
+      if (error || !data?.signedUrl) throw error ?? new Error("No link");
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Could not open this attachment.");
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={open}
+      disabled={opening}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-background/20 px-2 py-1 text-xs underline-offset-2 hover:underline disabled:opacity-60"
+    >
+      <Paperclip className="h-3 w-3" /> {filename}
+    </button>
+  );
+}
+
 export function AllmaChat({
   threadId,
   initialMessages,
