@@ -185,12 +185,30 @@ export const Route = createFileRoute("/api/chat")({
           ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. Call location_intelligence immediately with these latitude and longitude values. Do NOT ask them for an area, landmark or district again.`
           : "";
 
+        // ---- Named intent: the reply must open that flow with a step card.
+        const INTENTS: Array<{ matches: RegExp; flow: string; opener: string }> = [
+          { matches: /\blost\b|\bfound\b|misplac/i, flow: "Lost & found", opener: 'Did you lose something or find something? Options: "I lost something", "I found something".' },
+          { matches: /missing person|missing child|can'?t find (my|our)\s+\w+|disappeared/i, flow: "Missing person", opener: 'Is the missing person an adult or a child? Options: "An adult", "A child".' },
+          { matches: /sos|immediate danger|being attacked|help me now/i, flow: "Safety check", opener: 'Are you safe right now? Options: "Yes, I\'m safe", "No, I\'m in danger", "I\'m not sure".' },
+          { matches: /report (a )?(crime|theft|robbery|assault|burglar|fraud)|stolen|theft|robb|assault/i, flow: "Reporting", opener: 'What kind of incident is this? Options: "Theft", "Robbery", "Assault", "Something else".' },
+          { matches: /find help|near me|nearest|police station|hospital|ambulance|fire station/i, flow: "Find help", opener: 'Which service do you need? Options: "Police station", "Hospital", "Fire station".' },
+        ];
+        const intent = INTENTS.find((i) => i.matches.test(intakeText));
+        const intentBlock = intent
+          ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
+              flowState.flowLabel
+                ? "The flow is already running — ask the NEXT step with ask_structured_question."
+                : `Open the "${intent.flow}" flow in THIS turn by calling ask_structured_question with flow_label "${intent.flow}", step 1 and this opening question: ${intent.opener}`
+            } Do NOT ask this as plain prose without options, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
+          : "";
+
         // ---- Anti-repeat guard: the model must not restate its previous message.
         const lastAssistant = [...uiMessages].reverse().find((m) => m.role === "assistant");
         const lastAssistantText = lastAssistant ? textOf(lastAssistant).slice(0, 400) : "";
         const repeatBlock = lastAssistantText
           ? `\n\nYOUR PREVIOUS MESSAGE IN THIS CONVERSATION WAS: "${lastAssistantText}". Never repeat it or re-introduce yourself. Move the conversation forward instead.`
           : "";
+
 
         const modelMessages = await convertToModelMessages(uiMessages);
 
@@ -199,7 +217,7 @@ export const Route = createFileRoute("/api/chat")({
           model: gateway(modelId),
           system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }${memoryBlock}${flowBlock}${coordBlock}${repeatBlock}`,
+          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}`,
 
 
           messages: modelMessages,
