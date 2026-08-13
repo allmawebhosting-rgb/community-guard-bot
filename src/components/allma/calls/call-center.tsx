@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Mic, MicOff, Network, Phone, PhoneOff, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import {
+  MapPin,
+  Mic,
+  MicOff,
+  Network,
+  Phone,
+  PhoneOff,
+  ShieldCheck,
+  TriangleAlert,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyIncomingCall } from "@/lib/push.functions";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
+import { getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
+import { startSosEmergencyCall } from "@/lib/sos-calling";
 import {
   VoiceCallEngine,
   formatDuration,
@@ -40,11 +53,14 @@ export function CallCenter() {
   const [speaker, setSpeaker] = useState(true);
   const [endedNote, setEndedNote] = useState<string | null>(null);
   const [relay, setRelay] = useState<boolean | null>(null);
+  const [emergency, setEmergency] = useState<EmergencyCallContext | null>(null);
 
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
   const namesRef = useRef<Map<string, CallPeer>>(new Map());
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const peerRef = useRef<CallPeer | null>(null);
+  peerRef.current = peer;
 
   const teardown = useCallback((note: string | null) => {
     engineRef.current?.close();
@@ -58,6 +74,7 @@ export function CallCenter() {
     setQuality("connecting");
     setEndedNote(note);
     setRelay(null);
+    setEmergency(null);
     setPhase(note ? "ended" : "idle");
     if (note) setTimeout(() => setPhase((current) => (current === "ended" ? "idle" : current)), 2600);
   }, []);
@@ -126,7 +143,11 @@ export function CallCenter() {
         setEndedNote(null);
         setQuality("connecting");
         try {
-          const id = await startVoiceCall(requested.id);
+          // SOS calls go through the SOS-scoped RPC so the server can verify the
+          // caller owns that emergency and link the call to it.
+          const id = requested.sosActivityId
+            ? await startSosEmergencyCall(requested.id, requested.sosActivityId)
+            : await startVoiceCall(requested.id);
           callIdRef.current = id;
           setCallId(id);
           // Best-effort: rings the recipient's device even if their app is closed.
@@ -170,8 +191,13 @@ export function CallCenter() {
           setPeer(known ?? { id: row.caller_id, name: "Allma member" });
           setIsCaller(false);
           setEndedNote(null);
+          setEmergency(null);
           setPhase("incoming");
           void setCallStatus(row.id, "ringing").catch(() => undefined);
+          // Only the authorised recipient can read this, and only permitted fields.
+          void getEmergencyCallContext(row.id).then((context) => {
+            if (callIdRef.current === row.id && context?.is_emergency) setEmergency(context);
+          });
           ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
         },
       )
@@ -181,10 +207,9 @@ export function CallCenter() {
         (payload) => {
           const row = payload.new as { id: string; status: string };
           if (row.id !== callIdRef.current) return;
-          if (row.status === "declined") teardown(`${peer?.name ?? "They"} declined the call.`);
+          if (row.status === "declined") teardown(`${peerRef.current?.name ?? "They"} declined the call.`);
           else if (row.status === "ended") teardown("Call ended");
           else if (row.status === "missed") teardown("No answer");
-          else if (row.status === "connecting" && phase === "outgoing") setQuality("connecting");
         },
       )
       .subscribe();
@@ -192,7 +217,8 @@ export function CallCenter() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [peer?.name, phase, teardown, userId]);
+    // Deliberately keyed only on identity: re-subscribing per render would leak channels.
+  }, [teardown, userId]);
 
   // Call timer starts only when real audio is connected.
   useEffect(() => {
@@ -253,6 +279,7 @@ export function CallCenter() {
   };
 
   const visible = phase !== "idle";
+  const isEmergencyCall = Boolean(emergency) || Boolean(peer?.sosActivityId);
   const statusLine =
     phase === "outgoing"
       ? `Calling ${peer?.name?.split(" ")[0] ?? "…"}…`
@@ -273,11 +300,26 @@ export function CallCenter() {
           role="dialog"
           aria-label="Allma voice call"
         >
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-primary/12 to-transparent" />
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b to-transparent",
+              isEmergencyCall ? "from-destructive/20" : "from-primary/12",
+            )}
+          />
 
           <div className="relative flex flex-1 flex-col items-center justify-center px-6 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
-              {phase === "incoming" ? "Allma call" : "Allma voice call"}
+            <p
+              className={cn(
+                "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em]",
+                isEmergencyCall ? "text-destructive" : "text-muted-foreground",
+              )}
+            >
+              {isEmergencyCall && <TriangleAlert className="h-3.5 w-3.5" />}
+              {isEmergencyCall
+                ? "Allma emergency call"
+                : phase === "incoming"
+                  ? "Allma call"
+                  : "Allma voice call"}
             </p>
 
             <motion.div
@@ -289,7 +331,26 @@ export function CallCenter() {
             </motion.div>
 
             <h2 className="mt-6 text-2xl font-bold tracking-tight">{peer?.name ?? "Allma member"}</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">{statusLine}</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {emergency && phase === "incoming"
+                ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
+                : statusLine}
+            </p>
+
+            {emergency && phase !== "ended" && (
+              <div className="mt-4 w-full max-w-xs rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-left">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
+                  Emergency
+                </p>
+                <p className="mt-1 text-[12px] font-semibold capitalize text-foreground">
+                  {emergency.emergency_type.replace(/_/g, " ")} · {emergency.severity}
+                </p>
+                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {emergency.location_shared ? emergency.area : "Location not shared with you"}
+                </p>
+              </div>
+            )}
 
             {phase === "active" && quality !== "connecting" && (
               <p className="mt-3 font-mono text-3xl font-semibold tabular-nums">

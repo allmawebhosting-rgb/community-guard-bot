@@ -40,6 +40,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
+import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -3110,6 +3111,7 @@ function HelpScreen({
         <div className="flex-1 overflow-y-auto lg:hidden">
           <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
             {EmergencySummarySection}
+            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
             {AiSection}
             {QuickActionsSection}
             {EscalationSection}
@@ -3148,6 +3150,7 @@ function HelpScreen({
         <div className="hidden flex-1 overflow-y-auto bg-background/10 lg:block">
           <div className="mx-auto w-full max-w-4xl space-y-5 px-6 py-5 pb-14 xl:px-8">
             {EmergencySummarySection}
+            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
             {AiSection}
             {QuickActionsSection}
             {EscalationSection}
