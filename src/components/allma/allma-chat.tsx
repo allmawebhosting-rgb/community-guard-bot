@@ -571,6 +571,7 @@ function ToolCard({
               address={String(policeStation.address ?? policeStation.district ?? "")}
               openAlways={Boolean(policeStation.is_24_7)}
               phone={policeStation.phone ? String(policeStation.phone) : undefined}
+              distanceKm={distanceOf(policeStation)}
             />
           ) : null}
           {hospital ? (
@@ -583,6 +584,7 @@ function ToolCard({
               address={String(hospital.address ?? hospital.district ?? "")}
               openAlways={Boolean(hospital.is_24_7)}
               phone={hospital.phone ? String(hospital.phone) : undefined}
+              distanceKm={distanceOf(hospital)}
             />
           ) : null}
           {fireStation ? (
@@ -595,8 +597,10 @@ function ToolCard({
               address={String(fireStation.address ?? fireStation.district ?? "")}
               openAlways={Boolean(fireStation.is_24_7)}
               phone={fireStation.phone ? String(fireStation.phone) : undefined}
+              distanceKm={distanceOf(fireStation)}
             />
           ) : null}
+
 
           {!policeStation && !hospital && !fireStation ? (
             <p className="text-sm text-muted-foreground">
