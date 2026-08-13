@@ -277,6 +277,7 @@ export function CallCenter() {
   };
 
   const visible = phase !== "idle";
+  const isEmergencyCall = Boolean(emergency) || Boolean(peer?.sosActivityId);
   const statusLine =
     phase === "outgoing"
       ? `Calling ${peer?.name?.split(" ")[0] ?? "…"}…`
