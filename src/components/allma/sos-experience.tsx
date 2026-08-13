@@ -3110,6 +3110,7 @@ function HelpScreen({
         <div className="flex-1 overflow-y-auto lg:hidden">
           <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
             {EmergencySummarySection}
+            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
             {AiSection}
             {QuickActionsSection}
             {EscalationSection}
