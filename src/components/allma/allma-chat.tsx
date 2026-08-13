@@ -1192,7 +1192,7 @@ export function AllmaChat({
                             key={index}
                             part={part as ToolPart}
                             onSend={send}
-                            onOpenAttach={() => setAttachSheetOpen(true)}
+                            onOpenAttach={openAttach}
                             onShareLocation={shareLocation}
                           />
                         );
