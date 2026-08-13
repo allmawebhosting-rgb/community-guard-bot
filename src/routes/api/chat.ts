@@ -281,7 +281,19 @@ export const Route = createFileRoute("/api/chat")({
                   .describe("Optional one-line tips separated by ' · ', e.g. 'Good light · Show the whole scene · Up to 4 photos'"),
                 optional: z.boolean().describe("Whether the user can skip this request"),
               }),
-              execute: async (input) => ({ ok: true, ...input }),
+              execute: async (input) => {
+                if (flowState.cardIssued) {
+                  return {
+                    ok: false,
+                    suppressed: true,
+                    reason:
+                      "You already asked a question this turn. Request media on its own turn, after the user answers.",
+                  };
+                }
+                flowState.cardIssued = true;
+                return { ok: true, ...input };
+              },
+
             }),
             recommend_actions: tool({
               description:
