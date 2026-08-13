@@ -267,10 +267,11 @@ export const Route = createFileRoute("/api/chat")({
         const intentBlock = intent
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
-                ? "The flow is already running — ask the NEXT step with ask_structured_question."
-                : `Open the "${intent.flow}" flow in THIS turn by calling ask_structured_question with flow_label "${intent.flow}", step 1 and this opening question: ${intent.opener}`
-            } Do NOT ask this as plain prose without options, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
+                ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
+                : `Open the "${intent.flow}" flow in THIS reply: first line ::flow{type=${intent.flow}, step=1, total=4, title="…"}, then this opening question: ${intent.opener} and end with a ::suggest[…] line carrying exactly those options.`
+            } Do NOT ask this as plain prose without a ::suggest line, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
           : "";
+
 
         // ---- Anti-repeat guard: the model must not restate its previous message.
         const lastAssistant = [...uiMessages].reverse().find((m) => m.role === "assistant");
