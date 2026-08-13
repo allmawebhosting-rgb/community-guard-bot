@@ -318,9 +318,13 @@ function ProfileScreen() {
               <div className="mb-3 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
                 <CallHistory />
               </div>
-              <div className="mb-4">
+              <div className="mb-3">
                 <BackgroundCallAlerts />
               </div>
+              <div className="mb-4">
+                <RelayHealthCheck />
+              </div>
+
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Nearby SOS alerts</p>
                 {sosOffers.some((offer) => offer.status === "offered") && (
