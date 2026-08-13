@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Mic, MicOff, Network, Phone, PhoneOff, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import {
+  MapPin,
+  Mic,
+  MicOff,
+  Network,
+  Phone,
+  PhoneOff,
+  ShieldCheck,
+  TriangleAlert,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyIncomingCall } from "@/lib/push.functions";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
+import { getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
+import { startSosEmergencyCall } from "@/lib/sos-calling";
 import {
   VoiceCallEngine,
   formatDuration,
