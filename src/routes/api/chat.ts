@@ -119,6 +119,71 @@ export const Route = createFileRoute("/api/chat")({
         const lastUserMessage = [...uiMessages].reverse().find((m) => m.role === "user");
         const intakeText = lastUserMessage ? textOf(lastUserMessage) : "";
 
+        // ---- Greeting-only opener: answered locally, no model call, no credits.
+        const isGreetingOnly =
+          !uiMessages.some((m) => m.role === "assistant") &&
+          /^(hi|hey|hello|yo|hola|hei|hie|good (morning|afternoon|evening)|greetings|oli otya|wasup|what'?s up)[\s!.,?]*$/i.test(
+            intakeText.trim(),
+          );
+
+        if (isGreetingOnly) {
+          const greeting =
+            "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you report a crime, report a missing person, log lost or found property, and find the nearest police station, hospital or emergency number.\n\nWhat's going on today?";
+          const suggestions = [
+            { label: "Report a crime", prompt: "I want to report a crime" },
+            { label: "Missing person", prompt: "I want to report a missing person" },
+            { label: "Find help nearby", prompt: "Find help near me" },
+            { label: "Emergency numbers", prompt: "What are the emergency numbers?" },
+          ];
+          const assistantId = `allma-greeting-${Date.now()}`;
+          const stream = createUIMessageStream({
+            originalMessages: uiMessages,
+            execute: async ({ writer }) => {
+              writer.write({ type: "start", messageId: assistantId });
+              writer.write({ type: "text-start", id: "greeting" });
+              writer.write({ type: "text-delta", id: "greeting", delta: greeting });
+              writer.write({ type: "text-end", id: "greeting" });
+              const toolCallId = `${assistantId}-suggest`;
+              writer.write({
+                type: "tool-input-available",
+                toolCallId,
+                toolName: "suggest_replies",
+                input: { suggestions },
+              });
+              writer.write({
+                type: "tool-output-available",
+                toolCallId,
+                output: { ok: true, suggestions },
+              });
+              writer.write({ type: "finish" });
+            },
+            onFinish: async ({ responseMessage }) => {
+              if (!userId || !body.threadId) return;
+              const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
+              if (lastUserMessage) {
+                rows.push({
+                  thread_id: body.threadId,
+                  user_id: userId,
+                  role: "user",
+                  parts: lastUserMessage.parts as never,
+                  sdk_message_id: lastUserMessage.id,
+                });
+              }
+              rows.push({
+                thread_id: body.threadId,
+                user_id: userId,
+                role: responseMessage.role,
+                parts: responseMessage.parts as never,
+                sdk_message_id: responseMessage.id,
+              });
+              const { error } = await supabase.from("messages").insert(rows);
+              if (error) console.error("Failed to persist greeting messages", error);
+            },
+          });
+          return createUIMessageStreamResponse({ stream });
+        }
+
+
         if (userId && intakeText) {
           const normalized = intakeText.toLowerCase();
           const severity =
