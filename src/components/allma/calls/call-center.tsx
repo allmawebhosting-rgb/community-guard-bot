@@ -4,6 +4,7 @@ import { Mic, MicOff, Phone, PhoneOff, ShieldCheck, Volume2, VolumeX } from "luc
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyIncomingCall } from "@/lib/push.functions";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import {
   VoiceCallEngine,
