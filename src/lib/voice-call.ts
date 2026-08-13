@@ -299,7 +299,8 @@ export class VoiceCallEngine {
     if (this.closed || !this.pc || signal.sender_id === this.userId) return;
     try {
       if (signal.kind === "offer" && !this.isCaller) {
-        if (this.remoteReady) return;
+        const isRestart = signal.payload["restart"] === true;
+        if (this.remoteReady && !isRestart) return;
         await this.pc.setRemoteDescription({
           type: "offer",
           sdp: String(signal.payload["sdp"] ?? ""),
