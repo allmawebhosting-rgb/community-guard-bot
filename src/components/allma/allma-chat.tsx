@@ -902,53 +902,97 @@ export function AllmaChat({
     onError: (message) => toast.error(message),
   });
 
-  const uploadFiles = useCallback(async (files: FileList | null) => {
-    if (!files?.length) return;
-    const { data: auth } = await supabase.auth.getUser();
-    const userId = auth.user?.id;
-    if (!userId) {
-      toast.error("Sign in to attach photos or files to your report.");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        if (file.size > 20 * 1024 * 1024) {
-          toast.error(`${file.name} is larger than 20MB.`);
-          continue;
-        }
-        const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-        const { error: uploadError } = await supabase.storage
-          .from("evidence")
-          .upload(path, file, { contentType: file.type || "application/octet-stream" });
-        if (uploadError) {
-          console.error(uploadError);
-          toast.error(`Could not upload ${file.name}.`);
-          continue;
-        }
-        const { data: signed, error: signError } = await supabase.storage
-          .from("evidence")
-          .createSignedUrl(path, 3600);
-        if (signError || !signed?.signedUrl) {
-          toast.error(`Could not attach ${file.name}.`);
-          continue;
-        }
-        setAttachments((current) => [
-          ...current,
-          {
-            id: path,
-            name: file.name,
-            mediaType: file.type || "application/octet-stream",
-            url: signed.signedUrl,
-            preview: URL.createObjectURL(file),
-          },
-        ]);
-      }
-    } finally {
-      setUploading(false);
-    }
+  // Images are inlined as compressed data URLs so the assistant always receives
+  // the pixels instead of depending on a link fetch of a private storage object.
+  const inlineImage = useCallback(async (file: File) => {
+    const bitmap = await createImageBitmap(file);
+    const maxEdge = 1280;
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas unavailable");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    return canvas.toDataURL("image/jpeg", 0.82);
   }, []);
+
+  const uploadFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files?.length) return;
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId) {
+        toast.error("Sign in to attach photos or files to your report.");
+        return;
+      }
+
+      setUploading(true);
+      try {
+        for (const file of Array.from(files)) {
+          if (file.size === 0) {
+            toast.error(`${file.name} is empty — try picking it again.`);
+            continue;
+          }
+          if (file.size > 20 * 1024 * 1024) {
+            toast.error(`${file.name} is larger than 20MB. Try a smaller file.`);
+            continue;
+          }
+          const isImage = file.type.startsWith("image/");
+
+          // Keep a durable copy in storage for the report record.
+          const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+          const { error: uploadError } = await supabase.storage
+            .from("evidence")
+            .upload(path, file, { contentType: file.type || "application/octet-stream" });
+          if (uploadError) {
+            console.error(uploadError);
+            toast.error(`Could not upload ${file.name}: ${uploadError.message}`);
+            continue;
+          }
+
+          let url: string | null = null;
+          if (isImage) {
+            try {
+              url = await inlineImage(file);
+            } catch (error) {
+              console.error("Image inlining failed", error);
+            }
+          }
+          if (!url) {
+            const { data: signed, error: signError } = await supabase.storage
+              .from("evidence")
+              .createSignedUrl(path, 3600);
+            if (signError || !signed?.signedUrl) {
+              toast.error(`Could not attach ${file.name}. Please try again.`);
+              continue;
+            }
+            url = signed.signedUrl;
+          }
+
+          setAttachments((current) => [
+            ...current,
+            {
+              id: path,
+              name: file.name,
+              mediaType: isImage ? "image/jpeg" : file.type || "application/octet-stream",
+              url,
+              preview: URL.createObjectURL(file),
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error("Attachment failed", error);
+        toast.error(
+          error instanceof Error ? `Attachment failed: ${error.message}` : "Attachment failed.",
+        );
+      } finally {
+        setUploading(false);
+      }
+    },
+    [inlineImage],
+  );
 
   const isEmpty = messages.length === 0;
   const lastMsg = messages[messages.length - 1];
@@ -958,9 +1002,22 @@ export function AllmaChat({
   const contextualChips = useMemo(() => {
     if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
     const parts = (lastMsg.parts ?? []) as ToolPart[];
+    const flowActive = messages.some((m) =>
+      ((m.parts ?? []) as ToolPart[]).some(
+        (p) =>
+          p.type === "tool-ask_structured_question" &&
+          (p.output as { ok?: boolean } | undefined)?.ok === true,
+      ),
+    );
+
     // A live step question owns the chip row — its options are the answers.
-    const stepPart = [...parts].reverse().find((p) => p.type === "tool-ask_structured_question") as
-      ToolPart | undefined;
+    const stepPart = [...parts]
+      .reverse()
+      .find(
+        (p) =>
+          p.type === "tool-ask_structured_question" &&
+          (p.output as { ok?: boolean } | undefined)?.ok === true,
+      ) as ToolPart | undefined;
     const stepOutput = stepPart?.output as
       { options?: Array<{ label: string; value: string }> } | undefined;
     if (stepPart) {
@@ -982,13 +1039,37 @@ export function AllmaChat({
         ]
       );
     }
+
+    // A media request owns the chip row: attach or skip.
+    const mediaPart = [...parts]
+      .reverse()
+      .find(
+        (p) =>
+          p.type === "tool-request_media" &&
+          (p.output as { ok?: boolean } | undefined)?.ok === true,
+      ) as ToolPart | undefined;
+    if (mediaPart) {
+      const media = mediaPart.output as
+        { media_type?: string; optional?: boolean } | undefined;
+      if (media?.media_type !== "location") {
+        const chips: Suggestion[] = [
+          { label: media?.media_type === "photo" ? "Attach a photo" : "Attach a file", prompt: ATTACH_CHIP },
+        ];
+        if (media?.optional) chips.push({ label: "Skip for now", prompt: "Skip for now" });
+        return chips;
+      }
+    }
+
     const suggestionPart = [...parts].reverse().find((p) => p.type === "tool-suggest_replies") as
       ToolPart | undefined;
     const output = suggestionPart?.output as
       { suggestions?: Array<{ label: string; prompt: string }> } | undefined;
     const suggestions = ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
-    return suggestions.length > 0 ? suggestions : IDLE_CHIPS;
-  }, [busy, isEmpty, status, lastMsg]);
+    if (suggestions.length > 0) return suggestions;
+    // Never fall back to the broad idle menu while a guided flow is running.
+    return flowActive ? [] : IDLE_CHIPS;
+  }, [busy, isEmpty, status, lastMsg, messages]);
+
 
   const showChips = contextualChips.length > 0;
 
