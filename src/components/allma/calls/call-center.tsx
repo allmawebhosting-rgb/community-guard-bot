@@ -189,8 +189,13 @@ export function CallCenter() {
           setPeer(known ?? { id: row.caller_id, name: "Allma member" });
           setIsCaller(false);
           setEndedNote(null);
+          setEmergency(null);
           setPhase("incoming");
           void setCallStatus(row.id, "ringing").catch(() => undefined);
+          // Only the authorised recipient can read this, and only permitted fields.
+          void getEmergencyCallContext(row.id).then((context) => {
+            if (callIdRef.current === row.id && context?.is_emergency) setEmergency(context);
+          });
           ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
         },
       )
