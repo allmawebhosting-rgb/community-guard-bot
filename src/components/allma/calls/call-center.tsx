@@ -38,6 +38,7 @@ export function CallCenter() {
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(true);
   const [endedNote, setEndedNote] = useState<string | null>(null);
+  const [relay, setRelay] = useState<boolean | null>(null);
 
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
