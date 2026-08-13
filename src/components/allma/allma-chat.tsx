@@ -1297,8 +1297,13 @@ export function AllmaChat({
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() =>
-                                chip.prompt === ATTACH_CHIP ? openAttach("photo") : send(chip.prompt)
+                                chip.prompt === ATTACH_CHIP
+                                  ? openAttach("photo")
+                                  : chip.prompt === LOCATION_CHIP
+                                    ? shareLocation()
+                                    : send(chip.prompt)
                               }
+
 
                               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/30 bg-card/70 px-3.5 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/60 hover:bg-primary/[0.06] hover:text-foreground"
                             >
