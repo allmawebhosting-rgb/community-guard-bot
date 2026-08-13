@@ -1192,13 +1192,13 @@ export function AllmaChat({
                             className="max-h-56 w-auto rounded-xl border border-border/60 object-cover"
                           />
                         ) : (
-                          <span
+                          <FileAttachmentChip
                             key={index}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-background/20 px-2 py-1 text-xs"
-                          >
-                            <Paperclip className="h-3 w-3" /> {part.filename ?? "Attachment"}
-                          </span>
+                            url={part.url}
+                            filename={part.filename ?? "Attachment"}
+                          />
                         );
+
                       }
                       if (part.type.startsWith("tool-")) {
                         return (
