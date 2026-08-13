@@ -1311,13 +1311,18 @@ export function AllmaChat({
                   >
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
+                        const text =
+                          message.role === "assistant" && suppressGreeting
+                            ? part.text.replace(GREETING_LEAD, "").trimStart() || part.text
+                            : part.text;
                         return message.role === "assistant" ? (
                           <MessageResponse
                             key={index}
                             className="px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95"
                           >
-                            {part.text}
+                            {text}
                           </MessageResponse>
+
                         ) : (
                           <p
                             key={index}
