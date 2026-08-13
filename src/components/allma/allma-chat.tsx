@@ -479,6 +479,9 @@ function ToolCard({
     const policeStation = output.police_station as Record<string, unknown> | null;
     const hospital = output.hospital as Record<string, unknown> | null;
     const fireStation = output.fire_station as Record<string, unknown> | null;
+    const distanceOf = (facility: Record<string, unknown>) =>
+      typeof facility.distance_km === "number" ? (facility.distance_km as number) : undefined;
+
 
     type FacilityCardProps = {
       icon: typeof MapPin;
