@@ -264,7 +264,58 @@ function FlowBanner({
   );
 }
 
+function MediaRequestCard({
+  media,
+  onSend,
+  onOpenAttach,
+  onShareLocation,
+}: {
+  media: MarkerMedia;
+  onSend: (text: string) => void;
+  onOpenAttach?: (mediaType?: string) => void;
+  onShareLocation?: () => void;
+}) {
+  const mediaType = media.mediaType || "photo";
+  const prompt = media.prompt || "Please upload a photo or file.";
+  const tips = media.tips ?? DEFAULT_MEDIA_TIPS[mediaType] ?? null;
+  const isLocation = mediaType === "location";
+  const MediaIcon = MEDIA_ICONS[mediaType] ?? Camera;
+
+  return (
+    <div className="space-y-2">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        whileHover={{ scale: 1.005 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.(mediaType))}
+        className="flex w-full items-center gap-3 rounded-[1.25rem] border border-gold/35 bg-gold/[0.08] px-4 py-3.5 text-left transition-colors hover:border-gold/60 hover:bg-gold/[0.14]"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-primary shadow-soft">
+          <MediaIcon className="h-5 w-5 text-primary-foreground" />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-foreground">{prompt}</span>
+          {tips ? <span className="block truncate text-xs text-muted-foreground">{tips}</span> : null}
+        </span>
+      </motion.button>
+      {media.optional ? (
+        <button
+          type="button"
+          onClick={() => onSend("Skip for now")}
+          className="rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
+        >
+          Skip for now
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 const ATTACHMENT_OPTIONS = [
+
   {
     id: "camera",
     icon: Camera,
