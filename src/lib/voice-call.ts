@@ -31,7 +31,15 @@ export type CallHistoryEntry = {
   created_at: string;
 };
 
-export type CallPeer = { id: string; name: string; avatarUrl?: string | null };
+export type CallPeer = {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  /** Present only for calls placed from the caller's own active SOS. */
+  sosActivityId?: string;
+  /** Shown to the caller so the emergency context is explicit. */
+  emergencyType?: string;
+};
 
 export type ConnectionQuality = "connecting" | "good" | "poor" | "reconnecting";
 
