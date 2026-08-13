@@ -188,6 +188,32 @@ export class VoiceCallEngine {
     }
   }
 
+  /**
+   * One retry with freshly minted ICE credentials before giving up. A first
+   * attempt can fail because a relay credential expired or the network changed.
+   */
+  private async retryWithFreshIce() {
+    if (this.closed || !this.pc) return;
+    if (this.restarted || !this.isCaller) {
+      this.events.onFailed("The connection dropped. Please try calling again.");
+      return;
+    }
+    this.restarted = true;
+    this.events.onQuality("reconnecting");
+    try {
+      const ice = await fetchIceConfig(this.callId);
+      this.events.onRelay?.(ice.relay);
+      this.pc.setConfiguration({ iceServers: ice.iceServers });
+      const offer = await this.pc.createOffer({ iceRestart: true });
+      await this.pc.setLocalDescription(offer);
+      await this.send("offer", { sdp: offer.sdp, restart: true });
+    } catch {
+      this.events.onFailed("We could not reconnect this call. Please try again.");
+    }
+  }
+
+
+
   setMuted(muted: boolean) {
     this.localStream?.getAudioTracks().forEach((track) => {
       track.enabled = !muted;
