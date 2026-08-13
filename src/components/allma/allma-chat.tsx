@@ -55,6 +55,8 @@ import { AssistantHero } from "@/components/allma/assistant-hero";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
+
 
 type ToolPart = {
   type: string;
@@ -264,7 +266,58 @@ function FlowBanner({
   );
 }
 
+function MediaRequestCard({
+  media,
+  onSend,
+  onOpenAttach,
+  onShareLocation,
+}: {
+  media: MarkerMedia;
+  onSend: (text: string) => void;
+  onOpenAttach?: (mediaType?: string) => void;
+  onShareLocation?: () => void;
+}) {
+  const mediaType = media.mediaType || "photo";
+  const prompt = media.prompt || "Please upload a photo or file.";
+  const tips = media.tips ?? DEFAULT_MEDIA_TIPS[mediaType] ?? null;
+  const isLocation = mediaType === "location";
+  const MediaIcon = MEDIA_ICONS[mediaType] ?? Camera;
+
+  return (
+    <div className="space-y-2">
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        whileHover={{ scale: 1.005 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.(mediaType))}
+        className="flex w-full items-center gap-3 rounded-[1.25rem] border border-gold/35 bg-gold/[0.08] px-4 py-3.5 text-left transition-colors hover:border-gold/60 hover:bg-gold/[0.14]"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-primary shadow-soft">
+          <MediaIcon className="h-5 w-5 text-primary-foreground" />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-foreground">{prompt}</span>
+          {tips ? <span className="block truncate text-xs text-muted-foreground">{tips}</span> : null}
+        </span>
+      </motion.button>
+      {media.optional ? (
+        <button
+          type="button"
+          onClick={() => onSend("Skip for now")}
+          className="rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
+        >
+          Skip for now
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 const ATTACHMENT_OPTIONS = [
+
   {
     id: "camera",
     icon: Camera,
@@ -391,47 +444,21 @@ function ToolCard({
   }
 
   if (name === "request_media" && output?.ok) {
-    const prompt = String(output.prompt ?? "Please upload a photo or file.");
-    const mediaType = String(output.media_type ?? "photo");
-    const tips = output.tips ? String(output.tips) : (DEFAULT_MEDIA_TIPS[mediaType] ?? null);
-    const optional = Boolean(output.optional);
-    const isLocation = mediaType === "location";
-    const MediaIcon = MEDIA_ICONS[mediaType] ?? Camera;
-
     return (
-      <div className="space-y-2">
-        <motion.button
-          type="button"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          whileHover={{ scale: 1.005 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.(mediaType))}
-          className="flex w-full items-center gap-3 rounded-[1.25rem] border border-gold/35 bg-gold/[0.08] px-4 py-3.5 text-left transition-colors hover:border-gold/60 hover:bg-gold/[0.14]"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-primary shadow-soft">
-            <MediaIcon className="h-5 w-5 text-primary-foreground" />
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-foreground">{prompt}</span>
-            {tips ? (
-              <span className="block truncate text-xs text-muted-foreground">{tips}</span>
-            ) : null}
-          </span>
-        </motion.button>
-        {optional ? (
-          <button
-            type="button"
-            onClick={() => onSend("Skip for now")}
-            className="rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
-          >
-            Skip for now
-          </button>
-        ) : null}
-      </div>
+      <MediaRequestCard
+        media={{
+          mediaType: String(output.media_type ?? "photo"),
+          prompt: String(output.prompt ?? ""),
+          tips: output.tips ? String(output.tips) : null,
+          optional: Boolean(output.optional),
+        }}
+        onSend={onSend}
+        onOpenAttach={onOpenAttach}
+        onShareLocation={onShareLocation}
+      />
     );
   }
+
 
   if (name === "recommend_actions" && output?.ok) {
     const title = String(output.title ?? "Recommended actions");
@@ -1141,18 +1168,54 @@ export function AllmaChat({
   const isEmpty = messages.length === 0;
   const lastMsg = messages[messages.length - 1];
 
-  // Contextual chips come from the model's suggest_replies tool for the last
-  // assistant turn. No generic fallback list — suggestions always follow the topic.
+  // Contextual chips come from the ::suggest marker in the last assistant reply
+  // (legacy threads fall back to the old suggest_replies tool output).
   const contextualChips = useMemo(() => {
     if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
     const parts = (lastMsg.parts ?? []) as ToolPart[];
-    const flowActive = messages.some((m) =>
-      ((m.parts ?? []) as ToolPart[]).some(
-        (p) =>
-          p.type === "tool-ask_structured_question" &&
-          (p.output as { ok?: boolean } | undefined)?.ok === true,
-      ),
-    );
+    const rawText = parts
+      .filter((p) => p.type === "text")
+      .map((p) => String((p as unknown as { text?: string }).text ?? ""))
+      .join("\n");
+    const markers = parseAllmaMarkers(rawText);
+
+    // Inline markers win: they were written for exactly this step.
+    if (markers.suggestions.length > 0) return markers.suggestions.slice(0, 4);
+    if (markers.media) {
+      if (markers.media.mediaType === "location") {
+        return [{ label: "Share my location", prompt: LOCATION_CHIP }];
+      }
+      const chips: Suggestion[] = [
+        {
+          label: markers.media.mediaType === "photo" ? "Attach a photo" : "Attach a file",
+          prompt: ATTACH_CHIP,
+        },
+      ];
+      if (markers.media.optional) chips.push({ label: "Skip for now", prompt: "Skip for now" });
+      return chips;
+    }
+
+    const flowActive =
+      Boolean(markers.flow) ||
+      messages.some((m) => {
+        const mParts = (m.parts ?? []) as ToolPart[];
+        if (
+          mParts.some(
+            (p) =>
+              p.type === "tool-ask_structured_question" &&
+              (p.output as { ok?: boolean } | undefined)?.ok === true,
+          )
+        ) {
+          return true;
+        }
+        if (m.role !== "assistant") return false;
+        const t = mParts
+          .filter((p) => p.type === "text")
+          .map((p) => String((p as unknown as { text?: string }).text ?? ""))
+          .join("\n");
+        return Boolean(parseAllmaMarkers(t).flow);
+      });
+
 
     // A live step question owns the chip row — its options are the answers.
     const stepPart = [...parts]
@@ -1205,10 +1268,8 @@ export function AllmaChat({
     }
 
     // The assistant asked where the user is: always give a one-tap GPS share.
-    const assistantText = parts
-      .filter((p) => (p as { type: string }).type === "text")
-      .map((p) => String((p as unknown as { text?: string }).text ?? ""))
-      .join(" ");
+    const assistantText = markers.text;
+
     const locationChip: Suggestion[] = LOCATION_ASK.test(assistantText)
       ? [{ label: "Share my location", prompt: LOCATION_CHIP }]
       : [];
@@ -1323,27 +1384,48 @@ export function AllmaChat({
                   >
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
-                        const text =
-                          message.role === "assistant" && suppressGreeting
-                            ? part.text.replace(GREETING_LEAD, "").trimStart() || part.text
-                            : part.text;
-                        return message.role === "assistant" ? (
-                          <MessageResponse
-                            key={index}
-                            className="px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95"
-                          >
-                            {text}
-                          </MessageResponse>
-
-                        ) : (
-                          <p
-                            key={index}
-                            className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift"
-                          >
-                            {part.text}
-                          </p>
+                        if (message.role !== "assistant") {
+                          return (
+                            <p
+                              key={index}
+                              className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift"
+                            >
+                              {part.text}
+                            </p>
+                          );
+                        }
+                        const parsed = parseAllmaMarkers(part.text);
+                        const text = suppressGreeting
+                          ? parsed.text.replace(GREETING_LEAD, "").trimStart() || parsed.text
+                          : parsed.text;
+                        return (
+                          <div key={index} className="space-y-3">
+                            {parsed.flow ? (
+                              <FlowBanner
+                                flowLabel={parsed.flow.label}
+                                stepTitle={parsed.flow.title || text.slice(0, 80)}
+                                step={parsed.flow.step}
+                                total={parsed.flow.total}
+                                helper={parsed.flow.helper}
+                              />
+                            ) : null}
+                            {text ? (
+                              <MessageResponse className="px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95">
+                                {text}
+                              </MessageResponse>
+                            ) : null}
+                            {parsed.media ? (
+                              <MediaRequestCard
+                                media={parsed.media}
+                                onSend={send}
+                                onOpenAttach={openAttach}
+                                onShareLocation={shareLocation}
+                              />
+                            ) : null}
+                          </div>
                         );
                       }
+
 
                       if (part.type === "file") {
                         return part.mediaType?.startsWith("image/") ? (
