@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Mic, MicOff, Phone, PhoneOff, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { Mic, MicOff, Network, Phone, PhoneOff, ShieldCheck, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyIncomingCall } from "@/lib/push.functions";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import {
   VoiceCallEngine,
@@ -38,6 +39,7 @@ export function CallCenter() {
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(true);
   const [endedNote, setEndedNote] = useState<string | null>(null);
+  const [relay, setRelay] = useState<boolean | null>(null);
 
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
@@ -55,6 +57,7 @@ export function CallCenter() {
     setMuted(false);
     setQuality("connecting");
     setEndedNote(note);
+    setRelay(null);
     setPhase(note ? "ended" : "idle");
     if (note) setTimeout(() => setPhase((current) => (current === "ended" ? "idle" : current)), 2600);
   }, []);
@@ -88,6 +91,7 @@ export function CallCenter() {
     async (id: string, caller: boolean) => {
       const engine = new VoiceCallEngine(id, userId!, caller, {
         onQuality: setQuality,
+        onRelay: setRelay,
         onConnected: () => {
           setQuality("good");
           setPhase("active");
@@ -125,6 +129,8 @@ export function CallCenter() {
           const id = await startVoiceCall(requested.id);
           callIdRef.current = id;
           setCallId(id);
+          // Best-effort: rings the recipient's device even if their app is closed.
+          void notifyIncomingCall({ data: { callId: id } }).catch(() => undefined);
           await beginEngine(id, true);
           ringTimerRef.current = setTimeout(() => {
             void setCallStatus(id, "missed").catch(() => undefined);
@@ -295,6 +301,26 @@ export function CallCenter() {
               <ShieldCheck className="h-3.5 w-3.5 text-success" />
               In-app call · phone numbers stay private
             </p>
+
+            {relay !== null && phase !== "ended" && (
+              <p
+                className={cn(
+                  "mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium",
+                  relay ? "text-muted-foreground" : "text-gold",
+                )}
+              >
+                {relay ? (
+                  <>
+                    <Network className="h-3.5 w-3.5" /> Relay active — works on mobile networks
+                  </>
+                ) : (
+                  <>
+                    <Network className="h-3.5 w-3.5" /> Direct connection only — may fail on some
+                    mobile networks
+                  </>
+                )}
+              </p>
+            )}
           </div>
 
           <div className="relative px-6 pb-[max(2rem,env(safe-area-inset-bottom))]">

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getIceConfig } from "./turn.functions";
 
 export type CallStatus =
   | "initiating"
@@ -68,10 +69,23 @@ export function formatDuration(totalSeconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-/** Public STUN only. Peers behind symmetric NAT need a TURN server (see README note). */
-const ICE_SERVERS: RTCIceServer[] = [
+/**
+ * Last-resort fallback if the ICE endpoint itself is unreachable. Public STUN
+ * alone cannot traverse symmetric / carrier-grade NAT, so relay-less calls can
+ * still fail on some mobile networks — the UI says so rather than pretending.
+ */
+const FALLBACK_ICE: RTCIceServer[] = [
   { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
 ];
+
+async function fetchIceConfig(callId: string): Promise<{ iceServers: RTCIceServer[]; relay: boolean }> {
+  try {
+    const config = await getIceConfig({ data: { callId } });
+    return { iceServers: config.iceServers as RTCIceServer[], relay: config.relay };
+  } catch {
+    return { iceServers: FALLBACK_ICE, relay: false };
+  }
+}
 
 export function microphoneErrorMessage(error: unknown) {
   const name = (error as { name?: string } | null)?.name;
@@ -91,6 +105,8 @@ type EngineEvents = {
   onQuality: (quality: ConnectionQuality) => void;
   onConnected: () => void;
   onFailed: (message: string) => void;
+  /** True when a TURN relay credential was issued for this call. */
+  onRelay?: (relay: boolean) => void;
 };
 
 /**
@@ -106,6 +122,7 @@ export class VoiceCallEngine {
   private remoteReady = false;
   private pendingCandidates: RTCIceCandidateInit[] = [];
   private closed = false;
+  private restarted = false;
 
   constructor(
     private readonly callId: string,
@@ -119,7 +136,10 @@ export class VoiceCallEngine {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const ice = await fetchIceConfig(this.callId);
+    this.events.onRelay?.(ice.relay);
+
+    const pc = new RTCPeerConnection({ iceServers: ice.iceServers });
     this.pc = pc;
     this.localStream.getTracks().forEach((track) => pc.addTrack(track, this.localStream!));
 
@@ -151,7 +171,7 @@ export class VoiceCallEngine {
           this.events.onQuality("reconnecting");
           break;
         case "failed":
-          this.events.onFailed("The connection dropped. Please try calling again.");
+          void this.retryWithFreshIce();
           break;
         default:
           break;
@@ -167,6 +187,32 @@ export class VoiceCallEngine {
       await this.send("offer", { sdp: offer.sdp });
     }
   }
+
+  /**
+   * One retry with freshly minted ICE credentials before giving up. A first
+   * attempt can fail because a relay credential expired or the network changed.
+   */
+  private async retryWithFreshIce() {
+    if (this.closed || !this.pc) return;
+    if (this.restarted || !this.isCaller) {
+      this.events.onFailed("The connection dropped. Please try calling again.");
+      return;
+    }
+    this.restarted = true;
+    this.events.onQuality("reconnecting");
+    try {
+      const ice = await fetchIceConfig(this.callId);
+      this.events.onRelay?.(ice.relay);
+      this.pc.setConfiguration({ iceServers: ice.iceServers });
+      const offer = await this.pc.createOffer({ iceRestart: true });
+      await this.pc.setLocalDescription(offer);
+      await this.send("offer", { sdp: offer.sdp, restart: true });
+    } catch {
+      this.events.onFailed("We could not reconnect this call. Please try again.");
+    }
+  }
+
+
 
   setMuted(muted: boolean) {
     this.localStream?.getAudioTracks().forEach((track) => {
@@ -253,7 +299,8 @@ export class VoiceCallEngine {
     if (this.closed || !this.pc || signal.sender_id === this.userId) return;
     try {
       if (signal.kind === "offer" && !this.isCaller) {
-        if (this.remoteReady) return;
+        const isRestart = signal.payload["restart"] === true;
+        if (this.remoteReady && !isRestart) return;
         await this.pc.setRemoteDescription({
           type: "offer",
           sdp: String(signal.payload["sdp"] ?? ""),
