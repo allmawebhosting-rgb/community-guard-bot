@@ -93,6 +93,8 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const threadId = userId && body.threadId ? body.threadId : null;
+        const evidence = parseEvidence(body.evidence);
+
 
         const initialRunId = getLovableAiGatewayRunId(request);
         const gateway = createLovableAiGatewayProvider(apiKey, initialRunId);
