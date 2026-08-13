@@ -489,16 +489,6 @@ function ToolCard({
       address: string;
       openAlways?: boolean;
       phone?: string;
-    };
-    type FacilityCardProps = {
-      icon: typeof MapPin;
-      iconColor: string;
-      iconBg: string;
-      label: string;
-      name: string;
-      address: string;
-      openAlways?: boolean;
-      phone?: string;
       distanceKm?: number;
     };
     const FacilityCard = ({
