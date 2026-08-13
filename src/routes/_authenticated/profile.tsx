@@ -314,8 +314,11 @@ function ProfileScreen() {
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
                 Allma calls
               </p>
-              <div className="mb-4 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
+              <div className="mb-3 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
                 <CallHistory />
+              </div>
+              <div className="mb-4">
+                <BackgroundCallAlerts />
               </div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Nearby SOS alerts</p>
