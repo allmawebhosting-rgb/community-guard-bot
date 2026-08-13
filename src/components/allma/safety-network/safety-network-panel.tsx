@@ -30,6 +30,7 @@ import {
   respondToRequest,
   updateConnection,
 } from "@/lib/safety-network";
+import { requestVoiceCall } from "@/lib/voice-call";
 import { AddSafetyContactDialog, Avatar } from "./add-safety-contact";
 
 export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
@@ -243,6 +244,35 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
                       )}
                     </p>
                   </div>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Call ${connection.full_name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!connection.allow_emergency_calls) {
+                        toast.error("In-app calls are turned off for this connection.");
+                        return;
+                      }
+                      requestVoiceCall({
+                        id: connection.member_id,
+                        name: connection.full_name,
+                        avatarUrl: connection.avatar_url,
+                      });
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.stopPropagation();
+                      requestVoiceCall({
+                        id: connection.member_id,
+                        name: connection.full_name,
+                        avatarUrl: connection.avatar_url,
+                      });
+                    }}
+                    className="grid h-9 w-9 place-items-center rounded-full bg-success/12 text-success transition-colors hover:bg-success/20"
+                  >
+                    <PhoneCall className="h-4 w-4" />
+                  </span>
                   <span className="text-[11px] font-semibold text-primary">
                     {expanded === connection.id ? "Close" : "Edit"}
                   </span>

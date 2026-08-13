@@ -312,6 +312,41 @@ export type Database = {
           },
         ]
       }
+      call_signals: {
+        Row: {
+          call_id: string
+          created_at: string
+          id: string
+          kind: string
+          payload: Json
+          sender_id: string
+        }
+        Insert: {
+          call_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          payload?: Json
+          sender_id: string
+        }
+        Update: {
+          call_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_signals_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_calls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_notes: {
         Row: {
           author_kind: string
@@ -2273,6 +2308,19 @@ export type Database = {
       }
       is_command_staff: { Args: { _user_id: string }; Returns: boolean }
       is_verified_officer: { Args: { _user_id: string }; Returns: boolean }
+      list_my_calls: {
+        Args: { p_limit?: number }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          direction: string
+          duration: number
+          full_name: string
+          id: string
+          other_user_id: string
+          status: string
+        }[]
+      }
       list_safety_connection_requests: {
         Args: never
         Returns: {
@@ -2323,6 +2371,7 @@ export type Database = {
         Args: { _note?: string; _recipient_id: string }
         Returns: string
       }
+      start_voice_call: { Args: { p_recipient_id: string }; Returns: string }
       update_responder_assignment: {
         Args: {
           p_assignment_id: string
@@ -2352,6 +2401,34 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "responder_assignments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_voice_call: {
+        Args: { p_call_id: string; p_reason?: string; p_status: string }
+        Returns: {
+          accepted_at: string | null
+          call_type: string
+          caller_id: string
+          connected_at: string | null
+          created_at: string
+          duration: number | null
+          ended_at: string | null
+          failure_reason: string | null
+          id: string
+          provider_confirmed: boolean
+          provider_mode: string
+          recipient_id: string
+          ringing_at: string | null
+          sos_session_id: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "emergency_calls"
           isOneToOne: true
           isSetofReturn: false
         }
