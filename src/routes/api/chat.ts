@@ -1,9 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, stepCountIs, tool, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  streamText,
+  stepCountIs,
+  tool,
+  type UIMessage,
+} from "ai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { ALLMA_SYSTEM_PROMPT } from "@/lib/allma-prompt";
+import {
+  ALLMA_CORE_PROMPT,
+  ALLMA_DETAIL_BLOCK,
+  ALLMA_LOCATION_BLOCK,
+  ALLMA_MEMORY_BLOCK,
+  ALLMA_ONBOARDING_BLOCK,
+  ALLMA_REPORTING_BLOCK,
+} from "@/lib/allma-prompt";
+
 import {
   createLovableAiGatewayProvider,
   getLovableAiGatewayResponseHeaders,
@@ -102,6 +118,71 @@ export const Route = createFileRoute("/api/chat")({
         const uiMessages = messages as UIMessage[];
         const lastUserMessage = [...uiMessages].reverse().find((m) => m.role === "user");
         const intakeText = lastUserMessage ? textOf(lastUserMessage) : "";
+
+        // ---- Greeting-only opener: answered locally, no model call, no credits.
+        const isGreetingOnly =
+          !uiMessages.some((m) => m.role === "assistant") &&
+          /^(hi|hey|hello|yo|hola|hei|hie|good (morning|afternoon|evening)|greetings|oli otya|wasup|what'?s up)[\s!.,?]*$/i.test(
+            intakeText.trim(),
+          );
+
+        if (isGreetingOnly) {
+          const greeting =
+            "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you report a crime, report a missing person, log lost or found property, and find the nearest police station, hospital or emergency number.\n\nWhat's going on today?";
+          const suggestions = [
+            { label: "Report a crime", prompt: "I want to report a crime" },
+            { label: "Missing person", prompt: "I want to report a missing person" },
+            { label: "Find help nearby", prompt: "Find help near me" },
+            { label: "Emergency numbers", prompt: "What are the emergency numbers?" },
+          ];
+          const assistantId = `allma-greeting-${Date.now()}`;
+          const stream = createUIMessageStream({
+            originalMessages: uiMessages,
+            execute: async ({ writer }) => {
+              writer.write({ type: "start", messageId: assistantId });
+              writer.write({ type: "text-start", id: "greeting" });
+              writer.write({ type: "text-delta", id: "greeting", delta: greeting });
+              writer.write({ type: "text-end", id: "greeting" });
+              const toolCallId = `${assistantId}-suggest`;
+              writer.write({
+                type: "tool-input-available",
+                toolCallId,
+                toolName: "suggest_replies",
+                input: { suggestions },
+              });
+              writer.write({
+                type: "tool-output-available",
+                toolCallId,
+                output: { ok: true, suggestions },
+              });
+              writer.write({ type: "finish" });
+            },
+            onFinish: async ({ responseMessage }) => {
+              if (!userId || !body.threadId) return;
+              const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
+              if (lastUserMessage) {
+                rows.push({
+                  thread_id: body.threadId,
+                  user_id: userId,
+                  role: "user",
+                  parts: lastUserMessage.parts as never,
+                  sdk_message_id: lastUserMessage.id,
+                });
+              }
+              rows.push({
+                thread_id: body.threadId,
+                user_id: userId,
+                role: responseMessage.role,
+                parts: responseMessage.parts as never,
+                sdk_message_id: responseMessage.id,
+              });
+              const { error } = await supabase.from("messages").insert(rows);
+              if (error) console.error("Failed to persist greeting messages", error);
+            },
+          });
+          return createUIMessageStreamResponse({ stream });
+        }
+
 
         if (userId && intakeText) {
           const normalized = intakeText.toLowerCase();
@@ -209,19 +290,53 @@ export const Route = createFileRoute("/api/chat")({
           ? `\n\nYOUR PREVIOUS MESSAGE IN THIS CONVERSATION WAS: "${lastAssistantText}". Never repeat it or re-introduce yourself. Move the conversation forward instead.`
           : "";
 
-
         const modelMessages = await convertToModelMessages(uiMessages);
 
+        // ---- Prompt budget: send the compact core always, topic detail only when
+        // that topic is actually live. A one-word "hi" no longer pays for the
+        // whole 36 KB instruction set.
+        const activeFlow = flowState.flowLabel ?? intent?.flow ?? null;
+        const isFirstTurn = !uiMessages.some((m) => m.role === "assistant");
+        const fullMode = Boolean(activeFlow) || uiMessages.length > 4;
+        const needsLocation =
+          fullMode ||
+          Boolean(sharedCoords) ||
+          /location|near me|nearest|police station|hospital|fire station|ambulance|area|landmark/i.test(
+            intakeText,
+          );
+        const promptBlocks = [ALLMA_CORE_PROMPT];
+        if (isFirstTurn) promptBlocks.push(ALLMA_ONBOARDING_BLOCK);
+        if (fullMode) promptBlocks.push(ALLMA_REPORTING_BLOCK);
+        if (needsLocation) promptBlocks.push(ALLMA_LOCATION_BLOCK);
+        if (fullMode || memoryBlock) promptBlocks.push(ALLMA_MEMORY_BLOCK);
+        if (fullMode) promptBlocks.push(ALLMA_DETAIL_BLOCK);
+        const systemPrompt = promptBlocks.join("\n\n");
+
+        // ---- Tool budget: greetings and general chat only need the light set.
+        const LIGHT_TOOL_NAMES = new Set([
+          "suggest_replies",
+          "ask_structured_question",
+          "request_media",
+          "location_intelligence",
+          "find_facilities",
+          "list_alerts",
+        ]);
+        const selectTools = <T extends Record<string, unknown>>(all: T): T =>
+          fullMode
+            ? all
+            : (Object.fromEntries(
+                Object.entries(all).filter(([name]) => LIGHT_TOOL_NAMES.has(name)),
+              ) as T);
 
         const buildStream = (modelId: string) => streamText({
           model: gateway(modelId),
-          system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
+          system: `${systemPrompt}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}`,
+          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}\n\nTURN BUDGET: one reply per turn. Say your one thing, then call AT MOST ONE of ask_structured_question or suggest_replies, and stop — wait for the user's next message. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
 
 
           messages: modelMessages,
-          stopWhen: stepCountIs(50),
+          stopWhen: stepCountIs(3),
           ...(modelId.startsWith("openai/gpt-5.6")
             ? { providerOptions: { lovable: { reasoningEffort: "none" as const } } }
             : {}),
@@ -229,7 +344,8 @@ export const Route = createFileRoute("/api/chat")({
 
 
 
-          tools: {
+          tools: selectTools({
+
             suggest_replies: tool({
               description:
                 "Offer 2-4 short, tappable follow-up suggestions that fit EXACTLY what you just said. Call this at the very end of a turn. Suggestions must be answers or next steps for the current step of the conversation — never a generic menu. Do NOT call this in the same turn as ask_structured_question (that card already shows options).",
@@ -876,7 +992,8 @@ export const Route = createFileRoute("/api/chat")({
                 generated_at: new Date().toISOString(),
               }),
             }),
-          },
+          }),
+
         });
 
         const CHAT_MODELS = [
