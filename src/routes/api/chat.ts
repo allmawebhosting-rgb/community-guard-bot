@@ -176,6 +176,22 @@ export const Route = createFileRoute("/api/chat")({
             }. Ask the NEXT thing only — never repeat a step already asked, never announce step numbers in your text, and never ask two things in one turn.`
           : "";
 
+        // ---- Coordinates the user already shared (from "My current location is: lat, lng")
+        const coordMatch = /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/.exec(intakeText);
+        const sharedCoords = coordMatch
+          ? { latitude: Number(coordMatch[1]), longitude: Number(coordMatch[2]) }
+          : null;
+        const coordBlock = sharedCoords
+          ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. Call location_intelligence immediately with these latitude and longitude values. Do NOT ask them for an area, landmark or district again.`
+          : "";
+
+        // ---- Anti-repeat guard: the model must not restate its previous message.
+        const lastAssistant = [...uiMessages].reverse().find((m) => m.role === "assistant");
+        const lastAssistantText = lastAssistant ? textOf(lastAssistant).slice(0, 400) : "";
+        const repeatBlock = lastAssistantText
+          ? `\n\nYOUR PREVIOUS MESSAGE IN THIS CONVERSATION WAS: "${lastAssistantText}". Never repeat it or re-introduce yourself. Move the conversation forward instead.`
+          : "";
+
         const modelMessages = await convertToModelMessages(uiMessages);
 
 
@@ -183,7 +199,8 @@ export const Route = createFileRoute("/api/chat")({
           model: gateway(modelId),
           system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }${memoryBlock}${flowBlock}`,
+          }${memoryBlock}${flowBlock}${coordBlock}${repeatBlock}`,
+
 
           messages: modelMessages,
           stopWhen: stepCountIs(50),
@@ -695,13 +712,88 @@ export const Route = createFileRoute("/api/chat")({
             }),
             location_intelligence: tool({
               description:
-                "Use the moment a location, area, or district is mentioned. Looks up the responsible police station, nearest hospital and fire station from Allma's facility directory and renders a Station Card. Returns only real directory data — no estimated distances or arrival times.",
+                "Use the moment a location, area, district or GPS coordinate pair is known. With latitude/longitude it returns the CLOSEST police station, hospital and fire station ranked by real straight-line distance from Allma's facility directory. Without coordinates it matches the area name. Returns only real directory data — never estimated arrival times.",
               inputSchema: z.object({
-                area: z.string().describe("The area, district, landmark, or location mentioned by the user"),
+                area: z.string().describe("The area, district, landmark, or location mentioned by the user. Use 'shared GPS location' when only coordinates are known."),
                 incident_type: z.string().describe("Type of incident: crime, emergency, fire, medical, missing_person, etc."),
+                latitude: z.number().optional().describe("Latitude the user shared, if any."),
+                longitude: z.number().optional().describe("Longitude the user shared, if any."),
               }),
-              execute: async ({ area, incident_type }) => {
+              execute: async ({ area, incident_type, latitude, longitude }) => {
                 const cleaned = area.trim();
+                const hasCoords =
+                  typeof latitude === "number" &&
+                  typeof longitude === "number" &&
+                  Number.isFinite(latitude) &&
+                  Number.isFinite(longitude);
+
+                type Facility = {
+                  name: string;
+                  facility_type: string;
+                  phone: string | null;
+                  address: string | null;
+                  district: string | null;
+                  is_24_7: boolean;
+                  latitude?: number | null;
+                  longitude?: number | null;
+                  distance_km?: number;
+                  matched_on?: string;
+                };
+
+                if (hasCoords) {
+                  const { data } = await supabase
+                    .from("facilities")
+                    .select("name, facility_type, phone, address, district, is_24_7, latitude, longitude")
+                    .not("latitude", "is", null)
+                    .not("longitude", "is", null);
+
+                  const km = (aLat: number, aLng: number, bLat: number, bLng: number) => {
+                    const R = 6371;
+                    const dLat = ((bLat - aLat) * Math.PI) / 180;
+                    const dLng = ((bLng - aLng) * Math.PI) / 180;
+                    const s =
+                      Math.sin(dLat / 2) ** 2 +
+                      Math.cos((aLat * Math.PI) / 180) *
+                        Math.cos((bLat * Math.PI) / 180) *
+                        Math.sin(dLng / 2) ** 2;
+                    return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+                  };
+
+                  const ranked = (data ?? [])
+                    .map((row) => ({
+                      ...(row as Facility),
+                      distance_km:
+                        Math.round(
+                          km(latitude!, longitude!, row.latitude as number, row.longitude as number) *
+                            10,
+                        ) / 10,
+                    }))
+                    .sort((a, b) => a.distance_km - b.distance_km);
+
+                  const nearest = (type: string) =>
+                    ranked.find((row) => row.facility_type === type) ?? null;
+
+                  const policeStation = nearest("police");
+                  const hospital = nearest("hospital");
+                  const fireStation = nearest("fire");
+                  const found = [policeStation, hospital, fireStation].filter(Boolean).length;
+
+                  return {
+                    ok: true,
+                    area: cleaned || "your shared location",
+                    incident_type,
+                    coordinates: { latitude, longitude },
+                    police_station: policeStation,
+                    hospital,
+                    fire_station: fireStation,
+                    nearby_police: ranked.filter((r) => r.facility_type === "police").slice(0, 3),
+                    directory_note:
+                      found === 0
+                        ? "Allma's directory has no facilities with coordinates yet. Tell the user honestly and give the national numbers (Police 999, Emergency 112, Ambulance 911)."
+                        : "distance_km is a real straight-line distance in kilometres — you may state it. Never state travel or arrival time.",
+                  };
+                }
+
                 const terms = Array.from(
                   new Set(
                     [cleaned, ...cleaned.split(/[,/·]|\s+near\s+|\s+/i)]
@@ -710,7 +802,7 @@ export const Route = createFileRoute("/api/chat")({
                   ),
                 ).slice(0, 6);
 
-                const lookup = async (facilityType: string) => {
+                const lookup = async (facilityType: string): Promise<Facility | null> => {
                   for (const term of terms) {
                     const pattern = `%${term}%`;
                     const { data } = await supabase
@@ -721,7 +813,7 @@ export const Route = createFileRoute("/api/chat")({
                         `district.ilike.${pattern},name.ilike.${pattern},address.ilike.${pattern}`,
                       )
                       .limit(1);
-                    if (data && data.length > 0) return { ...data[0], matched_on: term };
+                    if (data && data.length > 0) return { ...(data[0] as Facility), matched_on: term };
                   }
                   return null;
                 };
@@ -743,11 +835,12 @@ export const Route = createFileRoute("/api/chat")({
                   fire_station: fireStation,
                   directory_note:
                     found === 0
-                      ? `No facilities for "${cleaned}" are in Allma's directory yet. Tell the user honestly, give the national numbers (Police 999, Emergency 112, Ambulance 911), and continue helping.`
+                      ? `No facilities for "${cleaned}" are in Allma's directory yet. Tell the user honestly, give the national numbers (Police 999, Emergency 112, Ambulance 911), and continue helping. If they can share their GPS location, call location_intelligence again with latitude and longitude for the closest station.`
                       : "Only share the facility details returned here. Do not state distances or arrival times — they are not known.",
                 };
               },
             }),
+
 
             case_timeline: tool({
               description:

@@ -90,6 +90,10 @@ const FLOW_ICONS: Record<string, typeof ShieldAlert> = {
 
 // Sentinel prompt: this chip opens the attachment picker instead of sending text.
 const ATTACH_CHIP = "__attach__";
+const LOCATION_CHIP = "__share_location__";
+/** Assistant prose that is asking where the user is. */
+const LOCATION_ASK = /\b(where are you|your area|area, |neighbourhood|neighborhood|landmark|nearest landmark|share your (?:current )?location|which (?:area|district)|what area)\b/i;
+
 
 
 const IDLE_CHIPS: Suggestion[] = [
@@ -118,7 +122,7 @@ const STEP_FALLBACK_CHIPS: Array<{ matches: RegExp; chips: Suggestion[] }> = [
   {
     matches: /where|location|place|area|happen/i,
     chips: [
-      { label: "Share my location", prompt: "Share my current location" },
+      { label: "Share my location", prompt: LOCATION_CHIP },
       { label: "Type the location", prompt: "I'll type the location" },
       { label: "I'm not sure", prompt: "I'm not sure of the exact location" },
     ],
@@ -479,6 +483,9 @@ function ToolCard({
     const policeStation = output.police_station as Record<string, unknown> | null;
     const hospital = output.hospital as Record<string, unknown> | null;
     const fireStation = output.fire_station as Record<string, unknown> | null;
+    const distanceOf = (facility: Record<string, unknown>) =>
+      typeof facility.distance_km === "number" ? (facility.distance_km as number) : undefined;
+
 
     type FacilityCardProps = {
       icon: typeof MapPin;
@@ -489,6 +496,7 @@ function ToolCard({
       address: string;
       openAlways?: boolean;
       phone?: string;
+      distanceKm?: number;
     };
     const FacilityCard = ({
       icon: FIcon,
@@ -499,6 +507,7 @@ function ToolCard({
       address,
       openAlways,
       phone,
+      distanceKm,
     }: FacilityCardProps) => (
 
       <div className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
@@ -516,11 +525,18 @@ function ToolCard({
               <p className="text-sm font-semibold text-foreground leading-tight">{facName}</p>
             </div>
           </div>
-          {openAlways ? (
-            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              Open 24/7
-            </span>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {typeof distanceKm === "number" ? (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                {distanceKm} km away
+              </span>
+            ) : null}
+            {openAlways ? (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                Open 24/7
+              </span>
+            ) : null}
+          </div>
         </div>
         {address ? <p className="mb-2.5 text-xs text-muted-foreground">{address}</p> : null}
 
@@ -534,6 +550,7 @@ function ToolCard({
         ) : null}
       </div>
     );
+
 
     return (
       <div className="chat-card p-4">
@@ -561,6 +578,7 @@ function ToolCard({
               address={String(policeStation.address ?? policeStation.district ?? "")}
               openAlways={Boolean(policeStation.is_24_7)}
               phone={policeStation.phone ? String(policeStation.phone) : undefined}
+              distanceKm={distanceOf(policeStation)}
             />
           ) : null}
           {hospital ? (
@@ -573,6 +591,7 @@ function ToolCard({
               address={String(hospital.address ?? hospital.district ?? "")}
               openAlways={Boolean(hospital.is_24_7)}
               phone={hospital.phone ? String(hospital.phone) : undefined}
+              distanceKm={distanceOf(hospital)}
             />
           ) : null}
           {fireStation ? (
@@ -585,8 +604,10 @@ function ToolCard({
               address={String(fireStation.address ?? fireStation.district ?? "")}
               openAlways={Boolean(fireStation.is_24_7)}
               phone={fireStation.phone ? String(fireStation.phone) : undefined}
+              distanceKm={distanceOf(fireStation)}
             />
           ) : null}
+
 
           {!policeStation && !hospital && !fireStation ? (
             <p className="text-sm text-muted-foreground">
@@ -1117,14 +1138,26 @@ export function AllmaChat({
       }
     }
 
+    // The assistant asked where the user is: always give a one-tap GPS share.
+    const assistantText = parts
+      .filter((p) => (p as { type: string }).type === "text")
+      .map((p) => String((p as unknown as { text?: string }).text ?? ""))
+      .join(" ");
+    const locationChip: Suggestion[] = LOCATION_ASK.test(assistantText)
+      ? [{ label: "Share my location", prompt: LOCATION_CHIP }]
+      : [];
+
     const suggestionPart = [...parts].reverse().find((p) => p.type === "tool-suggest_replies") as
       ToolPart | undefined;
     const output = suggestionPart?.output as
       { suggestions?: Array<{ label: string; prompt: string }> } | undefined;
     const suggestions = ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
-    if (suggestions.length > 0) return suggestions;
+    if (suggestions.length > 0 || locationChip.length > 0) {
+      return [...locationChip, ...suggestions].slice(0, 4);
+    }
     // Never fall back to the broad idle menu while a guided flow is running.
     return flowActive ? [] : IDLE_CHIPS;
+
   }, [busy, isEmpty, status, lastMsg, messages]);
 
 
@@ -1280,8 +1313,13 @@ export function AllmaChat({
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() =>
-                                chip.prompt === ATTACH_CHIP ? openAttach("photo") : send(chip.prompt)
+                                chip.prompt === ATTACH_CHIP
+                                  ? openAttach("photo")
+                                  : chip.prompt === LOCATION_CHIP
+                                    ? shareLocation()
+                                    : send(chip.prompt)
                               }
+
 
                               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/30 bg-card/70 px-3.5 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/60 hover:bg-primary/[0.06] hover:text-foreground"
                             >
