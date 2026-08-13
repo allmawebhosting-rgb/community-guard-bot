@@ -148,7 +148,10 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
             },
             vapid,
           );
-          const response = await fetch(device.endpoint, payload);
+          const response = await fetch(device.endpoint, {
+            ...payload,
+            body: payload.body as unknown as BodyInit,
+          });
           if (response.status === 404 || response.status === 410) {
             stale.push(device.id);
             return;
