@@ -14,7 +14,24 @@ import {
 type ChatRequestBody = {
   messages?: unknown;
   threadId?: string | null;
+  /** Storage paths of evidence uploaded during this conversation. */
+  evidence?: unknown;
 };
+
+function parseEvidence(value: unknown): Array<{ path: string; mediaType: string | null }> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (item): item is { path: string; mediaType?: unknown } =>
+        !!item && typeof item === "object" && typeof (item as { path?: unknown }).path === "string",
+    )
+    .slice(0, 20)
+    .map((item) => ({
+      path: item.path,
+      mediaType: typeof item.mediaType === "string" ? item.mediaType : null,
+    }));
+}
+
 
 function isNewSupabaseApiKey(value: string) {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
