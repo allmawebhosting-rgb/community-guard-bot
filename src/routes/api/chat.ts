@@ -209,19 +209,53 @@ export const Route = createFileRoute("/api/chat")({
           ? `\n\nYOUR PREVIOUS MESSAGE IN THIS CONVERSATION WAS: "${lastAssistantText}". Never repeat it or re-introduce yourself. Move the conversation forward instead.`
           : "";
 
-
         const modelMessages = await convertToModelMessages(uiMessages);
 
+        // ---- Prompt budget: send the compact core always, topic detail only when
+        // that topic is actually live. A one-word "hi" no longer pays for the
+        // whole 36 KB instruction set.
+        const activeFlow = flowState.flowLabel ?? intent?.flow ?? null;
+        const isFirstTurn = !uiMessages.some((m) => m.role === "assistant");
+        const fullMode = Boolean(activeFlow) || uiMessages.length > 4;
+        const needsLocation =
+          fullMode ||
+          Boolean(sharedCoords) ||
+          /location|near me|nearest|police station|hospital|fire station|ambulance|area|landmark/i.test(
+            intakeText,
+          );
+        const promptBlocks = [ALLMA_CORE_PROMPT];
+        if (isFirstTurn) promptBlocks.push(ALLMA_ONBOARDING_BLOCK);
+        if (fullMode) promptBlocks.push(ALLMA_REPORTING_BLOCK);
+        if (needsLocation) promptBlocks.push(ALLMA_LOCATION_BLOCK);
+        if (fullMode || memoryBlock) promptBlocks.push(ALLMA_MEMORY_BLOCK);
+        if (fullMode) promptBlocks.push(ALLMA_DETAIL_BLOCK);
+        const systemPrompt = promptBlocks.join("\n\n");
+
+        // ---- Tool budget: greetings and general chat only need the light set.
+        const LIGHT_TOOL_NAMES = new Set([
+          "suggest_replies",
+          "ask_structured_question",
+          "request_media",
+          "location_intelligence",
+          "find_facilities",
+          "list_alerts",
+        ]);
+        const selectTools = <T extends Record<string, unknown>>(all: T): T =>
+          fullMode
+            ? all
+            : (Object.fromEntries(
+                Object.entries(all).filter(([name]) => LIGHT_TOOL_NAMES.has(name)),
+              ) as T);
 
         const buildStream = (modelId: string) => streamText({
           model: gateway(modelId),
-          system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
+          system: `${systemPrompt}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}`,
+          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}\n\nTURN BUDGET: one reply per turn. Say your one thing, then call AT MOST ONE of ask_structured_question or suggest_replies, and stop — wait for the user's next message. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
 
 
           messages: modelMessages,
-          stopWhen: stepCountIs(50),
+          stopWhen: stepCountIs(3),
           ...(modelId.startsWith("openai/gpt-5.6")
             ? { providerOptions: { lovable: { reasoningEffort: "none" as const } } }
             : {}),
@@ -229,7 +263,8 @@ export const Route = createFileRoute("/api/chat")({
 
 
 
-          tools: {
+          tools: selectTools({
+
             suggest_replies: tool({
               description:
                 "Offer 2-4 short, tappable follow-up suggestions that fit EXACTLY what you just said. Call this at the very end of a turn. Suggestions must be answers or next steps for the current step of the conversation — never a generic menu. Do NOT call this in the same turn as ask_structured_question (that card already shows options).",
