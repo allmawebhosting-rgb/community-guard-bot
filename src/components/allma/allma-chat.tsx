@@ -391,47 +391,21 @@ function ToolCard({
   }
 
   if (name === "request_media" && output?.ok) {
-    const prompt = String(output.prompt ?? "Please upload a photo or file.");
-    const mediaType = String(output.media_type ?? "photo");
-    const tips = output.tips ? String(output.tips) : (DEFAULT_MEDIA_TIPS[mediaType] ?? null);
-    const optional = Boolean(output.optional);
-    const isLocation = mediaType === "location";
-    const MediaIcon = MEDIA_ICONS[mediaType] ?? Camera;
-
     return (
-      <div className="space-y-2">
-        <motion.button
-          type="button"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          whileHover={{ scale: 1.005 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.(mediaType))}
-          className="flex w-full items-center gap-3 rounded-[1.25rem] border border-gold/35 bg-gold/[0.08] px-4 py-3.5 text-left transition-colors hover:border-gold/60 hover:bg-gold/[0.14]"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-primary shadow-soft">
-            <MediaIcon className="h-5 w-5 text-primary-foreground" />
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-foreground">{prompt}</span>
-            {tips ? (
-              <span className="block truncate text-xs text-muted-foreground">{tips}</span>
-            ) : null}
-          </span>
-        </motion.button>
-        {optional ? (
-          <button
-            type="button"
-            onClick={() => onSend("Skip for now")}
-            className="rounded-full border border-border/50 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/45 hover:bg-accent"
-          >
-            Skip for now
-          </button>
-        ) : null}
-      </div>
+      <MediaRequestCard
+        media={{
+          mediaType: String(output.media_type ?? "photo"),
+          prompt: String(output.prompt ?? ""),
+          tips: output.tips ? String(output.tips) : null,
+          optional: Boolean(output.optional),
+        }}
+        onSend={onSend}
+        onOpenAttach={onOpenAttach}
+        onShareLocation={onShareLocation}
+      />
     );
   }
+
 
   if (name === "recommend_actions" && output?.ok) {
     const title = String(output.title ?? "Recommended actions");
