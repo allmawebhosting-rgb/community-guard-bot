@@ -2315,6 +2315,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_emergency_call_context: {
+        Args: { p_call_id: string }
+        Returns: {
+          area: string
+          caller_avatar_url: string
+          caller_name: string
+          emergency_type: string
+          is_emergency: boolean
+          location_shared: boolean
+          severity: string
+        }[]
+      }
       get_my_sos_offers: {
         Args: never
         Returns: {
@@ -2386,6 +2398,32 @@ export type Database = {
           share_location_on_sos: boolean
         }[]
       }
+      list_sos_call_attempts: {
+        Args: { p_sos_activity_id: string }
+        Returns: {
+          avatar_url: string
+          call_id: string
+          connected_at: string
+          created_at: string
+          duration: number
+          ended_at: string
+          full_name: string
+          recipient_id: string
+          safety_role: string
+          status: string
+        }[]
+      }
+      list_sos_call_targets: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          full_name: string
+          member_id: string
+          priority: number
+          safety_role: string
+          share_location_on_sos: boolean
+        }[]
+      }
       normalize_phone_ug: { Args: { _raw: string }; Returns: string }
       respond_to_responder_notification: {
         Args: {
@@ -2405,6 +2443,10 @@ export type Database = {
       }
       send_safety_connection_request: {
         Args: { _note?: string; _recipient_id: string }
+        Returns: string
+      }
+      start_sos_emergency_call: {
+        Args: { p_recipient_id: string; p_sos_activity_id: string }
         Returns: string
       }
       start_voice_call: { Args: { p_recipient_id: string }; Returns: string }
