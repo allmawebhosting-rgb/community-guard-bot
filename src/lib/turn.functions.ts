@@ -80,9 +80,12 @@ async function deriveSharedSecretIce(
 
 
 /**
- * Mints short-lived Cloudflare TURN credentials for one call. Only the two
+ * Mints short-lived TURN relay credentials for one call. Only the two
  * participants of that call can obtain credentials, so the endpoint cannot be
- * used as a free relay by anyone holding an account.
+ * used as a free relay by anyone who finds it.
+ *
+ * Provider order: Metered, then any standards-based TURN server configured with
+ * a shared secret, then public STUN with an honest "no relay" answer.
  */
 export const getIceConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -104,51 +107,64 @@ export const getIceConfig = createServerFn({ method: "POST" })
       throw new Error("You are not a participant in this call.");
     }
 
-    const keyId = process.env["CLOUDFLARE_TURN_KEY_ID"];
-    const apiToken = process.env["CLOUDFLARE_TURN_API_TOKEN"];
-    if (!keyId || !apiToken) {
-      return { iceServers: PUBLIC_STUN, relay: false, reason: "not_configured" };
+    const meteredKey = process.env["METERED_API_KEY"];
+    const meteredApp = process.env["METERED_APP_NAME"] || "openrelay";
+    const turnUrls = (process.env["TURN_URLS"] || "")
+      .split(",")
+      .map((url) => url.trim())
+      .filter(Boolean);
+    const turnSecret = process.env["TURN_SHARED_SECRET"];
+
+    if (meteredKey) {
+      try {
+        const issued = await fetchMeteredIce(meteredKey, meteredApp);
+        if (issued && hasRelayUrl(issued)) {
+          return { iceServers: issued, relay: true, provider: "metered" };
+        }
+        if (issued) {
+          return {
+            iceServers: [...issued, ...PUBLIC_STUN],
+            relay: false,
+            provider: "none",
+            reason: "provider_error",
+          };
+        }
+      } catch (cause) {
+        console.error("[turn] Could not reach Metered", cause);
+      }
+      // Fall through to the shared-secret server, if one is configured.
     }
 
-    try {
-      const response = await fetch(
-        `https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(keyId)}/credentials/generate-ice-servers`,
-        {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${apiToken}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({ ttl: CREDENTIAL_TTL_SECONDS }),
-        },
-      );
-
-      if (!response.ok) {
-        console.error("[turn] Cloudflare rejected the credential request", response.status);
-        return { iceServers: PUBLIC_STUN, relay: false, reason: "provider_error" };
+    if (turnUrls.length && turnSecret) {
+      try {
+        const issued = await deriveSharedSecretIce(turnUrls, turnSecret, data.callId);
+        if (hasRelayUrl(issued)) {
+          return {
+            iceServers: [...issued, ...PUBLIC_STUN],
+            relay: true,
+            provider: "shared_secret",
+          };
+        }
+      } catch (cause) {
+        console.error("[turn] Could not derive shared-secret credentials", cause);
       }
-
-      const body = (await response.json()) as {
-        iceServers?: IceServerConfig | IceServerConfig[];
+      return {
+        iceServers: PUBLIC_STUN,
+        relay: false,
+        provider: "none",
+        reason: "provider_error",
       };
-      const issued = body.iceServers
-        ? Array.isArray(body.iceServers)
-          ? body.iceServers
-          : [body.iceServers]
-        : [];
-
-      const hasRelay = issued.some((server) => {
-        const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
-        return urls.some((url) => url.startsWith("turn:") || url.startsWith("turns:"));
-      });
-
-      if (!hasRelay) {
-        return { iceServers: [...issued, ...PUBLIC_STUN], relay: false, reason: "provider_error" };
-      }
-
-      return { iceServers: issued, relay: true };
-    } catch (cause) {
-      console.error("[turn] Could not reach the relay provider", cause);
-      return { iceServers: PUBLIC_STUN, relay: false, reason: "provider_error" };
     }
+
+    if (meteredKey) {
+      return {
+        iceServers: PUBLIC_STUN,
+        relay: false,
+        provider: "none",
+        reason: "provider_error",
+      };
+    }
+
+    return { iceServers: PUBLIC_STUN, relay: false, provider: "none", reason: "not_configured" };
+
   });
