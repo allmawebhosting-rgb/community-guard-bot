@@ -1077,7 +1077,19 @@ export function AllmaChat({
 
   const showChips = contextualChips.length > 0;
 
+  // Photo asks open the camera/gallery picker straight away; other media use the sheet.
+  const openAttach = useCallback((mediaType?: string) => {
+    if (mediaType === "photo" && attachInputRef.current) {
+      attachInputRef.current.accept = "image/*";
+      attachInputRef.current.removeAttribute("capture");
+      attachInputRef.current.click();
+      return;
+    }
+    setAttachSheetOpen(true);
+  }, []);
+
   const shareLocation = useCallback(() => {
+
     if (!("geolocation" in navigator)) {
       toast.error("Location not available on this device.");
       return;
