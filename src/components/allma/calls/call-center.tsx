@@ -59,6 +59,8 @@ export function CallCenter() {
   const callIdRef = useRef<string | null>(null);
   const namesRef = useRef<Map<string, CallPeer>>(new Map());
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const peerRef = useRef<CallPeer | null>(null);
+  peerRef.current = peer;
 
   const teardown = useCallback((note: string | null) => {
     engineRef.current?.close();
@@ -205,10 +207,9 @@ export function CallCenter() {
         (payload) => {
           const row = payload.new as { id: string; status: string };
           if (row.id !== callIdRef.current) return;
-          if (row.status === "declined") teardown(`${peer?.name ?? "They"} declined the call.`);
+          if (row.status === "declined") teardown(`${peerRef.current?.name ?? "They"} declined the call.`);
           else if (row.status === "ended") teardown("Call ended");
           else if (row.status === "missed") teardown("No answer");
-          else if (row.status === "connecting" && phase === "outgoing") setQuality("connecting");
         },
       )
       .subscribe();
@@ -216,7 +217,8 @@ export function CallCenter() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [peer?.name, phase, teardown, userId]);
+    // Deliberately keyed only on identity: re-subscribing per render would leak channels.
+  }, [teardown, userId]);
 
   // Call timer starts only when real audio is connected.
   useEffect(() => {
