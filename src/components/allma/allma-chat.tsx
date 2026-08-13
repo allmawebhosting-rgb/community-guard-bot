@@ -483,10 +483,8 @@ function ToolCard({
       label: string;
       name: string;
       address: string;
-      distanceKm: string;
-      estimatedMinutes: number;
+      openAlways?: boolean;
       phone?: string;
-      status?: string;
     };
     const FacilityCard = ({
       icon: FIcon,
@@ -495,11 +493,10 @@ function ToolCard({
       label,
       name: facName,
       address,
-      distanceKm,
-      estimatedMinutes,
+      openAlways,
       phone,
-      status,
     }: FacilityCardProps) => (
+
       <div className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
