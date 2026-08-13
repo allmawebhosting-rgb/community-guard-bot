@@ -88,6 +88,10 @@ const FLOW_ICONS: Record<string, typeof ShieldAlert> = {
   emergency: Siren,
 };
 
+// Sentinel prompt: this chip opens the attachment picker instead of sending text.
+const ATTACH_CHIP = "__attach__";
+
+
 const IDLE_CHIPS: Suggestion[] = [
   { label: "Report a crime", prompt: "I want to report a crime" },
   { label: "Find help nearby", prompt: "Find help near me" },
@@ -240,7 +244,7 @@ function ToolCard({
 }: {
   part: ToolPart;
   onSend: (text: string) => void;
-  onOpenAttach?: () => void;
+  onOpenAttach?: (mediaType?: string) => void;
   onShareLocation?: () => void;
 }) {
   const name = part.type.replace(/^tool-/, "");
@@ -333,7 +337,7 @@ function ToolCard({
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           whileHover={{ scale: 1.005 }}
           whileTap={{ scale: 0.99 }}
-          onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.())}
+          onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.(mediaType))}
           className="flex w-full items-center gap-3 rounded-[1.25rem] border border-gold/35 bg-gold/[0.08] px-4 py-3.5 text-left transition-colors hover:border-gold/60 hover:bg-gold/[0.14]"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-primary shadow-soft">
@@ -483,10 +487,8 @@ function ToolCard({
       label: string;
       name: string;
       address: string;
-      distanceKm: string;
-      estimatedMinutes: number;
+      openAlways?: boolean;
       phone?: string;
-      status?: string;
     };
     const FacilityCard = ({
       icon: FIcon,
@@ -495,11 +497,10 @@ function ToolCard({
       label,
       name: facName,
       address,
-      distanceKm,
-      estimatedMinutes,
+      openAlways,
       phone,
-      status,
     }: FacilityCardProps) => (
+
       <div className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -515,23 +516,14 @@ function ToolCard({
               <p className="text-sm font-semibold text-foreground leading-tight">{facName}</p>
             </div>
           </div>
-          {status ? (
+          {openAlways ? (
             <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              {status}
+              Open 24/7
             </span>
           ) : null}
         </div>
-        {address ? <p className="mb-2 text-xs text-muted-foreground">{address}</p> : null}
-        <div className="mb-2.5 flex gap-3 text-xs">
-          <span className="flex items-center gap-1 text-foreground font-medium">
-            <MapPin className="h-3 w-3 text-primary" />
-            {distanceKm} km
-          </span>
-          <span className="flex items-center gap-1 text-foreground font-medium">
-            <Clock className="h-3 w-3 text-primary" />
-            {estimatedMinutes} min
-          </span>
-        </div>
+        {address ? <p className="mb-2.5 text-xs text-muted-foreground">{address}</p> : null}
+
         {phone ? (
           <a
             href={`tel:${phone}`}
@@ -567,10 +559,8 @@ function ToolCard({
               label="Responsible Station"
               name={String(policeStation.name ?? "Police Station")}
               address={String(policeStation.address ?? policeStation.district ?? "")}
-              distanceKm={String(policeStation.distance_km ?? "—")}
-              estimatedMinutes={Number(policeStation.estimated_minutes ?? 0)}
+              openAlways={Boolean(policeStation.is_24_7)}
               phone={policeStation.phone ? String(policeStation.phone) : undefined}
-              status={String(policeStation.status ?? "Available")}
             />
           ) : null}
           {hospital ? (
@@ -581,8 +571,7 @@ function ToolCard({
               label="Nearest Hospital"
               name={String(hospital.name ?? "Hospital")}
               address={String(hospital.address ?? hospital.district ?? "")}
-              distanceKm={String(hospital.distance_km ?? "—")}
-              estimatedMinutes={Number(hospital.estimated_minutes ?? 0)}
+              openAlways={Boolean(hospital.is_24_7)}
               phone={hospital.phone ? String(hospital.phone) : undefined}
             />
           ) : null}
@@ -594,11 +583,11 @@ function ToolCard({
               label="Nearest Fire Station"
               name={String(fireStation.name ?? "Fire Station")}
               address={String(fireStation.address ?? fireStation.district ?? "")}
-              distanceKm={String(fireStation.distance_km ?? "—")}
-              estimatedMinutes={Number(fireStation.estimated_minutes ?? 0)}
+              openAlways={Boolean(fireStation.is_24_7)}
               phone={fireStation.phone ? String(fireStation.phone) : undefined}
             />
           ) : null}
+
           {!policeStation && !hospital && !fireStation ? (
             <p className="text-sm text-muted-foreground">
               No facilities found for this area yet. You can search by a different area or call the
@@ -873,9 +862,13 @@ export function AllmaChat({
       if ((!trimmed && attachments.length === 0) || busy) return;
 
       const parts: UIMessage["parts"] = [];
-      if (trimmed) {
-        parts.push({ type: "text", text: trimmed });
-      }
+      const caption =
+        trimmed ||
+        (attachments.some((a) => a.mediaType.startsWith("image/"))
+          ? "Here is the photo you asked for."
+          : "Here is the file you asked for.");
+      parts.push({ type: "text", text: caption });
+
       for (const attachment of attachments) {
         parts.push({
           type: "file",
@@ -917,53 +910,97 @@ export function AllmaChat({
     onError: (message) => toast.error(message),
   });
 
-  const uploadFiles = useCallback(async (files: FileList | null) => {
-    if (!files?.length) return;
-    const { data: auth } = await supabase.auth.getUser();
-    const userId = auth.user?.id;
-    if (!userId) {
-      toast.error("Sign in to attach photos or files to your report.");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        if (file.size > 20 * 1024 * 1024) {
-          toast.error(`${file.name} is larger than 20MB.`);
-          continue;
-        }
-        const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-        const { error: uploadError } = await supabase.storage
-          .from("evidence")
-          .upload(path, file, { contentType: file.type || "application/octet-stream" });
-        if (uploadError) {
-          console.error(uploadError);
-          toast.error(`Could not upload ${file.name}.`);
-          continue;
-        }
-        const { data: signed, error: signError } = await supabase.storage
-          .from("evidence")
-          .createSignedUrl(path, 3600);
-        if (signError || !signed?.signedUrl) {
-          toast.error(`Could not attach ${file.name}.`);
-          continue;
-        }
-        setAttachments((current) => [
-          ...current,
-          {
-            id: path,
-            name: file.name,
-            mediaType: file.type || "application/octet-stream",
-            url: signed.signedUrl,
-            preview: URL.createObjectURL(file),
-          },
-        ]);
-      }
-    } finally {
-      setUploading(false);
-    }
+  // Images are inlined as compressed data URLs so the assistant always receives
+  // the pixels instead of depending on a link fetch of a private storage object.
+  const inlineImage = useCallback(async (file: File) => {
+    const bitmap = await createImageBitmap(file);
+    const maxEdge = 1280;
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas unavailable");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    return canvas.toDataURL("image/jpeg", 0.82);
   }, []);
+
+  const uploadFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files?.length) return;
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId) {
+        toast.error("Sign in to attach photos or files to your report.");
+        return;
+      }
+
+      setUploading(true);
+      try {
+        for (const file of Array.from(files)) {
+          if (file.size === 0) {
+            toast.error(`${file.name} is empty — try picking it again.`);
+            continue;
+          }
+          if (file.size > 20 * 1024 * 1024) {
+            toast.error(`${file.name} is larger than 20MB. Try a smaller file.`);
+            continue;
+          }
+          const isImage = file.type.startsWith("image/");
+
+          // Keep a durable copy in storage for the report record.
+          const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+          const { error: uploadError } = await supabase.storage
+            .from("evidence")
+            .upload(path, file, { contentType: file.type || "application/octet-stream" });
+          if (uploadError) {
+            console.error(uploadError);
+            toast.error(`Could not upload ${file.name}: ${uploadError.message}`);
+            continue;
+          }
+
+          let url: string | null = null;
+          if (isImage) {
+            try {
+              url = await inlineImage(file);
+            } catch (error) {
+              console.error("Image inlining failed", error);
+            }
+          }
+          if (!url) {
+            const { data: signed, error: signError } = await supabase.storage
+              .from("evidence")
+              .createSignedUrl(path, 3600);
+            if (signError || !signed?.signedUrl) {
+              toast.error(`Could not attach ${file.name}. Please try again.`);
+              continue;
+            }
+            url = signed.signedUrl;
+          }
+
+          setAttachments((current) => [
+            ...current,
+            {
+              id: path,
+              name: file.name,
+              mediaType: isImage ? "image/jpeg" : file.type || "application/octet-stream",
+              url,
+              preview: URL.createObjectURL(file),
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error("Attachment failed", error);
+        toast.error(
+          error instanceof Error ? `Attachment failed: ${error.message}` : "Attachment failed.",
+        );
+      } finally {
+        setUploading(false);
+      }
+    },
+    [inlineImage],
+  );
 
   const isEmpty = messages.length === 0;
   const lastMsg = messages[messages.length - 1];
@@ -973,9 +1010,22 @@ export function AllmaChat({
   const contextualChips = useMemo(() => {
     if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
     const parts = (lastMsg.parts ?? []) as ToolPart[];
+    const flowActive = messages.some((m) =>
+      ((m.parts ?? []) as ToolPart[]).some(
+        (p) =>
+          p.type === "tool-ask_structured_question" &&
+          (p.output as { ok?: boolean } | undefined)?.ok === true,
+      ),
+    );
+
     // A live step question owns the chip row — its options are the answers.
-    const stepPart = [...parts].reverse().find((p) => p.type === "tool-ask_structured_question") as
-      ToolPart | undefined;
+    const stepPart = [...parts]
+      .reverse()
+      .find(
+        (p) =>
+          p.type === "tool-ask_structured_question" &&
+          (p.output as { ok?: boolean } | undefined)?.ok === true,
+      ) as ToolPart | undefined;
     const stepOutput = stepPart?.output as
       { options?: Array<{ label: string; value: string }> } | undefined;
     if (stepPart) {
@@ -997,17 +1047,53 @@ export function AllmaChat({
         ]
       );
     }
+
+    // A media request owns the chip row: attach or skip.
+    const mediaPart = [...parts]
+      .reverse()
+      .find(
+        (p) =>
+          p.type === "tool-request_media" &&
+          (p.output as { ok?: boolean } | undefined)?.ok === true,
+      ) as ToolPart | undefined;
+    if (mediaPart) {
+      const media = mediaPart.output as
+        { media_type?: string; optional?: boolean } | undefined;
+      if (media?.media_type !== "location") {
+        const chips: Suggestion[] = [
+          { label: media?.media_type === "photo" ? "Attach a photo" : "Attach a file", prompt: ATTACH_CHIP },
+        ];
+        if (media?.optional) chips.push({ label: "Skip for now", prompt: "Skip for now" });
+        return chips;
+      }
+    }
+
     const suggestionPart = [...parts].reverse().find((p) => p.type === "tool-suggest_replies") as
       ToolPart | undefined;
     const output = suggestionPart?.output as
       { suggestions?: Array<{ label: string; prompt: string }> } | undefined;
     const suggestions = ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
-    return suggestions.length > 0 ? suggestions : IDLE_CHIPS;
-  }, [busy, isEmpty, status, lastMsg]);
+    if (suggestions.length > 0) return suggestions;
+    // Never fall back to the broad idle menu while a guided flow is running.
+    return flowActive ? [] : IDLE_CHIPS;
+  }, [busy, isEmpty, status, lastMsg, messages]);
+
 
   const showChips = contextualChips.length > 0;
 
+  // Photo asks open the camera/gallery picker straight away; other media use the sheet.
+  const openAttach = useCallback((mediaType?: string) => {
+    if (mediaType === "photo" && attachInputRef.current) {
+      attachInputRef.current.accept = "image/*";
+      attachInputRef.current.removeAttribute("capture");
+      attachInputRef.current.click();
+      return;
+    }
+    setAttachSheetOpen(true);
+  }, []);
+
   const shareLocation = useCallback(() => {
+
     if (!("geolocation" in navigator)) {
       toast.error("Location not available on this device.");
       return;
@@ -1110,7 +1196,7 @@ export function AllmaChat({
                             key={index}
                             part={part as ToolPart}
                             onSend={send}
-                            onOpenAttach={() => setAttachSheetOpen(true)}
+                            onOpenAttach={openAttach}
                             onShareLocation={shareLocation}
                           />
                         );
@@ -1144,7 +1230,10 @@ export function AllmaChat({
                               }}
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => send(chip.prompt)}
+                              onClick={() =>
+                                chip.prompt === ATTACH_CHIP ? openAttach("photo") : send(chip.prompt)
+                              }
+
                               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/30 bg-card/70 px-3.5 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/60 hover:bg-primary/[0.06] hover:text-foreground"
                             >
                               <Sparkles className="h-3.5 w-3.5 text-primary/70" />

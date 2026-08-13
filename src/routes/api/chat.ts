@@ -123,13 +123,49 @@ export const Route = createFileRoute("/api/chat")({
           }
         }
 
+        // ---- Guided flow state, derived from the thread (not from the model) ----
+        // The model re-declares flow_label / step / total_steps on every turn, which
+        // lets it repeat or rewind a step. We keep the authoritative counter here so
+        // the banner only ever moves forward and the flow name stays fixed.
+        type StepOutput = {
+          flow_label?: string;
+          step_title?: string;
+          step?: number;
+          total_steps?: number;
+        };
+        const priorSteps: StepOutput[] = [];
+        for (const message of uiMessages) {
+          for (const part of message.parts as Array<{ type: string; output?: unknown }>) {
+            if (part.type === "tool-ask_structured_question" && part.output) {
+              priorSteps.push(part.output as StepOutput);
+            }
+          }
+        }
+        const lastStep = priorSteps[priorSteps.length - 1];
+        const flowState = {
+          cardIssued: false,
+          flowLabel: lastStep?.flow_label ?? null as string | null,
+          step: typeof lastStep?.step === "number" ? lastStep.step : 0,
+          totalSteps: typeof lastStep?.total_steps === "number" ? lastStep.total_steps : 0,
+          askedTitles: priorSteps
+            .map((s) => (s.step_title ?? "").trim().toLowerCase())
+            .filter(Boolean),
+        };
+        const flowBlock = flowState.flowLabel
+          ? `\n\nACTIVE GUIDED FLOW: "${flowState.flowLabel}", currently at step ${flowState.step} of ${flowState.totalSteps || "?"}. Steps already asked: ${
+              flowState.askedTitles.join(", ") || "none"
+            }. Ask the NEXT thing only — never repeat a step already asked, never announce step numbers in your text, and never ask two things in one turn.`
+          : "";
+
         const modelMessages = await convertToModelMessages(uiMessages);
+
 
         const buildStream = (modelId: string) => streamText({
           model: gateway(modelId),
           system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }${memoryBlock}`,
+          }${memoryBlock}${flowBlock}`,
+
           messages: modelMessages,
           stopWhen: stepCountIs(50),
           ...(modelId.startsWith("openai/gpt-5.6")
@@ -179,7 +215,55 @@ export const Route = createFileRoute("/api/chat")({
                   .nullable()
                   .describe("Optional short helper text shown below the question"),
               }),
-              execute: async (input) => ({ ok: true, ...input }),
+              execute: async (input) => {
+                if (flowState.cardIssued) {
+                  return {
+                    ok: false,
+                    suppressed: true,
+                    reason:
+                      "You already showed an interactive card this turn. Ask one thing at a time — wait for the user's answer.",
+                  };
+                }
+                const startingNewFlow =
+                  !flowState.flowLabel ||
+                  (input.step <= 1 && input.flow_label.trim() !== flowState.flowLabel);
+                if (startingNewFlow) {
+                  flowState.flowLabel = input.flow_label.trim();
+                  flowState.step = 0;
+                  flowState.totalSteps = 0;
+                  flowState.askedTitles = [];
+                }
+                const title = input.step_title.trim();
+                const repeated = flowState.askedTitles.includes(title.toLowerCase());
+                const step = repeated ? Math.max(flowState.step, 1) : flowState.step + 1;
+                const totalSteps = Math.max(flowState.totalSteps, input.total_steps, step);
+                flowState.step = step;
+                flowState.totalSteps = totalSteps;
+                flowState.cardIssued = true;
+                if (!repeated) flowState.askedTitles.push(title.toLowerCase());
+
+                const options = input.options
+                  .filter((option) => option.label.trim().length > 0)
+                  .slice(0, 5)
+                  .map((option) => ({
+                    label:
+                      option.label.trim().length > 26
+                        ? `${option.label.trim().slice(0, 25)}…`
+                        : option.label.trim(),
+                    value: option.value.trim() || option.label.trim(),
+                  }));
+
+                return {
+                  ok: true,
+                  ...input,
+                  flow_label: flowState.flowLabel ?? input.flow_label,
+                  step_title: title,
+                  step,
+                  total_steps: totalSteps,
+                  options,
+                };
+              },
+
             }),
             request_media: tool({
               description:
@@ -197,7 +281,19 @@ export const Route = createFileRoute("/api/chat")({
                   .describe("Optional one-line tips separated by ' · ', e.g. 'Good light · Show the whole scene · Up to 4 photos'"),
                 optional: z.boolean().describe("Whether the user can skip this request"),
               }),
-              execute: async (input) => ({ ok: true, ...input }),
+              execute: async (input) => {
+                if (flowState.cardIssued) {
+                  return {
+                    ok: false,
+                    suppressed: true,
+                    reason:
+                      "You already asked a question this turn. Request media on its own turn, after the user answers.",
+                  };
+                }
+                flowState.cardIssued = true;
+                return { ok: true, ...input };
+              },
+
             }),
             recommend_actions: tool({
               description:
@@ -564,62 +660,60 @@ export const Route = createFileRoute("/api/chat")({
             }),
             location_intelligence: tool({
               description:
-                "Use the moment a location, area, or district is mentioned. Identifies the responsible police station, nearest hospital, and nearest fire station with estimated distances and travel times. Renders a beautiful Station Card in the UI.",
+                "Use the moment a location, area, or district is mentioned. Looks up the responsible police station, nearest hospital and fire station from Allma's facility directory and renders a Station Card. Returns only real directory data — no estimated distances or arrival times.",
               inputSchema: z.object({
                 area: z.string().describe("The area, district, landmark, or location mentioned by the user"),
                 incident_type: z.string().describe("Type of incident: crime, emergency, fire, medical, missing_person, etc."),
               }),
               execute: async ({ area, incident_type }) => {
-                const [policeRes, hospitalRes, fireRes] = await Promise.all([
-                  supabase
-                    .from("facilities")
-                    .select("name, facility_type, phone, address, district")
-                    .eq("facility_type", "police")
-                    .ilike("district", `%${area}%`)
-                    .limit(1),
-                  supabase
-                    .from("facilities")
-                    .select("name, facility_type, phone, address, district")
-                    .eq("facility_type", "hospital")
-                    .ilike("district", `%${area}%`)
-                    .limit(1),
-                  supabase
-                    .from("facilities")
-                    .select("name, facility_type, phone, address, district")
-                    .eq("facility_type", "fire")
-                    .ilike("district", `%${area}%`)
-                    .limit(1),
+                const cleaned = area.trim();
+                const terms = Array.from(
+                  new Set(
+                    [cleaned, ...cleaned.split(/[,/·]|\s+near\s+|\s+/i)]
+                      .map((t) => t.replace(/[^\p{L}\p{N}\s'-]/gu, "").trim())
+                      .filter((t) => t.length >= 3),
+                  ),
+                ).slice(0, 6);
+
+                const lookup = async (facilityType: string) => {
+                  for (const term of terms) {
+                    const pattern = `%${term}%`;
+                    const { data } = await supabase
+                      .from("facilities")
+                      .select("name, facility_type, phone, address, district, is_24_7")
+                      .eq("facility_type", facilityType)
+                      .or(
+                        `district.ilike.${pattern},name.ilike.${pattern},address.ilike.${pattern}`,
+                      )
+                      .limit(1);
+                    if (data && data.length > 0) return { ...data[0], matched_on: term };
+                  }
+                  return null;
+                };
+
+                const [policeStation, hospital, fireStation] = await Promise.all([
+                  lookup("police"),
+                  lookup("hospital"),
+                  lookup("fire"),
                 ]);
 
-                // Deterministic distance estimate based on area string length
-                const seed = area.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-                const distPolicKm = ((seed % 30) / 10 + 0.8).toFixed(1);
-                const distHospKm = (((seed + 7) % 40) / 10 + 1.2).toFixed(1);
-                const distFireKm = (((seed + 13) % 35) / 10 + 1.0).toFixed(1);
-                const etaPolice = Math.floor((seed % 8) + 3);
-                const etaHosp = Math.floor(((seed + 7) % 10) + 5);
-                const etaFire = Math.floor(((seed + 13) % 9) + 4);
-
-                const policeStation = policeRes.data?.[0]
-                  ? { ...policeRes.data[0], distance_km: distPolicKm, estimated_minutes: etaPolice, status: "Available for dispatch" }
-                  : null;
-                const hospital = hospitalRes.data?.[0]
-                  ? { ...hospitalRes.data[0], distance_km: distHospKm, estimated_minutes: etaHosp }
-                  : null;
-                const fireStation = fireRes.data?.[0]
-                  ? { ...fireRes.data[0], distance_km: distFireKm, estimated_minutes: etaFire }
-                  : null;
+                const found = [policeStation, hospital, fireStation].filter(Boolean).length;
 
                 return {
                   ok: true,
-                  area,
+                  area: cleaned,
                   incident_type,
                   police_station: policeStation,
                   hospital,
                   fire_station: fireStation,
+                  directory_note:
+                    found === 0
+                      ? `No facilities for "${cleaned}" are in Allma's directory yet. Tell the user honestly, give the national numbers (Police 999, Emergency 112, Ambulance 911), and continue helping.`
+                      : "Only share the facility details returned here. Do not state distances or arrival times — they are not known.",
                 };
               },
             }),
+
             case_timeline: tool({
               description:
                 "Show a timestamped case progress timeline after major milestones — location received, evidence uploaded, AI summary generated, report submitted. Call this to give the user a sense of progress. Pass ALL events collected so far each time.",
