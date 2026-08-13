@@ -301,9 +301,6 @@ export const Route = createFileRoute("/api/chat")({
 
         // ---- Tool budget: greetings and general chat only need the light set.
         const LIGHT_TOOL_NAMES = new Set([
-          "suggest_replies",
-          "ask_structured_question",
-          "request_media",
           "location_intelligence",
           "find_facilities",
           "list_alerts",
@@ -317,13 +314,13 @@ export const Route = createFileRoute("/api/chat")({
 
         const buildStream = (modelId: string) => streamText({
           model: gateway(modelId),
-          system: `${systemPrompt}\n\nThe user is ${
+          system: `${systemPrompt}\n\n${ALLMA_MARKER_CONTRACT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}\n\nTURN BUDGET: one reply per turn. Say your one thing, then call AT MOST ONE of ask_structured_question or suggest_replies, and stop — wait for the user's next message. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
+          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}\n\nTURN BUDGET: exactly one reply per turn. Write your one message with its inline markers, then stop and wait for the user. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
 
 
           messages: modelMessages,
-          stopWhen: stepCountIs(3),
+          stopWhen: stepCountIs(2),
           ...(modelId.startsWith("openai/gpt-5.6")
             ? { providerOptions: { lovable: { reasoningEffort: "none" as const } } }
             : {}),
@@ -333,125 +330,7 @@ export const Route = createFileRoute("/api/chat")({
 
           tools: selectTools({
 
-            suggest_replies: tool({
-              description:
-                "Offer 2-4 short, tappable follow-up suggestions that fit EXACTLY what you just said. Call this at the very end of a turn. Suggestions must be answers or next steps for the current step of the conversation — never a generic menu. Do NOT call this in the same turn as ask_structured_question (that card already shows options).",
-              inputSchema: z.object({
-                suggestions: z.array(
-                  z.object({
-                    label: z.string().describe("Short chip label, max ~24 characters"),
-                    prompt: z.string().describe("Exact text to send as the user's message when tapped"),
-                  }),
-                ),
-              }),
-              execute: async (input) => ({ ok: true, ...input }),
-            }),
-            ask_structured_question: tool({
-              description:
-                "Ask the user one structured question at a time with tappable options. Use during guided reporting flows so the user can pick an answer instead of typing. Renders a slim flow banner (flow label, step counter, step title, progress bar) and shows the options as tappable chips under your reply. After the user picks, continue the conversation based on their answer.",
-              inputSchema: z.object({
-                flow_label: z
-                  .string()
-                  .describe("Short uppercase-ish flow name shown in the banner, e.g. 'Reporting', 'Missing person', 'Lost & found', 'Safety check'"),
-                step_title: z
-                  .string()
-                  .describe("Short title of this step shown in the banner, e.g. 'Add photos', 'Where did it happen?'"),
-                step: z.number().describe("Current step number, e.g. 2"),
-                total_steps: z.number().describe("Total number of steps in the flow, e.g. 7"),
-                question: z.string().describe("The single question to ask the user"),
-                options: z
-                  .array(
-                    z.object({
-                      label: z.string().describe("Human-readable option label"),
-                      value: z.string().describe("Value to treat as the user's answer when selected"),
-                    }),
-                  )
-                  .describe("Tappable answer options"),
-                helper_text: z
-                  .string()
-                  .nullable()
-                  .describe("Optional short helper text shown below the question"),
-              }),
-              execute: async (input) => {
-                if (flowState.cardIssued) {
-                  return {
-                    ok: false,
-                    suppressed: true,
-                    reason:
-                      "You already showed an interactive card this turn. Ask one thing at a time — wait for the user's answer.",
-                  };
-                }
-                const startingNewFlow =
-                  !flowState.flowLabel ||
-                  (input.step <= 1 && input.flow_label.trim() !== flowState.flowLabel);
-                if (startingNewFlow) {
-                  flowState.flowLabel = input.flow_label.trim();
-                  flowState.step = 0;
-                  flowState.totalSteps = 0;
-                  flowState.askedTitles = [];
-                }
-                const title = input.step_title.trim();
-                const repeated = flowState.askedTitles.includes(title.toLowerCase());
-                const step = repeated ? Math.max(flowState.step, 1) : flowState.step + 1;
-                const totalSteps = Math.max(flowState.totalSteps, input.total_steps, step);
-                flowState.step = step;
-                flowState.totalSteps = totalSteps;
-                flowState.cardIssued = true;
-                if (!repeated) flowState.askedTitles.push(title.toLowerCase());
 
-                const options = input.options
-                  .filter((option) => option.label.trim().length > 0)
-                  .slice(0, 5)
-                  .map((option) => ({
-                    label:
-                      option.label.trim().length > 26
-                        ? `${option.label.trim().slice(0, 25)}…`
-                        : option.label.trim(),
-                    value: option.value.trim() || option.label.trim(),
-                  }));
-
-                return {
-                  ok: true,
-                  ...input,
-                  flow_label: flowState.flowLabel ?? input.flow_label,
-                  step_title: title,
-                  step,
-                  total_steps: totalSteps,
-                  options,
-                };
-              },
-
-            }),
-            request_media: tool({
-              description:
-                "Ask the user to upload a photo, video, audio, document or location. Use when evidence would help the report. The UI shows a single tap-to-attach card. If optional, the user can skip.",
-              inputSchema: z.object({
-                media_type: z
-                  .enum(["photo", "video", "audio", "document", "location"])
-                  .describe("Type of media requested"),
-                prompt: z
-                  .string()
-                  .describe("Friendly message asking for the media, e.g. 'Do you have a photo of the phone?'"),
-                tips: z
-                  .string()
-                  .nullable()
-                  .describe("Optional one-line tips separated by ' · ', e.g. 'Good light · Show the whole scene · Up to 4 photos'"),
-                optional: z.boolean().describe("Whether the user can skip this request"),
-              }),
-              execute: async (input) => {
-                if (flowState.cardIssued) {
-                  return {
-                    ok: false,
-                    suppressed: true,
-                    reason:
-                      "You already asked a question this turn. Request media on its own turn, after the user answers.",
-                  };
-                }
-                flowState.cardIssued = true;
-                return { ok: true, ...input };
-              },
-
-            }),
             recommend_actions: tool({
               description:
                 "Show a card of recommended next actions the user can tap. Use after detecting a case type to suggest practical steps (e.g. Block SIM, Call Police, Track IMEI).",
