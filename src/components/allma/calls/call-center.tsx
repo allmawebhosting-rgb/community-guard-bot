@@ -88,6 +88,7 @@ export function CallCenter() {
     async (id: string, caller: boolean) => {
       const engine = new VoiceCallEngine(id, userId!, caller, {
         onQuality: setQuality,
+        onRelay: setRelay,
         onConnected: () => {
           setQuality("good");
           setPhase("active");
