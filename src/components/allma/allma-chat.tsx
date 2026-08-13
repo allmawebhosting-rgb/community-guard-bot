@@ -1138,14 +1138,26 @@ export function AllmaChat({
       }
     }
 
+    // The assistant asked where the user is: always give a one-tap GPS share.
+    const assistantText = parts
+      .filter((p) => (p as { type: string }).type === "text")
+      .map((p) => String((p as unknown as { text?: string }).text ?? ""))
+      .join(" ");
+    const locationChip: Suggestion[] = LOCATION_ASK.test(assistantText)
+      ? [{ label: "Share my location", prompt: LOCATION_CHIP }]
+      : [];
+
     const suggestionPart = [...parts].reverse().find((p) => p.type === "tool-suggest_replies") as
       ToolPart | undefined;
     const output = suggestionPart?.output as
       { suggestions?: Array<{ label: string; prompt: string }> } | undefined;
     const suggestions = ((output?.suggestions ?? []) as Suggestion[]).slice(0, 4);
-    if (suggestions.length > 0) return suggestions;
+    if (suggestions.length > 0 || locationChip.length > 0) {
+      return [...locationChip, ...suggestions].slice(0, 4);
+    }
     // Never fall back to the broad idle menu while a guided flow is running.
     return flowActive ? [] : IDLE_CHIPS;
+
   }, [busy, isEmpty, status, lastMsg, messages]);
 
 
