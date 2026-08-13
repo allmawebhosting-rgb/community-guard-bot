@@ -164,7 +164,8 @@ export const Route = createFileRoute("/api/chat")({
           model: gateway(modelId),
           system: `${ALLMA_SYSTEM_PROMPT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
-          }${memoryBlock}`,
+          }${memoryBlock}${flowBlock}`,
+
           messages: modelMessages,
           stopWhen: stepCountIs(50),
           ...(modelId.startsWith("openai/gpt-5.6")
