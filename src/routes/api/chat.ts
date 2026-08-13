@@ -130,13 +130,7 @@ export const Route = createFileRoute("/api/chat")({
 
         if (isGreetingOnly) {
           const greeting =
-            "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you report a crime, report a missing person, log lost or found property, and find the nearest police station, hospital or emergency number.\n\nWhat's going on today?";
-          const suggestions = [
-            { label: "Report a crime", prompt: "I want to report a crime" },
-            { label: "Missing person", prompt: "I want to report a missing person" },
-            { label: "Find help nearby", prompt: "Find help near me" },
-            { label: "Emergency numbers", prompt: "What are the emergency numbers?" },
-          ];
+            "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you report a crime, report a missing person, log lost or found property, and find the nearest police station, hospital or emergency number.\n\nWhat's going on today?\n\n::suggest[Report a crime | Missing person | Find help nearby | Emergency numbers]";
           const assistantId = `allma-greeting-${Date.now()}`;
           const stream = createUIMessageStream({
             originalMessages: uiMessages,
@@ -145,20 +139,9 @@ export const Route = createFileRoute("/api/chat")({
               writer.write({ type: "text-start", id: "greeting" });
               writer.write({ type: "text-delta", id: "greeting", delta: greeting });
               writer.write({ type: "text-end", id: "greeting" });
-              const toolCallId = `${assistantId}-suggest`;
-              writer.write({
-                type: "tool-input-available",
-                toolCallId,
-                toolName: "suggest_replies",
-                input: { suggestions },
-              });
-              writer.write({
-                type: "tool-output-available",
-                toolCallId,
-                output: { ok: true, suggestions },
-              });
               writer.write({ type: "finish" });
             },
+
             onFinish: async ({ responseMessage }) => {
               if (!userId || !body.threadId) return;
               const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
