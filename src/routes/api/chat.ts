@@ -215,7 +215,55 @@ export const Route = createFileRoute("/api/chat")({
                   .nullable()
                   .describe("Optional short helper text shown below the question"),
               }),
-              execute: async (input) => ({ ok: true, ...input }),
+              execute: async (input) => {
+                if (flowState.cardIssued) {
+                  return {
+                    ok: false,
+                    suppressed: true,
+                    reason:
+                      "You already showed an interactive card this turn. Ask one thing at a time — wait for the user's answer.",
+                  };
+                }
+                const startingNewFlow =
+                  !flowState.flowLabel ||
+                  (input.step <= 1 && input.flow_label.trim() !== flowState.flowLabel);
+                if (startingNewFlow) {
+                  flowState.flowLabel = input.flow_label.trim();
+                  flowState.step = 0;
+                  flowState.totalSteps = 0;
+                  flowState.askedTitles = [];
+                }
+                const title = input.step_title.trim();
+                const repeated = flowState.askedTitles.includes(title.toLowerCase());
+                const step = repeated ? Math.max(flowState.step, 1) : flowState.step + 1;
+                const totalSteps = Math.max(flowState.totalSteps, input.total_steps, step);
+                flowState.step = step;
+                flowState.totalSteps = totalSteps;
+                flowState.cardIssued = true;
+                if (!repeated) flowState.askedTitles.push(title.toLowerCase());
+
+                const options = input.options
+                  .filter((option) => option.label.trim().length > 0)
+                  .slice(0, 5)
+                  .map((option) => ({
+                    label:
+                      option.label.trim().length > 26
+                        ? `${option.label.trim().slice(0, 25)}…`
+                        : option.label.trim(),
+                    value: option.value.trim() || option.label.trim(),
+                  }));
+
+                return {
+                  ok: true,
+                  ...input,
+                  flow_label: flowState.flowLabel ?? input.flow_label,
+                  step_title: title,
+                  step,
+                  total_steps: totalSteps,
+                  options,
+                };
+              },
+
             }),
             request_media: tool({
               description:
