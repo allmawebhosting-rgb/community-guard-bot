@@ -240,7 +240,7 @@ function ToolCard({
 }: {
   part: ToolPart;
   onSend: (text: string) => void;
-  onOpenAttach?: () => void;
+  onOpenAttach?: (mediaType?: string) => void;
   onShareLocation?: () => void;
 }) {
   const name = part.type.replace(/^tool-/, "");
