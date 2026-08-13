@@ -123,7 +123,42 @@ export const Route = createFileRoute("/api/chat")({
           }
         }
 
+        // ---- Guided flow state, derived from the thread (not from the model) ----
+        // The model re-declares flow_label / step / total_steps on every turn, which
+        // lets it repeat or rewind a step. We keep the authoritative counter here so
+        // the banner only ever moves forward and the flow name stays fixed.
+        type StepOutput = {
+          flow_label?: string;
+          step_title?: string;
+          step?: number;
+          total_steps?: number;
+        };
+        const priorSteps: StepOutput[] = [];
+        for (const message of uiMessages) {
+          for (const part of message.parts as Array<{ type: string; output?: unknown }>) {
+            if (part.type === "tool-ask_structured_question" && part.output) {
+              priorSteps.push(part.output as StepOutput);
+            }
+          }
+        }
+        const lastStep = priorSteps[priorSteps.length - 1];
+        const flowState = {
+          cardIssued: false,
+          flowLabel: lastStep?.flow_label ?? null as string | null,
+          step: typeof lastStep?.step === "number" ? lastStep.step : 0,
+          totalSteps: typeof lastStep?.total_steps === "number" ? lastStep.total_steps : 0,
+          askedTitles: priorSteps
+            .map((s) => (s.step_title ?? "").trim().toLowerCase())
+            .filter(Boolean),
+        };
+        const flowBlock = flowState.flowLabel
+          ? `\n\nACTIVE GUIDED FLOW: "${flowState.flowLabel}", currently at step ${flowState.step} of ${flowState.totalSteps || "?"}. Steps already asked: ${
+              flowState.askedTitles.join(", ") || "none"
+            }. Ask the NEXT thing only — never repeat a step already asked, never announce step numbers in your text, and never ask two things in one turn.`
+          : "";
+
         const modelMessages = await convertToModelMessages(uiMessages);
+
 
         const buildStream = (modelId: string) => streamText({
           model: gateway(modelId),
