@@ -9,6 +9,7 @@ import {
 import { AppShell } from "@/components/allma/app-shell";
 import { MascotAvatar } from "@/components/allma/mascot";
 import { SafetyNetworkPanel } from "@/components/allma/safety-network/safety-network-panel";
+import { BackgroundCallAlerts } from "@/components/allma/calls/background-call-alerts";
 import { CallHistory } from "@/components/allma/calls/call-history";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
