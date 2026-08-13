@@ -1350,27 +1350,48 @@ export function AllmaChat({
                   >
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
-                        const text =
-                          message.role === "assistant" && suppressGreeting
-                            ? part.text.replace(GREETING_LEAD, "").trimStart() || part.text
-                            : part.text;
-                        return message.role === "assistant" ? (
-                          <MessageResponse
-                            key={index}
-                            className="px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95"
-                          >
-                            {text}
-                          </MessageResponse>
-
-                        ) : (
-                          <p
-                            key={index}
-                            className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift"
-                          >
-                            {part.text}
-                          </p>
+                        if (message.role !== "assistant") {
+                          return (
+                            <p
+                              key={index}
+                              className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift"
+                            >
+                              {part.text}
+                            </p>
+                          );
+                        }
+                        const parsed = parseAllmaMarkers(part.text);
+                        const text = suppressGreeting
+                          ? parsed.text.replace(GREETING_LEAD, "").trimStart() || parsed.text
+                          : parsed.text;
+                        return (
+                          <div key={index} className="space-y-3">
+                            {parsed.flow ? (
+                              <FlowBanner
+                                flowLabel={parsed.flow.label}
+                                stepTitle={parsed.flow.title || text.slice(0, 80)}
+                                step={parsed.flow.step}
+                                total={parsed.flow.total}
+                                helper={parsed.flow.helper}
+                              />
+                            ) : null}
+                            {text ? (
+                              <MessageResponse className="px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95">
+                                {text}
+                              </MessageResponse>
+                            ) : null}
+                            {parsed.media ? (
+                              <MediaRequestCard
+                                media={parsed.media}
+                                onSend={send}
+                                onOpenAttach={openAttach}
+                                onShareLocation={shareLocation}
+                              />
+                            ) : null}
+                          </div>
                         );
                       }
+
 
                       if (part.type === "file") {
                         return part.mediaType?.startsWith("image/") ? (
