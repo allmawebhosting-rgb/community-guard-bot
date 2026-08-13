@@ -104,6 +104,8 @@ type EngineEvents = {
   onQuality: (quality: ConnectionQuality) => void;
   onConnected: () => void;
   onFailed: (message: string) => void;
+  /** True when a TURN relay credential was issued for this call. */
+  onRelay?: (relay: boolean) => void;
 };
 
 /**
@@ -119,6 +121,7 @@ export class VoiceCallEngine {
   private remoteReady = false;
   private pendingCandidates: RTCIceCandidateInit[] = [];
   private closed = false;
+  private restarted = false;
 
   constructor(
     private readonly callId: string,
@@ -132,7 +135,10 @@ export class VoiceCallEngine {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const ice = await fetchIceConfig(this.callId);
+    this.events.onRelay?.(ice.relay);
+
+    const pc = new RTCPeerConnection({ iceServers: ice.iceServers });
     this.pc = pc;
     this.localStream.getTracks().forEach((track) => pc.addTrack(track, this.localStream!));
 
