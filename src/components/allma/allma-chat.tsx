@@ -1168,18 +1168,54 @@ export function AllmaChat({
   const isEmpty = messages.length === 0;
   const lastMsg = messages[messages.length - 1];
 
-  // Contextual chips come from the model's suggest_replies tool for the last
-  // assistant turn. No generic fallback list — suggestions always follow the topic.
+  // Contextual chips come from the ::suggest marker in the last assistant reply
+  // (legacy threads fall back to the old suggest_replies tool output).
   const contextualChips = useMemo(() => {
     if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
     const parts = (lastMsg.parts ?? []) as ToolPart[];
-    const flowActive = messages.some((m) =>
-      ((m.parts ?? []) as ToolPart[]).some(
-        (p) =>
-          p.type === "tool-ask_structured_question" &&
-          (p.output as { ok?: boolean } | undefined)?.ok === true,
-      ),
-    );
+    const rawText = parts
+      .filter((p) => p.type === "text")
+      .map((p) => String((p as unknown as { text?: string }).text ?? ""))
+      .join("\n");
+    const markers = parseAllmaMarkers(rawText);
+
+    // Inline markers win: they were written for exactly this step.
+    if (markers.suggestions.length > 0) return markers.suggestions.slice(0, 4);
+    if (markers.media) {
+      if (markers.media.mediaType === "location") {
+        return [{ label: "Share my location", prompt: LOCATION_CHIP }];
+      }
+      const chips: Suggestion[] = [
+        {
+          label: markers.media.mediaType === "photo" ? "Attach a photo" : "Attach a file",
+          prompt: ATTACH_CHIP,
+        },
+      ];
+      if (markers.media.optional) chips.push({ label: "Skip for now", prompt: "Skip for now" });
+      return chips;
+    }
+
+    const flowActive =
+      Boolean(markers.flow) ||
+      messages.some((m) => {
+        const mParts = (m.parts ?? []) as ToolPart[];
+        if (
+          mParts.some(
+            (p) =>
+              p.type === "tool-ask_structured_question" &&
+              (p.output as { ok?: boolean } | undefined)?.ok === true,
+          )
+        ) {
+          return true;
+        }
+        if (m.role !== "assistant") return false;
+        const t = mParts
+          .filter((p) => p.type === "text")
+          .map((p) => String((p as unknown as { text?: string }).text ?? ""))
+          .join("\n");
+        return Boolean(parseAllmaMarkers(t).flow);
+      });
+
 
     // A live step question owns the chip row — its options are the answers.
     const stepPart = [...parts]
