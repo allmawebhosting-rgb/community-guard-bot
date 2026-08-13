@@ -555,10 +555,8 @@ function ToolCard({
               label="Responsible Station"
               name={String(policeStation.name ?? "Police Station")}
               address={String(policeStation.address ?? policeStation.district ?? "")}
-              distanceKm={String(policeStation.distance_km ?? "—")}
-              estimatedMinutes={Number(policeStation.estimated_minutes ?? 0)}
+              openAlways={Boolean(policeStation.is_24_7)}
               phone={policeStation.phone ? String(policeStation.phone) : undefined}
-              status={String(policeStation.status ?? "Available")}
             />
           ) : null}
           {hospital ? (
@@ -569,8 +567,7 @@ function ToolCard({
               label="Nearest Hospital"
               name={String(hospital.name ?? "Hospital")}
               address={String(hospital.address ?? hospital.district ?? "")}
-              distanceKm={String(hospital.distance_km ?? "—")}
-              estimatedMinutes={Number(hospital.estimated_minutes ?? 0)}
+              openAlways={Boolean(hospital.is_24_7)}
               phone={hospital.phone ? String(hospital.phone) : undefined}
             />
           ) : null}
@@ -582,11 +579,11 @@ function ToolCard({
               label="Nearest Fire Station"
               name={String(fireStation.name ?? "Fire Station")}
               address={String(fireStation.address ?? fireStation.district ?? "")}
-              distanceKm={String(fireStation.distance_km ?? "—")}
-              estimatedMinutes={Number(fireStation.estimated_minutes ?? 0)}
+              openAlways={Boolean(fireStation.is_24_7)}
               phone={fireStation.phone ? String(fireStation.phone) : undefined}
             />
           ) : null}
+
           {!policeStation && !hospital && !fireStation ? (
             <p className="text-sm text-muted-foreground">
               No facilities found for this area yet. You can search by a different area or call the
