@@ -880,7 +880,6 @@ export const Route = createFileRoute("/api/chat")({
         });
 
         const CHAT_MODELS = [
-          "openai/gpt-5.6-sol",
           "google/gemini-3.6-flash",
           "google/gemini-2.5-flash",
         ];
