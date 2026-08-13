@@ -983,6 +983,11 @@ export function AllmaChat({
             url = signed.signedUrl;
           }
 
+          evidencePathsRef.current = [
+            ...evidencePathsRef.current,
+            { path, mediaType: file.type || "application/octet-stream" },
+          ];
+
           setAttachments((current) => [
             ...current,
             {
@@ -993,6 +998,7 @@ export function AllmaChat({
               preview: URL.createObjectURL(file),
             },
           ]);
+
         }
       } catch (error) {
         console.error("Attachment failed", error);
