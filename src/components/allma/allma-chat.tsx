@@ -1221,8 +1221,15 @@ export function AllmaChat({
     if (suggestions.length > 0 || locationChip.length > 0) {
       return [...locationChip, ...suggestions].slice(0, 4);
     }
-    // Never fall back to the broad idle menu while a guided flow is running.
+
+    // The assistant asked something in prose without options: derive the answers
+    // from the question itself. The broad idle menu is only for an empty chat.
+    if (/\?/.test(assistantText)) {
+      const derived = STEP_FALLBACK_CHIPS.find(({ matches }) => matches.test(assistantText));
+      return derived?.chips ?? [];
+    }
     return flowActive ? [] : IDLE_CHIPS;
+
 
   }, [busy, isEmpty, status, lastMsg, messages]);
 
