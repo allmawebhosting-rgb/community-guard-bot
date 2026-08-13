@@ -490,6 +490,17 @@ function ToolCard({
       openAlways?: boolean;
       phone?: string;
     };
+    type FacilityCardProps = {
+      icon: typeof MapPin;
+      iconColor: string;
+      iconBg: string;
+      label: string;
+      name: string;
+      address: string;
+      openAlways?: boolean;
+      phone?: string;
+      distanceKm?: number;
+    };
     const FacilityCard = ({
       icon: FIcon,
       iconColor,
@@ -499,6 +510,7 @@ function ToolCard({
       address,
       openAlways,
       phone,
+      distanceKm,
     }: FacilityCardProps) => (
 
       <div className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
@@ -516,11 +528,18 @@ function ToolCard({
               <p className="text-sm font-semibold text-foreground leading-tight">{facName}</p>
             </div>
           </div>
-          {openAlways ? (
-            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              Open 24/7
-            </span>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {typeof distanceKm === "number" ? (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                {distanceKm} km away
+              </span>
+            ) : null}
+            {openAlways ? (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                Open 24/7
+              </span>
+            ) : null}
+          </div>
         </div>
         {address ? <p className="mb-2.5 text-xs text-muted-foreground">{address}</p> : null}
 
@@ -534,6 +553,7 @@ function ToolCard({
         ) : null}
       </div>
     );
+
 
     return (
       <div className="chat-card p-4">
