@@ -1,0 +1,168 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+export type PushConfig = { supported: boolean; publicKey: string | null };
+
+/** The VAPID public key is safe to hand to the browser; the private key never leaves the server. */
+export const getPushConfig = createServerFn({ method: "GET" }).handler(async (): Promise<PushConfig> => {
+  const publicKey = process.env["VAPID_PUBLIC_KEY"] ?? null;
+  return { supported: Boolean(publicKey), publicKey };
+});
+
+type SubscriptionInput = {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string;
+};
+
+function validateSubscription(input: SubscriptionInput) {
+  if (!input || typeof input.endpoint !== "string" || !/^https:\/\//.test(input.endpoint)) {
+    throw new Error("A valid push endpoint is required.");
+  }
+  if (input.endpoint.length > 1000) throw new Error("That push endpoint is not valid.");
+  if (typeof input.p256dh !== "string" || input.p256dh.length < 10 || input.p256dh.length > 500) {
+    throw new Error("That push subscription is missing its encryption key.");
+  }
+  if (typeof input.auth !== "string" || input.auth.length < 5 || input.auth.length > 500) {
+    throw new Error("That push subscription is missing its auth secret.");
+  }
+  return {
+    endpoint: input.endpoint,
+    p256dh: input.p256dh,
+    auth: input.auth,
+    userAgent: typeof input.userAgent === "string" ? input.userAgent.slice(0, 300) : undefined,
+  };
+}
+
+export const savePushSubscription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(validateSubscription)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("push_subscriptions").upsert(
+      {
+        user_id: context.userId,
+        endpoint: data.endpoint,
+        p256dh: data.p256dh,
+        auth_key: data.auth,
+        user_agent: data.userAgent ?? null,
+        last_used_at: new Date().toISOString(),
+      },
+      { onConflict: "endpoint" },
+    );
+    if (error) throw new Error("We could not register this device for call alerts.");
+    return { ok: true };
+  });
+
+export const deletePushSubscription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { endpoint: string }) => {
+    if (!input || typeof input.endpoint !== "string" || !/^https:\/\//.test(input.endpoint)) {
+      throw new Error("A valid push endpoint is required.");
+    }
+    return { endpoint: input.endpoint };
+  })
+  .handler(async ({ data, context }) => {
+    await context.supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", context.userId)
+      .eq("endpoint", data.endpoint);
+    return { ok: true };
+  });
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Notifies the recipient of a call on every device they registered, so an
+ * incoming call still rings when the app is closed or backgrounded.
+ * Best-effort: the OS may delay or drop the notification.
+ */
+export const notifyIncomingCall = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { callId: string }) => {
+    if (!input || typeof input.callId !== "string" || !UUID.test(input.callId)) {
+      throw new Error("A valid call id is required.");
+    }
+    return { callId: input.callId };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: call } = await context.supabase
+      .from("emergency_calls")
+      .select("id, caller_id, recipient_id, status")
+      .eq("id", data.callId)
+      .maybeSingle();
+
+    // Only the caller of a live call may trigger a push to the recipient.
+    if (!call || call.caller_id !== context.userId) {
+      throw new Error("You cannot send alerts for this call.");
+    }
+    if (!["initiating", "ringing", "connecting"].includes(call.status)) {
+      return { delivered: 0, devices: 0 };
+    }
+
+    const publicKey = process.env["VAPID_PUBLIC_KEY"];
+    const privateKey = process.env["VAPID_PRIVATE_KEY"];
+    const subject = process.env["VAPID_SUBJECT"] ?? "mailto:safety@allma.app";
+    if (!publicKey || !privateKey) return { delivered: 0, devices: 0 };
+
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", context.userId)
+      .maybeSingle();
+    const callerName = profile?.full_name?.trim() || "An Allma member";
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: devices } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth_key")
+      .eq("user_id", call.recipient_id);
+
+    if (!devices?.length) return { delivered: 0, devices: 0 };
+
+    const { buildPushPayload } = await import("@block65/webcrypto-web-push");
+    const vapid = { subject, publicKey, privateKey };
+    const message = {
+      data: JSON.stringify({
+        type: "incoming_call",
+        callId: call.id,
+        title: "Incoming Allma call",
+        body: `${callerName} is calling you on Allma.`,
+      }),
+      options: { ttl: 60, urgency: "high" as const },
+    };
+
+    let delivered = 0;
+    const stale: string[] = [];
+
+    await Promise.all(
+      devices.map(async (device) => {
+        try {
+          const payload = await buildPushPayload(
+            message,
+            {
+              endpoint: device.endpoint,
+              expirationTime: null,
+              keys: { p256dh: device.p256dh, auth: device.auth_key },
+            },
+            vapid,
+          );
+          const response = await fetch(device.endpoint, payload);
+          if (response.status === 404 || response.status === 410) {
+            stale.push(device.id);
+            return;
+          }
+          if (response.ok) delivered += 1;
+        } catch (cause) {
+          console.error("[push] delivery failed", cause);
+        }
+      }),
+    );
+
+    if (stale.length) {
+      await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
+    }
+
+    return { delivered, devices: devices.length };
+  });
