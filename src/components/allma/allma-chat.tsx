@@ -333,7 +333,7 @@ function ToolCard({
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           whileHover={{ scale: 1.005 }}
           whileTap={{ scale: 0.99 }}
-          onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.())}
+          onClick={() => (isLocation ? onShareLocation?.() : onOpenAttach?.(mediaType))}
           className="flex w-full items-center gap-3 rounded-[1.25rem] border border-gold/35 bg-gold/[0.08] px-4 py-3.5 text-left transition-colors hover:border-gold/60 hover:bg-gold/[0.14]"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-primary shadow-soft">
