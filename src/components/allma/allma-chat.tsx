@@ -122,7 +122,7 @@ const STEP_FALLBACK_CHIPS: Array<{ matches: RegExp; chips: Suggestion[] }> = [
   {
     matches: /where|location|place|area|happen/i,
     chips: [
-      { label: "Share my location", prompt: "Share my current location" },
+      { label: "Share my location", prompt: LOCATION_CHIP },
       { label: "Type the location", prompt: "I'll type the location" },
       { label: "I'm not sure", prompt: "I'm not sure of the exact location" },
     ],
