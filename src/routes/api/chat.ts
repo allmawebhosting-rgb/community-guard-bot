@@ -14,7 +14,24 @@ import {
 type ChatRequestBody = {
   messages?: unknown;
   threadId?: string | null;
+  /** Storage paths of evidence uploaded during this conversation. */
+  evidence?: unknown;
 };
+
+function parseEvidence(value: unknown): Array<{ path: string; mediaType: string | null }> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (item): item is { path: string; mediaType?: unknown } =>
+        !!item && typeof item === "object" && typeof (item as { path?: unknown }).path === "string",
+    )
+    .slice(0, 20)
+    .map((item) => ({
+      path: item.path,
+      mediaType: typeof item.mediaType === "string" ? item.mediaType : null,
+    }));
+}
+
 
 function isNewSupabaseApiKey(value: string) {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -76,6 +93,8 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const threadId = userId && body.threadId ? body.threadId : null;
+        const evidence = parseEvidence(body.evidence);
+
 
         const initialRunId = getLovableAiGatewayRunId(request);
         const gateway = createLovableAiGatewayProvider(apiKey, initialRunId);
@@ -447,6 +466,22 @@ export const Route = createFileRoute("/api/chat")({
                    } as never,
                  });
                  if (activityError) console.error("Failed to record report activity", activityError);
+
+                // Attach the photos and files uploaded in this conversation to the report
+                // so the evidence survives outside the chat transcript.
+                if (evidence.length) {
+                  const { error: evidenceError } = await supabase.from("report_evidence").insert(
+                    evidence.map((item) => ({
+                      report_id: data.id,
+                      user_id: userId,
+                      storage_path: item.path,
+                      media_type: item.mediaType,
+                    })),
+                  );
+                  if (evidenceError) console.error("Failed to link evidence", evidenceError);
+                }
+
+
 
                 return { ok: true, ...data };
               },

@@ -793,6 +793,45 @@ function ToolCard({
   );
 }
 
+/**
+ * Signed storage links expire, so history keeps only the object path and mints a
+ * fresh link when the attachment is actually opened.
+ */
+function FileAttachmentChip({ url, filename }: { url: string; filename: string }) {
+  const [opening, setOpening] = useState(false);
+
+  const open = async () => {
+    const match = /\/object\/(?:sign|public)\/evidence\/([^?]+)/.exec(url);
+    if (!match) {
+      toast.error("This attachment link is no longer available.");
+      return;
+    }
+    setOpening(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from("evidence")
+        .createSignedUrl(decodeURIComponent(match[1]), 300);
+      if (error || !data?.signedUrl) throw error ?? new Error("No link");
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Could not open this attachment.");
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={open}
+      disabled={opening}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-background/20 px-2 py-1 text-xs underline-offset-2 hover:underline disabled:opacity-60"
+    >
+      <Paperclip className="h-3 w-3" /> {filename}
+    </button>
+  );
+}
+
 export function AllmaChat({
   threadId,
   initialMessages,
@@ -813,6 +852,9 @@ export function AllmaChat({
   const [composerText, setComposerText] = useState("");
   const [pendingAccept, setPendingAccept] = useState<string | undefined>();
   const [pendingCapture, setPendingCapture] = useState<"environment" | undefined>();
+  // Storage paths of everything uploaded in this conversation, so a report filed
+  // later in the same conversation can be linked to the real evidence objects.
+  const evidencePathsRef = useRef<Array<{ path: string; mediaType: string }>>([]);
 
   const transport = useMemo(
     () =>
@@ -824,13 +866,14 @@ export function AllmaChat({
           const headers: Record<string, string> = {};
           if (token) headers.Authorization = `Bearer ${token}`;
           return {
-            body: { ...body, messages, threadId },
+            body: { ...body, messages, threadId, evidence: evidencePathsRef.current },
             headers,
           };
         },
       }),
     [threadId],
   );
+
 
   const { messages, sendMessage, status, error } = useChat({
     id: threadId ?? "guest",
@@ -979,6 +1022,11 @@ export function AllmaChat({
             url = signed.signedUrl;
           }
 
+          evidencePathsRef.current = [
+            ...evidencePathsRef.current,
+            { path, mediaType: file.type || "application/octet-stream" },
+          ];
+
           setAttachments((current) => [
             ...current,
             {
@@ -989,6 +1037,7 @@ export function AllmaChat({
               preview: URL.createObjectURL(file),
             },
           ]);
+
         }
       } catch (error) {
         console.error("Attachment failed", error);
@@ -1182,13 +1231,13 @@ export function AllmaChat({
                             className="max-h-56 w-auto rounded-xl border border-border/60 object-cover"
                           />
                         ) : (
-                          <span
+                          <FileAttachmentChip
                             key={index}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-background/20 px-2 py-1 text-xs"
-                          >
-                            <Paperclip className="h-3 w-3" /> {part.filename ?? "Attachment"}
-                          </span>
+                            url={part.url}
+                            filename={part.filename ?? "Attachment"}
+                          />
                         );
+
                       }
                       if (part.type.startsWith("tool-")) {
                         return (
