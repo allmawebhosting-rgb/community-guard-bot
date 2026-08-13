@@ -11,6 +11,8 @@ export type IceConfig = {
   iceServers: IceServerConfig[];
   /** True only when a real TURN relay credential was issued for this call. */
   relay: boolean;
+  /** Which relay path issued the credential, for diagnostics only. */
+  provider: "metered" | "shared_secret" | "none";
   /** Machine-readable reason a relay is unavailable, for honest UI copy. */
   reason?: "not_configured" | "provider_error";
 };
@@ -27,6 +29,55 @@ const PUBLIC_STUN: IceServerConfig[] = [
 const CREDENTIAL_TTL_SECONDS = 600;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function hasRelayUrl(servers: IceServerConfig[]) {
+  return servers.some((server) => {
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    return urls.some((url) => url.startsWith("turn:") || url.startsWith("turns:"));
+  });
+}
+
+/**
+ * Metered (Open Relay) mints its own short-lived credentials, so the API key
+ * itself never reaches the browser.
+ */
+async function fetchMeteredIce(apiKey: string, appName: string): Promise<IceServerConfig[] | null> {
+  const response = await fetch(
+    `https://${encodeURIComponent(appName)}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}`,
+    { headers: { accept: "application/json" } },
+  );
+  if (!response.ok) {
+    console.error("[turn] Metered rejected the credential request", response.status);
+    return null;
+  }
+  const body = (await response.json()) as IceServerConfig[] | { iceServers?: IceServerConfig[] };
+  const servers = Array.isArray(body) ? body : (body.iceServers ?? []);
+  return servers.filter((server) => !!server?.urls);
+}
+
+/**
+ * Standard coturn `use-auth-secret` (TURN REST API) credentials: the username
+ * carries the expiry, the password is an HMAC over it. Derived in the Worker
+ * with Web Crypto so the shared secret never leaves the server.
+ */
+async function deriveSharedSecretIce(
+  urls: string[],
+  secret: string,
+  callId: string,
+): Promise<IceServerConfig[]> {
+  const username = `${Math.floor(Date.now() / 1000) + CREDENTIAL_TTL_SECONDS}:${callId}`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(username));
+  const credential = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  return [{ urls, username, credential }];
+}
+
 
 /**
  * Mints short-lived Cloudflare TURN credentials for one call. Only the two
