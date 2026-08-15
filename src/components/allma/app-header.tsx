@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LayoutDashboard, LogOut, Moon, Shield, Sun, UserRound } from "lucide-react";
 import { BrandLockup } from "@/components/allma/brand";
+import { NotificationsBell } from "@/components/allma/notifications-bell";
+
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/lib/theme";
