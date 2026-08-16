@@ -536,7 +536,9 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { isAuthenticated } = useAuth();
   const isChat = pathname === "/chat" || pathname.startsWith("/chat/");
+
 
   useEffect(() => {
     document.documentElement.classList.toggle("viewport-locked", isChat);
