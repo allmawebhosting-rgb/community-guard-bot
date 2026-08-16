@@ -23,6 +23,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MascotAvatar } from "@/components/allma/mascot";
 import { BrandLockup } from "@/components/allma/brand";
+import { NotificationsBell } from "@/components/allma/notifications-bell";
+import { ConnectionRequestsBanner } from "@/components/allma/safety-network/connection-requests-banner";
+
 import { SosButton } from "@/components/allma/sos-button";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -536,7 +539,9 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { isAuthenticated } = useAuth();
   const isChat = pathname === "/chat" || pathname.startsWith("/chat/");
+
 
   useEffect(() => {
     document.documentElement.classList.toggle("viewport-locked", isChat);
@@ -590,8 +595,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               </div>
             </div>
 
-            <span className="h-9 w-9" aria-hidden="true" />
+            {isAuthenticated ? (
+              <NotificationsBell />
+            ) : (
+              <span className="h-9 w-9" aria-hidden="true" />
+            )}
           </div>
+
         </header>
 
         {/* Desktop top bar — branding strip + status */}
@@ -611,12 +621,16 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               <span className="flex items-center gap-1.5 rounded-full border border-border/50 bg-card/50 px-3 py-1">
                 🔒 End-to-end encrypted
               </span>
+              {isAuthenticated && <NotificationsBell />}
             </div>
           </div>
         </header>
 
+        {isAuthenticated && <ConnectionRequestsBanner />}
+
         {/* Main content — no max-w constraint; children control their own width */}
         <main className={cn("flex min-h-0 flex-1 flex-col", isChat && "overflow-hidden")}>
+
           {children}
         </main>
       </div>
