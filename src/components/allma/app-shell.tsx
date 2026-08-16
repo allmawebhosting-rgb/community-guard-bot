@@ -592,8 +592,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               </div>
             </div>
 
-            <span className="h-9 w-9" aria-hidden="true" />
+            {isAuthenticated ? (
+              <NotificationsBell />
+            ) : (
+              <span className="h-9 w-9" aria-hidden="true" />
+            )}
           </div>
+
         </header>
 
         {/* Desktop top bar — branding strip + status */}
