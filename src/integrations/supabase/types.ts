@@ -2195,6 +2195,115 @@ export type Database = {
           },
         ]
       }
+      smart_sos_check_events: {
+        Row: {
+          action: string
+          check_id: string
+          created_at: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          action: string
+          check_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          action?: string
+          check_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smart_sos_check_events_check_id_fkey"
+            columns: ["check_id"]
+            isOneToOne: false
+            referencedRelation: "smart_sos_checks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      smart_sos_checks: {
+        Row: {
+          confidence: string
+          created_at: string
+          id: string
+          resolved_at: string | null
+          signals: Json
+          sos_activity_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: string
+          created_at?: string
+          id?: string
+          resolved_at?: string | null
+          signals?: Json
+          sos_activity_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          confidence?: string
+          created_at?: string
+          id?: string
+          resolved_at?: string | null
+          signals?: Json
+          sos_activity_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smart_sos_checks_sos_activity_id_fkey"
+            columns: ["sos_activity_id"]
+            isOneToOne: false
+            referencedRelation: "safety_activity"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      smart_sos_settings: {
+        Row: {
+          audio_detection: boolean
+          auto_escalation: boolean
+          created_at: string
+          enabled: boolean
+          grace_seconds: number
+          inactivity_seconds: number
+          motion_detection: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_detection?: boolean
+          auto_escalation?: boolean
+          created_at?: string
+          enabled?: boolean
+          grace_seconds?: number
+          inactivity_seconds?: number
+          motion_detection?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_detection?: boolean
+          auto_escalation?: boolean
+          created_at?: string
+          enabled?: boolean
+          grace_seconds?: number
+          inactivity_seconds?: number
+          motion_detection?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sos_responder_offers: {
         Row: {
           created_at: string
@@ -2304,6 +2413,10 @@ export type Database = {
           responder_id: string
           status: string
         }[]
+      }
+      escalate_smart_sos_check: {
+        Args: { _check_id: string; _confidence: string; _signals?: Json }
+        Returns: Json
       }
       find_allma_member_by_phone: {
         Args: { _phone: string }
@@ -2425,6 +2538,25 @@ export type Database = {
         }[]
       }
       normalize_phone_ug: { Args: { _raw: string }; Returns: string }
+      resolve_smart_sos_check: {
+        Args: { _check_id: string; _metadata?: Json; _status: string }
+        Returns: {
+          confidence: string
+          created_at: string
+          id: string
+          resolved_at: string | null
+          signals: Json
+          sos_activity_id: string | null
+          status: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "smart_sos_checks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       respond_to_responder_notification: {
         Args: {
           p_accept: boolean
