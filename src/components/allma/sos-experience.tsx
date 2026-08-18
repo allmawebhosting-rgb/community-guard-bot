@@ -1224,7 +1224,10 @@ function StatusTile({
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export function SOSExperience({ instant }: { instant?: boolean } = {}) {
+export function SOSExperience({
+  instant,
+  smartCheckId,
+}: { instant?: boolean; smartCheckId?: string } = {}) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>(instant ? "loading" : "idle");
