@@ -1459,6 +1459,27 @@ export function SOSExperience({
         {phase === "loading" && (
           <LoadingScreen key="loading" emergencyId={emergencyId} />
         )}
+        {smartCheckId && phase !== "idle" && (
+          <div className="relative z-20 mx-auto mt-3 w-full max-w-2xl px-4">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/40 bg-destructive/[0.08] px-4 py-3">
+              <Brain className="h-4 w-4 shrink-0 text-destructive" />
+              <p className="min-w-0 flex-1 text-[12px] font-semibold leading-relaxed">
+                Activated automatically after a safety check you didn’t respond to.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  await resolveSafetyCheck(smartCheckId, "cancelled", { source: "sos_screen" });
+                  void navigate({ to: "/dashboard" });
+                }}
+                className="rounded-xl border border-border/70 bg-background/70 px-3 py-1.5 text-[11.5px] font-bold transition hover:bg-accent"
+              >
+                I’m safe — cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {phase === "help" && (
           <HelpScreen
             key="help"
