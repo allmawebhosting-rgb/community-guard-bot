@@ -2,13 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SOSExperience } from "@/components/allma/sos-experience";
 
 export const Route = createFileRoute("/sos")({
-  validateSearch: (search: Record<string, unknown>): { instant?: true } =>
-    search.instant === true ||
-    search.instant === "true" ||
-    search.instant === 1 ||
-    search.instant === "1"
-      ? { instant: true }
-      : {},
+  validateSearch: (search: Record<string, unknown>): { instant?: true; check?: string } => {
+    const instant =
+      search.instant === true ||
+      search.instant === "true" ||
+      search.instant === 1 ||
+      search.instant === "1";
+    const check = typeof search.check === "string" && search.check ? search.check : undefined;
+    return { ...(instant ? { instant: true as const } : {}), ...(check ? { check } : {}) };
+  },
+
 
 
   head: () => ({
