@@ -1337,6 +1337,8 @@ export function SOSExperience({
             location_consent: shareLocation,
             responder_notification_consent: notifyResponders,
             coordination_mode: "consent_based",
+            activation_mode: smartCheckId ? "smart_detection" : "manual",
+            ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
           } as never,
         })
         .select("id")
@@ -1344,6 +1346,9 @@ export function SOSExperience({
       activityId = activity?.id ?? null;
       setSosActivityId(activityId);
       if (error) console.error("Failed to record SOS activity", error);
+      if (activityId && smartCheckId) {
+        void logCheckEvent(smartCheckId, "sos_activated", { sos_activity_id: activityId });
+      }
     }
 
     if (user) {
