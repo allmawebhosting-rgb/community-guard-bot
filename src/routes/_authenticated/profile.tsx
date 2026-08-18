@@ -314,6 +314,12 @@ function ProfileScreen() {
                 <SafetyNetworkPanel />
               </div>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                Privacy center
+              </p>
+              <div className="mb-4 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
+                <SmartSosPrivacyCenter />
+              </div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
                 Allma calls
               </p>
               <div className="mb-3 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
