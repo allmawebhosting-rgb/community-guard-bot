@@ -36,6 +36,6 @@ export const Route = createFileRoute("/sos")({
 });
 
 function SOSRoute() {
-  const { instant } = Route.useSearch();
-  return <SOSExperience instant={instant} />;
+  const { instant, check } = Route.useSearch();
+  return <SOSExperience instant={instant} smartCheckId={check} />;
 }
