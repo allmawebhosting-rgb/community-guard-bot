@@ -1062,13 +1062,9 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
   const [copied, setCopied] = useState(false);
   const level = MAP_ZOOM_LEVELS[zoom];
 
-  // Half-span of the viewport in metres → degrees for the OSM bbox.
-  const halfSpan = level.span / 2;
-  const dLat = halfSpan / 111_320;
-  const dLng = halfSpan / (111_320 * Math.max(0.2, Math.cos((location.lat * Math.PI) / 180)));
-  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - dLng},${
-    location.lat - dLat
-  },${location.lng + dLng},${location.lat + dLat}&layer=mapnik&marker=${location.lat},${location.lng}`;
+  // Google Maps embed uses the same zoom tiers as the existing map controls.
+  const googleZoom = [18, 16, 14, 12][zoom] ?? 16;
+  const mapUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}&output=embed`;
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / MAP_HEIGHT;
@@ -1158,12 +1154,12 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
 
       <div className="grid grid-cols-2 gap-2 border-t border-border/60 p-2.5">
         <a
-          href={`https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=17/${location.lat}/${location.lng}`}
+          href={`https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}`}
           target="_blank"
           rel="noreferrer"
           className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
         >
-          <ExternalLink className="h-3.5 w-3.5" /> Open in Maps
+          <ExternalLink className="h-3.5 w-3.5" /> Open in Google Maps
         </a>
         <button
           type="button"
