@@ -25,6 +25,7 @@ import { MascotAvatar } from "@/components/allma/mascot";
 import { BrandLockup } from "@/components/allma/brand";
 import { NotificationsBell } from "@/components/allma/notifications-bell";
 import { ConnectionRequestsBanner } from "@/components/allma/safety-network/connection-requests-banner";
+import { CallCenter } from "@/components/allma/calls/call-center";
 
 import { SosButton } from "@/components/allma/sos-button";
 import { Button } from "@/components/ui/button";
@@ -640,6 +641,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
       {/* One emergency control shared by every app-shell screen. */}
       <SosButton />
+
+      {/* One real Twilio Voice device and call overlay shared by the app. */}
+      <CallCenter />
     </div>
   );
 }

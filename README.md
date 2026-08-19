@@ -530,3 +530,26 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Twilio Voice setup
+
+ALLMA now uses Twilio Voice for the existing Safety Network and SOS call flows. The browser receives only short-lived access tokens; Twilio auth secrets stay server-side.
+
+Configure these server secrets in the deployment environment:
+
+```text
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+TWILIO_API_KEY
+TWILIO_API_SECRET
+TWILIO_TWIML_APP_SID
+SUPABASE_URL
+SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+Set the Twilio Voice application Voice URL to `https://<your-domain>/api/voice-twiml` using POST. The TwiML route validates Twilio signatures, authorizes the existing ALLMA call record, and routes only to the authorized ALLMA recipient. Set the status callback URL to `https://<your-domain>/api/voice-status` using POST.
+
+Apply the migration `supabase/migrations/20260819090000_twilio_voice_foundation.sql` before enabling calling. It adds Twilio metadata, indexes, and centralized responder/token configuration without creating a duplicate call table.
+
+The current workspace has no Capacitor iOS/Android projects. Web calling is implemented through the Twilio Voice JavaScript SDK. Native background and locked-screen incoming calls still require a Capacitor bridge using Twilio Voice native SDKs, APNs/FCM credentials, CallKit on iOS, and Android Telecom/foreground-service setup; they are not claimed as complete here.

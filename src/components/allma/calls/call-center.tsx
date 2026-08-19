@@ -24,6 +24,7 @@ import {
   formatDuration,
   microphoneErrorMessage,
   onVoiceCallRequest,
+  registerVoiceDevice,
   setCallStatus,
   startVoiceCall,
   type CallPeer,
@@ -87,6 +88,9 @@ export function CallCenter() {
       if (!active) return;
       setUserId(data.user?.id ?? null);
       if (!data.user) return;
+        void registerVoiceDevice().catch((error) => {
+          console.warn("Allma Voice device registration unavailable", error);
+        });
       const { data: connections } = await supabase.rpc("list_safety_connections");
       if (!active) return;
       const map = new Map<string, CallPeer>();
@@ -113,6 +117,10 @@ export function CallCenter() {
           setQuality("good");
           setPhase("active");
           if (caller) void setCallStatus(id, "connected").catch(() => undefined);
+        },
+        onEnded: () => {
+          void setCallStatus(id, "ended").catch(() => undefined);
+          teardown("Call ended");
         },
         onFailed: (message) => {
           void setCallStatus(id, "failed", message).catch(() => undefined);

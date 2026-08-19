@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getIceConfig } from "./turn.functions";
+import { Device, type Call as TwilioCall } from "@twilio/voice-sdk";
 
 export type CallStatus =
   | "initiating"
@@ -113,24 +113,86 @@ type EngineEvents = {
   onQuality: (quality: ConnectionQuality) => void;
   onConnected: () => void;
   onFailed: (message: string) => void;
+  onEnded?: () => void;
   /** True when a TURN relay credential was issued for this call. */
   onRelay?: (relay: boolean) => void;
 };
 
+type TwilioTokenResponse = { token: string };
+
+let device: Device | null = null;
+let devicePromise: Promise<Device> | null = null;
+const incomingCalls = new Map<string, TwilioCall>();
+
+function incomingCallId(call: TwilioCall) {
+  const parameters = (call as unknown as { parameters?: Record<string, string> }).parameters;
+  if (parameters?.callId) return parameters.callId;
+  const customParameters = (call as unknown as { customParameters?: Map<string, string> })
+    .customParameters;
+  return customParameters?.get("callId") ?? null;
+}
+
+async function getTwilioToken(callId?: string) {
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new Error("Sign in is required before starting an Allma call.");
+  }
+  const response = await fetch("/api/voice-token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${data.session.access_token}`,
+    },
+    body: JSON.stringify(callId ? { callId } : {}),
+  });
+  const payload = (await response.json().catch(() => ({}))) as TwilioTokenResponse & {
+    error?: string;
+  };
+  if (!response.ok || !payload.token) {
+    throw new Error(payload.error ?? "Twilio Voice is not available.");
+  }
+  return payload.token;
+}
+
+async function getDevice() {
+  if (device) return device;
+  if (devicePromise) return devicePromise;
+  devicePromise = (async () => {
+    const next = new Device(await getTwilioToken(), {
+      codecPreferences: ["opus", "pcmu"],
+      enableRingingState: true,
+    });
+    next.on("incoming", (call) => {
+      const callId = incomingCallId(call);
+      if (callId) incomingCalls.set(callId, call);
+    });
+    next.on("tokenWillExpire", () => {
+      void getTwilioToken().then((token) => next.updateToken(token)).catch(() => undefined);
+    });
+    await next.register();
+    device = next;
+    return next;
+  })();
+  try {
+    return await devicePromise;
+  } finally {
+    devicePromise = null;
+  }
+}
+
+/** Registers the authenticated user's Twilio Device for in-app incoming calls. */
+export async function registerVoiceDevice() {
+  if (typeof window === "undefined") return;
+  await getDevice();
+}
+
 /**
- * Real peer-to-peer WebRTC audio. Signalling (SDP + ICE) travels through the
- * RLS-protected `call_signals` table over Supabase realtime, so only the two
- * call participants can read or write it.
+ * Real Twilio Voice transport. Authorization, tokens, TwiML routing, and
+ * authoritative call state remain server-side; this class only owns audio.
  */
 export class VoiceCallEngine {
-  private pc: RTCPeerConnection | null = null;
-  private localStream: MediaStream | null = null;
-  private audioEl: HTMLAudioElement | null = null;
-  private channel: ReturnType<typeof supabase.channel> | null = null;
-  private remoteReady = false;
-  private pendingCandidates: RTCIceCandidateInit[] = [];
+  private call: TwilioCall | null = null;
   private closed = false;
-  private restarted = false;
 
   constructor(
     private readonly callId: string,
@@ -140,99 +202,47 @@ export class VoiceCallEngine {
   ) {}
 
   async start() {
-    this.localStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
+    if (typeof window === "undefined") throw new Error("Voice calls require a browser or native app.");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Microphone access is required to make a voice call.");
+    }
+    const microphone = await navigator.mediaDevices.getUserMedia({ audio: true });
+    microphone.getTracks().forEach((track) => track.stop());
+    const twilioDevice = await getDevice();
+    this.call = this.isCaller
+      ? await twilioDevice.connect({ params: { callId: this.callId } })
+      : await waitForIncomingCall(this.callId);
+    if (!this.call) throw new Error("The incoming call is no longer available.");
+    if (!this.isCaller) this.call.accept();
+    this.bindCall(this.call);
+  }
 
-    const ice = await fetchIceConfig(this.callId);
-    this.events.onRelay?.(ice.relay);
-
-    const pc = new RTCPeerConnection({ iceServers: ice.iceServers });
-    this.pc = pc;
-    this.localStream.getTracks().forEach((track) => pc.addTrack(track, this.localStream!));
-
-    pc.ontrack = (event) => {
-      const [stream] = event.streams;
-      if (!stream) return;
-      if (!this.audioEl) {
-        this.audioEl = document.createElement("audio");
-        this.audioEl.autoplay = true;
-        this.audioEl.setAttribute("aria-hidden", "true");
-        document.body.appendChild(this.audioEl);
-      }
-      this.audioEl.srcObject = stream;
-      void this.audioEl.play().catch(() => undefined);
-    };
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) void this.send("candidate", event.candidate.toJSON());
-    };
-
-    pc.onconnectionstatechange = () => {
+  private bindCall(call: TwilioCall) {
+    call.on("ringing", () => this.events.onQuality("connecting"));
+    call.on("accept", () => {
       if (this.closed) return;
-      switch (pc.connectionState) {
-        case "connected":
-          this.events.onQuality("good");
-          this.events.onConnected();
-          break;
-        case "disconnected":
-          this.events.onQuality("reconnecting");
-          break;
-        case "failed":
-          void this.retryWithFreshIce();
-          break;
-        default:
-          break;
-      }
-    };
-
-    await this.subscribe();
-    await this.drainExistingSignals();
-
-    if (this.isCaller) {
-      const offer = await pc.createOffer({ offerToReceiveAudio: true });
-      await pc.setLocalDescription(offer);
-      await this.send("offer", { sdp: offer.sdp });
-    }
-  }
-
-  /**
-   * One retry with freshly minted ICE credentials before giving up. A first
-   * attempt can fail because a relay credential expired or the network changed.
-   */
-  private async retryWithFreshIce() {
-    if (this.closed || !this.pc) return;
-    if (this.restarted || !this.isCaller) {
-      this.events.onFailed("The connection dropped. Please try calling again.");
-      return;
-    }
-    this.restarted = true;
-    this.events.onQuality("reconnecting");
-    try {
-      const ice = await fetchIceConfig(this.callId);
-      this.events.onRelay?.(ice.relay);
-      this.pc.setConfiguration({ iceServers: ice.iceServers });
-      const offer = await this.pc.createOffer({ iceRestart: true });
-      await this.pc.setLocalDescription(offer);
-      await this.send("offer", { sdp: offer.sdp, restart: true });
-    } catch {
-      this.events.onFailed("We could not reconnect this call. Please try again.");
-    }
-  }
-
-
-
-  setMuted(muted: boolean) {
-    this.localStream?.getAudioTracks().forEach((track) => {
-      track.enabled = !muted;
+      this.events.onQuality("good");
+      this.events.onConnected();
     });
+    call.on("reconnecting", () => this.events.onQuality("reconnecting"));
+    call.on("reconnected", () => this.events.onQuality("good"));
+    call.on("disconnect", () => {
+      if (!this.closed) this.events.onEnded?.();
+    });
+    call.on("cancel", () => this.events.onFailed("The call was not answered."));
+    call.on("reject", () => this.events.onFailed("The call was declined."));
+    call.on("error", (error) => this.events.onFailed(error.message || "The call failed."));
+  }
+  setMuted(muted: boolean) {
+    this.call?.mute(muted);
   }
 
   async setSpeaker(on: boolean) {
-    const el = this.audioEl as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | null;
-    if (!el?.setSinkId) return false;
+    const audio = (device as unknown as { audio?: { setSinkIds?: (ids: string[]) => Promise<void> } })
+      .audio;
+    if (!audio?.setSinkIds) return false;
     try {
-      await el.setSinkId(on ? "default" : "");
+      await audio.setSinkIds([on ? "default" : ""]);
       return true;
     } catch {
       return false;
@@ -241,112 +251,19 @@ export class VoiceCallEngine {
 
   close() {
     this.closed = true;
-    if (this.channel) void supabase.removeChannel(this.channel);
-    this.channel = null;
-    this.pc?.close();
-    this.pc = null;
-    this.localStream?.getTracks().forEach((track) => track.stop());
-    this.localStream = null;
-    if (this.audioEl) {
-      this.audioEl.srcObject = null;
-      this.audioEl.remove();
-      this.audioEl = null;
-    }
+    this.call?.disconnect();
+    incomingCalls.delete(this.callId);
+    this.call = null;
   }
+}
 
-  private async send(kind: "offer" | "answer" | "candidate" | "bye", payload: unknown) {
-    if (this.closed) return;
-    await supabase.from("call_signals").insert({
-      call_id: this.callId,
-      sender_id: this.userId,
-      kind,
-      payload: payload as never,
-    });
+async function waitForIncomingCall(callId: string) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const call = incomingCalls.get(callId);
+    if (call) return call;
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
-
-  private async subscribe() {
-    this.channel = supabase
-      .channel(`call-signals-${this.callId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "call_signals",
-          filter: `call_id=eq.${this.callId}`,
-        },
-        (payload) => {
-          void this.handleSignal(payload.new as {
-            sender_id: string;
-            kind: string;
-            payload: Record<string, unknown>;
-          });
-        },
-      )
-      .subscribe();
-  }
-
-  private async drainExistingSignals() {
-    const { data } = await supabase
-      .from("call_signals")
-      .select("sender_id, kind, payload")
-      .eq("call_id", this.callId)
-      .order("created_at", { ascending: true });
-    for (const signal of data ?? []) {
-      await this.handleSignal(
-        signal as { sender_id: string; kind: string; payload: Record<string, unknown> },
-      );
-    }
-  }
-
-  private async handleSignal(signal: {
-    sender_id: string;
-    kind: string;
-    payload: Record<string, unknown>;
-  }) {
-    if (this.closed || !this.pc || signal.sender_id === this.userId) return;
-    try {
-      if (signal.kind === "offer" && !this.isCaller) {
-        const isRestart = signal.payload["restart"] === true;
-        if (this.remoteReady && !isRestart) return;
-        await this.pc.setRemoteDescription({
-          type: "offer",
-          sdp: String(signal.payload["sdp"] ?? ""),
-        });
-        this.remoteReady = true;
-        await this.flushCandidates();
-        const answer = await this.pc.createAnswer();
-        await this.pc.setLocalDescription(answer);
-        await this.send("answer", { sdp: answer.sdp });
-      } else if (signal.kind === "answer" && this.isCaller) {
-        if (this.remoteReady) return;
-        await this.pc.setRemoteDescription({
-          type: "answer",
-          sdp: String(signal.payload["sdp"] ?? ""),
-        });
-        this.remoteReady = true;
-        await this.flushCandidates();
-      } else if (signal.kind === "candidate") {
-        const candidate = signal.payload as RTCIceCandidateInit;
-        if (!this.remoteReady) this.pendingCandidates.push(candidate);
-        else await this.pc.addIceCandidate(candidate);
-      }
-    } catch {
-      // A malformed or duplicated signal must not tear down a live call.
-    }
-  }
-
-  private async flushCandidates() {
-    const queued = this.pendingCandidates;
-    this.pendingCandidates = [];
-    for (const candidate of queued) {
-      try {
-        await this.pc?.addIceCandidate(candidate);
-      } catch {
-        // ignore stale candidates
-      }
-    }
-  }
+  return null;
 }
 
 const CALL_EVENT = "allma:start-call";
