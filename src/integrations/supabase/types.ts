@@ -662,10 +662,9 @@ export type Database = {
           sos_session_id: string | null
           started_at: string | null
           status: string
-          twilio_call_sid: string | null
-          twilio_from_identity: string | null
-          twilio_to_identity: string | null
           updated_at: string
+          zego_room_id: string | null
+          zego_session_id: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -684,10 +683,9 @@ export type Database = {
           sos_session_id?: string | null
           started_at?: string | null
           status?: string
-          twilio_call_sid?: string | null
-          twilio_from_identity?: string | null
-          twilio_to_identity?: string | null
           updated_at?: string
+          zego_room_id?: string | null
+          zego_session_id?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -706,10 +704,9 @@ export type Database = {
           sos_session_id?: string | null
           started_at?: string | null
           status?: string
-          twilio_call_sid?: string | null
-          twilio_from_identity?: string | null
-          twilio_to_identity?: string | null
           updated_at?: string
+          zego_room_id?: string | null
+          zego_session_id?: string | null
         }
         Relationships: []
       }
@@ -2667,10 +2664,9 @@ export type Database = {
           sos_session_id: string | null
           started_at: string | null
           status: string
-          twilio_call_sid: string | null
-          twilio_from_identity: string | null
-          twilio_to_identity: string | null
           updated_at: string
+          zego_room_id: string | null
+          zego_session_id: string | null
         }
         SetofOptions: {
           from: "*"
