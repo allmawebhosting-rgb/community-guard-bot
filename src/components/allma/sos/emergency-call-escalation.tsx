@@ -36,11 +36,6 @@ export function EmergencyCallEscalation({
       unsubscribe();
     };
   }, [autoStart, controller]);
-  /* eslint-disable-next-line no-empty-pattern */
-  useEffect(() => {
-    void controller.init(autoStart);
-    return unsubscribe;
-  }, [autoStart, controller]);
 
   const targets = state?.targets ?? [];
   const attempts = state?.attempts ?? [];
