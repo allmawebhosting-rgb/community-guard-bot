@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SOSExperience } from "@/components/allma/sos-experience";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export const Route = createFileRoute("/sos")({
   validateSearch: (search: Record<string, unknown>): { instant?: true; check?: string } => {
     const instant =
@@ -8,7 +10,8 @@ export const Route = createFileRoute("/sos")({
       search.instant === "true" ||
       search.instant === 1 ||
       search.instant === "1";
-    const check = typeof search.check === "string" && search.check ? search.check : undefined;
+    const rawCheck = typeof search.check === "string" ? search.check.trim() : "";
+    const check = UUID_PATTERN.test(rawCheck) ? rawCheck : undefined;
     return { ...(instant ? { instant: true as const } : {}), ...(check ? { check } : {}) };
   },
 
