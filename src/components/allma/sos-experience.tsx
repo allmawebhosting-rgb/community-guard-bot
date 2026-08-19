@@ -3146,13 +3146,18 @@ function HelpScreen({
         </div>
       </div>
 
+      <div className="shrink-0 border-b border-border/60 px-3 py-3 sm:px-5 lg:px-6">
+        <div className="mx-auto w-full max-w-4xl">
+          <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
+        </div>
+      </div>
+
       {/* ── Body ── */}
       <div className="flex min-h-0 flex-1 overflow-hidden lg:mx-auto lg:w-full lg:max-w-[90rem]">
         {/* Mobile: single scrolling column with everything */}
         <div className="flex-1 overflow-y-auto lg:hidden">
           <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
             {EmergencySummarySection}
-            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
             {AiSection}
             {QuickActionsSection}
             {EscalationSection}
@@ -3191,7 +3196,6 @@ function HelpScreen({
         <div className="hidden flex-1 overflow-y-auto bg-background/10 lg:block">
           <div className="mx-auto w-full max-w-4xl space-y-5 px-6 py-5 pb-14 xl:px-8">
             {EmergencySummarySection}
-            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
             {AiSection}
             {QuickActionsSection}
             {EscalationSection}
