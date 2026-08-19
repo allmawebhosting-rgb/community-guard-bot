@@ -134,14 +134,19 @@ async function getZegoToken(callId: string): Promise<ZegoTokenResponse> {
 
 async function loadZegoSdk(): Promise<ZegoSdk> {
   try {
-    const dynamicImport = new Function("specifier", "return import(specifier)") as (
-      specifier: string,
-    ) => Promise<ZegoSdk>;
-    return await dynamicImport("zego-express-engine-webrtc");
-  } catch {
-    throw new Error("ZEGOCLOUD Voice SDK is not installed on this device.");
+    // Static specifier so the bundler includes the SDK in the client build.
+    const mod = (await import("zego-express-engine-webrtc")) as unknown as
+      | ZegoSdk
+      | { default: ZegoSdk };
+    const sdk = (mod as { default?: ZegoSdk }).default ?? (mod as ZegoSdk);
+    if (!sdk?.ZegoExpressEngine) throw new Error("missing engine");
+    return sdk;
+  } catch (error) {
+    console.error("Failed to load ZEGOCLOUD Voice SDK", error);
+    throw new Error("Allma could not load the voice calling engine. Please refresh and try again.");
   }
 }
+
 
 /** Incoming UI remains owned by ALLMA realtime call records; Zego joins after Answer. */
 export async function registerVoiceDevice() {}
