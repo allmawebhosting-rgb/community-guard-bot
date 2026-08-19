@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { PhoneIncoming, PhoneMissed, PhoneOutgoing } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { formatDuration, listMyCalls, type CallHistoryEntry } from "@/lib/voice-call";
+import { formatDuration, listMyCalls, type CallHistoryEntry } from "@/lib/zego-call";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 
 function relative(iso: string) {

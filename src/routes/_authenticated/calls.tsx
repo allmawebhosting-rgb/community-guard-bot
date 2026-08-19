@@ -25,7 +25,7 @@ function CallsRoute() {
           </p>
           <h1 className="mt-1 font-display text-2xl font-black">Allma calls</h1>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            Calls are authorized through your Safety Network and carried by Twilio Voice.
+            Calls are authorized through your Safety Network and carried by ZEGOCLOUD RTC.
           </p>
         </div>
         <CallHistory />

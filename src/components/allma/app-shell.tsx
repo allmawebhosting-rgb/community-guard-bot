@@ -642,7 +642,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       {/* One emergency control shared by every app-shell screen. */}
       <SosButton />
 
-      {/* The call overlay + Twilio Voice device is mounted once in __root. */}
+      {/* The call overlay + ZEGOCLOUD RTC session is mounted once in __root. */}
 
     </div>
   );

@@ -4,7 +4,6 @@ import {
   MapPin,
   Mic,
   MicOff,
-  Network,
   Phone,
   PhoneOff,
   ShieldCheck,
@@ -29,7 +28,7 @@ import {
   startVoiceCall,
   type CallPeer,
   type ConnectionQuality,
-} from "@/lib/voice-call";
+} from "@/lib/zego-call";
 
 type Phase = "idle" | "outgoing" | "incoming" | "active" | "ended";
 
@@ -53,7 +52,6 @@ export function CallCenter() {
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(true);
   const [endedNote, setEndedNote] = useState<string | null>(null);
-  const [relay, setRelay] = useState<boolean | null>(null);
   const [emergency, setEmergency] = useState<EmergencyCallContext | null>(null);
 
   const engineRef = useRef<VoiceCallEngine | null>(null);
@@ -74,7 +72,6 @@ export function CallCenter() {
     setMuted(false);
     setQuality("connecting");
     setEndedNote(note);
-    setRelay(null);
     setEmergency(null);
     setPhase(note ? "ended" : "idle");
     if (note) setTimeout(() => setPhase((current) => (current === "ended" ? "idle" : current)), 2600);
@@ -112,11 +109,10 @@ export function CallCenter() {
     async (id: string, caller: boolean) => {
       const engine = new VoiceCallEngine(id, userId!, caller, {
         onQuality: setQuality,
-        onRelay: setRelay,
         onConnected: () => {
           setQuality("good");
           setPhase("active");
-          if (caller) void setCallStatus(id, "connected").catch(() => undefined);
+          void setCallStatus(id, "connected").catch(() => undefined);
         },
         onEnded: () => {
           void setCallStatus(id, "ended").catch(() => undefined);
@@ -374,25 +370,6 @@ export function CallCenter() {
               In-app call · phone numbers stay private
             </p>
 
-            {relay !== null && phase !== "ended" && (
-              <p
-                className={cn(
-                  "mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium",
-                  relay ? "text-muted-foreground" : "text-gold",
-                )}
-              >
-                {relay ? (
-                  <>
-                    <Network className="h-3.5 w-3.5" /> Relay active — works on mobile networks
-                  </>
-                ) : (
-                  <>
-                    <Network className="h-3.5 w-3.5" /> Direct connection only — may fail on some
-                    mobile networks
-                  </>
-                )}
-              </p>
-            )}
           </div>
 
           <div className="relative px-6 pb-[max(2rem,env(safe-area-inset-bottom))]">

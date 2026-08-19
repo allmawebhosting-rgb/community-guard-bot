@@ -27,9 +27,7 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedResponderRouteImport } from './routes/_authenticated/responder'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
-import { Route as ApiVoiceStatusRouteImport } from './routes/api/voice-status'
-import { Route as ApiVoiceTokenRouteImport } from './routes/api/voice-token'
-import { Route as ApiVoiceTwimlRouteImport } from './routes/api/voice-twiml'
+import { Route as ApiZegoTokenRouteImport } from './routes/api/zego-token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
@@ -142,19 +140,9 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiVoiceStatusRoute = ApiVoiceStatusRouteImport.update({
-  id: '/api/voice-status',
-  path: '/api/voice-status',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiVoiceTokenRoute = ApiVoiceTokenRouteImport.update({
-  id: '/api/voice-token',
-  path: '/api/voice-token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiVoiceTwimlRoute = ApiVoiceTwimlRouteImport.update({
-  id: '/api/voice-twiml',
-  path: '/api/voice-twiml',
+const ApiZegoTokenRoute = ApiZegoTokenRouteImport.update({
+  id: '/api/zego-token',
+  path: '/api/zego-token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
@@ -292,9 +280,7 @@ export interface FileRoutesByFullPath {
   '/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/api/voice-status': typeof ApiVoiceStatusRoute
-  '/api/voice-token': typeof ApiVoiceTokenRoute
-  '/api/voice-twiml': typeof ApiVoiceTwimlRoute
+  '/api/zego-token': typeof ApiZegoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -333,9 +319,7 @@ export interface FileRoutesByTo {
   '/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/api/voice-status': typeof ApiVoiceStatusRoute
-  '/api/voice-token': typeof ApiVoiceTokenRoute
-  '/api/voice-twiml': typeof ApiVoiceTwimlRoute
+  '/api/zego-token': typeof ApiZegoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -377,9 +361,7 @@ export interface FileRoutesById {
   '/_authenticated/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/api/voice-status': typeof ApiVoiceStatusRoute
-  '/api/voice-token': typeof ApiVoiceTokenRoute
-  '/api/voice-twiml': typeof ApiVoiceTwimlRoute
+  '/api/zego-token': typeof ApiZegoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -421,9 +403,7 @@ export interface FileRouteTypes {
     | '/responder'
     | '/api/chat'
     | '/api/transcribe'
-    | '/api/voice-status'
-    | '/api/voice-token'
-    | '/api/voice-twiml'
+    | '/api/zego-token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -462,9 +442,7 @@ export interface FileRouteTypes {
     | '/responder'
     | '/api/chat'
     | '/api/transcribe'
-    | '/api/voice-status'
-    | '/api/voice-token'
-    | '/api/voice-twiml'
+    | '/api/zego-token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -505,9 +483,7 @@ export interface FileRouteTypes {
     | '/_authenticated/responder'
     | '/api/chat'
     | '/api/transcribe'
-    | '/api/voice-status'
-    | '/api/voice-token'
-    | '/api/voice-twiml'
+    | '/api/zego-token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/chat/$threadId'
@@ -543,9 +519,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
-  ApiVoiceStatusRoute: typeof ApiVoiceStatusRoute
-  ApiVoiceTokenRoute: typeof ApiVoiceTokenRoute
-  ApiVoiceTwimlRoute: typeof ApiVoiceTwimlRoute
+  ApiZegoTokenRoute: typeof ApiZegoTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
@@ -678,25 +652,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/voice-status': {
-      id: '/api/voice-status'
-      path: '/api/voice-status'
-      fullPath: '/api/voice-status'
-      preLoaderRoute: typeof ApiVoiceStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/voice-token': {
-      id: '/api/voice-token'
-      path: '/api/voice-token'
-      fullPath: '/api/voice-token'
-      preLoaderRoute: typeof ApiVoiceTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/voice-twiml': {
-      id: '/api/voice-twiml'
-      path: '/api/voice-twiml'
-      fullPath: '/api/voice-twiml'
-      preLoaderRoute: typeof ApiVoiceTwimlRouteImport
+    '/api/zego-token': {
+      id: '/api/zego-token'
+      path: '/api/zego-token'
+      fullPath: '/api/zego-token'
+      preLoaderRoute: typeof ApiZegoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -922,9 +882,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiChatRoute: ApiChatRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
-  ApiVoiceStatusRoute: ApiVoiceStatusRoute,
-  ApiVoiceTokenRoute: ApiVoiceTokenRoute,
-  ApiVoiceTwimlRoute: ApiVoiceTwimlRoute,
+  ApiZegoTokenRoute: ApiZegoTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }

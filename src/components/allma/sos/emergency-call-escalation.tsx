@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
-import { requestVoiceCall } from "@/lib/voice-call";
+import { requestVoiceCall } from "@/lib/zego-call";
 import {
   ATTEMPT_COPY,
   answeredAttempt,

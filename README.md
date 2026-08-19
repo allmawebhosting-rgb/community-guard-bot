@@ -500,6 +500,24 @@ Build a modular architecture so this project can later become part of the larger
 
 ------------------------------------------------
 
+ZEGOCLOUD VOICE CALLING
+
+ALLMA uses ZEGOCLOUD RTC for authenticated Safety Network and SOS voice calls. Existing ALLMA authorization, call history, realtime incoming-call UI, and sequential SOS escalation remain the source of truth.
+
+Configure these server-side secrets:
+
+```text
+ZEGOCLOUD_APP_ID
+ZEGOCLOUD_SERVER_SECRET
+ZEGOCLOUD_SERVER_URL
+```
+
+`ZEGOCLOUD_SERVER_SECRET` must never use a `VITE_` prefix or appear in frontend code. The authenticated backend endpoint `POST /api/zego-token` verifies the existing `emergency_calls` participant relationship before issuing a short-lived token and unique `allma-call-{callId}` room.
+
+The web RTC SDK is loaded only when a user answers or starts a call. Native Capacitor background calling, APNs/FCM call notifications, iOS CallKit, and Android Telecom integration require native projects and physical-device configuration; this repository does not claim those native behaviors are complete.
+
+------------------------------------------------
+
 IMPORTANT
 
 Do not imply that this platform is officially connected to the Uganda Police Force or any emergency service.
