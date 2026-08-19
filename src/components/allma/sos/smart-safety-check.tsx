@@ -13,6 +13,7 @@ type Props = {
   signals: SignalKey[];
   confidence: Confidence;
   secondsLeft: number;
+  autoSecondsLeft: number | null;
   graceSeconds: number;
   escalationBlocked: string | null;
   audioActive: boolean;
