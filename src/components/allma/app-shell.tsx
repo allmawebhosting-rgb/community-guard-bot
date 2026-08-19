@@ -642,8 +642,8 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       {/* One emergency control shared by every app-shell screen. */}
       <SosButton />
 
-      {/* One real Twilio Voice device and call overlay shared by the app. */}
-      <CallCenter />
+      {/* The call overlay + Twilio Voice device is mounted once in __root. */}
+
     </div>
   );
 }
