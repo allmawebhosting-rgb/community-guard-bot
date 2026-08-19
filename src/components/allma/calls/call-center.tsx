@@ -32,7 +32,7 @@ import {
 
 type Phase = "idle" | "outgoing" | "incoming" | "active" | "ended";
 
-const RING_TIMEOUT_MS = 45_000;
+const RING_TIMEOUT_MS = 40_000;
 
 const qualityCopy: Record<ConnectionQuality, string> = {
   connecting: "Connecting…",
@@ -217,6 +217,13 @@ export function CallCenter() {
           if (row.status === "declined") teardown(`${peerRef.current?.name ?? "They"} declined the call.`);
           else if (row.status === "ended") teardown("Call ended");
           else if (row.status === "missed") teardown("No answer");
+          else if (row.status === "connecting" || row.status === "connected") {
+            // The other side answered: stop the ring timeout so the call is never
+            // cut off while the audio streams are still being negotiated.
+            if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
+            ringTimerRef.current = null;
+            setPhase("active");
+          }
         },
       )
       .subscribe();
@@ -233,6 +240,28 @@ export function CallCenter() {
     const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
     return () => clearInterval(timer);
   }, [phase, quality]);
+
+  // Spoken announcement for emergency calls, so a recipient who only hears the
+  // device still learns who needs help. Uses the caller's real SOS record.
+  useEffect(() => {
+    if (phase !== "incoming" || !emergency?.is_emergency) return;
+    const speech = typeof window !== "undefined" ? window.speechSynthesis : undefined;
+    if (!speech) return;
+    const first = (emergency.caller_name || peerRef.current?.name || "An Allma member").split(" ")[0];
+    const type = emergency.emergency_type.replace(/_/g, " ");
+    const utterance = new SpeechSynthesisUtterance(
+      `${first} is in danger. ${type} emergency on Allma. Please answer.`,
+    );
+    utterance.rate = 1;
+    const timer = setInterval(() => {
+      if (!speech.speaking) speech.speak(utterance);
+    }, 6000);
+    speech.speak(utterance);
+    return () => {
+      clearInterval(timer);
+      speech.cancel();
+    };
+  }, [emergency, phase]);
 
   useEffect(() => () => engineRef.current?.close(), []);
 
@@ -337,7 +366,11 @@ export function CallCenter() {
               <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={112} />
             </motion.div>
 
-            <h2 className="mt-6 text-2xl font-bold tracking-tight">{peer?.name ?? "Allma member"}</h2>
+            <h2 className="mt-6 text-2xl font-bold tracking-tight">
+              {isEmergencyCall && phase === "incoming"
+                ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
+                : (peer?.name ?? "Allma member")}
+            </h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               {emergency && phase === "incoming"
                 ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
