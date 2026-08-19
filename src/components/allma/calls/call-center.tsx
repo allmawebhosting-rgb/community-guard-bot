@@ -59,7 +59,9 @@ export function CallCenter() {
   const namesRef = useRef<Map<string, CallPeer>>(new Map());
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const peerRef = useRef<CallPeer | null>(null);
+  const isCallerRef = useRef(false);
   peerRef.current = peer;
+  isCallerRef.current = isCaller;
 
   const teardown = useCallback((note: string | null) => {
     engineRef.current?.close();
@@ -131,12 +133,11 @@ export function CallCenter() {
 
   // Outgoing call requests from anywhere in the app.
   useEffect(() => {
+    // Do not consume an SOS auto-call until authentication has restored. The
+    // request queue in zego-call will replay it once this listener is ready.
+    if (!userId) return;
     return onVoiceCallRequest((requested) => {
       void (async () => {
-        if (!userId) {
-          toast.error("Sign in to make an Allma call.");
-          return;
-        }
         if (callIdRef.current) {
           toast.error("You are already on a call.");
           return;
@@ -156,7 +157,8 @@ export function CallCenter() {
           setCallId(id);
           // Best-effort: rings the recipient's device even if their app is closed.
           void notifyIncomingCall({ data: { callId: id } }).catch(() => undefined);
-          await beginEngine(id, true);
+          // Creating the real call row must not depend on automatic microphone
+          // permission. Start caller audio only after the recipient answers.
           ringTimerRef.current = setTimeout(() => {
             void setCallStatus(id, "missed").catch(() => undefined);
             teardown(`${requested.name} did not answer.`);
@@ -223,6 +225,19 @@ export function CallCenter() {
             if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
             ringTimerRef.current = null;
             setPhase("active");
+            if (isCallerRef.current && !engineRef.current) {
+              void beginEngine(row.id, true).catch(async (error) => {
+                const message =
+                  error instanceof DOMException
+                    ? microphoneErrorMessage(error)
+                    : error instanceof Error
+                      ? error.message
+                      : "The voice connection could not start.";
+                await setCallStatus(row.id, "failed", message).catch(() => undefined);
+                teardown(message);
+                toast.error(message);
+              });
+            }
           }
         },
       )
@@ -232,7 +247,7 @@ export function CallCenter() {
       void supabase.removeChannel(channel);
     };
     // Deliberately keyed only on identity: re-subscribing per render would leak channels.
-  }, [teardown, userId]);
+  }, [beginEngine, teardown, userId]);
 
   // Call timer starts only when real audio is connected.
   useEffect(() => {

@@ -71,7 +71,7 @@ export const Route = createFileRoute("/api/zego-token")({
         const userId = zegoUserId(user.id);
         const { generateToken04 } = await loadZegoServerAssistant();
         const token = generateToken04(appId, userId, serverSecret, 3600, "");
-        await admin
+        const { error: updateError } = await admin
           .from("emergency_calls")
           .update({
             zego_room_id: roomId,
@@ -80,6 +80,10 @@ export const Route = createFileRoute("/api/zego-token")({
             updated_at: new Date().toISOString(),
           })
           .eq("id", call.id);
+        if (updateError) {
+          console.error("Could not assign ZEGOCLOUD transport", updateError.message);
+          return jsonError("The secure voice room could not be prepared.", 500);
+        }
 
         return Response.json({ token, appId, server, roomId, userId, expiresIn: 3600 });
       },
