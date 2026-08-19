@@ -1,6 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { SmartSosGuardian } from "@/components/allma/sos/smart-sos-guardian";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -13,10 +12,5 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  return (
-    <>
-      <Outlet />
-      <SmartSosGuardian />
-    </>
-  );
+  return <Outlet />;
 }

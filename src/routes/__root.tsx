@@ -15,6 +15,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CallCenter } from "@/components/allma/calls/call-center";
+import { SmartSosGuardian } from "@/components/allma/sos/smart-sos-guardian";
 
 function NotFoundComponent() {
   return (
@@ -174,6 +175,7 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <CallCenter />
+        <SmartSosGuardian />
         <Toaster position="top-center" richColors />
       </ThemeProvider>
     </QueryClientProvider>
