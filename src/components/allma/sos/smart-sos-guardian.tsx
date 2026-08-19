@@ -32,6 +32,7 @@ export function SmartSosGuardian() {
       signals={detection.signals}
       confidence={detection.confidence}
       secondsLeft={detection.secondsLeft}
+      autoSecondsLeft={detection.autoSecondsLeft}
       graceSeconds={detection.settings.grace_seconds}
       escalationBlocked={detection.escalationBlocked}
       audioActive={detection.audioActive}
