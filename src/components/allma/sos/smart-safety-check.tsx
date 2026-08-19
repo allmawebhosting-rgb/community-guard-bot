@@ -30,6 +30,7 @@ export function SmartSafetyCheck({
   signals,
   confidence,
   secondsLeft,
+  autoSecondsLeft,
   graceSeconds,
   escalationBlocked,
   audioActive,
@@ -39,6 +40,7 @@ export function SmartSafetyCheck({
   const elevated = phase === "elevated";
   const copy = confidenceCopy(elevated ? "high" : confidence);
   const progress = graceSeconds > 0 ? Math.max(0, Math.min(1, secondsLeft / graceSeconds)) : 0;
+  const activating = elevated && autoSecondsLeft !== null;
 
   return (
     <AnimatePresence>
