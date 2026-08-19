@@ -89,7 +89,7 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: call } = await context.supabase
       .from("emergency_calls")
-      .select("id, caller_id, recipient_id, status")
+      .select("id, caller_id, recipient_id, status, sos_session_id")
       .eq("id", data.callId)
       .maybeSingle();
 
@@ -127,8 +127,12 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
       data: JSON.stringify({
         type: "incoming_call",
         callId: call.id,
-        title: "Incoming Allma call",
-        body: `${callerName} is calling you on Allma.`,
+        title: call.sos_session_id
+          ? `${callerName.split(" ")[0]} is in danger`
+          : "Incoming Allma call",
+        body: call.sos_session_id
+          ? `${callerName} activated SOS and is calling you on Allma. Please answer.`
+          : `${callerName} is calling you on Allma.`,
       }),
       options: { ttl: 60, urgency: "high" as const },
     };
