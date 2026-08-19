@@ -1386,7 +1386,7 @@ export function SOSExperience({
       setHospitals(
         realHospitals.length >= 2
           ? realHospitals.slice(0, 4)
-          : withDistance(DEMO_HOSPITALS, loc.lat, loc.lng),
+          : [],
       );
       setOfficers(
         realPolice.length >= 1
@@ -1511,6 +1511,7 @@ export function SOSExperience({
             respondersNotified={notifyResponders}
             responderOffers={responderOffers}
             activityId={sosActivityId}
+            automatic={Boolean(smartCheckId)}
             onChangeType={(next) => {
               setPendingEmergencyType(next);
               setEmergencyType(next);
@@ -2080,6 +2081,7 @@ function HelpScreen({
   respondersNotified,
   responderOffers,
   activityId,
+  automatic,
   onChangeType,
   onToggleLocation,
   onEnableLocation,
@@ -2100,6 +2102,7 @@ function HelpScreen({
   respondersNotified: boolean;
   responderOffers: ResponderOffer[];
   activityId: string | null;
+  automatic: boolean;
   onChangeType: (type: string) => void;
   onToggleLocation: () => void;
   onEnableLocation: () => void;
@@ -2272,6 +2275,11 @@ function HelpScreen({
             <p className="mt-1 text-[11px] text-muted-foreground">
               Activated {formatEmergencyTime(activatedAt)} · {emergencyId ?? "Session starting"}
             </p>
+            <p className="mt-1 text-[11px] font-semibold text-destructive/80">
+              {automatic
+                ? "Activated automatically after a safety check you didn’t respond to."
+                : "Activated by you."}
+            </p>
           </div>
           <span className="rounded-full border border-destructive/25 bg-destructive/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-destructive">
             {typeInfo?.label ?? "Emergency"}
@@ -2289,18 +2297,15 @@ function HelpScreen({
         </div>
         <div className="p-3.5 sm:p-4">
           <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Response</p>
-          <p className="mt-1.5 text-[12px] font-semibold text-foreground">{responseStatus}</p>
-          <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-            {respondersNotified ? "Opt-in search path" : "Community search off"}
-          </p>
-        </div>
-        <div className="p-3.5 sm:p-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">People contacted</p>
           <p className="mt-1.5 text-[12px] font-semibold text-foreground">
-            {contactedContacts.length ? `${contactedContacts.length} trusted contact` : "None yet"}
+            {responseStatus}
           </p>
           <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-            {liveOffers.length ? `${liveOffers.length} responder offer${liveOffers.length === 1 ? "" : "s"} returned` : "No automatic calls"}
+            {liveOffers.length
+              ? `${liveOffers.length} responder${liveOffers.length === 1 ? "" : "s"} in the response path`
+              : respondersNotified
+                ? "Searching in priority order"
+                : "Safety Network not notified"}
           </p>
         </div>
         <div className="p-3.5 sm:p-4">
@@ -2310,18 +2315,6 @@ function HelpScreen({
             Official services require your tap
           </p>
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3">
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Official service
-        </span>
-        <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-gold">
-          {calledTargets.includes(officialNumber.label) ? "Dialer opened" : "Not connected"}
-        </span>
-        <span className="text-[10px] text-muted-foreground">
-          Allma has not contacted authorities automatically.
-        </span>
       </div>
 
       {!isOnline && (
@@ -2574,8 +2567,11 @@ function HelpScreen({
     <div id="official-call">
       <SectionLabel>
         <Phone className="mr-1.5 inline-block h-3 w-3 align-middle" />
-        Call now — your consent required
+        Official emergency services
       </SectionLabel>
+      <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
+        Need immediate official assistance? Tap a number to call police, ambulance or general emergency services.
+      </p>
       <div className="grid grid-cols-2 gap-2.5">
         {info.primaryNumbers.map((e) => (
           <a
@@ -2603,8 +2599,7 @@ function HelpScreen({
         ))}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-        Allma cannot place calls automatically. Tap a number to use your device dialer and share
-        details with the operator.
+        ALLMA does not automatically contact authorities. Safety Network calls and official services are separate.
       </p>
     </div>
   );
@@ -3159,21 +3154,24 @@ function HelpScreen({
           <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
             {EmergencySummarySection}
             {AiSection}
-            {QuickActionsSection}
-            {EscalationSection}
-            {ResponsePlanSection}
-            {CallSection}
-            {TrustedContactsSection}
-            {UpdateSection}
             {StepsSection}
-            {StatusSection}
+            {CallSection}
             {LocationSection}
-            {ControlsSection}
-
             {MapSection}
-            {RespondersSection}
-            {FacilitiesSection}
-            {TimelineSection}
+            <details className="group rounded-2xl border border-border/60 bg-secondary/20 p-4">
+              <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Emergency timeline</summary>
+              <div className="mt-4">{TimelineSection}</div>
+            </details>
+            <details className="group rounded-2xl border border-border/60 bg-secondary/20 p-4">
+              <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Additional help</summary>
+              <div className="mt-4 space-y-5">
+                {FacilitiesSection}
+                {TrustedContactsSection}
+                {ResponsePlanSection}
+                {ControlsSection}
+                {UpdateSection}
+              </div>
+            </details>
 
             <div className="space-y-2 pt-1">
               <button
@@ -3197,11 +3195,7 @@ function HelpScreen({
           <div className="mx-auto w-full max-w-4xl space-y-5 px-6 py-5 pb-14 xl:px-8">
             {EmergencySummarySection}
             {AiSection}
-            {QuickActionsSection}
-            {EscalationSection}
-            {ResponsePlanSection}
             {StepsSection}
-            {TimelineSection}
           </div>
         </div>
 
@@ -3210,15 +3204,22 @@ function HelpScreen({
           <div className="flex-1 overflow-y-auto">
             <div className="space-y-5 p-5 pb-14 xl:p-6">
               {CallSection}
-              {TrustedContactsSection}
-              {UpdateSection}
-              {StatusSection}
               {LocationSection}
-              {ControlsSection}
-
               {MapSection}
-              {RespondersSection}
-              {FacilitiesSection}
+              <details className="rounded-2xl border border-border/60 bg-secondary/20 p-4">
+                <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Emergency timeline</summary>
+                <div className="mt-4">{TimelineSection}</div>
+              </details>
+              <details className="rounded-2xl border border-border/60 bg-secondary/20 p-4">
+                <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Additional help</summary>
+                <div className="mt-4 space-y-5">
+                  {FacilitiesSection}
+                  {TrustedContactsSection}
+                  {ResponsePlanSection}
+                  {ControlsSection}
+                  {UpdateSection}
+                </div>
+              </details>
 
               <div className="space-y-2 pt-1">
                 <button
