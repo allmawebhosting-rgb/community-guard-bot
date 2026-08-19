@@ -1,25 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Phone, PhoneOff, ShieldCheck, SquareStop } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
-import { requestVoiceCall } from "@/lib/zego-call";
-import {
-  ATTEMPT_COPY,
-  answeredAttempt,
-  attemptState,
-  isTerminal,
-  listSosCallAttempts,
-  listSosCallTargets,
-  type SosCallAttempt,
-  type SosCallTarget,
-} from "@/lib/sos-calling";
+import { ATTEMPT_COPY, attemptState } from "@/lib/sos-calling";
+import { getSosEscalation, type EscalationState } from "@/lib/sos-escalation-controller";
 
 /**
  * Sequential emergency calling over the real in-app call system.
  * Every status shown here comes from an actual call row — nothing is simulated.
- * Escalation only advances while this screen is open; that limit is stated in the UI.
+ * The dialing itself lives in a shared controller so a single sequence runs per
+ * emergency even when this card is mounted in both layouts.
  */
 export function EmergencyCallEscalation({
   activityId,
@@ -30,148 +21,38 @@ export function EmergencyCallEscalation({
   emergencyType: string;
   autoStart?: boolean;
 }) {
-  const [targets, setTargets] = useState<SosCallTarget[]>([]);
-  const [attempts, setAttempts] = useState<SosCallAttempt[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [exhausted, setExhausted] = useState(false);
-  const indexRef = useRef(0);
-  const advancingRef = useRef(false);
-
-  const refresh = useCallback(async () => {
-    if (!activityId) return;
-    try {
-      setAttempts(await listSosCallAttempts(activityId));
-    } catch {
-      // A transient read failure must not break the emergency screen.
-    }
-  }, [activityId]);
-
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      try {
-        const eligible = await listSosCallTargets();
-        if (active) setTargets(eligible);
-      } catch {
-        if (active) setTargets([]);
-      } finally {
-        if (active) setLoading(false);
-      }
-      await refresh();
-      if (autoStart && active) setRunning(true);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [refresh]);
-
-  // One subscription for the whole emergency; torn down on unmount.
-  useEffect(() => {
-    if (!activityId) return;
-    let userId: string | null = null;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    void (async () => {
-      const { data } = await supabase.auth.getUser();
-      userId = data.user?.id ?? null;
-      if (!userId) return;
-      channel = supabase
-        .channel(`sos-emergency-calls-${activityId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "emergency_calls",
-            filter: `caller_id=eq.${userId}`,
-          },
-          (payload) => {
-            const row = payload.new as { sos_session_id?: string | null } | null;
-            if (row && row.sos_session_id !== activityId) return;
-            void refresh();
-          },
-        )
-        .subscribe();
-    })();
-    return () => {
-      if (channel) void supabase.removeChannel(channel);
-    };
-  }, [activityId, refresh]);
-
-  const answered = useMemo(() => answeredAttempt(attempts), [attempts]);
-
-  const callTarget = useCallback(
-    (index: number) => {
-      const target = targets[index];
-      if (!activityId || !target) {
-        setRunning(false);
-        setExhausted(true);
-        return;
-      }
-      indexRef.current = index;
-      requestVoiceCall({
-        id: target.member_id,
-        name: target.full_name,
-        avatarUrl: target.avatar_url,
-        sosActivityId: activityId,
-        emergencyType,
-      });
-    },
-    [activityId, emergencyType, targets],
+  const controller = useMemo(
+    () => (activityId ? getSosEscalation(activityId, emergencyType) : null),
+    [activityId, emergencyType],
   );
-
-  // Advance only when the current attempt has genuinely finished without an answer.
-  useEffect(() => {
-    if (!running || answered || advancingRef.current) return;
-    const target = targets[indexRef.current];
-    if (!target) return;
-    const attempt = [...attempts]
-      .reverse()
-      .find((row) => row.recipient_id === target.member_id);
-    if (!attempt || !isTerminal(attempt.status)) return;
-    if (attempt.connected_at) return;
-
-    advancingRef.current = true;
-    const next = indexRef.current + 1;
-    const timer = setTimeout(() => {
-      advancingRef.current = false;
-      if (next >= targets.length) {
-        setRunning(false);
-        setExhausted(true);
-        return;
-      }
-      callTarget(next);
-    }, 1500);
-    return () => {
-      clearTimeout(timer);
-      advancingRef.current = false;
-    };
-  }, [answered, attempts, callTarget, running, targets]);
+  const [state, setState] = useState<EscalationState | null>(controller?.state ?? null);
 
   useEffect(() => {
-    if (answered) setRunning(false);
-  }, [answered]);
+    if (!controller) return;
+    setState(controller.state);
+    const unsubscribe = controller.subscribe(() => setState({ ...controller.state }));
+    void controller.init(autoStart);
+    return unsubscribe;
+  }, [autoStart, controller]);
+
+  const targets = state?.targets ?? [];
+  const attempts = state?.attempts ?? [];
+  const answered = state?.answered ?? null;
+  const running = Boolean(state?.running);
+  const loading = state?.loading ?? true;
+
+  const rows = targets.map((target) => ({
+    target,
+    attempt: [...attempts].reverse().find((row) => row.recipient_id === target.member_id),
+  }));
 
   const start = () => {
-    if (!activityId) {
+    if (!controller) {
       toast.error("Your emergency session is still starting.");
       return;
     }
-    if (!targets.length) return;
-    setExhausted(false);
-    setRunning(true);
-    callTarget(0);
+    controller.start();
   };
-
-  useEffect(() => {
-    if (!autoStart || !running || loading || !targets.length || activityId === null) return;
-    if (attempts.length === 0 && indexRef.current === 0) callTarget(0);
-  }, [activityId, attempts.length, autoStart, callTarget, loading, running, targets.length]);
-
-  const rows = targets.map((target) => {
-    const attempt = [...attempts].reverse().find((row) => row.recipient_id === target.member_id);
-    return { target, attempt };
-  });
 
   return (
     <div className="premium-surface overflow-hidden rounded-3xl border border-border/60 shadow-soft">
@@ -182,7 +63,8 @@ export function EmergencyCallEscalation({
           </p>
           <h3 className="mt-1 font-display text-lg font-black">Call your safety network</h3>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Contacting your best available responder in your configured priority order.
+            Calling your responders one by one in your configured priority order, and repeating
+            until someone answers.
           </p>
         </div>
         {answered ? (
@@ -192,10 +74,10 @@ export function EmergencyCallEscalation({
         ) : running ? (
           <button
             type="button"
-            onClick={() => setRunning(false)}
+            onClick={() => controller?.stop()}
             className="inline-flex items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 text-[11px] font-bold"
           >
-            <SquareStop className="h-3.5 w-3.5" /> Stop escalation
+            <SquareStop className="h-3.5 w-3.5" /> Stop calling
           </button>
         ) : (
           <button
@@ -204,7 +86,7 @@ export function EmergencyCallEscalation({
             disabled={loading || !targets.length || !activityId}
             className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-3.5 py-2 text-[11px] font-bold text-background disabled:opacity-50"
           >
-            <Phone className="h-3.5 w-3.5" /> Contacting responders
+            <Phone className="h-3.5 w-3.5" /> Call responders
           </button>
         )}
       </div>
@@ -219,9 +101,9 @@ export function EmergencyCallEscalation({
           </p>
         ) : (
           rows.map(({ target, attempt }, index) => {
-            const state = attempt ? attemptState(attempt.status) : null;
-            const copy = state ? ATTEMPT_COPY[state] : null;
-            const isCurrent = running && indexRef.current === index && !answered;
+            const derived = attempt ? attemptState(attempt.status) : null;
+            const copy = derived ? ATTEMPT_COPY[derived] : null;
+            const isCurrent = running && state?.currentIndex === index && !answered;
             return (
               <div key={target.member_id} className="flex items-center gap-3 p-3.5">
                 <Avatar name={target.full_name} url={target.avatar_url} size={38} />
@@ -238,7 +120,9 @@ export function EmergencyCallEscalation({
                     isCurrent && "text-gold",
                   )}
                 >
-                  {isCurrent && (!state || state === "alerted") ? "Calling" : (copy?.label ?? "—")}
+                  {isCurrent && (!derived || derived === "alerted")
+                    ? "Calling"
+                    : (copy?.label ?? "—")}
                 </span>
               </div>
             );
@@ -247,14 +131,24 @@ export function EmergencyCallEscalation({
       </div>
 
       <div className="space-y-1.5 border-t border-border/60 p-4">
-        {exhausted && !answered && (
+        {running && !answered && (state?.round ?? 0) > 0 && (
+          <p className="text-[11px] font-semibold text-gold">
+            Round {state?.round}
+            {state?.waitSeconds
+              ? ` · next contact in ${state.waitSeconds}s`
+              : state && state.currentIndex >= 0
+                ? ` · ringing ${targets[state.currentIndex]?.full_name.split(" ")[0] ?? ""}`
+                : ""}
+          </p>
+        )}
+        {!running && !answered && (state?.round ?? 0) > 0 && (
           <p className="flex items-center gap-1.5 text-[11px] font-semibold text-gold">
-            <PhoneOff className="h-3.5 w-3.5" /> No trusted responder has answered yet.
+            <PhoneOff className="h-3.5 w-3.5" /> Calling stopped — no responder answered yet.
           </p>
         )}
         <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5 text-success" />
-          Calls stay inside Allma — phone numbers are never shared. Escalation continues while this
+          Calls stay inside Allma — phone numbers are never shared. Calling continues while this
           screen stays open.
         </p>
       </div>
