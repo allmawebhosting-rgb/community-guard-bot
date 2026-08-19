@@ -541,7 +541,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAuthenticated } = useAuth();
-  const isChat = pathname === "/chat" || pathname.startsWith("/chat/");
+  const isChat = pathname === "/" || pathname === "/chat" || pathname.startsWith("/chat/");
 
 
   useEffect(() => {
