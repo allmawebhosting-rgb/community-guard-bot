@@ -263,7 +263,7 @@ export class VoiceCallEngine {
     });
     call.on("cancel", () => this.events.onFailed("The call was not answered."));
     call.on("reject", () => this.events.onFailed("The call was declined."));
-    call.on("error", (error) => this.events.onFailed(error.message || "The call failed."));
+    call.on("error", (error) => this.events.onFailed(error?.message || "The call failed."));
   }
   setMuted(muted: boolean) {
     this.call?.mute(muted);
