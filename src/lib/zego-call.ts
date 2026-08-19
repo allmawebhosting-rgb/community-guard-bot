@@ -265,12 +265,28 @@ export class VoiceCallEngine {
 }
 
 const CALL_EVENT = "allma:start-call";
+const pendingVoiceCalls: CallPeer[] = [];
+let voiceCallListenerCount = 0;
+
 export function requestVoiceCall(peer: CallPeer) {
+  // SOS may auto-start before CallCenter has finished restoring the signed-in
+  // user. A browser event has no replay, so retain the real request until the
+  // call listener is ready instead of silently losing the first call.
+  if (voiceCallListenerCount === 0) {
+    pendingVoiceCalls.push(peer);
+    return;
+  }
   window.dispatchEvent(new CustomEvent<CallPeer>(CALL_EVENT, { detail: peer }));
 }
 
 export function onVoiceCallRequest(handler: (peer: CallPeer) => void) {
   const listener = (event: Event) => handler((event as CustomEvent<CallPeer>).detail);
+  voiceCallListenerCount += 1;
   window.addEventListener(CALL_EVENT, listener);
-  return () => window.removeEventListener(CALL_EVENT, listener);
+  const queued = pendingVoiceCalls.splice(0);
+  queued.forEach((peer) => queueMicrotask(() => handler(peer)));
+  return () => {
+    window.removeEventListener(CALL_EVENT, listener);
+    voiceCallListenerCount = Math.max(0, voiceCallListenerCount - 1);
+  };
 }
