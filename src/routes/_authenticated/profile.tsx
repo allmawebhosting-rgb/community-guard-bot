@@ -12,6 +12,7 @@ import { SafetyNetworkPanel } from "@/components/allma/safety-network/safety-net
 import { BackgroundCallAlerts } from "@/components/allma/calls/background-call-alerts";
 import { RelayHealthCheck } from "@/components/allma/calls/relay-health-check";
 import { CallHistory } from "@/components/allma/calls/call-history";
+import { SmartSosPrivacyCenter } from "@/components/allma/sos/smart-sos-privacy-center";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/lib/theme";
