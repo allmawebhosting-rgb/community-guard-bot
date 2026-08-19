@@ -24,9 +24,11 @@ import {
 export function EmergencyCallEscalation({
   activityId,
   emergencyType,
+  autoStart = true,
 }: {
   activityId: string | null;
   emergencyType: string;
+  autoStart?: boolean;
 }) {
   const [targets, setTargets] = useState<SosCallTarget[]>([]);
   const [attempts, setAttempts] = useState<SosCallAttempt[]>([]);
@@ -57,6 +59,7 @@ export function EmergencyCallEscalation({
         if (active) setLoading(false);
       }
       await refresh();
+      if (autoStart && active) setRunning(true);
     })();
     return () => {
       active = false;
@@ -160,6 +163,11 @@ export function EmergencyCallEscalation({
     callTarget(0);
   };
 
+  useEffect(() => {
+    if (!autoStart || !running || loading || !targets.length || activityId === null) return;
+    if (attempts.length === 0 && indexRef.current === 0) callTarget(0);
+  }, [activityId, attempts.length, autoStart, callTarget, loading, running, targets.length]);
+
   const rows = targets.map((target) => {
     const attempt = [...attempts].reverse().find((row) => row.recipient_id === target.member_id);
     return { target, attempt };
@@ -170,11 +178,11 @@ export function EmergencyCallEscalation({
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 p-4 sm:p-5">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-destructive">
-            Emergency calling
+            Safety Network
           </p>
           <h3 className="mt-1 font-display text-lg font-black">Call your safety network</h3>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            In-app voice calls in your configured priority order. One person at a time.
+            Contacting your best available responder in your configured priority order.
           </p>
         </div>
         {answered ? (
@@ -196,7 +204,7 @@ export function EmergencyCallEscalation({
             disabled={loading || !targets.length || !activityId}
             className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-3.5 py-2 text-[11px] font-bold text-background disabled:opacity-50"
           >
-            <Phone className="h-3.5 w-3.5" /> Start emergency calling
+            <Phone className="h-3.5 w-3.5" /> Contacting responders
           </button>
         )}
       </div>

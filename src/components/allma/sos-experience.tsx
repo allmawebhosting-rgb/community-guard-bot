@@ -1302,20 +1302,8 @@ export function SOSExperience({
     setPhase("loading");
     setLocationState(shareLocation ? "finding" : "skipped");
 
-    let loc: LocationInfo | null = null;
-    try {
-      loc = await getLocation();
-      setLocationState(loc.accuracy <= 30 ? "found" : "approximate");
-    } catch (error) {
-      loc = null;
-      setLocationState(
-        error instanceof Error && error.name === "denied" ? "denied" : "unavailable",
-      );
-    }
-    setLocation(shareLocation ? loc : null);
-
     let activityId: string | null = null;
-    if (user && loc) {
+    if (user) {
       const { data: activity, error } = await supabase
         .from("safety_activity")
         .insert({
@@ -1324,13 +1312,10 @@ export function SOSExperience({
           title: "Emergency SOS activated",
           summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
           severity: "critical",
-          location_text: `${loc.address}, ${loc.district}`.replace(/, $/, ""),
-          latitude: shareLocation ? loc.lat : null,
-          longitude: shareLocation ? loc.lng : null,
+          location_text: "Location pending",
           details: {
             channel: "sos",
             emergency_type: type,
-            accuracy_m: loc.accuracy,
             location_consent: shareLocation,
             responder_notification_consent: notifyResponders,
             coordination_mode: "consent_based",
@@ -1346,6 +1331,40 @@ export function SOSExperience({
       if (activityId && smartCheckId) {
         void logCheckEvent(smartCheckId, "sos_activated", { sos_activity_id: activityId });
       }
+    }
+
+    let loc: LocationInfo | null = null;
+    try {
+      loc = await getLocation();
+      setLocationState(loc.accuracy <= 30 ? "found" : "approximate");
+    } catch (error) {
+      loc = null;
+      setLocationState(
+        error instanceof Error && error.name === "denied" ? "denied" : "unavailable",
+      );
+    }
+    setLocation(shareLocation ? loc : null);
+
+    if (user && activityId && loc && shareLocation) {
+      const { error } = await supabase
+        .from("safety_activity")
+        .update({
+          location_text: `${loc.address}, ${loc.district}`.replace(/, $/, ""),
+          latitude: loc.lat,
+          longitude: loc.lng,
+          details: {
+            channel: "sos",
+            emergency_type: type,
+            accuracy_m: loc.accuracy,
+            location_consent: shareLocation,
+            responder_notification_consent: notifyResponders,
+            coordination_mode: "consent_based",
+            activation_mode: smartCheckId ? "smart_detection" : "manual",
+            ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
+          } as never,
+        })
+        .eq("id", activityId);
+      if (error) console.error("Failed to update SOS location", error);
     }
 
     if (user) {
@@ -1576,10 +1595,6 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
           <span className="truncate text-[13px] font-semibold text-foreground">Allma Safety AI</span>
         </div>
          <div className="flex items-center gap-2">
-           <span className="hidden items-center gap-1.5 rounded-full border border-destructive/25 bg-destructive/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive sm:flex">
-             <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
-             Demo mode
-           </span>
            <button
              type="button"
              onClick={onExit}
@@ -1617,7 +1632,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            Tap once for immediate help
+            Get emergency help
           </motion.p>
 
           {/* The button */}
@@ -1658,7 +1673,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
             transition={{ delay: 0.5 }}
           >
              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-             Demo mode · no real services contacted
+             Tap once to activate your emergency response
           </motion.p>
         </div>
 
