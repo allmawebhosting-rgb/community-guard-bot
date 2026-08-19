@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getIceConfig } from "@/lib/turn.functions";
+
 
 type TwilioCall = {
   on: (event: string, handler: (payload?: { message?: string }) => void) => void;
@@ -191,9 +193,11 @@ async function getDevice() {
       enableRingingState: true,
     });
     next.on("incoming", (call) => {
+      if (!call) return;
       const callId = incomingCallId(call);
       if (callId) incomingCalls.set(callId, call);
     });
+
     next.on("tokenWillExpire", () => {
       void getTwilioToken().then((token) => next.updateToken(token)).catch(() => undefined);
     });
@@ -259,7 +263,7 @@ export class VoiceCallEngine {
     });
     call.on("cancel", () => this.events.onFailed("The call was not answered."));
     call.on("reject", () => this.events.onFailed("The call was declined."));
-    call.on("error", (error) => this.events.onFailed(error.message || "The call failed."));
+    call.on("error", (error) => this.events.onFailed(error?.message || "The call failed."));
   }
   setMuted(muted: boolean) {
     this.call?.mute(muted);
