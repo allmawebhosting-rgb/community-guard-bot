@@ -32,6 +32,13 @@ export function EmergencyCallEscalation({
     setState(controller.state);
     const unsubscribe = controller.subscribe(() => setState({ ...controller.state }));
     void controller.init(autoStart);
+    return () => {
+      unsubscribe();
+    };
+  }, [autoStart, controller]);
+  /* eslint-disable-next-line no-empty-pattern */
+  useEffect(() => {
+    void controller.init(autoStart);
     return unsubscribe;
   }, [autoStart, controller]);
 
