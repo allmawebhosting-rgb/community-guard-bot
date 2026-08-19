@@ -170,6 +170,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     setSignals([]);
     setCheckId(null);
     setSecondsLeft(0);
+    setAutoSecondsLeft(null);
     setEscalationBlocked(null);
     stopAudio();
   }, [stopAudio]);
@@ -296,6 +297,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     setPhase("idle");
     setSignals([]);
     setCheckId(null);
+    setAutoSecondsLeft(null);
     if (id) onEscalate({ checkId: id, signals: current, confidence: "high" });
   }, [onEscalate, stopAudio]);
 
@@ -308,6 +310,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     signals,
     confidence,
     secondsLeft,
+    autoSecondsLeft,
     audioActive,
     audioError,
     escalationBlocked,
