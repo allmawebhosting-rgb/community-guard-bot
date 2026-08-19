@@ -70,7 +70,12 @@ class SosEscalation {
 
   subscribe(listener: () => void) {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+      // Last view unmounted (SOS closed): stop dialing rather than calling on
+      // behalf of a screen the user no longer has open.
+      if (this.listeners.size === 0) disposeSosEscalation(this.activityId);
+    };
   }
 
   private patch(partial: Partial<EscalationState>) {
