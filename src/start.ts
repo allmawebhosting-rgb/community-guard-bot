@@ -3,12 +3,29 @@ import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/r
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
+const isAbortError = (error: unknown) => {
+  if (error == null || typeof error !== "object") return false;
+  const name = "name" in error ? String((error as { name?: unknown }).name) : "";
+  const message =
+    "message" in error ? String((error as { message?: unknown }).message) : "";
+  return (
+    name === "AbortError" ||
+    /^aborted$/i.test(message) ||
+    /aborted|ECONNRESET|ERR_STREAM_PREMATURE_CLOSE/i.test(message)
+  );
+};
+
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
     return await next();
   } catch (error) {
     if (error != null && typeof error === "object" && "statusCode" in error) {
       throw error;
+    }
+    // The client went away (navigation cancelled, HMR reload, closed tab).
+    // Nothing to render for it and it is not an app bug, so stay quiet.
+    if (isAbortError(error)) {
+      return new Response(null, { status: 499 });
     }
     console.error(error);
     return new Response(renderErrorPage(), {
