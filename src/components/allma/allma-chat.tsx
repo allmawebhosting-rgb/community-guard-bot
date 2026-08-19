@@ -1365,7 +1365,7 @@ export function AllmaChat({
 
       {isEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div className="mx-auto w-full px-0 pb-6 lg:px-0">
+          <div className="mx-auto w-full px-0 pb-24 lg:px-0">
             <AssistantHero onSelect={send} />
           </div>
         </div>
@@ -1522,7 +1522,7 @@ export function AllmaChat({
         </Conversation>
       )}
 
-      <div className="no-print shrink-0 glass border-t border-border/60 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-4">
+      <div className="no-print sticky bottom-0 z-20 shrink-0 glass border-t border-border/60 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-4">
         <div className="mx-auto w-full max-w-3xl">
           <div className="chip-scroll -mx-1 mb-2 flex gap-2 overflow-x-auto px-1 pb-1">
             {QUICK_ACTIONS.map((action) => {
