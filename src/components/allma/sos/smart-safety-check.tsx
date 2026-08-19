@@ -13,6 +13,7 @@ type Props = {
   signals: SignalKey[];
   confidence: Confidence;
   secondsLeft: number;
+  autoSecondsLeft: number | null;
   graceSeconds: number;
   escalationBlocked: string | null;
   audioActive: boolean;
@@ -29,6 +30,7 @@ export function SmartSafetyCheck({
   signals,
   confidence,
   secondsLeft,
+  autoSecondsLeft,
   graceSeconds,
   escalationBlocked,
   audioActive,
@@ -38,6 +40,7 @@ export function SmartSafetyCheck({
   const elevated = phase === "elevated";
   const copy = confidenceCopy(elevated ? "high" : confidence);
   const progress = graceSeconds > 0 ? Math.max(0, Math.min(1, secondsLeft / graceSeconds)) : 0;
+  const activating = elevated && autoSecondsLeft !== null;
 
   return (
     <AnimatePresence>
@@ -113,12 +116,28 @@ export function SmartSafetyCheck({
               </p>
             )}
 
-            {elevated && escalationBlocked && (
+            {activating && (
+              <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2.5">
+                <p className="text-[12px] font-bold text-destructive">
+                  Activating SOS in {autoSecondsLeft}s — tap “I'm safe” to cancel.
+                </p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-destructive/20">
+                  <motion.div
+                    className="h-full rounded-full bg-destructive"
+                    animate={{ width: `${((autoSecondsLeft ?? 0) / 10) * 100}%` }}
+                    transition={{ ease: "linear", duration: 0.9 }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {elevated && !activating && escalationBlocked && (
               <p className="mt-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
                 Automatic SOS is off for your account, so nothing has been sent yet. Tap “Activate SOS”
                 to get help.
               </p>
             )}
+
 
             <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
               <button

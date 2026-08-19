@@ -14,6 +14,9 @@ import {
 
 export type CheckPhase = "idle" | "checking" | "elevated";
 
+/** Final cancellable countdown before automatic hand-off to SOS. */
+const AUTO_ACTIVATION_SECONDS = 10;
+
 const ACTIVITY_EVENTS = [
   "pointerdown",
   "keydown",
@@ -39,6 +42,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   const [phase, setPhase] = useState<CheckPhase>("idle");
   const [signals, setSignals] = useState<SignalKey[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [autoSecondsLeft, setAutoSecondsLeft] = useState<number | null>(null);
   const [checkId, setCheckId] = useState<string | null>(null);
   const [audioActive, setAudioActive] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -166,6 +170,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     setSignals([]);
     setCheckId(null);
     setSecondsLeft(0);
+    setAutoSecondsLeft(null);
     setEscalationBlocked(null);
     stopAudio();
   }, [stopAudio]);
@@ -233,17 +238,22 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     void (async () => {
       if (id) await logCheckEvent(id, "no_user_response", { confidence: scored.confidence });
       if (safetyConfirmedRef.current) return;
-      if (!id || scored.confidence !== "high" || !settings.auto_escalation) {
-        if (id && scored.confidence === "high" && !settings.auto_escalation) {
+      const eligible = scored.confidence === "high" || scored.confidence === "medium";
+      if (!id || !eligible || !settings.auto_escalation) {
+        if (id && eligible && !settings.auto_escalation) {
           await logCheckEvent(id, "auto_sos_blocked", { reason: "auto_escalation_disabled" });
+          setEscalationBlocked("auto_escalation_disabled");
         }
         return;
       }
       const result = await requestAutoEscalation(id, scored.confidence, nextSignals);
       if (safetyConfirmedRef.current) return;
       if (result.allowed) {
-        stopAudio();
-        onEscalate({ checkId: id, signals: nextSignals, confidence: scored.confidence });
+        setAutoSecondsLeft(AUTO_ACTIVATION_SECONDS);
+        await logCheckEvent(id, "auto_sos_countdown_started", {
+          seconds: AUTO_ACTIVATION_SECONDS,
+          confidence: scored.confidence,
+        });
       } else {
         setEscalationBlocked(result.reason);
         await logCheckEvent(id, "auto_sos_blocked", { reason: result.reason });
@@ -251,6 +261,26 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, secondsLeft]);
+
+  // Authorized automatic activation: final countdown, then hand off to SOS.
+  useEffect(() => {
+    if (autoSecondsLeft === null) return;
+    if (autoSecondsLeft <= 0) {
+      const id = checkIdRef.current;
+      const current = signalsRef.current;
+      if (safetyConfirmedRef.current || !id) return;
+      setAutoSecondsLeft(null);
+      stopAudio();
+      void logCheckEvent(id, "auto_sos_activated", { signals: current });
+      onEscalate({ checkId: id, signals: current, confidence: scoreSignals(current).confidence });
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setAutoSecondsLeft((current) => (current === null ? null : current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [autoSecondsLeft, onEscalate, stopAudio]);
+
 
   const confirmSafe = useCallback(async () => {
     safetyConfirmedRef.current = true;
@@ -267,6 +297,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     setPhase("idle");
     setSignals([]);
     setCheckId(null);
+    setAutoSecondsLeft(null);
     if (id) onEscalate({ checkId: id, signals: current, confidence: "high" });
   }, [onEscalate, stopAudio]);
 
@@ -279,6 +310,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     signals,
     confidence,
     secondsLeft,
+    autoSecondsLeft,
     audioActive,
     audioError,
     escalationBlocked,
