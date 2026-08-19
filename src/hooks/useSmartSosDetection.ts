@@ -233,17 +233,22 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     void (async () => {
       if (id) await logCheckEvent(id, "no_user_response", { confidence: scored.confidence });
       if (safetyConfirmedRef.current) return;
-      if (!id || scored.confidence !== "high" || !settings.auto_escalation) {
-        if (id && scored.confidence === "high" && !settings.auto_escalation) {
+      const eligible = scored.confidence === "high" || scored.confidence === "medium";
+      if (!id || !eligible || !settings.auto_escalation) {
+        if (id && eligible && !settings.auto_escalation) {
           await logCheckEvent(id, "auto_sos_blocked", { reason: "auto_escalation_disabled" });
+          setEscalationBlocked("auto_escalation_disabled");
         }
         return;
       }
       const result = await requestAutoEscalation(id, scored.confidence, nextSignals);
       if (safetyConfirmedRef.current) return;
       if (result.allowed) {
-        stopAudio();
-        onEscalate({ checkId: id, signals: nextSignals, confidence: scored.confidence });
+        setAutoSecondsLeft(AUTO_ACTIVATION_SECONDS);
+        await logCheckEvent(id, "auto_sos_countdown_started", {
+          seconds: AUTO_ACTIVATION_SECONDS,
+          confidence: scored.confidence,
+        });
       } else {
         setEscalationBlocked(result.reason);
         await logCheckEvent(id, "auto_sos_blocked", { reason: result.reason });
@@ -251,6 +256,26 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, secondsLeft]);
+
+  // Authorized automatic activation: final countdown, then hand off to SOS.
+  useEffect(() => {
+    if (autoSecondsLeft === null) return;
+    if (autoSecondsLeft <= 0) {
+      const id = checkIdRef.current;
+      const current = signalsRef.current;
+      if (safetyConfirmedRef.current || !id) return;
+      setAutoSecondsLeft(null);
+      stopAudio();
+      void logCheckEvent(id, "auto_sos_activated", { signals: current });
+      onEscalate({ checkId: id, signals: current, confidence: scoreSignals(current).confidence });
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setAutoSecondsLeft((current) => (current === null ? null : current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [autoSecondsLeft, onEscalate, stopAudio]);
+
 
   const confirmSafe = useCallback(async () => {
     safetyConfirmedRef.current = true;
