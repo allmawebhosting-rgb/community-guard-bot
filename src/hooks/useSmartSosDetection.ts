@@ -49,6 +49,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   const phaseRef = useRef<CheckPhase>("idle");
   const signalsRef = useRef<SignalKey[]>([]);
   const checkIdRef = useRef<string | null>(null);
+  const safetyConfirmedRef = useRef(false);
   const motionRef = useRef<{ lastSpikeAt: number; stillSince: number }>({
     lastSpikeAt: 0,
     stillSince: Date.now(),
@@ -171,6 +172,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
   const beginCheck = useCallback(async () => {
     if (!userId || phaseRef.current !== "idle") return;
+    safetyConfirmedRef.current = false;
     const initial: SignalKey[] = ["prolonged_inactivity"];
     setSignals(initial);
     setPhase("checking");
@@ -230,6 +232,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
     void (async () => {
       if (id) await logCheckEvent(id, "no_user_response", { confidence: scored.confidence });
+      if (safetyConfirmedRef.current) return;
       if (!id || scored.confidence !== "high" || !settings.auto_escalation) {
         if (id && scored.confidence === "high" && !settings.auto_escalation) {
           await logCheckEvent(id, "auto_sos_blocked", { reason: "auto_escalation_disabled" });
@@ -237,6 +240,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
         return;
       }
       const result = await requestAutoEscalation(id, scored.confidence, nextSignals);
+      if (safetyConfirmedRef.current) return;
       if (result.allowed) {
         stopAudio();
         onEscalate({ checkId: id, signals: nextSignals, confidence: scored.confidence });
@@ -249,6 +253,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   }, [phase, secondsLeft]);
 
   const confirmSafe = useCallback(async () => {
+    safetyConfirmedRef.current = true;
     const id = checkIdRef.current;
     reset();
     if (id) await resolveSafetyCheck(id, "safe", { source: "user_confirmed" });

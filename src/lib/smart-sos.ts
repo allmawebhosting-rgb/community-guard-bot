@@ -24,7 +24,7 @@ export const DEFAULT_SMART_SOS_SETTINGS: SmartSosSettings = {
   grace_seconds: 20,
   motion_detection: false,
   audio_detection: false,
-  auto_escalation: false,
+  auto_escalation: true,
 };
 
 export type SignalKey =
