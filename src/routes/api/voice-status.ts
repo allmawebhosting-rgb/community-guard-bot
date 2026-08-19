@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import twilio from "twilio";
+import { loadTwilio } from "@/lib/twilio.server";
 
 function adminClient() {
   const url = process.env.SUPABASE_URL;
@@ -32,6 +32,7 @@ export const Route = createFileRoute("/api/voice-status")({
         const authToken = process.env.TWILIO_AUTH_TOKEN;
         const signature = request.headers.get("x-twilio-signature");
         if (!authToken || !signature) return xml("<Response><Reject/></Response>", 401);
+        const twilio = await loadTwilio();
         const form = await request.formData();
         const params = Object.fromEntries(form.entries()) as Record<string, string>;
         if (!twilio.validateRequest(authToken, signature, request.url, params)) {

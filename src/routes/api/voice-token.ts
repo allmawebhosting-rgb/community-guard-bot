@@ -1,9 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import twilio from "twilio";
-
-const AccessToken = twilio.jwt.AccessToken;
-const VoiceGrant = AccessToken.VoiceGrant;
+import { loadTwilio } from "@/lib/twilio.server";
 
 type TokenBody = { callId?: string };
 
@@ -59,6 +56,9 @@ export const Route = createFileRoute("/api/voice-token")({
         if (!accountSid || !apiKey || !apiSecret || !twimlAppSid) {
           return jsonError("Twilio Voice is not configured on the server.", 503);
         }
+        const twilio = await loadTwilio();
+        const AccessToken = twilio.jwt.AccessToken;
+        const VoiceGrant = AccessToken.VoiceGrant;
 
         const admin = createAdmin();
         let recipientIdentity: string | null = null;

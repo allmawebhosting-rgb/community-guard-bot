@@ -1,5 +1,21 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Device, type Call as TwilioCall } from "@twilio/voice-sdk";
+
+type TwilioCall = {
+  on: (event: string, handler: (payload?: { message?: string }) => void) => void;
+  accept: () => void;
+  disconnect: () => void;
+  mute: (muted: boolean) => void;
+};
+
+type TwilioDevice = {
+  on: (event: string, handler: (payload?: TwilioCall) => void) => void;
+  register: () => Promise<void>;
+  updateToken: (token: string) => void;
+  connect: (options: { params: Record<string, string> }) => Promise<TwilioCall>;
+  audio?: { setSinkIds?: (ids: string[]) => Promise<void> };
+};
+
+type TwilioSdk = { Device: new (token: string, options: Record<string, unknown>) => TwilioDevice };
 
 export type CallStatus =
   | "initiating"
@@ -120,9 +136,20 @@ type EngineEvents = {
 
 type TwilioTokenResponse = { token: string };
 
-let device: Device | null = null;
-let devicePromise: Promise<Device> | null = null;
+let device: TwilioDevice | null = null;
+let devicePromise: Promise<TwilioDevice> | null = null;
 const incomingCalls = new Map<string, TwilioCall>();
+
+async function loadTwilioSdk(): Promise<TwilioSdk> {
+  try {
+    const dynamicImport = new Function("specifier", "return import(specifier)") as (
+      specifier: string,
+    ) => Promise<TwilioSdk>;
+    return await dynamicImport("@twilio/voice-sdk");
+  } catch {
+    throw new Error("Twilio Voice is not installed or configured on this device.");
+  }
+}
 
 function incomingCallId(call: TwilioCall) {
   const parameters = (call as unknown as { parameters?: Record<string, string> }).parameters;
@@ -158,6 +185,7 @@ async function getDevice() {
   if (device) return device;
   if (devicePromise) return devicePromise;
   devicePromise = (async () => {
+    const { Device } = await loadTwilioSdk();
     const next = new Device(await getTwilioToken(), {
       codecPreferences: ["opus", "pcmu"],
       enableRingingState: true,
@@ -238,8 +266,7 @@ export class VoiceCallEngine {
   }
 
   async setSpeaker(on: boolean) {
-    const audio = (device as unknown as { audio?: { setSinkIds?: (ids: string[]) => Promise<void> } })
-      .audio;
+    const audio = device?.audio;
     if (!audio?.setSinkIds) return false;
     try {
       await audio.setSinkIds([on ? "default" : ""]);
