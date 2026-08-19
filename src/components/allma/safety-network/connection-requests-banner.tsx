@@ -36,7 +36,7 @@ export function ConnectionRequestsBanner() {
       await refresh();
 
       channel = supabase
-        .channel(`connection-requests-${auth.user.id}`)
+        .channel(`connection-requests-${auth.user.id}-${Math.random().toString(36).slice(2)}`)
         .on(
           "postgres_changes",
           {
