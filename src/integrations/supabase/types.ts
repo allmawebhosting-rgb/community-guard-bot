@@ -662,6 +662,9 @@ export type Database = {
           sos_session_id: string | null
           started_at: string | null
           status: string
+          twilio_call_sid: string | null
+          twilio_from_identity: string | null
+          twilio_to_identity: string | null
           updated_at: string
         }
         Insert: {
@@ -681,6 +684,9 @@ export type Database = {
           sos_session_id?: string | null
           started_at?: string | null
           status?: string
+          twilio_call_sid?: string | null
+          twilio_from_identity?: string | null
+          twilio_to_identity?: string | null
           updated_at?: string
         }
         Update: {
@@ -700,6 +706,9 @@ export type Database = {
           sos_session_id?: string | null
           started_at?: string | null
           status?: string
+          twilio_call_sid?: string | null
+          twilio_from_identity?: string | null
+          twilio_to_identity?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -2658,6 +2667,9 @@ export type Database = {
           sos_session_id: string | null
           started_at: string | null
           status: string
+          twilio_call_sid: string | null
+          twilio_from_identity: string | null
+          twilio_to_identity: string | null
           updated_at: string
         }
         SetofOptions: {
