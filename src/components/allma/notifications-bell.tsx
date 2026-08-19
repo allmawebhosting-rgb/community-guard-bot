@@ -57,7 +57,7 @@ export function NotificationsBell() {
       await refresh();
 
       channel = supabase
-        .channel(`notifications-${auth.user.id}`)
+        .channel(`notifications-${auth.user.id}-${Math.random().toString(36).slice(2)}`)
         .on(
           "postgres_changes",
           {
