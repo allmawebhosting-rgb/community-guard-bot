@@ -2399,6 +2399,30 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_configuration: {
+        Row: {
+          created_at: string
+          id: boolean
+          responder_timeout_seconds: number
+          token_ttl_seconds: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          responder_timeout_seconds?: number
+          token_ttl_seconds?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          responder_timeout_seconds?: number
+          token_ttl_seconds?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
