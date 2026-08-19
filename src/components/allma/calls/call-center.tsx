@@ -186,7 +186,10 @@ export function CallCenter() {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel(`allma-calls-${userId}`)
+      // Unique topic per mount: reusing a topic returns an already-subscribed
+      // channel, and adding listeners to that throws.
+      .channel(`allma-calls-${userId}-${Math.random().toString(36).slice(2)}`)
+
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "emergency_calls", filter: `recipient_id=eq.${userId}` },
