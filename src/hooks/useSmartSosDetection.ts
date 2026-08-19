@@ -14,6 +14,9 @@ import {
 
 export type CheckPhase = "idle" | "checking" | "elevated";
 
+/** Final cancellable countdown before automatic hand-off to SOS. */
+const AUTO_ACTIVATION_SECONDS = 10;
+
 const ACTIVITY_EVENTS = [
   "pointerdown",
   "keydown",
@@ -39,6 +42,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   const [phase, setPhase] = useState<CheckPhase>("idle");
   const [signals, setSignals] = useState<SignalKey[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [autoSecondsLeft, setAutoSecondsLeft] = useState<number | null>(null);
   const [checkId, setCheckId] = useState<string | null>(null);
   const [audioActive, setAudioActive] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
