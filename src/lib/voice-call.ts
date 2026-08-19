@@ -191,9 +191,11 @@ async function getDevice() {
       enableRingingState: true,
     });
     next.on("incoming", (call) => {
+      if (!call) return;
       const callId = incomingCallId(call);
       if (callId) incomingCalls.set(callId, call);
     });
+
     next.on("tokenWillExpire", () => {
       void getTwilioToken().then((token) => next.updateToken(token)).catch(() => undefined);
     });
