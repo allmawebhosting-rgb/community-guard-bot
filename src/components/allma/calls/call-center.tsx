@@ -131,12 +131,11 @@ export function CallCenter() {
 
   // Outgoing call requests from anywhere in the app.
   useEffect(() => {
+    // Do not consume an SOS auto-call until authentication has restored. The
+    // request queue in zego-call will replay it once this listener is ready.
+    if (!userId) return;
     return onVoiceCallRequest((requested) => {
       void (async () => {
-        if (!userId) {
-          toast.error("Sign in to make an Allma call.");
-          return;
-        }
         if (callIdRef.current) {
           toast.error("You are already on a call.");
           return;

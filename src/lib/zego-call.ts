@@ -15,8 +15,9 @@ type ZegoEngine = {
     options?: Record<string, unknown>,
   ) => Promise<boolean>;
   logoutRoom: (roomId: string) => Promise<void>;
-  startPublishingStream: (streamId: string) => Promise<unknown>;
+  startPublishingStream: (streamId: string, stream: MediaStream) => boolean;
   stopPublishingStream: (streamId: string) => void;
+  destroyStream: (stream: MediaStream) => void;
   startPlayingStream: (streamId: string) => Promise<MediaStream>;
   stopPlayingStream: (streamId: string) => void;
   destroyEngine: () => void;
@@ -162,6 +163,7 @@ export class VoiceCallEngine {
   private engine: ZegoEngine | null = null;
   private roomId: string | null = null;
   private publishStreamId: string | null = null;
+  private localStream: MediaStream | null = null;
   private remoteStreamIds = new Set<string>();
   private audioElements = new Map<string, HTMLAudioElement>();
   private closed = false;
@@ -177,8 +179,8 @@ export class VoiceCallEngine {
     if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       throw new Error("Microphone access is required to make this call.");
     }
-    const microphone = await navigator.mediaDevices.getUserMedia({ audio: true });
-    microphone.getTracks().forEach((track) => track.stop());
+    const microphone = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    this.localStream = microphone;
     const token = await getZegoToken(this.callId);
     const sdk = await loadZegoSdk();
     const engine = new sdk.ZegoExpressEngine(token.appId, token.server);
@@ -208,7 +210,8 @@ export class VoiceCallEngine {
       { userUpdate: true },
     );
     if (!loggedIn) throw new Error("ZEGOCLOUD could not join the call room.");
-    await engine.startPublishingStream(this.publishStreamId);
+    const publishing = engine.startPublishingStream(this.publishStreamId, microphone);
+    if (!publishing) throw new Error("The microphone stream could not be published.");
     this.events.onQuality("connecting");
   }
 
@@ -253,6 +256,7 @@ export class VoiceCallEngine {
     this.closed = true;
     if (this.engine && this.roomId) {
       if (this.publishStreamId) this.engine.stopPublishingStream(this.publishStreamId);
+      if (this.localStream) this.engine.destroyStream(this.localStream);
       this.remoteStreamIds.forEach((streamId) => this.engine?.stopPlayingStream(streamId));
       void this.engine.logoutRoom(this.roomId);
       this.engine.destroyEngine();
@@ -260,6 +264,8 @@ export class VoiceCallEngine {
     this.audioElements.forEach((audio) => audio.remove());
     this.audioElements.clear();
     this.remoteStreamIds.clear();
+    this.localStream?.getTracks().forEach((track) => track.stop());
+    this.localStream = null;
     this.engine = null;
   }
 }
