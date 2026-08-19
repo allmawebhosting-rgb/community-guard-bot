@@ -241,6 +241,28 @@ export function CallCenter() {
     return () => clearInterval(timer);
   }, [phase, quality]);
 
+  // Spoken announcement for emergency calls, so a recipient who only hears the
+  // device still learns who needs help. Uses the caller's real SOS record.
+  useEffect(() => {
+    if (phase !== "incoming" || !emergency?.is_emergency) return;
+    const speech = typeof window !== "undefined" ? window.speechSynthesis : undefined;
+    if (!speech) return;
+    const first = (emergency.caller_name || peerRef.current?.name || "An Allma member").split(" ")[0];
+    const type = emergency.emergency_type.replace(/_/g, " ");
+    const utterance = new SpeechSynthesisUtterance(
+      `${first} is in danger. ${type} emergency on Allma. Please answer.`,
+    );
+    utterance.rate = 1;
+    const timer = setInterval(() => {
+      if (!speech.speaking) speech.speak(utterance);
+    }, 6000);
+    speech.speak(utterance);
+    return () => {
+      clearInterval(timer);
+      speech.cancel();
+    };
+  }, [emergency, phase]);
+
   useEffect(() => () => engineRef.current?.close(), []);
 
   const answer = async () => {
