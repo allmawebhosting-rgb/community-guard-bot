@@ -70,12 +70,13 @@ export async function listSosCallTargets(): Promise<SosCallTarget[]> {
     supabase.rpc("list_sos_call_targets"),
     "Unable to load your Safety Network.",
   );
-  if (error) {
-    // Older deployments may not have the SOS-specific RPC yet. Reuse the
-    // existing Safety Network query as a discovery fallback; the server-side
-    // start_sos_emergency_call RPC still performs the final authorization.
+  const useConnectionFallback = async (reason: string) => {
+    // Older deployments may not have the SOS-specific RPC yet, or an existing
+    // connection may not have all optional SOS flags configured. Reuse the
+    // existing Safety Network query for discovery; the server-side
+    // start_sos_emergency_call RPC still performs final authorization.
     console.warn("[SAFETY NETWORK DEBUG] SOS target RPC failed; using connection fallback", {
-      message: friendly(error.message),
+      message: reason,
     });
     const fallback = await withTimeout(
       supabase.rpc("list_safety_connections"),
@@ -112,8 +113,10 @@ export async function listSosCallTargets(): Promise<SosCallTarget[]> {
       .sort((a, b) => a.priority - b.priority);
     console.info("[SAFETY NETWORK DEBUG] fallback responders found", { count: targets.length });
     return targets;
-  }
+  };
+  if (error) return useConnectionFallback(friendly(error.message));
   const targets = (data ?? []) as SosCallTarget[];
+  if (targets.length === 0) return useConnectionFallback("No SOS-eligible contacts returned");
   console.info("[SAFETY NETWORK DEBUG] responders found", { count: targets.length });
   return targets;
 }
