@@ -110,8 +110,19 @@ class SosEscalation {
   }
 
   async init(autoStart: boolean) {
-    if (this.initialised) return;
+    // Re-entrant: a re-mount must never leave the card stuck on "loading" and
+    // must re-arm auto-dialing if nothing is running yet.
+    if (this.loadingTargets) return;
+    if (this.initialised) {
+      if (this.state.loading) this.patch({ loading: false });
+      await this.refresh();
+      if (autoStart && !this.state.running && !this.state.answered && this.state.targets.length) {
+        this.start();
+      }
+      return;
+    }
     this.initialised = true;
+    this.loadingTargets = true;
     try {
       const targets = await listSosCallTargets();
       this.patch({ targets, noTargets: targets.length === 0, loading: false });
