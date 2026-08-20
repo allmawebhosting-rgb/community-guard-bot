@@ -21,15 +21,22 @@ export function EmergencyCallEscalation({
   emergencyType: string;
   autoStart?: boolean;
 }) {
+  // Keyed on the emergency only: re-keying on the emergency type used to drop
+  // the subscription and kill the running dialer mid-emergency.
   const controller = useMemo(
     () => (activityId ? getSosEscalation(activityId, emergencyType) : null),
-    [activityId, emergencyType],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activityId],
   );
   const [state, setState] = useState<EscalationState | null>(controller?.state ?? null);
 
   useEffect(() => {
+    controller?.setEmergencyType(emergencyType);
+  }, [controller, emergencyType]);
+
+  useEffect(() => {
     if (!controller) return;
-    setState(controller.state);
+    setState({ ...controller.state });
     const unsubscribe = controller.subscribe(() => setState({ ...controller.state }));
     void controller.init(autoStart);
     return () => {
@@ -38,6 +45,7 @@ export function EmergencyCallEscalation({
   }, [autoStart, controller]);
 
   const targets = state?.targets ?? [];
+  const callableCount = targets.filter((target) => !target.ineligible_reason).length;
   const attempts = state?.attempts ?? [];
   const answered = state?.answered ?? null;
   const running = Boolean(state?.running);
@@ -85,7 +93,7 @@ export function EmergencyCallEscalation({
           <button
             type="button"
             onClick={start}
-            disabled={loading || !targets.length || !activityId}
+            disabled={loading || !callableCount || !activityId}
             className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-3.5 py-2 text-[11px] font-bold text-background disabled:opacity-50"
           >
             <Phone className="h-3.5 w-3.5" /> Call responders
@@ -130,13 +138,17 @@ export function EmergencyCallEscalation({
                 <span
                   className={cn(
                     "text-[11px] font-bold",
-                    copy?.tone ?? "text-muted-foreground",
-                    isCurrent && "text-gold",
+                    target.ineligible_reason
+                      ? "text-muted-foreground"
+                      : (copy?.tone ?? "text-muted-foreground"),
+                    isCurrent && !target.ineligible_reason && "text-gold",
                   )}
                 >
-                  {isCurrent && (!derived || derived === "alerted")
-                    ? "Calling"
-                    : (copy?.label ?? "—")}
+                  {target.ineligible_reason
+                    ? target.ineligible_reason
+                    : isCurrent && (!derived || derived === "alerted")
+                      ? "Calling"
+                      : (copy?.label ?? "—")}
                 </span>
               </div>
             );

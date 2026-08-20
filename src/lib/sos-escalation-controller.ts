@@ -53,11 +53,20 @@ const initialState = (): EscalationState => ({
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Grace period before a controller with no subscribers is torn down. The SOS
+ * screen re-renders (and briefly unsubscribes) whenever the emergency type or
+ * layout changes; disposing immediately used to kill the dialer mid-emergency.
+ */
+const DISPOSE_GRACE_MS = 8_000;
+
 class SosEscalation {
   state = initialState();
   private listeners = new Set<() => void>();
   private generation = 0;
   private initialised = false;
+  private loadingTargets = false;
+  private disposeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly activityId: string,
@@ -69,12 +78,21 @@ class SosEscalation {
   }
 
   subscribe(listener: () => void) {
+    if (this.disposeTimer) {
+      clearTimeout(this.disposeTimer);
+      this.disposeTimer = null;
+    }
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
-      // Last view unmounted (SOS closed): stop dialing rather than calling on
-      // behalf of a screen the user no longer has open.
-      if (this.listeners.size === 0) disposeSosEscalation(this.activityId);
+      // Only tear down if nothing re-subscribes shortly after (real close of
+      // the SOS screen), never on a transient re-render.
+      if (this.listeners.size > 0) return;
+      if (this.disposeTimer) clearTimeout(this.disposeTimer);
+      this.disposeTimer = setTimeout(() => {
+        this.disposeTimer = null;
+        if (this.listeners.size === 0) disposeSosEscalation(this.activityId);
+      }, DISPOSE_GRACE_MS);
     };
   }
 
@@ -93,11 +111,26 @@ class SosEscalation {
   }
 
   async init(autoStart: boolean) {
-    if (this.initialised) return;
+    // Re-entrant: a re-mount must never leave the card stuck on "loading" and
+    // must re-arm auto-dialing if nothing is running yet.
+    if (this.loadingTargets) return;
+    if (this.initialised) {
+      if (this.state.loading) this.patch({ loading: false });
+      await this.refresh();
+      if (autoStart && !this.state.running && !this.state.answered && this.callable().length) {
+        this.start();
+      }
+      return;
+    }
     this.initialised = true;
+    this.loadingTargets = true;
     try {
       const targets = await listSosCallTargets();
-      this.patch({ targets, noTargets: targets.length === 0, loading: false });
+      this.patch({
+        targets,
+        noTargets: targets.filter((target) => !target.ineligible_reason).length === 0,
+        loading: false,
+      });
     } catch (error) {
       this.patch({
         loading: false,
@@ -106,20 +139,28 @@ class SosEscalation {
         error: error instanceof Error ? error.message : "Contacts could not be loaded.",
       });
       return;
+    } finally {
+      this.loadingTargets = false;
     }
     await this.refresh();
-    if (autoStart && !this.state.answered && this.state.targets.length) this.start();
+    if (autoStart && !this.state.answered && this.callable().length) this.start();
   }
 
   async retry(autoStart = true) {
     this.generation += 1;
     this.initialised = false;
+    this.loadingTargets = false;
     this.patch({ ...initialState() });
     await this.init(autoStart);
   }
 
+  /** Contacts that are actually allowed to be called right now. */
+  callable() {
+    return this.state.targets.filter((target) => !target.ineligible_reason);
+  }
+
   start() {
-    if (this.state.running || !this.state.targets.length) return;
+    if (this.state.running || !this.callable().length) return;
     this.patch({ running: true, error: null });
     void this.loop(++this.generation);
   }
@@ -139,7 +180,7 @@ class SosEscalation {
       for (let index = 0; index < this.state.targets.length; index += 1) {
         if (!alive()) return;
         const target = this.state.targets[index];
-        if (!target) continue;
+        if (!target || target.ineligible_reason) continue;
 
         this.patch({ currentIndex: index, waitSeconds: null });
         const startedAt = Date.now();

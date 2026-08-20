@@ -7,6 +7,8 @@ export type SosCallTarget = {
   safety_role: string;
   priority: number;
   share_location_on_sos: boolean;
+  /** Set when the contact is listed but cannot be called; null when callable. */
+  ineligible_reason?: string | null;
 };
 
 export type SosCallAttempt = {
@@ -90,7 +92,7 @@ export async function listSosCallTargets(): Promise<SosCallTarget[]> {
       allow_emergency_calls?: boolean;
       share_location_on_sos?: boolean;
     }>)
-      .filter((connection) => connection.member_id && connection.notify_on_sos !== false && connection.allow_emergency_calls !== false)
+      .filter((connection) => Boolean(connection.member_id))
       .map((connection) => ({
         member_id: connection.member_id!,
         full_name: connection.full_name || "Allma member",
@@ -98,6 +100,14 @@ export async function listSosCallTargets(): Promise<SosCallTarget[]> {
         safety_role: connection.safety_role || "Safety contact",
         priority: connection.priority ?? 0,
         share_location_on_sos: connection.share_location_on_sos !== false,
+        // Kept in the list so the user can see who is skipped and why, instead
+        // of an unexplained empty network.
+        ineligible_reason:
+          connection.allow_emergency_calls === false
+            ? "Allma calls off"
+            : connection.notify_on_sos === false
+              ? "SOS alerts off"
+              : null,
       }))
       .sort((a, b) => a.priority - b.priority);
     console.info("[SAFETY NETWORK DEBUG] fallback responders found", { count: targets.length });
