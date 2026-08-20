@@ -65,6 +65,7 @@ class SosEscalation {
   private listeners = new Set<() => void>();
   private generation = 0;
   private initialised = false;
+  private loadingTargets = false;
   private disposeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
