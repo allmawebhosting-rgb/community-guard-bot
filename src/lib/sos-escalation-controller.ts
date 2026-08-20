@@ -134,6 +134,8 @@ class SosEscalation {
         error: error instanceof Error ? error.message : "Contacts could not be loaded.",
       });
       return;
+    } finally {
+      this.loadingTargets = false;
     }
     await this.refresh();
     if (autoStart && !this.state.answered && this.state.targets.length) this.start();
@@ -142,6 +144,7 @@ class SosEscalation {
   async retry(autoStart = true) {
     this.generation += 1;
     this.initialised = false;
+    this.loadingTargets = false;
     this.patch({ ...initialState() });
     await this.init(autoStart);
   }
