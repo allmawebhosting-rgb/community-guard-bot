@@ -15,7 +15,7 @@ type ZegoEngine = {
     options?: Record<string, unknown>,
   ) => Promise<boolean>;
   logoutRoom: (roomId: string) => Promise<void>;
-  startPublishingStream: (streamId: string, stream: MediaStream) => boolean;
+  startPublishingStream: (streamId: string, stream: MediaStream) => Promise<void>;
   stopPublishingStream: (streamId: string) => void;
   destroyStream: (stream: MediaStream) => void;
   startPlayingStream: (streamId: string) => Promise<MediaStream>;
@@ -210,8 +210,7 @@ export class VoiceCallEngine {
       { userUpdate: true },
     );
     if (!loggedIn) throw new Error("ZEGOCLOUD could not join the call room.");
-    const publishing = engine.startPublishingStream(this.publishStreamId, microphone);
-    if (!publishing) throw new Error("The microphone stream could not be published.");
+    await engine.startPublishingStream(this.publishStreamId, microphone);
     this.events.onQuality("connecting");
   }
 
