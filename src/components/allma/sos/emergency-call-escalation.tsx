@@ -172,6 +172,9 @@ export function EmergencyCallEscalation({
             <PhoneOff className="h-3.5 w-3.5" /> Calling stopped — no responder answered yet.
           </p>
         )}
+        {state?.error && (
+          <p className="text-[11px] font-semibold text-destructive">Call could not start: {state.error}</p>
+        )}
         <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5 text-success" />
           Calls stay inside Allma — phone numbers are never shared. Calling continues while this

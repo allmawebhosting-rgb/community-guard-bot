@@ -190,6 +190,15 @@ class SosEscalation {
           avatarUrl: target.avatar_url,
           sosActivityId: this.activityId,
           emergencyType: this.emergencyType,
+          onError: (message) => {
+            if (!alive()) return;
+            this.patch({
+              running: false,
+              currentIndex: -1,
+              waitSeconds: null,
+              error: message,
+            });
+          },
         });
 
         const outcome = await this.waitForOutcome(target.member_id, startedAt, alive);

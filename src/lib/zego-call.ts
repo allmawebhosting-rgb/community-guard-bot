@@ -66,6 +66,7 @@ export type CallPeer = {
   avatarUrl?: string | null;
   sosActivityId?: string;
   emergencyType?: string;
+  onError?: (message: string) => void;
 };
 
 export type ConnectionQuality = "connecting" | "good" | "poor" | "reconnecting";

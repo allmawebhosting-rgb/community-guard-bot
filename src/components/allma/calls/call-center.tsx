@@ -175,6 +175,7 @@ export function CallCenter() {
           if (callIdRef.current) {
             await setCallStatus(callIdRef.current, "failed", message).catch(() => undefined);
           }
+          requested.onError?.(message);
           teardown(message);
           toast.error(message);
         }
