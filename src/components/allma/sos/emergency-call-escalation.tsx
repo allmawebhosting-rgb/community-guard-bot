@@ -93,7 +93,7 @@ export function EmergencyCallEscalation({
           <button
             type="button"
             onClick={start}
-            disabled={loading || !targets.length || !activityId}
+            disabled={loading || !callableCount || !activityId}
             className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-3.5 py-2 text-[11px] font-bold text-background disabled:opacity-50"
           >
             <Phone className="h-3.5 w-3.5" /> Call responders
@@ -138,13 +138,17 @@ export function EmergencyCallEscalation({
                 <span
                   className={cn(
                     "text-[11px] font-bold",
-                    copy?.tone ?? "text-muted-foreground",
-                    isCurrent && "text-gold",
+                    target.ineligible_reason
+                      ? "text-muted-foreground"
+                      : (copy?.tone ?? "text-muted-foreground"),
+                    isCurrent && !target.ineligible_reason && "text-gold",
                   )}
                 >
-                  {isCurrent && (!derived || derived === "alerted")
-                    ? "Calling"
-                    : (copy?.label ?? "—")}
+                  {target.ineligible_reason
+                    ? target.ineligible_reason
+                    : isCurrent && (!derived || derived === "alerted")
+                      ? "Calling"
+                      : (copy?.label ?? "—")}
                 </span>
               </div>
             );
