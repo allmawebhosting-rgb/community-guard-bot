@@ -248,7 +248,7 @@ class SosEscalation {
             new Date(row.created_at).getTime() >= startedAt - 15_000,
         );
       if (!attempt) continue;
-      if (attempt.connected_at) return "answered";
+      if (attempt.connected_at || attempt.accepted_at) return "answered";
       if (isTerminal(attempt.status)) return "no_answer";
     }
     return "no_answer";
