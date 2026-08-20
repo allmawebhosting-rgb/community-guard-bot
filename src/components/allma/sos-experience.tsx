@@ -1273,11 +1273,25 @@ export function SOSExperience({
     return () => navigator.geolocation.clearWatch(watchId);
   }, [phase, Boolean(location)]);
 
+  // Wait for the session before auto-activating: activating first meant the
+  // emergency session row was never written, so the dialer had no session id
+  // and never placed a call.
   useEffect(() => {
-    if (!instant || activated.current) return;
+    if (!instant || authLoading || activated.current) return;
     void activateEmergency();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instant]);
+  }, [instant, authLoading]);
+
+  // Safety net: if SOS was activated before the session hydrated, record the
+  // emergency as soon as the user is known so responder calling can start.
+  useEffect(() => {
+    if (!user || !activated.current || sosActivityId || activityRecording.current) return;
+    void (async () => {
+      const id = await recordSosActivity(user.id, emergencyType);
+      if (id) setSosActivityId(id);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, sosActivityId, emergencyType]);
 
   function handleSosPress() {
     setPendingEmergencyType("other");
@@ -1291,6 +1305,42 @@ export function SOSExperience({
     setShareLocation(true);
     setNotifyResponders(true);
     setPhase("consent");
+  }
+
+  async function recordSosActivity(userId: string, type: string) {
+    if (activityRecording.current) return null;
+    activityRecording.current = true;
+    const { data: activity, error } = await supabase
+      .from("safety_activity")
+      .insert({
+        user_id: userId,
+        activity_type: "sos_activated",
+        title: "Emergency SOS activated",
+        summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
+        severity: "critical",
+        location_text: "Location pending",
+        details: {
+          channel: "sos",
+          emergency_type: type,
+          location_consent: shareLocation,
+          responder_notification_consent: notifyResponders,
+          coordination_mode: "consent_based",
+          activation_mode: smartCheckId ? "smart_detection" : "manual",
+          ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
+        } as never,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.error("Failed to record SOS activity", error);
+      activityRecording.current = false;
+      return null;
+    }
+    const activityId = activity?.id ?? null;
+    if (activityId && smartCheckId) {
+      void logCheckEvent(smartCheckId, "sos_activated", { sos_activity_id: activityId });
+    }
+    return activityId;
   }
 
   async function activateEmergency() {
@@ -1307,34 +1357,10 @@ export function SOSExperience({
 
     let activityId: string | null = null;
     if (user) {
-      const { data: activity, error } = await supabase
-        .from("safety_activity")
-        .insert({
-          user_id: user.id,
-          activity_type: "sos_activated",
-          title: "Emergency SOS activated",
-          summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
-          severity: "critical",
-          location_text: "Location pending",
-          details: {
-            channel: "sos",
-            emergency_type: type,
-            location_consent: shareLocation,
-            responder_notification_consent: notifyResponders,
-            coordination_mode: "consent_based",
-            activation_mode: smartCheckId ? "smart_detection" : "manual",
-            ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
-          } as never,
-        })
-        .select("id")
-        .single();
-      activityId = activity?.id ?? null;
+      activityId = await recordSosActivity(user.id, type);
       setSosActivityId(activityId);
-      if (error) console.error("Failed to record SOS activity", error);
-      if (activityId && smartCheckId) {
-        void logCheckEvent(smartCheckId, "sos_activated", { sos_activity_id: activityId });
-      }
     }
+
 
     let loc: LocationInfo | null = null;
     try {
