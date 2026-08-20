@@ -98,8 +98,9 @@ export function EmergencyCallEscalation({
           <p className="p-4 text-[12px] text-muted-foreground">Checking eligible contacts…</p>
         ) : !rows.length ? (
           <p className="p-4 text-[12px] text-muted-foreground">
-            No safety contact is currently eligible for emergency calls. Both of you must allow
-            Allma calls, and SOS alerts must be on for that connection.
+            {state?.error
+              ? `We could not load your Safety Network: ${state.error}`
+              : "No safety contact is currently eligible for emergency calls. Both of you must allow Allma calls, and SOS alerts must be on for that connection."}
           </p>
         ) : (
           rows.map(({ target, attempt }, index) => {
