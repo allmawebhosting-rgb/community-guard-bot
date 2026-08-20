@@ -117,7 +117,7 @@ class SosEscalation {
     if (this.initialised) {
       if (this.state.loading) this.patch({ loading: false });
       await this.refresh();
-      if (autoStart && !this.state.running && !this.state.answered && this.state.targets.length) {
+      if (autoStart && !this.state.running && !this.state.answered && this.callable().length) {
         this.start();
       }
       return;
@@ -126,7 +126,11 @@ class SosEscalation {
     this.loadingTargets = true;
     try {
       const targets = await listSosCallTargets();
-      this.patch({ targets, noTargets: targets.length === 0, loading: false });
+      this.patch({
+        targets,
+        noTargets: targets.filter((target) => !target.ineligible_reason).length === 0,
+        loading: false,
+      });
     } catch (error) {
       this.patch({
         loading: false,
@@ -139,7 +143,7 @@ class SosEscalation {
       this.loadingTargets = false;
     }
     await this.refresh();
-    if (autoStart && !this.state.answered && this.state.targets.length) this.start();
+    if (autoStart && !this.state.answered && this.callable().length) this.start();
   }
 
   async retry(autoStart = true) {
@@ -150,8 +154,13 @@ class SosEscalation {
     await this.init(autoStart);
   }
 
+  /** Contacts that are actually allowed to be called right now. */
+  callable() {
+    return this.state.targets.filter((target) => !target.ineligible_reason);
+  }
+
   start() {
-    if (this.state.running || !this.state.targets.length) return;
+    if (this.state.running || !this.callable().length) return;
     this.patch({ running: true, error: null });
     void this.loop(++this.generation);
   }
@@ -171,7 +180,7 @@ class SosEscalation {
       for (let index = 0; index < this.state.targets.length; index += 1) {
         if (!alive()) return;
         const target = this.state.targets[index];
-        if (!target) continue;
+        if (!target || target.ineligible_reason) continue;
 
         this.patch({ currentIndex: index, waitSeconds: null });
         const startedAt = Date.now();
