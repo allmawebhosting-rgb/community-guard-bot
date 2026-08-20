@@ -19,6 +19,8 @@ export type SosCallAttempt = {
   safety_role: string | null;
   status: string;
   created_at: string;
+  /** Set when the contact really tapped Answer on their device. */
+  accepted_at: string | null;
   connected_at: string | null;
   ended_at: string | null;
   duration: number | null;
@@ -187,7 +189,12 @@ export function isTerminal(status: string) {
 }
 
 export function answeredAttempt(attempts: SosCallAttempt[]) {
+  // A contact tapping Answer is a real human response, so escalation stops
+  // there — media may still be negotiating when accepted_at lands.
   return attempts.find(
-    (attempt) => attempt.connected_at !== null || attempt.status === "connected",
+    (attempt) =>
+      attempt.connected_at !== null ||
+      attempt.accepted_at !== null ||
+      attempt.status === "connected",
   );
 }
