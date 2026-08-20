@@ -1225,7 +1225,7 @@ export function SOSExperience({
   instant,
   smartCheckId,
 }: { instant?: boolean; smartCheckId?: string } = {}) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>(instant ? "loading" : "idle");
 
@@ -1246,6 +1246,9 @@ export function SOSExperience({
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const activated = useRef(false);
+  // Guards the single emergency-session insert: without it, the auth-hydration
+  // backfill below could race the activation path and create two sessions.
+  const activityRecording = useRef(false);
 
   useEffect(() => {
     if (phase !== "help" || !location || !("geolocation" in navigator)) return;
