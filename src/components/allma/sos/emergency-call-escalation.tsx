@@ -21,15 +21,22 @@ export function EmergencyCallEscalation({
   emergencyType: string;
   autoStart?: boolean;
 }) {
+  // Keyed on the emergency only: re-keying on the emergency type used to drop
+  // the subscription and kill the running dialer mid-emergency.
   const controller = useMemo(
     () => (activityId ? getSosEscalation(activityId, emergencyType) : null),
-    [activityId, emergencyType],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activityId],
   );
   const [state, setState] = useState<EscalationState | null>(controller?.state ?? null);
 
   useEffect(() => {
+    controller?.setEmergencyType(emergencyType);
+  }, [controller, emergencyType]);
+
+  useEffect(() => {
     if (!controller) return;
-    setState(controller.state);
+    setState({ ...controller.state });
     const unsubscribe = controller.subscribe(() => setState({ ...controller.state }));
     void controller.init(autoStart);
     return () => {
@@ -38,6 +45,7 @@ export function EmergencyCallEscalation({
   }, [autoStart, controller]);
 
   const targets = state?.targets ?? [];
+  const callableCount = targets.filter((target) => !target.ineligible_reason).length;
   const attempts = state?.attempts ?? [];
   const answered = state?.answered ?? null;
   const running = Boolean(state?.running);
