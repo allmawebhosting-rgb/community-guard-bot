@@ -53,11 +53,19 @@ const initialState = (): EscalationState => ({
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Grace period before a controller with no subscribers is torn down. The SOS
+ * screen re-renders (and briefly unsubscribes) whenever the emergency type or
+ * layout changes; disposing immediately used to kill the dialer mid-emergency.
+ */
+const DISPOSE_GRACE_MS = 8_000;
+
 class SosEscalation {
   state = initialState();
   private listeners = new Set<() => void>();
   private generation = 0;
   private initialised = false;
+  private disposeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly activityId: string,
@@ -69,12 +77,21 @@ class SosEscalation {
   }
 
   subscribe(listener: () => void) {
+    if (this.disposeTimer) {
+      clearTimeout(this.disposeTimer);
+      this.disposeTimer = null;
+    }
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
-      // Last view unmounted (SOS closed): stop dialing rather than calling on
-      // behalf of a screen the user no longer has open.
-      if (this.listeners.size === 0) disposeSosEscalation(this.activityId);
+      // Only tear down if nothing re-subscribes shortly after (real close of
+      // the SOS screen), never on a transient re-render.
+      if (this.listeners.size > 0) return;
+      if (this.disposeTimer) clearTimeout(this.disposeTimer);
+      this.disposeTimer = setTimeout(() => {
+        this.disposeTimer = null;
+        if (this.listeners.size === 0) disposeSosEscalation(this.activityId);
+      }, DISPOSE_GRACE_MS);
     };
   }
 
