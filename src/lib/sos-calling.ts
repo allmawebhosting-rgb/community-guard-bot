@@ -7,6 +7,8 @@ export type SosCallTarget = {
   safety_role: string;
   priority: number;
   share_location_on_sos: boolean;
+  /** Set when the contact is listed but cannot be called; null when callable. */
+  ineligible_reason?: string | null;
 };
 
 export type SosCallAttempt = {
