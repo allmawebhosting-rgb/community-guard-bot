@@ -129,12 +129,16 @@ export function EmergencyCallEscalation({
       <div className="divide-y divide-border/60">
         {loading ? (
           <p className="p-4 text-[12px] text-muted-foreground">Loading your Safety Network…</p>
-        ) : state?.error ? (
+        ) : errored ? (
           <div className="space-y-3 p-4">
             <p className="text-[12px] text-muted-foreground">Couldn't load your Safety Network.</p>
             <button
               type="button"
-              onClick={() => void controller?.retry(autoStart)}
+              onClick={() => {
+                if (controller) void controller.retry(autoStart);
+                else setPreTargets(null);
+              }}
+
               className="rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
             >
               Retry
