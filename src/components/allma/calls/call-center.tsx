@@ -56,12 +56,16 @@ export function CallCenter() {
 
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
+  const sosOutgoingRef = useRef(new Map<string, CallPeer>());
+  const sosPrimaryClaimedRef = useRef(false);
+  const phaseRef = useRef<Phase>("idle");
   const namesRef = useRef<Map<string, CallPeer>>(new Map());
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const peerRef = useRef<CallPeer | null>(null);
   const isCallerRef = useRef(false);
   peerRef.current = peer;
   isCallerRef.current = isCaller;
+  phaseRef.current = phase;
 
   const teardown = useCallback((note: string | null) => {
     engineRef.current?.close();
@@ -69,6 +73,8 @@ export function CallCenter() {
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     ringTimerRef.current = null;
     callIdRef.current = null;
+    sosOutgoingRef.current.clear();
+    sosPrimaryClaimedRef.current = false;
     setCallId(null);
     setSeconds(0);
     setMuted(false);
@@ -138,33 +144,43 @@ export function CallCenter() {
     if (!userId) return;
     return onVoiceCallRequest((requested) => {
       void (async () => {
-        if (callIdRef.current) {
+        if (callIdRef.current && !requested.sosActivityId) {
           toast.error("You are already on a call.");
           return;
         }
-        setPeer(requested);
-        setIsCaller(true);
-        setPhase("outgoing");
-        setEndedNote(null);
-        setQuality("connecting");
+        const isPrimarySosCall = Boolean(
+          requested.sosActivityId && !callIdRef.current && !sosPrimaryClaimedRef.current,
+        );
+        if (isPrimarySosCall) {
+          sosPrimaryClaimedRef.current = true;
+          setPeer(requested);
+          setIsCaller(true);
+          setPhase("outgoing");
+          setEndedNote(null);
+          setQuality("connecting");
+        }
+        let id: string | null = null;
         try {
           // SOS calls go through the SOS-scoped RPC so the server can verify the
           // caller owns that emergency and link the call to it.
-          const id = requested.sosActivityId
+          id = requested.sosActivityId
             ? await startSosEmergencyCall(requested.id, requested.sosActivityId)
             : await startVoiceCall(requested.id);
-          callIdRef.current = id;
-          setCallId(id);
+          if (isPrimarySosCall || !requested.sosActivityId) callIdRef.current = id;
+          sosOutgoingRef.current.set(id, requested);
+          if (isPrimarySosCall) setCallId(id);
           // Best-effort: rings the recipient's device even if their app is closed.
           void notifyIncomingCall({ data: { callId: id } }).catch(() => undefined);
           // Join from the user's Call tap so iOS Safari permits microphone access.
           // CONNECTED is still deferred until ZEGOCLOUD reports a remote stream.
-          await beginEngine(id, true);
-          await setCallStatus(id, "connecting");
-          ringTimerRef.current = setTimeout(() => {
-            void setCallStatus(id, "missed").catch(() => undefined);
-            teardown(`${requested.name} did not answer.`);
-          }, RING_TIMEOUT_MS);
+          if (isPrimarySosCall || !requested.sosActivityId) {
+            await beginEngine(id, true);
+            await setCallStatus(id, "connecting");
+            ringTimerRef.current = setTimeout(() => {
+              void setCallStatus(id, "missed").catch(() => undefined);
+              teardown(`${requested.name} did not answer.`);
+            }, RING_TIMEOUT_MS);
+          }
         } catch (error) {
           const message =
             error instanceof DOMException
@@ -172,12 +188,12 @@ export function CallCenter() {
               : error instanceof Error
                 ? error.message
                 : "The call could not be placed.";
-          if (callIdRef.current) {
-            await setCallStatus(callIdRef.current, "failed", message).catch(() => undefined);
+          if (id && callIdRef.current === id) {
+            await setCallStatus(id, "failed", message).catch(() => undefined);
           }
           requested.onError?.(message);
-          teardown(message);
-          toast.error(message);
+          if (isPrimarySosCall || !requested.sosActivityId) teardown(message);
+          if (isPrimarySosCall || !requested.sosActivityId) toast.error(message);
         }
       })();
     });
@@ -218,6 +234,17 @@ export function CallCenter() {
         { event: "UPDATE", schema: "public", table: "emergency_calls" },
         (payload) => {
           const row = payload.new as { id: string; status: string };
+          const pendingSosPeer = sosOutgoingRef.current.get(row.id);
+          if (row.id !== callIdRef.current && pendingSosPeer && (row.status === "connecting" || row.status === "connected") && phaseRef.current === "outgoing") {
+            const previousId = callIdRef.current;
+            if (previousId) void setCallStatus(previousId, "ended").catch(() => undefined);
+            engineRef.current?.close();
+            engineRef.current = null;
+            callIdRef.current = row.id;
+            setCallId(row.id);
+            setPeer(pendingSosPeer);
+            void beginEngine(row.id, true).then(() => setCallStatus(row.id, "connecting")).catch(() => undefined);
+          }
           if (row.id !== callIdRef.current) return;
           if (row.status === "declined") teardown(`${peerRef.current?.name ?? "They"} declined the call.`);
           else if (row.status === "ended") teardown("Call ended");

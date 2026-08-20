@@ -1,4 +1,4 @@
-import { requestVoiceCall } from "@/lib/zego-call";
+import { requestVoiceCall, setCallStatus } from "@/lib/zego-call";
 import {
   answeredAttempt,
   isTerminal,
@@ -18,10 +18,8 @@ import {
  * short. Every status still comes from real `emergency_calls` rows.
  */
 
-/** How long a single contact is given to answer before moving to the next one. */
+/** How long all contacts are given to answer before another round starts. */
 export const RING_WINDOW_MS = 42_000;
-/** Pause between contacts inside one round. */
-export const GAP_SECONDS = 4;
 /** Pause before starting the next full round through the contact list. */
 export const ROUND_GAP_SECONDS = 20;
 
@@ -182,20 +180,17 @@ class SosEscalation {
     this.patch({ running: false, currentIndex: -1, waitSeconds: null });
   }
 
-  /** Rings each contact in priority order, then keeps repeating rounds until someone answers. */
+  /** Rings every contact together, then repeats until someone answers. */
   private async loop(generation: number) {
     const alive = () => generation === this.generation && this.state.running;
 
     while (alive()) {
       this.patch({ round: this.state.round + 1 });
+      const startedAt = Date.now();
+      const targets = this.callable();
+      this.patch({ currentIndex: -1, waitSeconds: null });
 
-      for (let index = 0; index < this.state.targets.length; index += 1) {
-        if (!alive()) return;
-        const target = this.state.targets[index];
-        if (!target) continue;
-
-        this.patch({ currentIndex: index, waitSeconds: null });
-        const startedAt = Date.now();
+      targets.forEach((target) => {
         requestVoiceCall({
           id: target.member_id,
           name: target.full_name,
@@ -205,53 +200,57 @@ class SosEscalation {
           onError: (message) => {
             if (!alive()) return;
             this.patch({
-              running: false,
-              currentIndex: -1,
-              waitSeconds: null,
               error: message,
             });
           },
         });
+      });
 
-        const outcome = await this.waitForOutcome(target.member_id, startedAt, alive);
-        if (!alive()) return;
-        if (outcome === "answered") {
-          this.patch({ running: false, currentIndex: -1, waitSeconds: null });
-          return;
+      const outcome = await this.waitForRoundOutcome(targets, startedAt, alive);
+      if (!alive()) return;
+      if (outcome) {
+        const winner = this.state.answered;
+        if (winner) {
+          await Promise.all(
+            this.state.attempts
+              .filter((attempt) => attempt.call_id !== winner.call_id && !isTerminal(attempt.status))
+              .map((attempt) => setCallStatus(attempt.call_id, "ended").catch(() => undefined)),
+          );
         }
-
-        if (index < this.state.targets.length - 1) await this.countdown(GAP_SECONDS, alive);
+        this.patch({ running: false, currentIndex: -1, waitSeconds: null });
+        return;
       }
 
-      if (!alive()) return;
       this.patch({ currentIndex: -1 });
       await this.countdown(ROUND_GAP_SECONDS, alive);
     }
   }
 
-  /** Waits on the real call row: answered, finished without an answer, or the ring window elapsed. */
-  private async waitForOutcome(
-    recipientId: string,
+  /** Waits until one real call connects, all calls finish, or the ring window expires. */
+  private async waitForRoundOutcome(
+    targets: SosCallTarget[],
     startedAt: number,
     alive: () => boolean,
-  ): Promise<"answered" | "no_answer"> {
+  ): Promise<boolean> {
     while (alive() && Date.now() - startedAt < RING_WINDOW_MS) {
       await sleep(2500);
-      if (!alive()) return "no_answer";
+      if (!alive()) return false;
       await this.refresh();
-      if (this.state.answered) return "answered";
-      const attempt = [...this.state.attempts]
-        .reverse()
-        .find(
-          (row) =>
-            row.recipient_id === recipientId &&
-            new Date(row.created_at).getTime() >= startedAt - 15_000,
-        );
-      if (!attempt) continue;
-      if (attempt.connected_at || attempt.accepted_at) return "answered";
-      if (isTerminal(attempt.status)) return "no_answer";
+      if (this.state.answered) return true;
+      const attempts = targets.map((target) =>
+        [...this.state.attempts]
+          .reverse()
+          .find(
+            (row) =>
+              row.recipient_id === target.member_id &&
+              new Date(row.created_at).getTime() >= startedAt - 15_000,
+          ),
+      );
+      if (attempts.length === targets.length && attempts.every((attempt) => attempt && isTerminal(attempt.status))) {
+        return false;
+      }
     }
-    return "no_answer";
+    return false;
   }
 
   private async countdown(seconds: number, alive: () => boolean) {

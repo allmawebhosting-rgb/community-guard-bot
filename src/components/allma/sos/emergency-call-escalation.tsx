@@ -8,7 +8,7 @@ import { ATTEMPT_COPY, attemptState, listSosCallTargets, type SosCallTarget } fr
 import { getSosEscalation, type EscalationState } from "@/lib/sos-escalation-controller";
 
 /**
- * Sequential emergency calling over the real in-app call system.
+ * Parallel emergency calling over the real in-app call system.
  * Every status shown here comes from an actual call row — nothing is simulated.
  * The dialing itself lives in a shared controller so a single sequence runs per
  * emergency even when this card is mounted in both layouts.
@@ -119,7 +119,7 @@ export function EmergencyCallEscalation({
           </p>
           <h3 className="mt-1 font-display text-lg font-black">Call your safety network</h3>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Calling your responders one by one in your configured priority order.
+            Calling all available responders at once. The first person to answer connects.
           </p>
         </div>
         {answered ? (
