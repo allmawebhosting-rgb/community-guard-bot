@@ -66,6 +66,7 @@ class SosEscalation {
   private generation = 0;
   private initialised = false;
   private loadingTargets = false;
+  private autoStartRequested = false;
   private disposeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -111,13 +112,19 @@ class SosEscalation {
   }
 
   async init(autoStart: boolean) {
+    this.autoStartRequested = this.autoStartRequested || autoStart;
     // Re-entrant: a re-mount must never leave the card stuck on "loading" and
     // must re-arm auto-dialing if nothing is running yet.
     if (this.loadingTargets) return;
     if (this.initialised) {
       if (this.state.loading) this.patch({ loading: false });
       await this.refresh();
-      if (autoStart && !this.state.running && !this.state.answered && this.callable().length) {
+      if (
+        this.autoStartRequested &&
+        !this.state.running &&
+        !this.state.answered &&
+        this.callable().length
+      ) {
         this.start();
       }
       return;
@@ -143,13 +150,14 @@ class SosEscalation {
       this.loadingTargets = false;
     }
     await this.refresh();
-    if (autoStart && !this.state.answered && this.callable().length) this.start();
+    if (this.autoStartRequested && !this.state.answered && this.callable().length) this.start();
   }
 
   async retry(autoStart = true) {
     this.generation += 1;
     this.initialised = false;
     this.loadingTargets = false;
+    this.autoStartRequested = autoStart;
     this.patch({ ...initialState() });
     await this.init(autoStart);
   }
