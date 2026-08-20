@@ -17,10 +17,12 @@ export function EmergencyCallEscalation({
   activityId,
   emergencyType,
   autoStart = true,
+  compact = false,
 }: {
   activityId: string | null;
   emergencyType: string;
   autoStart?: boolean;
+  compact?: boolean;
 }) {
   // Keyed on the emergency only: re-keying on the emergency type used to drop
   // the subscription and kill the running dialer mid-emergency.
@@ -101,6 +103,61 @@ export function EmergencyCallEscalation({
     target,
     attempt: [...attempts].reverse().find((row) => row.recipient_id === target.member_id),
   }));
+
+  if (compact) {
+    const currentIndex = state?.currentIndex ?? -1;
+    const current = answered
+      ? rows.find(({ target }) => target.member_id === answered.recipient_id)
+      : rows[currentIndex];
+    const currentState = current?.attempt ? attemptState(current.attempt.status) : null;
+    const currentLabel = answered
+      ? "CONNECTED"
+      : currentState === "calling"
+        ? "Calling"
+        : currentState === "alerted"
+          ? "Notified"
+          : !running && attempts.length > 0
+            ? "Moving to next responder..."
+            : "Preparing";
+
+    return (
+      <section aria-labelledby="response-heading" className="border-y border-white/10 py-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">Response</p>
+            <h2 id="response-heading" className="mt-2 text-xl font-semibold text-white">
+              {answered ? `${current?.target.full_name ?? "Responder"} is responding` : "Someone is being contacted"}
+            </h2>
+          </div>
+          <span className={cn("shrink-0 text-[11px] font-bold uppercase tracking-[0.14em]", answered ? "text-emerald-300" : "text-white/65")}>
+            {currentLabel}
+          </span>
+        </div>
+        <div className="mt-5 flex items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-bold text-white">
+            {current?.target.full_name.slice(0, 1).toUpperCase() ?? "—"}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[14px] font-semibold text-white">{current?.target.full_name ?? "Safety Network"}</p>
+            <p className="mt-0.5 text-[12px] text-white/50">{answered ? "Voice connection established" : current?.target.safety_role ?? "Friend"}</p>
+          </div>
+        </div>
+        <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
+          {rows.slice(0, 4).map(({ target, attempt }, index) => {
+            const derived = attempt ? attemptState(attempt.status) : null;
+            return (
+              <div key={target.member_id} className="flex items-center justify-between gap-3 text-[12px]">
+                <span className="truncate text-white/75">{target.full_name}</span>
+                <span className={cn("shrink-0 font-semibold", derived === "answered" ? "text-emerald-300" : derived === "calling" ? "text-white" : "text-white/40")}>
+                  {derived === "answered" ? "Connected" : derived === "calling" ? "Calling" : derived === "alerted" ? "Notified" : index === currentIndex && running ? "Calling" : index === currentIndex + 1 ? "Next" : "Waiting"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
 
   const start = () => {
     if (!controller) {

@@ -1525,7 +1525,7 @@ export function SOSExperience({
         )}
 
         {phase === "help" && (
-          <HelpScreen
+          <MinimalEmergencyScreen
             key="help"
             emergencyType={emergencyType}
             emergencyId={emergencyId}
@@ -1559,9 +1559,6 @@ export function SOSExperience({
                 );
               }
             }}
-            onToggleResponders={() => setNotifyResponders((v) => !v)}
-            onReport={() => setPhase("report")}
-
             onClose={() => {
               activated.current = false;
               setSosActivityId(null);
@@ -2091,6 +2088,104 @@ function LoadingScreen({ emergencyId }: { emergencyId: string | null }) {
         ))}
       </div>
     </motion.div>
+  );
+}
+
+function MinimalEmergencyScreen({
+  emergencyType,
+  emergencyId,
+  location,
+  locationState,
+  activityId,
+  onEnableLocation,
+  onClose,
+}: {
+  emergencyType: string;
+  emergencyId: string | null;
+  location: LocationInfo | null;
+  locationState: LocationState;
+  activityId: string | null;
+  onEnableLocation: () => void;
+  onClose: () => void;
+}) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [servicesOpen, setServicesOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [update, setUpdate] = useState("");
+  const area = location?.district || location?.suburb || "Location pending";
+  const locationReady = locationState === "found" || locationState === "approximate";
+
+  return (
+    <motion.main
+      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#101214] text-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <header className="mx-auto flex w-full max-w-xl items-center justify-between border-b border-white/10 px-5 py-5">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-300">SOS ACTIVE <span className="text-white/40">• LIVE</span></p>
+          <p className="mt-2 text-[12px] text-white/45">{emergencyId ?? "Emergency session"}</p>
+          <p className="mt-0.5 text-[12px] text-white/65">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
+        </div>
+        <button type="button" onClick={onClose} className="min-h-10 rounded-xl border border-white/15 px-4 text-[12px] font-semibold text-white/75 transition hover:bg-white/10">
+          Close
+        </button>
+      </header>
+
+      <div className="mx-auto w-full max-w-xl px-5 pb-10">
+        <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} compact />
+
+        <section aria-labelledby="actions-heading" className="border-b border-white/10 py-6">
+          <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">Immediate actions</p>
+          <div className="mt-4 grid gap-3">
+            <button type="button" onClick={() => setServicesOpen(true)} className="flex min-h-14 items-center justify-between rounded-2xl bg-white px-4 text-left text-[14px] font-bold text-[#101214] transition hover:bg-white/90">
+              Call Emergency Services <Phone className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => setUpdateOpen(true)} className="flex min-h-14 items-center justify-between rounded-2xl border border-white/15 px-4 text-left text-[14px] font-semibold text-white transition hover:bg-white/10">
+              Send Update <Send className="h-4 w-4 text-white/60" />
+            </button>
+            <button type="button" onClick={onClose} className="min-h-12 text-[12px] font-semibold text-red-300 transition hover:text-red-200">
+              Stop SOS
+            </button>
+          </div>
+        </section>
+
+        <section aria-labelledby="location-heading" className="border-b border-white/10 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">Location</p>
+              <p className="mt-3 flex items-center gap-2 text-[14px] font-semibold text-white">
+                <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-emerald-300" : "bg-amber-300")} />
+                {locationReady ? "Shared" : "Unavailable"}
+              </p>
+              <p className="mt-1 text-[12px] text-white/50">{area}</p>
+            </div>
+            {locationReady ? (
+              <button type="button" onClick={() => setMoreOpen(true)} className="min-h-10 rounded-xl border border-white/15 px-3 text-[12px] font-semibold text-white/75 hover:bg-white/10">View map</button>
+            ) : (
+              <button type="button" onClick={onEnableLocation} className="min-h-10 rounded-xl border border-amber-300/30 px-3 text-[12px] font-semibold text-amber-200 hover:bg-amber-300/10">Enable Location</button>
+            )}
+          </div>
+        </section>
+
+        <button type="button" onClick={() => setMoreOpen(true)} className="flex min-h-14 w-full items-center justify-between border-b border-white/10 text-left">
+          <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">More</span>
+          <ChevronRight className="h-4 w-4 text-white/45" />
+        </button>
+      </div>
+
+      {(moreOpen || servicesOpen || updateOpen) && (
+        <div className="fixed inset-0 z-20 flex items-end bg-black/60 p-3" onClick={() => { setMoreOpen(false); setServicesOpen(false); setUpdateOpen(false); }}>
+          <div className="mx-auto w-full max-w-xl rounded-3xl border border-white/15 bg-[#1a1d20] p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-5 flex items-center justify-between"><p className="text-sm font-semibold text-white">{servicesOpen ? "Emergency Services" : updateOpen ? "Send Update" : "More"}</p><button type="button" onClick={() => { setMoreOpen(false); setServicesOpen(false); setUpdateOpen(false); }} aria-label="Close panel"><X className="h-5 w-5 text-white/60" /></button></div>
+            {servicesOpen && <div className="grid gap-2">{EMERGENCY_NUMBERS.map((service) => <a key={service.label} href={`tel:${service.number}`} className="flex min-h-12 items-center justify-between rounded-xl border border-white/10 px-3 text-[13px] text-white"><span>{service.label}</span><span className="font-bold">{service.number}</span></a>)}</div>}
+            {updateOpen && <div><textarea value={update} onChange={(event) => setUpdate(event.target.value)} rows={3} placeholder="Tell responders what has changed" className="w-full resize-none rounded-xl border border-white/15 bg-black/20 p-3 text-[13px] text-white outline-none placeholder:text-white/35" /><button type="button" onClick={() => { setUpdate(""); setUpdateOpen(false); }} disabled={!update.trim()} className="mt-3 min-h-12 w-full rounded-xl bg-white text-[13px] font-bold text-[#101214] disabled:opacity-40">Send update</button></div>}
+            {moreOpen && <div className="grid divide-y divide-white/10">{["✦  Allma AI · Need help?", "Activity ›", "Nearby help ›", "Location details ›"].map((item) => <button type="button" key={item} onClick={() => setMoreOpen(false)} className="min-h-14 text-left text-[13px] text-white/80">{item}</button>)}</div>}
+          </div>
+        </div>
+      )}
+    </motion.main>
   );
 }
 
