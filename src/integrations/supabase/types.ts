@@ -2544,6 +2544,7 @@ export type Database = {
       list_sos_call_attempts: {
         Args: { p_sos_activity_id: string }
         Returns: {
+          accepted_at: string
           avatar_url: string
           call_id: string
           connected_at: string
