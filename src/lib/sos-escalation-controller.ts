@@ -66,6 +66,7 @@ class SosEscalation {
   private generation = 0;
   private initialised = false;
   private loadingTargets = false;
+  private autoStartRequested = false;
   private disposeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -111,13 +112,19 @@ class SosEscalation {
   }
 
   async init(autoStart: boolean) {
+    this.autoStartRequested = this.autoStartRequested || autoStart;
     // Re-entrant: a re-mount must never leave the card stuck on "loading" and
     // must re-arm auto-dialing if nothing is running yet.
     if (this.loadingTargets) return;
     if (this.initialised) {
       if (this.state.loading) this.patch({ loading: false });
       await this.refresh();
-      if (autoStart && !this.state.running && !this.state.answered && this.callable().length) {
+      if (
+        this.autoStartRequested &&
+        !this.state.running &&
+        !this.state.answered &&
+        this.callable().length
+      ) {
         this.start();
       }
       return;
@@ -128,7 +135,7 @@ class SosEscalation {
       const targets = await listSosCallTargets();
       this.patch({
         targets,
-        noTargets: targets.filter((target) => !target.ineligible_reason).length === 0,
+        noTargets: targets.length === 0,
         loading: false,
       });
     } catch (error) {
@@ -143,20 +150,25 @@ class SosEscalation {
       this.loadingTargets = false;
     }
     await this.refresh();
-    if (autoStart && !this.state.answered && this.callable().length) this.start();
+    if (this.autoStartRequested && !this.state.answered && this.callable().length) this.start();
   }
 
   async retry(autoStart = true) {
     this.generation += 1;
     this.initialised = false;
     this.loadingTargets = false;
+    this.autoStartRequested = autoStart;
     this.patch({ ...initialState() });
     await this.init(autoStart);
   }
 
-  /** Contacts that are actually allowed to be called right now. */
+  /**
+   * Every configured Safety Network member is dialed. Whether a person can
+   * actually be reached is decided by the real call attempt, not by a
+   * pre-flight eligibility filter.
+   */
   callable() {
-    return this.state.targets.filter((target) => !target.ineligible_reason);
+    return this.state.targets;
   }
 
   start() {
@@ -180,7 +192,7 @@ class SosEscalation {
       for (let index = 0; index < this.state.targets.length; index += 1) {
         if (!alive()) return;
         const target = this.state.targets[index];
-        if (!target || target.ineligible_reason) continue;
+        if (!target) continue;
 
         this.patch({ currentIndex: index, waitSeconds: null });
         const startedAt = Date.now();

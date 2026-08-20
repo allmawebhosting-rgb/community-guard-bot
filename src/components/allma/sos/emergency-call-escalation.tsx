@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Phone, PhoneOff, ShieldCheck, SquareStop } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
-import { ATTEMPT_COPY, attemptState } from "@/lib/sos-calling";
+import { ATTEMPT_COPY, attemptState, listSosCallTargets, type SosCallTarget } from "@/lib/sos-calling";
 import { getSosEscalation, type EscalationState } from "@/lib/sos-escalation-controller";
 
 /**
@@ -29,10 +30,35 @@ export function EmergencyCallEscalation({
     [activityId],
   );
   const [state, setState] = useState<EscalationState | null>(controller?.state ?? null);
+  // The network is shown as soon as it loads, even before the SOS session id
+  // exists — waiting on the session used to leave this card stuck on loading.
+  const [preTargets, setPreTargets] = useState<SosCallTarget[] | null>(null);
+  const [preError, setPreError] = useState(false);
+  const [preRetry, setPreRetry] = useState(0);
 
   useEffect(() => {
     controller?.setEmergencyType(emergencyType);
   }, [controller, emergencyType]);
+
+  useEffect(() => {
+    if (controller) return;
+    let cancelled = false;
+    setPreError(false);
+
+    listSosCallTargets()
+      .then((targets) => {
+        if (!cancelled) setPreTargets(targets);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreTargets([]);
+          setPreError(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [controller, preRetry]);
 
   useEffect(() => {
     if (!controller) return;
@@ -44,12 +70,32 @@ export function EmergencyCallEscalation({
     };
   }, [autoStart, controller]);
 
-  const targets = state?.targets ?? [];
-  const callableCount = targets.filter((target) => !target.ineligible_reason).length;
+  // Auto-start from the loaded, visible list as well as from controller.init().
+  // This closes a mount/loading race where the targets finish loading after the
+  // initial init call but the sequence is never armed.
+  useEffect(() => {
+    if (
+      !autoStart ||
+      !controller ||
+      !state ||
+      state.loading ||
+      state.running ||
+      state.answered ||
+      state.targets.length === 0
+    ) {
+      return;
+    }
+    controller.start();
+  }, [autoStart, controller, state]);
+
+  const targets = controller ? (state?.targets ?? []) : (preTargets ?? []);
+  const callableCount = targets.length;
   const attempts = state?.attempts ?? [];
   const answered = state?.answered ?? null;
   const running = Boolean(state?.running);
-  const loading = state?.loading ?? true;
+  const loading = controller ? (state?.loading ?? true) : preTargets === null;
+  const errored = controller ? Boolean(state?.error) : preError;
+
 
   const rows = targets.map((target) => ({
     target,
@@ -73,8 +119,7 @@ export function EmergencyCallEscalation({
           </p>
           <h3 className="mt-1 font-display text-lg font-black">Call your safety network</h3>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Calling your responders one by one in your configured priority order, and repeating
-            until someone answers.
+            Calling your responders one by one in your configured priority order.
           </p>
         </div>
         {answered ? (
@@ -103,29 +148,54 @@ export function EmergencyCallEscalation({
 
       <div className="divide-y divide-border/60">
         {loading ? (
-          <p className="p-4 text-[12px] text-muted-foreground">Checking eligible contacts…</p>
-        ) : !rows.length ? (
+          <p className="p-4 text-[12px] text-muted-foreground">Loading your Safety Network…</p>
+        ) : errored ? (
           <div className="space-y-3 p-4">
-            <p className="text-[12px] text-muted-foreground">
-              {state?.error
-                ? `We could not load your Safety Network: ${state.error}`
-                : "No safety contact is currently eligible for emergency calls. Both of you must allow Allma calls, and SOS alerts must be on for that connection."}
+            <p className="text-[12px] text-muted-foreground">Couldn't load your Safety Network.</p>
+            <button
+              type="button"
+              onClick={() => {
+                if (controller) void controller.retry(autoStart);
+                else {
+                  setPreTargets(null);
+                  setPreRetry((value) => value + 1);
+                }
+              }}
+
+
+              className="rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
+            >
+              Retry
+            </button>
+          </div>
+        ) : !rows.length ? (
+          <div className="space-y-2 p-4">
+            <p className="text-[12px] font-bold">Your Safety Network is empty.</p>
+            <p className="text-[11px] text-muted-foreground">
+              Add trusted people so Allma can contact them during an emergency.
             </p>
-            {state?.error && (
-              <button
-                type="button"
-                onClick={() => void controller?.retry(autoStart)}
-                className="rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
-              >
-                Try again
-              </button>
-            )}
+            <Link
+              to="/profile"
+              className="inline-flex rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
+            >
+              Manage Safety Network
+            </Link>
           </div>
         ) : (
           rows.map(({ target, attempt }, index) => {
+            const isCurrent = running && state?.currentIndex === index && !answered;
+            const isAnswered = answered?.recipient_id === target.member_id;
             const derived = attempt ? attemptState(attempt.status) : null;
             const copy = derived ? ATTEMPT_COPY[derived] : null;
-            const isCurrent = running && state?.currentIndex === index && !answered;
+            const label = isAnswered
+              ? "CONNECTED"
+              : isCurrent
+                ? derived === "calling"
+                  ? "RINGING"
+                  : "CALLING"
+                : derived
+                  ? (copy?.label ?? "NEXT").toUpperCase()
+                  : "NEXT";
             return (
               <div key={target.member_id} className="flex items-center gap-3 p-3.5">
                 <Avatar name={target.full_name} url={target.avatar_url} size={38} />
@@ -137,18 +207,12 @@ export function EmergencyCallEscalation({
                 </div>
                 <span
                   className={cn(
-                    "text-[11px] font-bold",
-                    target.ineligible_reason
-                      ? "text-muted-foreground"
-                      : (copy?.tone ?? "text-muted-foreground"),
-                    isCurrent && !target.ineligible_reason && "text-gold",
+                    "text-[10px] font-bold uppercase tracking-[0.12em]",
+                    isAnswered ? "text-success" : (copy?.tone ?? "text-muted-foreground"),
+                    isCurrent && !isAnswered && "text-gold",
                   )}
                 >
-                  {target.ineligible_reason
-                    ? target.ineligible_reason
-                    : isCurrent && (!derived || derived === "alerted")
-                      ? "Calling"
-                      : (copy?.label ?? "—")}
+                  {label}
                 </span>
               </div>
             );
