@@ -58,7 +58,7 @@ export function EmergencyCallEscalation({
     return () => {
       cancelled = true;
     };
-  }, [controller]);
+  }, [controller, preRetry]);
 
   useEffect(() => {
     if (!controller) return;
