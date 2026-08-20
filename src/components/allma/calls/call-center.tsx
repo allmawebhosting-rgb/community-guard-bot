@@ -157,8 +157,10 @@ export function CallCenter() {
           setCallId(id);
           // Best-effort: rings the recipient's device even if their app is closed.
           void notifyIncomingCall({ data: { callId: id } }).catch(() => undefined);
-          // Creating the real call row must not depend on automatic microphone
-          // permission. Start caller audio only after the recipient answers.
+          // Join from the user's Call tap so iOS Safari permits microphone access.
+          // CONNECTED is still deferred until ZEGOCLOUD reports a remote stream.
+          await beginEngine(id, true);
+          await setCallStatus(id, "connecting");
           ringTimerRef.current = setTimeout(() => {
             void setCallStatus(id, "missed").catch(() => undefined);
             teardown(`${requested.name} did not answer.`);

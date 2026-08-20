@@ -8,6 +8,7 @@ type ZegoCall = {
 };
 
 type ZegoEngine = {
+  createStream: (config: { camera: { video: boolean }; microphone: boolean }) => Promise<MediaStream>;
   loginRoom: (
     roomId: string,
     token: string,
@@ -126,9 +127,16 @@ async function getZegoToken(callId: string): Promise<ZegoTokenResponse> {
   });
   const payload = (await response.json().catch(() => ({}))) as ZegoTokenResponse & {
     error?: string;
+    code?: string;
   };
   if (!response.ok || !payload.token) {
-    throw new Error(payload.error ?? "ZEGOCLOUD is not available.");
+    console.error("[ALLMA VOICE] token request failed", {
+      callId,
+      status: response.status,
+      code: payload.code ?? "TOKEN_REQUEST_FAILED",
+      message: payload.error ?? "ZEGOCLOUD is not available.",
+    });
+    throw new Error(payload.error ?? "Unable to authenticate voice session.");
   }
   return payload;
 }
@@ -177,11 +185,18 @@ export class VoiceCallEngine {
 
   async start() {
     if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error("Microphone access is required to make this call.");
+      throw new Error("Microphone access is required for an Allma voice call.");
     }
-    const microphone = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    this.localStream = microphone;
+    if (!window.isSecureContext && window.location.hostname !== "localhost") {
+      throw new Error("Voice calls require a secure HTTPS connection.");
+    }
     const token = await getZegoToken(this.callId);
+    console.info("[ALLMA VOICE] token received", {
+      callId: this.callId,
+      roomId: token.roomId,
+      userId: token.userId,
+      appIdConfigured: Number.isSafeInteger(token.appId) && token.appId > 0,
+    });
     const sdk = await loadZegoSdk();
     const engine = new sdk.ZegoExpressEngine(token.appId, token.server);
     this.engine = engine;
@@ -203,14 +218,42 @@ export class VoiceCallEngine {
         streams.forEach((stream) => this.stopRemote(stream.streamID));
       }
     });
-    const loggedIn = await engine.loginRoom(
-      token.roomId,
-      token.token,
-      { userID: token.userId, userName: this.userId },
-      { userUpdate: true },
-    );
-    if (!loggedIn) throw new Error("ZEGOCLOUD could not join the call room.");
-    await engine.startPublishingStream(this.publishStreamId, microphone);
+    let loggedIn = false;
+    try {
+      loggedIn = await engine.loginRoom(
+        token.roomId,
+        token.token,
+        { userID: token.userId, userName: this.userId },
+        { userUpdate: true },
+      );
+    } catch (error) {
+      console.error("[ALLMA VOICE] room join failed", {
+        callId: this.callId,
+        roomId: token.roomId,
+        userId: token.userId,
+        message: error instanceof Error ? error.message : "unknown",
+      });
+      throw new Error("Unable to join the ZEGOCLOUD voice room.");
+    }
+    if (!loggedIn) throw new Error("Unable to join the ZEGOCLOUD voice room.");
+    let microphone: MediaStream;
+    try {
+      microphone = await engine.createStream({ camera: { video: false }, microphone: true });
+      this.localStream = microphone;
+      await engine.startPublishingStream(this.publishStreamId, microphone);
+    } catch (error) {
+      console.error("[ALLMA VOICE] microphone stream failed", {
+        callId: this.callId,
+        roomId: this.roomId,
+        message: error instanceof Error ? error.message : "unknown",
+      });
+      throw new Error("Microphone access is required for an Allma voice call.");
+    }
+    console.info("[ALLMA VOICE] room joined and audio published", {
+      callId: this.callId,
+      roomId: token.roomId,
+      userId: token.userId,
+    });
     this.events.onQuality("connecting");
   }
 
@@ -228,8 +271,14 @@ export class VoiceCallEngine {
       this.audioElements.set(streamId, audio);
       this.events.onQuality("good");
       this.events.onConnected();
-    } catch {
-      this.events.onFailed("The voice connection could not start.");
+    } catch (error) {
+      console.error("[ALLMA VOICE] remote audio failed", {
+        callId: this.callId,
+        roomId: this.roomId,
+        streamId,
+        message: error instanceof Error ? error.message : "unknown",
+      });
+      this.events.onFailed("Unable to start remote voice audio.");
     }
   }
 

@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { loadZegoServerAssistant } from "@/lib/zego.server";
 
-function jsonError(message: string, status: number) {
-  return Response.json({ error: message }, { status });
+function jsonError(message: string, status: number, code: string) {
+  return Response.json({ success: false, code, error: message }, { status });
 }
 
 function zegoUserId(userId: string) {
@@ -35,23 +35,27 @@ export const Route = createFileRoute("/api/zego-token")({
     handlers: {
       POST: async ({ request }) => {
         const user = await authenticate(request);
-        if (!user) return jsonError("Authentication is required.", 401);
+        if (!user) return jsonError("Authentication is required.", 401, "AUTH_REQUIRED");
 
         let body: { callId?: string };
         try {
           body = (await request.json()) as { callId?: string };
         } catch {
-          return jsonError("A valid call is required.", 400);
+          return jsonError("A valid call is required.", 400, "INVALID_CALL");
         }
         if (!body.callId || !/^[0-9a-f-]{36}$/i.test(body.callId)) {
-          return jsonError("A valid call is required.", 400);
+          return jsonError("A valid call is required.", 400, "INVALID_CALL");
         }
 
         const appId = Number(process.env.ZEGOCLOUD_APP_ID);
         const serverSecret = process.env.ZEGOCLOUD_SERVER_SECRET;
         const server = process.env.ZEGOCLOUD_SERVER_URL ?? "wss://webliveroom1-api.zegocloud.com/ws";
         if (!Number.isSafeInteger(appId) || appId <= 0 || !serverSecret) {
-          return jsonError("ZEGOCLOUD is not configured on the server.", 503);
+          console.error("[ALLMA VOICE] missing ZEGOCLOUD configuration", {
+            appIdConfigured: Number.isSafeInteger(appId) && appId > 0,
+            secretConfigured: Boolean(serverSecret),
+          });
+          return jsonError("Unable to configure voice calling.", 503, "MISSING_ZEGO_CONFIG");
         }
 
         const admin = createAdmin();
@@ -61,16 +65,26 @@ export const Route = createFileRoute("/api/zego-token")({
           .eq("id", body.callId)
           .maybeSingle();
         if (error || !call || (call.caller_id !== user.id && call.recipient_id !== user.id)) {
-          return jsonError("You cannot call this person.", 403);
+          return jsonError("You cannot call this person.", 403, "CALL_NOT_AUTHORIZED");
         }
         if (["ended", "declined", "missed", "failed"].includes(call.status)) {
-          return jsonError("This call is no longer available.", 409);
+          return jsonError("This call is no longer available.", 409, "CALL_NOT_ACTIVE");
         }
 
         const roomId = call.zego_room_id || `allma-call-${call.id}`;
         const userId = zegoUserId(user.id);
-        const { generateToken04 } = await loadZegoServerAssistant();
-        const token = generateToken04(appId, userId, serverSecret, 3600, "");
+        let token: string;
+        try {
+          const { generateToken04 } = await loadZegoServerAssistant();
+          token = generateToken04(appId, userId, serverSecret, 3600, "");
+        } catch (error) {
+          console.error("[ALLMA VOICE] token generation failed", {
+            callId: call.id,
+            userId,
+            message: error instanceof Error ? error.message : "unknown",
+          });
+          return jsonError("Unable to authenticate voice session.", 503, "TOKEN_GENERATION_FAILED");
+        }
         const { error: updateError } = await admin
           .from("emergency_calls")
           .update({
@@ -82,7 +96,7 @@ export const Route = createFileRoute("/api/zego-token")({
           .eq("id", call.id);
         if (updateError) {
           console.error("Could not assign ZEGOCLOUD transport", updateError.message);
-          return jsonError("The secure voice room could not be prepared.", 500);
+          return jsonError("Unable to create the voice session.", 500, "SESSION_CREATE_FAILED");
         }
 
         return Response.json({ token, appId, server, roomId, userId, expiresIn: 3600 });
