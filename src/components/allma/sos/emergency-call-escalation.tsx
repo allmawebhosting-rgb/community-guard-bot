@@ -70,6 +70,24 @@ export function EmergencyCallEscalation({
     };
   }, [autoStart, controller]);
 
+  // Auto-start from the loaded, visible list as well as from controller.init().
+  // This closes a mount/loading race where the targets finish loading after the
+  // initial init call but the sequence is never armed.
+  useEffect(() => {
+    if (
+      !autoStart ||
+      !controller ||
+      !state ||
+      state.loading ||
+      state.running ||
+      state.answered ||
+      state.targets.length === 0
+    ) {
+      return;
+    }
+    controller.start();
+  }, [autoStart, controller, state]);
+
   const targets = controller ? (state?.targets ?? []) : (preTargets ?? []);
   const callableCount = targets.length;
   const attempts = state?.attempts ?? [];
