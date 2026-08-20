@@ -111,6 +111,13 @@ class SosEscalation {
     if (autoStart && !this.state.answered && this.state.targets.length) this.start();
   }
 
+  async retry(autoStart = true) {
+    this.generation += 1;
+    this.initialised = false;
+    this.patch({ ...initialState() });
+    await this.init(autoStart);
+  }
+
   start() {
     if (this.state.running || !this.state.targets.length) return;
     this.patch({ running: true, error: null });

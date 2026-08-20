@@ -37,11 +37,41 @@ function friendly(message: string) {
   return clean || "Something went wrong. Please try again.";
 }
 
+const DISCOVERY_TIMEOUT_MS = 8_000;
+
+async function withTimeout<T>(promise: PromiseLike<T>, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), DISCOVERY_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /** Members the signed-in user is allowed to call during their own SOS, in configured priority order. */
 export async function listSosCallTargets(): Promise<SosCallTarget[]> {
-  const { data, error } = await supabase.rpc("list_sos_call_targets");
+  const { data: auth } = await withTimeout(
+    supabase.auth.getUser(),
+    "Unable to identify your Safety Network.",
+  );
+  const userId = auth.user?.id;
+  if (!userId) throw new Error("Unable to identify your Safety Network.");
+  console.info("[SAFETY NETWORK DEBUG] query started", {
+    currentUserId: `${userId.slice(0, 8)}…`,
+  });
+  const { data, error } = await withTimeout(
+    supabase.rpc("list_sos_call_targets"),
+    "Unable to load your Safety Network.",
+  );
   if (error) throw new Error(friendly(error.message));
-  return (data ?? []) as SosCallTarget[];
+  const targets = (data ?? []) as SosCallTarget[];
+  console.info("[SAFETY NETWORK DEBUG] responders found", { count: targets.length });
+  return targets;
 }
 
 /** Server verifies SOS ownership, both-sided call permission and blocks. */

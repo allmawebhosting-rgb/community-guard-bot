@@ -97,11 +97,22 @@ export function EmergencyCallEscalation({
         {loading ? (
           <p className="p-4 text-[12px] text-muted-foreground">Checking eligible contacts…</p>
         ) : !rows.length ? (
-          <p className="p-4 text-[12px] text-muted-foreground">
-            {state?.error
-              ? `We could not load your Safety Network: ${state.error}`
-              : "No safety contact is currently eligible for emergency calls. Both of you must allow Allma calls, and SOS alerts must be on for that connection."}
-          </p>
+          <div className="space-y-3 p-4">
+            <p className="text-[12px] text-muted-foreground">
+              {state?.error
+                ? `We could not load your Safety Network: ${state.error}`
+                : "No safety contact is currently eligible for emergency calls. Both of you must allow Allma calls, and SOS alerts must be on for that connection."}
+            </p>
+            {state?.error && (
+              <button
+                type="button"
+                onClick={() => void controller?.retry(autoStart)}
+                className="rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
+              >
+                Try again
+              </button>
+            )}
+          </div>
         ) : (
           rows.map(({ target, attempt }, index) => {
             const derived = attempt ? attemptState(attempt.status) : null;
