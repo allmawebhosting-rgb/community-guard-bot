@@ -16,6 +16,7 @@ export type CheckPhase = "idle" | "checking" | "elevated";
 
 /** Final cancellable countdown before automatic hand-off to SOS. */
 const AUTO_ACTIVATION_SECONDS = 10;
+const SAFE_RECHECK_DELAY_MS = 5 * 60 * 1000;
 
 const ACTIVITY_EVENTS = [
   "pointerdown",
@@ -49,6 +50,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   const [escalationBlocked, setEscalationBlocked] = useState<string | null>(null);
 
   const idleTimer = useRef<number | null>(null);
+  const safeRecheckAt = useRef<number | null>(null);
   const tickTimer = useRef<number | null>(null);
   const phaseRef = useRef<CheckPhase>("idle");
   const signalsRef = useRef<SignalKey[]>([]);
@@ -195,10 +197,13 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
     const schedule = () => {
       if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
+      const cooldownRemaining = safeRecheckAt.current
+        ? Math.max(0, safeRecheckAt.current - Date.now())
+        : 0;
       idleTimer.current = window.setTimeout(() => {
         if (document.visibilityState === "visible") void beginCheck();
         else schedule();
-      }, Math.max(5, settings.inactivity_seconds) * 1000);
+      }, Math.max(Math.max(5, settings.inactivity_seconds) * 1000, cooldownRemaining));
     };
 
     const onActivity = () => schedule();
@@ -284,6 +289,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
   const confirmSafe = useCallback(async () => {
     safetyConfirmedRef.current = true;
+    safeRecheckAt.current = Date.now() + SAFE_RECHECK_DELAY_MS;
     const id = checkIdRef.current;
     reset();
     if (id) await resolveSafetyCheck(id, "safe", { source: "user_confirmed" });
