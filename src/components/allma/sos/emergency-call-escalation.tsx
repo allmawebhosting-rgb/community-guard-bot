@@ -34,6 +34,7 @@ export function EmergencyCallEscalation({
   // exists — waiting on the session used to leave this card stuck on loading.
   const [preTargets, setPreTargets] = useState<SosCallTarget[] | null>(null);
   const [preError, setPreError] = useState(false);
+  const [preRetry, setPreRetry] = useState(0);
 
   useEffect(() => {
     controller?.setEmergencyType(emergencyType);
@@ -43,6 +44,7 @@ export function EmergencyCallEscalation({
     if (controller) return;
     let cancelled = false;
     setPreError(false);
+
     listSosCallTargets()
       .then((targets) => {
         if (!cancelled) setPreTargets(targets);
