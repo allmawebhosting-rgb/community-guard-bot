@@ -4,7 +4,7 @@ import { Phone, PhoneOff, ShieldCheck, SquareStop } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
-import { ATTEMPT_COPY, attemptState } from "@/lib/sos-calling";
+import { ATTEMPT_COPY, attemptState, listSosCallTargets, type SosCallTarget } from "@/lib/sos-calling";
 import { getSosEscalation, type EscalationState } from "@/lib/sos-escalation-controller";
 
 /**
@@ -30,10 +30,35 @@ export function EmergencyCallEscalation({
     [activityId],
   );
   const [state, setState] = useState<EscalationState | null>(controller?.state ?? null);
+  // The network is shown as soon as it loads, even before the SOS session id
+  // exists — waiting on the session used to leave this card stuck on loading.
+  const [preTargets, setPreTargets] = useState<SosCallTarget[] | null>(null);
+  const [preError, setPreError] = useState(false);
+  const [preRetry, setPreRetry] = useState(0);
 
   useEffect(() => {
     controller?.setEmergencyType(emergencyType);
   }, [controller, emergencyType]);
+
+  useEffect(() => {
+    if (controller) return;
+    let cancelled = false;
+    setPreError(false);
+
+    listSosCallTargets()
+      .then((targets) => {
+        if (!cancelled) setPreTargets(targets);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreTargets([]);
+          setPreError(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [controller, preRetry]);
 
   useEffect(() => {
     if (!controller) return;
@@ -45,12 +70,14 @@ export function EmergencyCallEscalation({
     };
   }, [autoStart, controller]);
 
-  const targets = state?.targets ?? [];
+  const targets = controller ? (state?.targets ?? []) : (preTargets ?? []);
   const callableCount = targets.length;
   const attempts = state?.attempts ?? [];
   const answered = state?.answered ?? null;
   const running = Boolean(state?.running);
-  const loading = state?.loading ?? true;
+  const loading = controller ? (state?.loading ?? true) : preTargets === null;
+  const errored = controller ? Boolean(state?.error) : preError;
+
 
   const rows = targets.map((target) => ({
     target,
@@ -104,12 +131,20 @@ export function EmergencyCallEscalation({
       <div className="divide-y divide-border/60">
         {loading ? (
           <p className="p-4 text-[12px] text-muted-foreground">Loading your Safety Network…</p>
-        ) : state?.error ? (
+        ) : errored ? (
           <div className="space-y-3 p-4">
             <p className="text-[12px] text-muted-foreground">Couldn't load your Safety Network.</p>
             <button
               type="button"
-              onClick={() => void controller?.retry(autoStart)}
+              onClick={() => {
+                if (controller) void controller.retry(autoStart);
+                else {
+                  setPreTargets(null);
+                  setPreRetry((value) => value + 1);
+                }
+              }}
+
+
               className="rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
             >
               Retry
