@@ -68,7 +68,41 @@ export async function listSosCallTargets(): Promise<SosCallTarget[]> {
     supabase.rpc("list_sos_call_targets"),
     "Unable to load your Safety Network.",
   );
-  if (error) throw new Error(friendly(error.message));
+  if (error) {
+    // Older deployments may not have the SOS-specific RPC yet. Reuse the
+    // existing Safety Network query as a discovery fallback; the server-side
+    // start_sos_emergency_call RPC still performs the final authorization.
+    console.warn("[SAFETY NETWORK DEBUG] SOS target RPC failed; using connection fallback", {
+      message: friendly(error.message),
+    });
+    const fallback = await withTimeout(
+      supabase.rpc("list_safety_connections"),
+      "Unable to load your Safety Network.",
+    );
+    if (fallback.error) throw new Error(friendly(fallback.error.message));
+    const targets = ((fallback.data ?? []) as Array<{
+      member_id?: string;
+      full_name?: string;
+      avatar_url?: string | null;
+      safety_role?: string;
+      priority?: number;
+      notify_on_sos?: boolean;
+      allow_emergency_calls?: boolean;
+      share_location_on_sos?: boolean;
+    }>)
+      .filter((connection) => connection.member_id && connection.notify_on_sos !== false && connection.allow_emergency_calls !== false)
+      .map((connection) => ({
+        member_id: connection.member_id!,
+        full_name: connection.full_name || "Allma member",
+        avatar_url: connection.avatar_url ?? null,
+        safety_role: connection.safety_role || "Safety contact",
+        priority: connection.priority ?? 0,
+        share_location_on_sos: connection.share_location_on_sos !== false,
+      }))
+      .sort((a, b) => a.priority - b.priority);
+    console.info("[SAFETY NETWORK DEBUG] fallback responders found", { count: targets.length });
+    return targets;
+  }
   const targets = (data ?? []) as SosCallTarget[];
   console.info("[SAFETY NETWORK DEBUG] responders found", { count: targets.length });
   return targets;
