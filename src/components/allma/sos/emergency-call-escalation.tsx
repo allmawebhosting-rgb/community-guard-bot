@@ -45,7 +45,7 @@ export function EmergencyCallEscalation({
   }, [autoStart, controller]);
 
   const targets = state?.targets ?? [];
-  const callableCount = targets.filter((target) => !target.ineligible_reason).length;
+  const callableCount = targets.length;
   const attempts = state?.attempts ?? [];
   const answered = state?.answered ?? null;
   const running = Boolean(state?.running);
@@ -73,8 +73,7 @@ export function EmergencyCallEscalation({
           </p>
           <h3 className="mt-1 font-display text-lg font-black">Call your safety network</h3>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Calling your responders one by one in your configured priority order, and repeating
-            until someone answers.
+            Calling your responders one by one in your configured priority order.
           </p>
         </div>
         {answered ? (
