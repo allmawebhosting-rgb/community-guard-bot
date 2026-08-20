@@ -128,7 +128,7 @@ class SosEscalation {
       const targets = await listSosCallTargets();
       this.patch({
         targets,
-        noTargets: targets.filter((target) => !target.ineligible_reason).length === 0,
+        noTargets: targets.length === 0,
         loading: false,
       });
     } catch (error) {
@@ -154,9 +154,13 @@ class SosEscalation {
     await this.init(autoStart);
   }
 
-  /** Contacts that are actually allowed to be called right now. */
+  /**
+   * Every configured Safety Network member is dialed. Whether a person can
+   * actually be reached is decided by the real call attempt, not by a
+   * pre-flight eligibility filter.
+   */
   callable() {
-    return this.state.targets.filter((target) => !target.ineligible_reason);
+    return this.state.targets;
   }
 
   start() {
@@ -180,7 +184,7 @@ class SosEscalation {
       for (let index = 0; index < this.state.targets.length; index += 1) {
         if (!alive()) return;
         const target = this.state.targets[index];
-        if (!target || target.ineligible_reason) continue;
+        if (!target) continue;
 
         this.patch({ currentIndex: index, waitSeconds: null });
         const startedAt = Date.now();
