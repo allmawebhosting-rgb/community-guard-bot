@@ -138,8 +138,12 @@ export function EmergencyCallEscalation({
               type="button"
               onClick={() => {
                 if (controller) void controller.retry(autoStart);
-                else setPreTargets(null);
+                else {
+                  setPreTargets(null);
+                  setPreRetry((value) => value + 1);
+                }
               }}
+
 
               className="rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
             >
