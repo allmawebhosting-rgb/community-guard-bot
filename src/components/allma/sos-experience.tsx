@@ -1532,6 +1532,7 @@ export function SOSExperience({
             location={location}
             locationState={locationState}
             activityId={sosActivityId}
+            onReport={() => setPhase("report")}
             onEnableLocation={async () => {
               setLocationState("finding");
               try {
@@ -2091,6 +2092,7 @@ function MinimalEmergencyScreen({
   locationState,
   activityId,
   onEnableLocation,
+  onReport,
   onClose,
 }: {
   emergencyType: string;
@@ -2099,6 +2101,7 @@ function MinimalEmergencyScreen({
   locationState: LocationState;
   activityId: string | null;
   onEnableLocation: () => void;
+  onReport: () => void;
   onClose: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -2146,6 +2149,9 @@ function MinimalEmergencyScreen({
             </button>
             <button type="button" onClick={() => setUpdateOpen(true)} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
               <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Send className="h-4 w-4 text-white/70" /></span>Send Update</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+            </button>
+            <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
+              <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Shield className="h-4 w-4 text-white/70" /></span>File an incident report</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
             </button>
             <button type="button" onClick={onClose} className="min-h-12 text-[12px] font-semibold tracking-[0.01em] text-red-300/85 transition hover:text-red-200">
               Stop SOS
