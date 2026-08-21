@@ -1529,23 +1529,9 @@ export function SOSExperience({
             key="help"
             emergencyType={emergencyType}
             emergencyId={emergencyId}
-            activatedAt={activatedAt}
             location={location}
             locationState={locationState}
-            hospitals={hospitals}
-            officers={officers}
-            trustedContacts={trustedContacts}
-            responsePlan={RESPONSE_PLANS[emergencyType] ?? RESPONSE_PLANS.other}
-            locationShared={shareLocation}
-            respondersNotified={notifyResponders}
-            responderOffers={responderOffers}
             activityId={sosActivityId}
-            automatic={Boolean(smartCheckId)}
-            onChangeType={(next) => {
-              setPendingEmergencyType(next);
-              setEmergencyType(next);
-            }}
-            onToggleLocation={() => setShareLocation((v) => !v)}
             onEnableLocation={async () => {
               setLocationState("finding");
               try {
@@ -1579,8 +1565,15 @@ export function SOSExperience({
             onSubmit={handleSubmitReport}
             onBack={() => setPhase("help")}
             submitting={submitting}
+            emergencyType={emergencyType}
+            emergencyId={emergencyId}
+            activatedAt={activatedAt}
+            locationState={locationState}
+            respondersNotified={notifyResponders}
+            responderCount={responderOffers.length}
           />
         )}
+
         {phase === "submitted" && (
           <SubmittedScreen
             key="submitted"
