@@ -177,6 +177,7 @@ export function CallCenter() {
             await beginEngine(id, true);
             await setCallStatus(id, "connecting");
             ringTimerRef.current = setTimeout(() => {
+              if (!id) return;
               void setCallStatus(id, "missed").catch(() => undefined);
               teardown(`${requested.name} did not answer.`);
             }, RING_TIMEOUT_MS);
