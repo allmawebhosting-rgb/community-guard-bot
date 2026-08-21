@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowLeft,
   ArrowRight,
+  Bell,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,
 });
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 type CircleMember = {
   id: number;
   name: string;
@@ -56,7 +57,7 @@ type CircleMember = {
   status: "pending" | "connected";
 };
 
-const STEP_LABELS = ["Welcome", "Profile", "Location", "Circle", "Plan", "Ready"];
+const STEP_LABELS = ["Welcome", "Profile", "Location", "Circle", "Plan", "Health", "Ready"];
 const RELATIONSHIPS = [
   "Family",
   "Friend",
@@ -93,6 +94,7 @@ type OnboardingDraft = {
   members: CircleMember[];
   plan: typeof DEFAULT_PLAN;
   locationMode: "approximate" | "exact-after-accept" | "never";
+  healthSetup: boolean;
 };
 
 const initialDraft: OnboardingDraft = {
@@ -105,6 +107,7 @@ const initialDraft: OnboardingDraft = {
   members: [],
   plan: DEFAULT_PLAN,
   locationMode: "approximate",
+  healthSetup: false,
 };
 
 function OnboardingPage() {
@@ -129,6 +132,7 @@ function OnboardingPage() {
         plan: { ...DEFAULT_PLAN, ...(saved.plan ?? {}) },
         members: saved.members ?? [],
         locationMode: saved.locationMode ?? "approximate",
+        healthSetup: saved.healthSetup ?? false,
       };
 
       const { data: auth } = await supabase.auth.getUser();
@@ -230,7 +234,7 @@ function OnboardingPage() {
 
   function next() {
     if (!canContinue) return;
-    update({ step: Math.min(5, step + 1) as Step });
+    update({ step: Math.min(6, step + 1) as Step });
   }
 
   function back() {
@@ -303,7 +307,7 @@ function OnboardingPage() {
       safety_plan: draft.plan,
       onboarding_completed: true,
     });
-    navigate({ to: "/chat" });
+    navigate({ to: draft.healthSetup ? "/health-reminders" : "/chat" });
   }
 
   return (
@@ -415,7 +419,8 @@ function OnboardingPage() {
                   onBack={back}
                 />
               )}
-              {step === 5 && <CompleteStep draft={draft} onFinish={finish} onBack={back} />}
+              {step === 5 && <HealthStep enabled={draft.healthSetup} onChange={(healthSetup) => update({ healthSetup })} onNext={next} onBack={back} />}
+              {step === 6 && <CompleteStep draft={draft} onFinish={finish} onBack={back} />}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -1017,6 +1022,19 @@ function PlanStep({
         </p>
       </div>
       <FooterActions onBack={onBack} onNext={onNext} nextLabel="Review setup" />
+    </>
+  );
+}
+
+function HealthStep({ enabled, onChange, onNext, onBack }: { enabled: boolean; onChange: (enabled: boolean) => void; onNext: () => void; onBack: () => void }) {
+  return (
+    <>
+      <StepIntro eyebrow="06 · Optional" title="Your health, on your schedule." description="Allma can help remind you about important health appointments and routines. You can skip this and set it up later from Profile." icon={Clock3} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button type="button" onClick={() => onChange(true)} className={cn("rounded-2xl border p-5 text-left transition", enabled ? "border-primary bg-primary/10" : "border-border/60 bg-background/40 hover:bg-accent")}><Bell className="h-5 w-5 text-primary" /><p className="mt-3 text-[13px] font-bold">Set up health reminders</p><p className="mt-1 text-[11.5px] text-muted-foreground">Appointments, routines, and follow-ups.</p></button>
+        <button type="button" onClick={() => onChange(false)} className={cn("rounded-2xl border p-5 text-left transition", !enabled ? "border-border bg-muted/60" : "border-border/60 bg-background/40 hover:bg-accent")}><X className="h-5 w-5 text-muted-foreground" /><p className="mt-3 text-[13px] font-bold">Not now</p><p className="mt-1 text-[11.5px] text-muted-foreground">You can always add reminders later.</p></button>
+      </div>
+      <FooterActions onBack={onBack} onNext={onNext} nextLabel="Continue" />
     </>
   );
 }
