@@ -174,14 +174,15 @@ export function CallCenter() {
           // Join from the user's Call tap so iOS Safari permits microphone access.
           // CONNECTED is still deferred until ZEGOCLOUD reports a remote stream.
           if (isPrimarySosCall || !requested.sosActivityId) {
-            await beginEngine(id, true);
-            await setCallStatus(id, "connecting");
+            const activeId = id;
+            await beginEngine(activeId, true);
+            await setCallStatus(activeId, "connecting");
             ringTimerRef.current = setTimeout(() => {
-              if (!id) return;
-              void setCallStatus(id, "missed").catch(() => undefined);
+              void setCallStatus(activeId, "missed").catch(() => undefined);
               teardown(`${requested.name} did not answer.`);
             }, RING_TIMEOUT_MS);
           }
+
         } catch (error) {
           const message =
             error instanceof DOMException
