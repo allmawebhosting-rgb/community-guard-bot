@@ -3601,61 +3601,71 @@ function ReportScreen({
 function SubmittedScreen({ reference, onDone }: { reference: string | null; onDone: () => void }) {
   return (
     <motion.div
-      className="flex h-full flex-col items-center justify-center px-6 text-center"
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
+      className="flex h-full flex-col items-center justify-center bg-[#0a0a0a] px-4 py-8 text-white sm:px-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.4, type: "spring", stiffness: 260, damping: 20 }}
+      transition={{ duration: 0.28 }}
     >
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_-25%,rgba(252,220,4,0.12),transparent_70%)]" />
       <motion.div
-        className="mb-6 grid h-20 w-20 place-items-center rounded-full bg-success/20 ring-1 ring-success/30 ring-offset-4 ring-offset-background"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#1a1a1a] p-8 text-center shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] sm:p-10"
+        initial={{ opacity: 0, y: 14, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.35, type: "spring", stiffness: 220, damping: 22 }}
       >
-        <CheckCircle2 className="h-10 w-10 text-success" />
-      </motion.div>
-      <motion.h2
-        className="mb-2 font-display text-2xl font-black text-foreground"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.18 }}
-      >
-        Report Submitted
-      </motion.h2>
-      {reference && (
         <motion.div
-          className="mb-4 rounded-2xl border border-border/60 bg-secondary/40 px-6 py-3.5"
+          className="mx-auto mb-7 grid h-16 w-16 place-items-center rounded-full bg-emerald-400/15 ring-1 ring-emerald-400/30"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+        >
+          <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+        </motion.div>
+        <motion.h2
+          className="mb-2 font-display text-2xl font-bold tracking-tight"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.24 }}
+          transition={{ delay: 0.16 }}
         >
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Reference</p>
-          <p className="mt-1 font-display text-2xl font-black tracking-wide text-gold">
-            {reference}
-          </p>
-        </motion.div>
-      )}
-      <motion.p
-        className="mb-10 max-w-sm text-[14px] leading-relaxed text-muted-foreground"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.28 }}
-      >
-         Your report is saved locally with the reference above. Allma has not contacted an authority
-         or responder automatically. Stay safe and use the official call options if you need urgent
-         help.
-      </motion.p>
-      <motion.button
-        onClick={onDone}
-        className="flex min-h-12 items-center gap-2 rounded-2xl border border-primary/35 bg-primary/10 px-8 py-3.5 text-[14px] font-bold text-foreground transition hover:border-primary/60 hover:bg-primary/15"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.32 }}
-        whileTap={{ scale: 0.97 }}
-      >
-        Close SOS <ChevronRight className="h-4 w-4" />
-      </motion.button>
+          Report submitted
+        </motion.h2>
+        {reference && (
+          <motion.div
+            className="mx-auto mb-6 mt-5 rounded-2xl border border-[#FCDC04]/25 bg-[#FCDC04]/[0.06] px-6 py-4"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.22 }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Reference</p>
+            <p className="mt-1.5 font-display text-2xl font-bold tracking-[0.06em] text-[#FCDC04]">
+              {reference}
+            </p>
+          </motion.div>
+        )}
+        <motion.p
+          className="mx-auto mb-8 max-w-sm text-[13.5px] leading-relaxed text-white/55"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.26 }}
+        >
+          Your report is saved locally with the reference above. Allma has not contacted an authority
+          or responder automatically. Stay safe and use the official call options if you need urgent
+          help.
+        </motion.p>
+        <motion.button
+          type="button"
+          onClick={onDone}
+          className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.05] text-[14px] font-semibold text-white transition hover:bg-white/10"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Close SOS <ChevronRight className="h-4 w-4" />
+        </motion.button>
+      </motion.div>
     </motion.div>
   );
+
 }
