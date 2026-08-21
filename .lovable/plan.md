@@ -32,3 +32,12 @@ Motion: staggered fade-up of the context rows, 200–300ms transitions, soft red
 - Only `src/components/allma/sos-experience.tsx` changes: rewrite `ReportScreen` and `SubmittedScreen`, and pass the already-available context props (`emergencyType`, `emergencyId`, `activatedAt`, `locationState`, `notifyResponders`, `responderOffers.length`) into `ReportScreen` at the existing render site.
 - Submit/cancel handlers, `handleSubmitReport`, phase transitions, validation and the 2000-char limit stay exactly as they are.
 - Colours follow the locked palette (#0a0a0a / #1a1a1a / #FCDC04 / #D90012) consistently with the sibling fixed-dark emergency screen; fonts use the existing display + body families.
+
+## Pre-existing build errors to fix first
+
+The project currently fails typecheck before any redesign work (unrelated to the report screen):
+
+- `src/components/allma/sos-experience.tsx` — `MinimalEmergencyScreen` is called with props it does not declare (`activatedAt`, `hospitals`, `officers`, `trustedContacts`, `responsePlan`, `locationShared`, `respondersNotified`, `responderOffers`, `automatic`, `onChangeType`, `onToggleLocation`), and `onChangeType`'s `next` parameter is untyped.
+- `src/components/allma/calls/call-center.tsx:180` — a `string | null` call id is passed where a `string` is required.
+
+Fix: drop the props `MinimalEmergencyScreen` does not use (they were left behind when it replaced the older screen), keep the ones the new report step needs on the parent state, and guard the null call id in the ring timeout.
