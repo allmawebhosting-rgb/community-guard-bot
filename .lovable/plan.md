@@ -1,44 +1,43 @@
-# Fix database problems with calls
+# Premium SOS report screen — "Split technical overview"
 
-## What the call data actually shows
+Rebuild the SOS incident report step (and its confirmation screen) to match the chosen direction: a split surface with the live emergency context on the left and the report form on the right, in black with Uganda gold accents and a single red submit.
 
-I inspected the live call rows, constraints, policies, grants and realtime settings.
+## What changes visually
 
-- Nothing is currently rejected by the database: grants and policies on `emergency_calls`, `call_signals`, `call_sessions` are correct, the status and provider rules already allow every status the app writes, and there are no stuck-open call rows.
-- The dominant real failure is **not** the database: 29 of the last 33 calls ended as `failed` with the reason "Microphone access is required for an Allma voice call.", 2-3 seconds after being created, all from the same caller. The caller's browser never got microphone permission, so every SOS attempt died instantly.
-- Because each of those instant failures counts as a real attempt, the SOS dialer raced through the whole safety network in about 90 seconds and would then hit the server's "Too many call attempts" cap (30 per 10 minutes), which stops escalation with a hard error.
-- `call_sessions` and `call_signals` have zero rows — they belong to the older WebRTC path and are dead weight in the ZEGOCLOUD flow.
-- `safety_activity` (the SOS session row) is not in the realtime publication and has REPLICA IDENTITY DEFAULT, so SOS state changes are not streamed to participants the way call rows are.
+Left panel — Incident overview (real data only)
+- Session chip with a softly pulsing live dot
+- Emergency type, elapsed time (live ticking counter from the activation timestamp), location status, safety-network status
+- Status dots: gold for active, green for location acquired, dim grey for unavailable
+- Footer note stating the report is stored with a reference code and that Allma does not contact an authority automatically
 
-## Database changes
+Right panel — Report form
+- "Back to status" link with an arrow that slides on hover
+- "Quick incident report" heading in Space Grotesk
+- Larger textarea on a near-black inset field, gold focus ring, character counter inside the field (x / 2000)
+- Red "Submit report" primary action with a press-scale, plus a quiet "Cancel"
+- Single stacked column on mobile; full-width actions
 
-1. **Record why a call failed, not just that it failed.**
-   Add a failure scope to `emergency_calls` (`caller_device`, `recipient`, `network`, `provider`) written by `update_voice_call`. A caller-side device failure (mic denied, no audio device) is stored as such instead of looking like the contact didn't answer.
+Confirmation screen
+- Same dark split-surface language: animated check, reference code in gold on a bordered plate, existing honest wording kept unchanged, "Close SOS" action restyled to match
 
-2. **Stop caller-device failures from consuming the safety network.**
-   Rate limiting and attempt counting in `start_sos_emergency_call` will only count attempts that actually reached the recipient (a `ringing_at` or later). A caller-side device failure no longer burns the contact or the quota, so the same contact can be retried once the microphone is granted.
+Motion: staggered fade-up of the context rows, 200–300ms transitions, soft red radial glow behind the card. No new animation library — uses the existing motion/react.
 
-3. **Make the rate limit fail soft.**
-   Instead of raising "Too many call attempts" (which kills the escalation loop), the function returns a throttled result the UI can show honestly, and the cap is measured per contact per window rather than as one global counter.
+## Honesty and data rules kept
 
-4. **Align allowed statuses with what the app can set.**
-   `busy` and `no_answer` are allowed by the table rule but rejected by `update_voice_call`; the function will accept them from the recipient side so "line busy" is a real, recordable state. Unused `pending`/`calling`/`accepted` values stay allowed for existing rows.
-
-5. **Clean up stale call rows on both sides.**
-   When a new SOS call starts, end the caller's stale rows (already done) *and* any of the recipient's inbound rows left non-terminal for more than a few minutes, so an old ringing row can't block a new emergency call.
-
-6. **Stream SOS session state.**
-   Add `safety_activity` to the realtime publication with REPLICA IDENTITY FULL, matching `emergency_calls`, so participants see SOS state changes live without polling.
-
-7. **Retire the dead WebRTC signalling tables.**
-   `call_sessions` and `call_signals` are empty and unused by the ZEGOCLOUD path. They will be dropped so the schema no longer implies a second signalling route. (Say the word if you'd rather keep them for a future fallback and I'll leave them untouched.)
-
-## Also needed outside the database
-
-The microphone permission failure is a browser/device issue, not a schema one. Once the changes above land, the SOS screen will show "Microphone blocked — allow access to call" and prompt for permission before dialing, rather than silently failing through the contact list. This is a small frontend follow-up in the call center and escalation card.
+- Every status shown comes from existing state already passed into the SOS screen (emergency type, activation time, location state, responder-sharing consent and responder count). Nothing is invented, no "police contacted" claim, no mock reference code — reference still only appears after a real submit.
+- If location is denied or unavailable, that is shown plainly rather than as a success state.
 
 ## Technical notes
 
-- One migration: add `failure_scope` to `emergency_calls`; replace `update_voice_call`, `start_sos_emergency_call`; publication and replica-identity change for `safety_activity`; drop `call_sessions`, `call_signals`.
-- No change to who may see or place a call: participant-only reads, both-sided call permission, block checks and SOS ownership checks are all preserved.
-- No simulated states — every status shown still comes from a real row.
+- Only `src/components/allma/sos-experience.tsx` changes: rewrite `ReportScreen` and `SubmittedScreen`, and pass the already-available context props (`emergencyType`, `emergencyId`, `activatedAt`, `locationState`, `notifyResponders`, `responderOffers.length`) into `ReportScreen` at the existing render site.
+- Submit/cancel handlers, `handleSubmitReport`, phase transitions, validation and the 2000-char limit stay exactly as they are.
+- Colours follow the locked palette (#0a0a0a / #1a1a1a / #FCDC04 / #D90012) consistently with the sibling fixed-dark emergency screen; fonts use the existing display + body families.
+
+## Pre-existing build errors to fix first
+
+The project currently fails typecheck before any redesign work (unrelated to the report screen):
+
+- `src/components/allma/sos-experience.tsx` — `MinimalEmergencyScreen` is called with props it does not declare (`activatedAt`, `hospitals`, `officers`, `trustedContacts`, `responsePlan`, `locationShared`, `respondersNotified`, `responderOffers`, `automatic`, `onChangeType`, `onToggleLocation`), and `onChangeType`'s `next` parameter is untyped.
+- `src/components/allma/calls/call-center.tsx:180` — a `string | null` call id is passed where a `string` is required.
+
+Fix: drop the props `MinimalEmergencyScreen` does not use (they were left behind when it replaced the older screen), keep the ones the new report step needs on the parent state, and guard the null call id in the ring timeout.
