@@ -1529,23 +1529,10 @@ export function SOSExperience({
             key="help"
             emergencyType={emergencyType}
             emergencyId={emergencyId}
-            activatedAt={activatedAt}
             location={location}
             locationState={locationState}
-            hospitals={hospitals}
-            officers={officers}
-            trustedContacts={trustedContacts}
-            responsePlan={RESPONSE_PLANS[emergencyType] ?? RESPONSE_PLANS.other}
-            locationShared={shareLocation}
-            respondersNotified={notifyResponders}
-            responderOffers={responderOffers}
             activityId={sosActivityId}
-            automatic={Boolean(smartCheckId)}
-            onChangeType={(next) => {
-              setPendingEmergencyType(next);
-              setEmergencyType(next);
-            }}
-            onToggleLocation={() => setShareLocation((v) => !v)}
+            onReport={() => setPhase("report")}
             onEnableLocation={async () => {
               setLocationState("finding");
               try {
@@ -1579,8 +1566,15 @@ export function SOSExperience({
             onSubmit={handleSubmitReport}
             onBack={() => setPhase("help")}
             submitting={submitting}
+            emergencyType={emergencyType}
+            emergencyId={emergencyId}
+            activatedAt={activatedAt}
+            locationState={locationState}
+            respondersNotified={notifyResponders}
+            responderCount={responderOffers.length}
           />
         )}
+
         {phase === "submitted" && (
           <SubmittedScreen
             key="submitted"
@@ -2098,6 +2092,7 @@ function MinimalEmergencyScreen({
   locationState,
   activityId,
   onEnableLocation,
+  onReport,
   onClose,
 }: {
   emergencyType: string;
@@ -2106,6 +2101,7 @@ function MinimalEmergencyScreen({
   locationState: LocationState;
   activityId: string | null;
   onEnableLocation: () => void;
+  onReport: () => void;
   onClose: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -2153,6 +2149,9 @@ function MinimalEmergencyScreen({
             </button>
             <button type="button" onClick={() => setUpdateOpen(true)} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
               <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Send className="h-4 w-4 text-white/70" /></span>Send Update</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+            </button>
+            <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
+              <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Shield className="h-4 w-4 text-white/70" /></span>File an incident report</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
             </button>
             <button type="button" onClick={onClose} className="min-h-12 text-[12px] font-semibold tracking-[0.01em] text-red-300/85 transition hover:text-red-200">
               Stop SOS
@@ -3423,127 +3422,256 @@ function ReportScreen({
   onSubmit,
   onBack,
   submitting,
+  emergencyType,
+  emergencyId,
+  activatedAt,
+  locationState,
+  respondersNotified,
+  responderCount,
 }: {
   reportText: string;
   setReportText: (v: string) => void;
   onSubmit: () => void;
   onBack: () => void;
   submitting: boolean;
+  emergencyType: string;
+  emergencyId: string | null;
+  activatedAt: number | null;
+  locationState: LocationState;
+  respondersNotified: boolean;
+  responderCount: number;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!activatedAt) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [activatedAt]);
+
+  const elapsed = activatedAt ? Math.max(0, Math.floor((now - activatedAt) / 1000)) : null;
+  const elapsedLabel =
+    elapsed === null
+      ? "Not recorded"
+      : `${String(Math.floor(elapsed / 3600)).padStart(2, "0")}:${String(
+          Math.floor((elapsed % 3600) / 60),
+        ).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
+
+  const locationLabel =
+    locationState === "found"
+      ? "Precise GPS attached"
+      : locationState === "approximate"
+        ? "Approximate location attached"
+        : locationState === "finding"
+          ? "Finding your location…"
+          : locationState === "denied"
+            ? "Location permission denied"
+            : "Location unavailable";
+  const locationTone =
+    locationState === "found" || locationState === "approximate"
+      ? "bg-emerald-400"
+      : locationState === "finding"
+        ? "bg-[#FCDC04]"
+        : "bg-white/25";
+
+  const rows: Array<{ label: string; value: string; tone: string }> = [
+    {
+      label: "Emergency type",
+      value: EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other emergency",
+      tone: "bg-[#FCDC04]",
+    },
+    { label: "Elapsed time", value: elapsedLabel, tone: "bg-white/25" },
+    { label: "Location status", value: locationLabel, tone: locationTone },
+    {
+      label: "Safety network",
+      value: respondersNotified
+        ? responderCount > 0
+          ? `${responderCount} responder${responderCount === 1 ? "" : "s"} contacted`
+          : "Contacting your network"
+        : "Not sharing with responders",
+      tone: respondersNotified ? "bg-[#FCDC04]" : "bg-white/25",
+    },
+  ];
+
   return (
     <motion.div
-      className="flex h-full flex-col items-center overflow-y-auto px-5 pt-10 pb-10"
-      initial={{ opacity: 0, x: 30 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+      className="flex h-full flex-col items-center overflow-y-auto bg-[#0a0a0a] px-4 py-6 text-white sm:px-6 md:justify-center md:py-10"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.28 }}
     >
-      <div className="w-full max-w-lg">
-        <button
-          onClick={onBack}
-          className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border/70 bg-secondary/70 px-3.5 text-[13px] font-semibold text-foreground transition hover:border-primary/40 hover:bg-accent"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <h2 className="mb-1 font-display text-2xl font-black text-foreground">Quick incident report</h2>
-        <p className="mb-7 text-[13px] text-muted-foreground">
-          Takes 30 seconds. Helps responders understand the situation.
-        </p>
-
-        <div className="rounded-2xl border border-border/60 bg-secondary/40 p-5 lg:p-6">
-          <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-            What happened?
-          </label>
-          <textarea
-            value={reportText}
-            onChange={(e) => setReportText(e.target.value)}
-            placeholder="Briefly describe the situation — e.g. 'A man grabbed my bag near Shoprite and ran toward the market.'"
-            rows={6}
-            maxLength={2000}
-            className="w-full resize-none rounded-xl border border-border/60 bg-secondary/40 px-4 py-3 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-destructive/40"
-          />
-          <p className="mt-1.5 text-right text-[10px] text-muted-foreground">{reportText.length}/2000</p>
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_-25%,rgba(217,0,18,0.18),transparent_70%)]" />
+      <div className="relative grid w-full max-w-6xl grid-cols-1 overflow-hidden rounded-3xl border border-white/10 bg-[#1a1a1a] shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] md:grid-cols-12">
+        <div className="flex flex-col justify-between border-b border-white/10 bg-[#141414] p-6 sm:p-8 md:col-span-5 md:border-b-0 md:border-r md:p-11">
+          <div>
+            <div className="mb-7 inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/60">
+              <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-red-400" />
+              <span className="truncate">
+                {emergencyId ? `Session ${emergencyId.slice(0, 8)}` : "Session starting"}
+              </span>
+            </div>
+            <h2 className="mb-8 font-display text-3xl font-bold tracking-tight md:mb-11 md:text-4xl">
+              Incident
+              <br />
+              overview
+            </h2>
+            <div className="space-y-6 md:space-y-8">
+              {rows.map((row, index) => (
+                <motion.div
+                  key={row.label}
+                  className="flex items-start gap-4"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.06 * index + 0.08, duration: 0.3 }}
+                >
+                  <span className={cn("mt-2 h-2 w-2 shrink-0 rounded-full", row.tone)} />
+                  <div className="min-w-0">
+                    <p className="mb-1 text-[11px] uppercase tracking-[0.16em] text-white/40">
+                      {row.label}
+                    </p>
+                    <p className="text-[17px] font-medium leading-snug tabular-nums">{row.value}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-10 hidden border-t border-white/[0.07] pt-7 text-[11px] leading-relaxed text-white/30 md:block">
+            Your report is stored on your Allma account with a reference code. Allma does not contact
+            an authority automatically.
+          </p>
         </div>
 
-        <button
-          onClick={onSubmit}
-          disabled={submitting}
-          className="shadow-lift mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive py-4 font-display text-[15px] font-bold text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-60"
-        >
-          {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-          {submitting ? "Submitting…" : "Submit emergency report"}
-        </button>
-        <button
-          onClick={onBack}
-          className="mt-2.5 flex min-h-11 w-full items-center justify-center rounded-2xl border border-border/70 bg-secondary/70 py-3 text-[12px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
-        >
-          Cancel
-        </button>
+        <div className="flex min-h-[480px] flex-col p-6 sm:p-8 md:col-span-7 md:p-11">
+          <div className="flex-grow">
+            <button
+              type="button"
+              onClick={onBack}
+              className="group mb-7 inline-flex items-center gap-2 text-[13px] text-white/60 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              Back to status
+            </button>
+            <h1 className="mb-7 font-display text-2xl font-bold tracking-tight md:text-[26px]">
+              Quick incident report
+            </h1>
+            <label htmlFor="sos-report" className="mb-3 block text-[13px] font-medium text-white/80">
+              What happened?
+            </label>
+            <div className="relative">
+              <textarea
+                id="sos-report"
+                value={reportText}
+                onChange={(e) => setReportText(e.target.value)}
+                placeholder="Briefly describe the situation — e.g. 'A man grabbed my bag near Shoprite and ran toward the market.'"
+                maxLength={2000}
+                className="min-h-[220px] w-full resize-none rounded-xl border border-white/10 bg-black/40 p-5 pb-9 text-[15px] leading-relaxed text-white/90 outline-none transition-all placeholder:text-white/25 focus:border-[#FCDC04]/50 focus:ring-1 focus:ring-[#FCDC04]/20"
+              />
+              <span className="pointer-events-none absolute bottom-4 right-4 text-[10px] tracking-[0.14em] text-white/30 tabular-nums">
+                {reportText.length} / 2000
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row-reverse sm:items-center">
+            <motion.button
+              type="button"
+              onClick={onSubmit}
+              disabled={submitting}
+              whileTap={{ scale: 0.98 }}
+              className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#D90012] px-10 font-display text-[14px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_18px_40px_-20px_rgba(217,0,18,0.9)] transition hover:bg-[#b80010] disabled:opacity-60 sm:w-auto"
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              {submitting ? "Submitting…" : "Submit report"}
+            </motion.button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex min-h-[52px] w-full items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] px-10 text-[13px] font-medium text-white/60 transition hover:bg-white/10 hover:text-white sm:w-auto"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
 }
+
 
 // ─── Submitted ────────────────────────────────────────────────────────────────
 
 function SubmittedScreen({ reference, onDone }: { reference: string | null; onDone: () => void }) {
   return (
     <motion.div
-      className="flex h-full flex-col items-center justify-center px-6 text-center"
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
+      className="flex h-full flex-col items-center justify-center bg-[#0a0a0a] px-4 py-8 text-white sm:px-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.4, type: "spring", stiffness: 260, damping: 20 }}
+      transition={{ duration: 0.28 }}
     >
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_-25%,rgba(252,220,4,0.12),transparent_70%)]" />
       <motion.div
-        className="mb-6 grid h-20 w-20 place-items-center rounded-full bg-success/20 ring-1 ring-success/30 ring-offset-4 ring-offset-background"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#1a1a1a] p-8 text-center shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] sm:p-10"
+        initial={{ opacity: 0, y: 14, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.35, type: "spring", stiffness: 220, damping: 22 }}
       >
-        <CheckCircle2 className="h-10 w-10 text-success" />
-      </motion.div>
-      <motion.h2
-        className="mb-2 font-display text-2xl font-black text-foreground"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.18 }}
-      >
-        Report Submitted
-      </motion.h2>
-      {reference && (
         <motion.div
-          className="mb-4 rounded-2xl border border-border/60 bg-secondary/40 px-6 py-3.5"
+          className="mx-auto mb-7 grid h-16 w-16 place-items-center rounded-full bg-emerald-400/15 ring-1 ring-emerald-400/30"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+        >
+          <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+        </motion.div>
+        <motion.h2
+          className="mb-2 font-display text-2xl font-bold tracking-tight"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.24 }}
+          transition={{ delay: 0.16 }}
         >
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Reference</p>
-          <p className="mt-1 font-display text-2xl font-black tracking-wide text-gold">
-            {reference}
-          </p>
-        </motion.div>
-      )}
-      <motion.p
-        className="mb-10 max-w-sm text-[14px] leading-relaxed text-muted-foreground"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.28 }}
-      >
-         Your report is saved locally with the reference above. Allma has not contacted an authority
-         or responder automatically. Stay safe and use the official call options if you need urgent
-         help.
-      </motion.p>
-      <motion.button
-        onClick={onDone}
-        className="flex min-h-12 items-center gap-2 rounded-2xl border border-primary/35 bg-primary/10 px-8 py-3.5 text-[14px] font-bold text-foreground transition hover:border-primary/60 hover:bg-primary/15"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.32 }}
-        whileTap={{ scale: 0.97 }}
-      >
-        Close SOS <ChevronRight className="h-4 w-4" />
-      </motion.button>
+          Report submitted
+        </motion.h2>
+        {reference && (
+          <motion.div
+            className="mx-auto mb-6 mt-5 rounded-2xl border border-[#FCDC04]/25 bg-[#FCDC04]/[0.06] px-6 py-4"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.22 }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Reference</p>
+            <p className="mt-1.5 font-display text-2xl font-bold tracking-[0.06em] text-[#FCDC04]">
+              {reference}
+            </p>
+          </motion.div>
+        )}
+        <motion.p
+          className="mx-auto mb-8 max-w-sm text-[13.5px] leading-relaxed text-white/55"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.26 }}
+        >
+          Your report is saved locally with the reference above. Allma has not contacted an authority
+          or responder automatically. Stay safe and use the official call options if you need urgent
+          help.
+        </motion.p>
+        <motion.button
+          type="button"
+          onClick={onDone}
+          className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.05] text-[14px] font-semibold text-white transition hover:bg-white/10"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Close SOS <ChevronRight className="h-4 w-4" />
+        </motion.button>
+      </motion.div>
     </motion.div>
   );
+
 }
