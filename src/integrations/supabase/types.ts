@@ -1184,6 +1184,53 @@ export type Database = {
         }
         Relationships: []
       }
+      lost_found_claims: {
+        Row: {
+          claimant_name: string
+          claimant_phone: string
+          created_at: string
+          id: string
+          item_id: string
+          proof_text: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          claimant_name: string
+          claimant_phone: string
+          created_at?: string
+          id?: string
+          item_id: string
+          proof_text: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          claimant_name?: string
+          claimant_phone?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          proof_text?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_claims_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "lost_found_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lost_found_items: {
         Row: {
           claimed_by: string | null
@@ -1242,6 +1289,62 @@ export type Database = {
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lost_found_public_reports: {
+        Row: {
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          description: string | null
+          district: string | null
+          id: string
+          item_type: string
+          location_text: string | null
+          matched_item_id: string | null
+          occurred_on: string | null
+          photo_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          id?: string
+          item_type: string
+          location_text?: string | null
+          matched_item_id?: string | null
+          occurred_on?: string | null
+          photo_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          id?: string
+          item_type?: string
+          location_text?: string | null
+          matched_item_id?: string | null
+          occurred_on?: string | null
+          photo_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_public_reports_matched_item_id_fkey"
+            columns: ["matched_item_id"]
+            isOneToOne: false
+            referencedRelation: "lost_found_items"
             referencedColumns: ["id"]
           },
         ]
