@@ -830,6 +830,111 @@ export type Database = {
         }
         Relationships: []
       }
+      health_reminder_settings: {
+        Row: {
+          call_window_end: string
+          call_window_start: string
+          calls_enabled: boolean
+          created_at: string
+          do_not_disturb: boolean
+          notifications_enabled: boolean
+          opted_in: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          call_window_end?: string
+          call_window_start?: string
+          calls_enabled?: boolean
+          created_at?: string
+          do_not_disturb?: boolean
+          notifications_enabled?: boolean
+          opted_in?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          call_window_end?: string
+          call_window_start?: string
+          calls_enabled?: boolean
+          created_at?: string
+          do_not_disturb?: boolean
+          notifications_enabled?: boolean
+          opted_in?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      health_reminders: {
+        Row: {
+          appointment_date: string
+          appointment_time: string
+          call_enabled: boolean
+          call_time: string | null
+          created_at: string
+          facility_optional: string | null
+          health_context_optional: string | null
+          id: string
+          last_delivered_at: string | null
+          next_delivery_at: string | null
+          notes_optional: string | null
+          notification_enabled: boolean
+          recurrence: Json
+          reminder_schedule: Json
+          reminder_type: string
+          status: string
+          timezone: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_date: string
+          appointment_time: string
+          call_enabled?: boolean
+          call_time?: string | null
+          created_at?: string
+          facility_optional?: string | null
+          health_context_optional?: string | null
+          id?: string
+          last_delivered_at?: string | null
+          next_delivery_at?: string | null
+          notes_optional?: string | null
+          notification_enabled?: boolean
+          recurrence?: Json
+          reminder_schedule?: Json
+          reminder_type: string
+          status?: string
+          timezone?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_date?: string
+          appointment_time?: string
+          call_enabled?: boolean
+          call_time?: string | null
+          created_at?: string
+          facility_optional?: string | null
+          health_context_optional?: string | null
+          id?: string
+          last_delivered_at?: string | null
+          next_delivery_at?: string | null
+          notes_optional?: string | null
+          notification_enabled?: boolean
+          recurrence?: Json
+          reminder_schedule?: Json
+          reminder_type?: string
+          status?: string
+          timezone?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       institutional_handover_acceptance: {
         Row: {
           acceptance_date: string | null
@@ -1079,6 +1184,53 @@ export type Database = {
         }
         Relationships: []
       }
+      lost_found_claims: {
+        Row: {
+          claimant_name: string
+          claimant_phone: string
+          created_at: string
+          id: string
+          item_id: string
+          proof_text: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          claimant_name: string
+          claimant_phone: string
+          created_at?: string
+          id?: string
+          item_id: string
+          proof_text: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          claimant_name?: string
+          claimant_phone?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          proof_text?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_claims_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "lost_found_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lost_found_items: {
         Row: {
           claimed_by: string | null
@@ -1137,6 +1289,62 @@ export type Database = {
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lost_found_public_reports: {
+        Row: {
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          description: string | null
+          district: string | null
+          id: string
+          item_type: string
+          location_text: string | null
+          matched_item_id: string | null
+          occurred_on: string | null
+          photo_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          id?: string
+          item_type: string
+          location_text?: string | null
+          matched_item_id?: string | null
+          occurred_on?: string | null
+          photo_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          id?: string
+          item_type?: string
+          location_text?: string | null
+          matched_item_id?: string | null
+          occurred_on?: string | null
+          photo_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_public_reports_matched_item_id_fkey"
+            columns: ["matched_item_id"]
+            isOneToOne: false
+            referencedRelation: "lost_found_items"
             referencedColumns: ["id"]
           },
         ]
@@ -2434,6 +2642,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_due_health_reminders: {
+        Args: { p_limit?: number }
+        Returns: {
+          appointment_date: string
+          appointment_time: string
+          call_enabled: boolean
+          call_time: string | null
+          created_at: string
+          facility_optional: string | null
+          health_context_optional: string | null
+          id: string
+          last_delivered_at: string | null
+          next_delivery_at: string | null
+          notes_optional: string | null
+          notification_enabled: boolean
+          recurrence: Json
+          reminder_schedule: Json
+          reminder_type: string
+          status: string
+          timezone: string
+          title: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "health_reminders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_sos_responder_offers: {
         Args: { p_radius_meters?: number; p_sos_activity_id: string }
         Returns: {
@@ -2444,6 +2683,7 @@ export type Database = {
           status: string
         }[]
       }
+      deliver_due_health_reminders: { Args: never; Returns: number }
       escalate_smart_sos_check: {
         Args: { _check_id: string; _confidence: string; _signals?: Json }
         Returns: Json
