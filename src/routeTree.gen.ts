@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as LostFoundRouteImport } from './routes/lost-found'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NearbyRouteImport } from './routes/nearby'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -68,6 +69,11 @@ const AlertsRoute = AlertsRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LostFoundRoute = LostFoundRouteImport.update({
+  id: '/lost-found',
+  path: '/lost-found',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
@@ -322,6 +329,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
@@ -365,6 +373,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
@@ -409,6 +418,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/auth'
+    | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
@@ -451,6 +461,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/auth'
+    | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
@@ -493,6 +504,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/alerts'
     | '/auth'
+    | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
@@ -537,6 +549,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AlertsRoute: typeof AlertsRoute
   AuthRoute: typeof AuthRoute
+  LostFoundRoute: typeof LostFoundRoute
   McpRoute: typeof McpRoute
   NearbyRoute: typeof NearbyRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -579,6 +592,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lost-found': {
+      id: '/lost-found'
+      path: '/lost-found'
+      fullPath: '/lost-found'
+      preLoaderRoute: typeof LostFoundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -916,6 +936,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AlertsRoute: AlertsRoute,
   AuthRoute: AuthRoute,
+  LostFoundRoute: LostFoundRoute,
   McpRoute: McpRoute,
   NearbyRoute: NearbyRoute,
   OnboardingRoute: OnboardingRoute,
