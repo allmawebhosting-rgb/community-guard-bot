@@ -87,7 +87,7 @@ function LostFoundPage() {
           className="premium-surface relative overflow-hidden rounded-[2rem] border border-border/60 p-6 shadow-soft sm:p-9"
         >
           <span className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-gold/12 blur-3xl" />
-          <span className="pointer-events-none absolute -left-24 bottom--20 h-64 w-64 rounded-full bg-primary/12 blur-3xl" />
+          <span className="pointer-events-none absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-primary/12 blur-3xl" />
           <div className="relative flex flex-wrap items-end justify-between gap-6">
             <div className="min-w-0">
               <p className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-gold/[0.07] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
