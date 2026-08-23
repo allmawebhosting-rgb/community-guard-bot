@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { isLikelyValidPhone } from "@/lib/phone";
-import { submitPublicLostReport } from "@/lib/lost-found";
+import { MAX_PHOTO_BYTES, submitPublicLostReport } from "@/lib/lost-found";
 
 export function ReportLostForm({ onDone }: { onDone?: () => void }) {
   const [itemType, setItemType] = useState("");
@@ -17,7 +17,33 @@ export function ReportLostForm({ onDone }: { onDone?: () => void }) {
   const [occurredOn, setOccurredOn] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!photo) {
+      setPhotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(photo);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+
+  const pickPhoto = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      toast.error("That photo is larger than 5MB.");
+      return;
+    }
+    setPhoto(file);
+  };
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -29,6 +55,7 @@ export function ReportLostForm({ onDone }: { onDone?: () => void }) {
         occurredOn,
         contactName,
         contactPhone,
+        photo,
       }),
     onSuccess: () => {
       setSent(true);
@@ -37,6 +64,7 @@ export function ReportLostForm({ onDone }: { onDone?: () => void }) {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
 
   if (sent) {
     return (
