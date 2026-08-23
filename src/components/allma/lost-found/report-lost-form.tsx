@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { isLikelyValidPhone } from "@/lib/phone";
 import { submitPublicLostReport } from "@/lib/lost-found";
+import { supabase } from "@/integrations/supabase/client";
 
 export function ReportLostForm({ onDone }: { onDone?: () => void }) {
   const [itemType, setItemType] = useState("");
@@ -17,11 +18,42 @@ export function ReportLostForm({ onDone }: { onDone?: () => void }) {
   const [occurredOn, setOccurredOn] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [sent, setSent] = useState(false);
 
+  function pickPhoto(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+      toast.error("Choose an image smaller than 5 MB.");
+      return;
+    }
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhoto(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function removePhoto() {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhoto(null);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   const mutation = useMutation({
-    mutationFn: () =>
-      submitPublicLostReport({
+    mutationFn: async () => {
+      let photoUrl: string | undefined;
+      if (photo) {
+        setUploadingPhoto(true);
+        const path = `public/${crypto.randomUUID()}-${photo.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+        const { error: uploadError } = await supabase.storage.from("lost-found-public").upload(path, photo, { contentType: photo.type, upsert: false });
+        if (uploadError) throw new Error("The photo could not be uploaded. You can submit without it.");
+        photoUrl = supabase.storage.from("lost-found-public").getPublicUrl(path).data.publicUrl;
+        setUploadingPhoto(false);
+      }
+      return submitPublicLostReport({
         itemType,
         description,
         locationText,
@@ -29,13 +61,15 @@ export function ReportLostForm({ onDone }: { onDone?: () => void }) {
         occurredOn,
         contactName,
         contactPhone,
-      }),
+        photoUrl,
+      });
+    },
     onSuccess: () => {
       setSent(true);
       toast.success("Your lost item has been posted for matching");
       onDone?.();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => { setUploadingPhoto(false); toast.error(error.message); },
   });
 
   if (sent) {
@@ -117,6 +151,23 @@ export function ReportLostForm({ onDone }: { onDone?: () => void }) {
         />
       </Field>
 
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Photo <span className="font-normal normal-case tracking-normal">(optional)</span></label>
+        <input ref={fileInputRef} type="file" accept="image/*" className="sr-only" onChange={(event) => pickPhoto(event.target.files?.[0])} />
+        {photoPreview ? (
+          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-secondary/40">
+            <img src={photoPreview} alt="Preview of lost item" className="h-44 w-full object-cover" />
+            <button type="button" onClick={removePhoto} aria-label="Remove photo" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-black/70 text-white transition hover:bg-black/85"><X className="h-4 w-4" /></button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/70 bg-secondary/25 text-muted-foreground transition hover:border-primary/45 hover:bg-primary/5">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><ImagePlus className="h-5 w-5" /></span>
+            <span className="text-[12px] font-semibold">Tap to upload a photo</span>
+            <span className="text-[10px]">JPG, PNG, or WEBP · up to 5 MB</span>
+          </button>
+        )}
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Your name">
           <Input
@@ -139,12 +190,12 @@ export function ReportLostForm({ onDone }: { onDone?: () => void }) {
 
       <Button
         type="submit"
-        disabled={mutation.isPending}
+        disabled={mutation.isPending || uploadingPhoto}
         className="h-12 w-full rounded-full text-[15px] font-semibold transition-transform active:scale-[0.98]"
       >
         {mutation.isPending ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Posting…
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {uploadingPhoto ? "Uploading photo…" : "Posting…"}
           </>
         ) : (
           "Post my lost item"
