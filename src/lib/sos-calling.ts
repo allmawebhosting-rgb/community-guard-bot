@@ -141,6 +141,15 @@ export async function listSosCallAttempts(sosActivityId: string): Promise<SosCal
   return (data ?? []) as SosCallAttempt[];
 }
 
+export async function isSosWelfareConfirmed(sosActivityId: string) {
+  const { data, error } = await supabase
+    .from("sos_welfare_checks")
+    .select("confirmed_at")
+    .eq("sos_activity_id", sosActivityId)
+    .maybeSingle();
+  return !error && Boolean(data?.confirmed_at);
+}
+
 /** Only the recipient of the call can read this, and only what they're authorised to see. */
 export async function getEmergencyCallContext(callId: string): Promise<EmergencyCallContext | null> {
   const { data, error } = await supabase.rpc("get_emergency_call_context", { p_call_id: callId });

@@ -4,6 +4,7 @@ import {
   isTerminal,
   listSosCallAttempts,
   listSosCallTargets,
+  isSosWelfareConfirmed,
   type SosCallAttempt,
   type SosCallTarget,
 } from "@/lib/sos-calling";
@@ -21,7 +22,7 @@ import {
 /** How long all contacts are given to answer before another round starts. */
 export const RING_WINDOW_MS = 42_000;
 /** Pause before starting the next full round through the contact list. */
-export const ROUND_GAP_SECONDS = 20;
+export const ROUND_GAP_SECONDS = 7 * 60;
 
 export type EscalationState = {
   loading: boolean;
@@ -34,6 +35,7 @@ export type EscalationState = {
   answered: SosCallAttempt | null;
   noTargets: boolean;
   error: string | null;
+  welfareConfirmed: boolean;
 };
 
 const initialState = (): EscalationState => ({
@@ -47,6 +49,7 @@ const initialState = (): EscalationState => ({
   answered: null,
   noTargets: false,
   error: null,
+  welfareConfirmed: false,
 });
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -103,7 +106,8 @@ class SosEscalation {
   private async refresh() {
     try {
       const attempts = await listSosCallAttempts(this.activityId);
-      this.patch({ attempts, answered: answeredAttempt(attempts) ?? null });
+      const welfareConfirmed = await isSosWelfareConfirmed(this.activityId);
+      this.patch({ attempts, answered: answeredAttempt(attempts) ?? null, welfareConfirmed });
     } catch {
       // A transient read failure must never break the emergency screen.
     }
@@ -184,7 +188,7 @@ class SosEscalation {
   private async loop(generation: number) {
     const alive = () => generation === this.generation && this.state.running;
 
-    while (alive()) {
+    while (alive() && !this.state.welfareConfirmed) {
       this.patch({ round: this.state.round + 1 });
       const startedAt = Date.now();
       const targets = this.callable();
@@ -217,8 +221,13 @@ class SosEscalation {
               .map((attempt) => setCallStatus(attempt.call_id, "ended").catch(() => undefined)),
           );
         }
-        this.patch({ running: false, currentIndex: -1, waitSeconds: null });
-        return;
+        this.patch({ currentIndex: -1, waitSeconds: null });
+        if (this.state.welfareConfirmed) {
+          this.patch({ running: false });
+          return;
+        }
+        await this.countdown(ROUND_GAP_SECONDS, alive);
+        continue;
       }
 
       this.patch({ currentIndex: -1 });
@@ -236,7 +245,12 @@ class SosEscalation {
       await sleep(2500);
       if (!alive()) return false;
       await this.refresh();
-      if (this.state.answered) return true;
+      if (
+        this.state.answered &&
+        new Date(this.state.answered.created_at).getTime() >= startedAt - 15_000
+      ) {
+        return true;
+      }
       const attempts = targets.map((target) =>
         [...this.state.attempts]
           .reverse()
