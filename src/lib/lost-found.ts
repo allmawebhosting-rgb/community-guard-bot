@@ -87,6 +87,22 @@ export async function submitClaim(input: {
   if (error) throw error;
 }
 
+export const LOST_FOUND_PHOTO_BUCKET = "lost-found-photos";
+export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+/** Uploads a photo for a public lost report and returns its storage path. */
+export async function uploadLostReportPhoto(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
+  if (file.size > MAX_PHOTO_BYTES) throw new Error("That photo is larger than 5MB.");
+  const ext = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `public-reports/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(LOST_FOUND_PHOTO_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error(error.message);
+  return path;
+}
+
 export async function submitPublicLostReport(input: {
   itemType: string;
   description?: string;
@@ -95,7 +111,9 @@ export async function submitPublicLostReport(input: {
   occurredOn?: string;
   contactName: string;
   contactPhone: string;
+  photo?: File | null;
 }) {
+  const photoPath = input.photo ? await uploadLostReportPhoto(input.photo) : null;
   const { error } = await supabase.from("lost_found_public_reports").insert({
     item_type: input.itemType.trim(),
     description: input.description?.trim() || null,
@@ -104,9 +122,11 @@ export async function submitPublicLostReport(input: {
     occurred_on: input.occurredOn || null,
     contact_name: input.contactName.trim(),
     contact_phone: input.contactPhone.trim(),
+    photo_url: photoPath,
   });
   if (error) throw error;
 }
+
 
 export function timeAgoShort(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
