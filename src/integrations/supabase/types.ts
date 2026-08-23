@@ -2562,6 +2562,35 @@ export type Database = {
           },
         ]
       }
+      sos_welfare_checks: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          sos_activity_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          sos_activity_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          sos_activity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sos_welfare_checks_sos_activity_id_fkey"
+            columns: ["sos_activity_id"]
+            isOneToOne: true
+            referencedRelation: "safety_activity"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       threads: {
         Row: {
           created_at: string
@@ -2672,6 +2701,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      confirm_sos_welfare_check: {
+        Args: { p_sos_activity_id: string }
+        Returns: undefined
       }
       create_sos_responder_offers: {
         Args: { p_radius_meters?: number; p_sos_activity_id: string }
