@@ -60,8 +60,8 @@ self.addEventListener("notificationclick", (event) => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of windows) {
         if (new URL(client.url).origin === self.location.origin) {
+          if (typeof client.navigate === "function") await client.navigate(target);
           await client.focus();
-          client.postMessage({ type: "allma:answer-call", callId, invitationId });
           return;
         }
       }
