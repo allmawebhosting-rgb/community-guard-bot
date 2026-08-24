@@ -34,6 +34,8 @@ export type EmergencyCallContext = {
   severity: string;
   area: string;
   location_shared: boolean;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 function friendly(message: string) {

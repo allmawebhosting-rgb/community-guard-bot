@@ -359,7 +359,6 @@ export function CallCenter() {
         }
       }
       await setCallStatus(id, "connecting");
-      setPhase("active");
       await beginEngine(id, false);
     } catch (error) {
       const message =
@@ -477,6 +476,16 @@ export function CallCenter() {
                   <MapPin className="h-3.5 w-3.5" />
                   {emergency.location_shared ? emergency.area : "Location not shared with you"}
                 </p>
+                {emergency.location_shared && emergency.latitude !== null && emergency.longitude !== null && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${emergency.latitude},${emergency.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    View shared location
+                  </a>
+                )}
               </div>
             )}
 
