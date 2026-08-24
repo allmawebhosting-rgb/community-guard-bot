@@ -150,6 +150,15 @@ export async function isSosWelfareConfirmed(sosActivityId: string) {
   return !error && Boolean(data?.confirmed_at);
 }
 
+export async function acceptEmergencyCallInvitation(invitationId: string) {
+  const { data, error } = await supabase.rpc("accept_emergency_call_invitation", {
+    p_invitation_id: invitationId,
+  });
+  if (error) throw error;
+  const result = (data?.[0] ?? data) as { accepted?: boolean; call_session_id?: string } | null;
+  return { accepted: Boolean(result?.accepted), callId: result?.call_session_id ?? null };
+}
+
 /** Only the recipient of the call can read this, and only what they're authorised to see. */
 export async function getEmergencyCallContext(callId: string): Promise<EmergencyCallContext | null> {
   const { data, error } = await supabase.rpc("get_emergency_call_context", { p_call_id: callId });

@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyIncomingCall } from "@/lib/push.functions";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
-import { getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
+import { acceptEmergencyCallInvitation, getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
 import { startSosEmergencyCall } from "@/lib/sos-calling";
 import {
   VoiceCallEngine,
@@ -281,6 +281,38 @@ export function CallCenter() {
     // Deliberately keyed only on identity: re-subscribing per render would leak channels.
   }, [beginEngine, teardown, userId]);
 
+  // Cold-start recovery: a notification can open /calls after the realtime
+  // INSERT has already happened. Read only the authenticated recipient's live
+  // call row; sensitive emergency context is fetched through its RPC below.
+  useEffect(() => {
+    if (!userId || callIdRef.current || typeof window === "undefined") return;
+    const id = new URLSearchParams(window.location.search).get("call");
+    if (!id) return;
+    void (async () => {
+      const { data: row } = await supabase
+        .from("emergency_calls")
+        .select("id, caller_id, status")
+        .eq("id", id)
+        .eq("recipient_id", userId)
+        .in("status", ["initiating", "ringing", "connecting"])
+        .maybeSingle();
+      if (!row || callIdRef.current) return;
+      const known = namesRef.current.get(row.caller_id);
+      callIdRef.current = row.id;
+      setCallId(row.id);
+      setPeer(known ?? { id: row.caller_id, name: "Allma member" });
+      setIsCaller(false);
+      setEndedNote(null);
+      setEmergency(null);
+      setPhase("incoming");
+      void setCallStatus(row.id, "ringing").catch(() => undefined);
+      void getEmergencyCallContext(row.id).then((context) => {
+        if (callIdRef.current === row.id && context?.is_emergency) setEmergency(context);
+      });
+      ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
+    })();
+  }, [teardown, userId]);
+
   // Call timer starts only when real audio is connected.
   useEffect(() => {
     if (phase !== "active" || quality === "connecting") return;
@@ -317,6 +349,15 @@ export function CallCenter() {
     if (!id) return;
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     try {
+      const invitationId = new URLSearchParams(window.location.search).get("invitation");
+      if (invitationId) {
+        const result = await acceptEmergencyCallInvitation(invitationId);
+        if (!result.accepted) {
+          toast.message("Another responder has already accepted this emergency.");
+          teardown("Another responder has accepted this emergency.");
+          return;
+        }
+      }
       await setCallStatus(id, "connecting");
       setPhase("active");
       await beginEngine(id, false);
