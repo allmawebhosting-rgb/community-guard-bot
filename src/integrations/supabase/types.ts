@@ -644,6 +644,66 @@ export type Database = {
         }
         Relationships: []
       }
+      emergency_call_invitations: {
+        Row: {
+          accepted_at: string | null
+          call_session_id: string
+          cancelled_at: string | null
+          created_at: string
+          declined_at: string | null
+          delivered_at: string | null
+          emergency_id: string
+          id: string
+          recipient_user_id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          call_session_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          declined_at?: string | null
+          delivered_at?: string | null
+          emergency_id: string
+          id?: string
+          recipient_user_id: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          call_session_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          declined_at?: string | null
+          delivered_at?: string | null
+          emergency_id?: string
+          id?: string
+          recipient_user_id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_call_invitations_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_calls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_call_invitations_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "safety_activity"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emergency_calls: {
         Row: {
           accepted_at: string | null
@@ -2671,6 +2731,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_emergency_call_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: {
+          accepted: boolean
+          call_session_id: string
+        }[]
+      }
       claim_due_health_reminders: {
         Args: { p_limit?: number }
         Returns: {
