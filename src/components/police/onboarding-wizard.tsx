@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -9,54 +9,109 @@ import {
   Bell,
   Building2,
   Check,
+  ChevronRight,
+  FileText,
+  Globe2,
   IdCard,
   Loader2,
   Mail,
   MapPinned,
   Shield,
+  ShieldCheck,
   UserRound,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RANKS, isCommandRank, rankLabel, stationsQuery, type OfficerRank } from "@/lib/police";
 import { cn } from "@/lib/utils";
 
+type Phase = "landing" | "request" | "verification" | "role" | "area" | "security" | "review" | "submitted" | "demo";
+
 type Draft = {
   full_name: string;
+  email: string;
   phone: string;
-  badge_number: string;
-  force_id: string;
-  rank: OfficerRank | "";
-  station_id: string;
-  jurisdiction_level: string;
-  jurisdiction_area: string;
-  official_email: string;
-  prefs: { desktop: boolean; sms: boolean; email: boolean; push: boolean; scope: string };
+  country: string;
+  city: string;
+  organization: string;
+  organization_type: string;
+  job_title: string;
+  reason: string;
+  org_name: string;
+  org_website: string;
+  org_email: string;
+  org_address: string;
+  org_id: string;
+  supervisor: string;
+  verification_reason: string;
+  role: string;
+  region: string;
+  district: string;
+  operating_area: string;
+  password: string;
+  email_verified: boolean;
+  phone_verified: boolean;
+  tfa_method: "authenticator" | "sms" | "both";
+  use_biometric: boolean;
+  access_level: string;
 };
 
-const STEPS = [
-  { title: "Welcome", subtitle: "Allma Police Command Center", icon: Shield },
-  { title: "Your identity", subtitle: "Who is signing on", icon: UserRound },
-  { title: "Service credentials", subtitle: "Badge, force ID and rank", icon: IdCard },
-  { title: "Duty station", subtitle: "Where you are posted", icon: Building2 },
-  { title: "Jurisdiction", subtitle: "The area you command", icon: MapPinned },
-  { title: "Official contact", subtitle: "Where dispatch reaches you", icon: Mail },
-  { title: "Alerts", subtitle: "How you want to be notified", icon: Bell },
-  { title: "Review & activate", subtitle: "Confirm and sign on", icon: BadgeCheck },
+const ROLE_OPTIONS = [
+  { value: "Command Operator", brief: "Monitor incoming incidents and review operational information." },
+  { value: "Incident Reviewer", brief: "Review reported activity and verify the status of cases." },
+  { value: "Dispatcher", brief: "Coordinate available responders and resources." },
+  { value: "Responder", brief: "Receive and respond to eligible safety requests." },
+  { value: "Supervisor", brief: "Review operations, incidents, and team activity." },
+  { value: "Administrator", brief: "Manage users, permissions, and system configuration." },
+  { value: "Partner Viewer", brief: "View approved information shared with your organization." },
+  { value: "Analyst", brief: "Review aggregated operational information and reports." },
 ];
 
-const JURISDICTIONS = ["Station", "Division", "District", "Regional", "National"];
+const ORG_TYPES = [
+  "Allma Team",
+  "Government",
+  "Police / Law Enforcement",
+  "Emergency Medical Service",
+  "Fire & Rescue",
+  "Hospital / Healthcare",
+  "NGO / Humanitarian Organization",
+  "Security Organization",
+  "Community Safety Organization",
+  "Corporate / Private Organization",
+  "Other",
+];
 
-const COMMAND_ACCESS_CODE = "allma2580";
+const SECURITY_OPTIONS = [
+  { value: "authenticator", label: "Authenticator app" },
+  { value: "sms", label: "SMS verification" },
+  { value: "both", label: "Authenticator + SMS" },
+];
+
+const DEMO_EVENTS = [
+  "SOS received",
+  "Incident created",
+  "AI summary",
+  "Responder assignment",
+  "Dispatch simulation",
+  "Communication simulation",
+  "Incident resolution",
+];
+
+const JURISDICTIONS = ["Country", "Region", "District", "City", "Operating area"];
+
+function generateApplicationId() {
+  return `ALLMA-${new Date().getFullYear()}-${String(Math.floor(1000 + Math.random() * 8999))}`;
+}
 
 export function OnboardingWizard({ userId, email }: { userId: string; email: string }) {
   const qc = useQueryClient();
-  const [step, setStep] = useState(0);
-  const [accessCode, setAccessCode] = useState("");
+  const [phase, setPhase] = useState<Phase>("landing");
+  const [applicationId] = useState(generateApplicationId());
+  const [submittedAt] = useState(new Date().toISOString());
   const {
     data: stations = [],
     isLoading: stationsLoading,
@@ -64,52 +119,106 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
   } = useQuery(stationsQuery);
   const [draft, setDraft] = useState<Draft>({
     full_name: "",
+    email,
     phone: "",
-    badge_number: "",
-    force_id: "",
-    rank: "",
-    station_id: "",
-    jurisdiction_level: "Station",
-    jurisdiction_area: "",
-    official_email: email,
-    prefs: { desktop: true, sms: false, email: true, push: true, scope: "critical" },
+    country: "Uganda",
+    city: "",
+    organization: "",
+    organization_type: "Allma Team",
+    job_title: "",
+    reason: "",
+    org_name: "",
+    org_website: "",
+    org_email: "",
+    org_address: "",
+    org_id: "",
+    supervisor: "",
+    verification_reason: "",
+    role: "Command Operator",
+    region: "",
+    district: "",
+    operating_area: "",
+    password: "",
+    email_verified: false,
+    phone_verified: false,
+    tfa_method: "authenticator",
+    use_biometric: false,
+    access_level: "LEVEL 2 — OPERATOR",
   });
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
 
-  const station = stations.find((s) => s.id === draft.station_id);
+  const station = stations.find((s) => s.id === draft.org_name || s.name === draft.org_name) ?? null;
 
-  const canAdvance = (() => {
-    if (step === 0) return accessCode.trim() === COMMAND_ACCESS_CODE;
-    if (step === 1) return draft.full_name.trim().length > 2 && draft.phone.trim().length > 8;
-    if (step === 2) return draft.badge_number.trim().length > 2 && !!draft.rank;
-    if (step === 3) return !!draft.station_id;
-    if (step === 5) return /.+@.+\..+/.test(draft.official_email);
+  const canContinue = useMemo(() => {
+    if (phase === "request") {
+      return (
+        draft.full_name.trim().length > 2 &&
+        /.+@.+\..+/.test(draft.email) &&
+        draft.phone.trim().length > 6 &&
+        draft.organization.trim().length > 2 &&
+        draft.job_title.trim().length > 2
+      );
+    }
+    if (phase === "verification") {
+      return (
+        draft.org_name.trim().length > 2 &&
+        draft.org_email.trim().length > 0 &&
+        draft.supervisor.trim().length > 2
+      );
+    }
+    if (phase === "role") {
+      return Boolean(draft.role);
+    }
+    if (phase === "area") {
+      return draft.country.trim().length > 1 && draft.operating_area.trim().length > 1;
+    }
+    if (phase === "security") {
+      return draft.password.length >= 8 && draft.email_verified && draft.phone_verified;
+    }
     return true;
-  })();
+  }, [draft, phase]);
 
   const submit = useMutation({
     mutationFn: async () => {
+      const rankMap: Record<string, OfficerRank> = {
+        "Command Operator": "operations_officer",
+        "Incident Reviewer": "investigator",
+        "Dispatcher": "dispatch_officer",
+        "Responder": "community_liaison_officer",
+        "Supervisor": "station_commander",
+        "Administrator": "system_administrator",
+        "Partner Viewer": "read_only",
+        "Analyst": "read_only",
+      };
+
       const { count } = await supabase
         .from("officer_profiles")
         .select("id", { count: "exact", head: true })
         .eq("status", "verified");
       const bootstrap = (count ?? 0) === 0;
 
+      const defaultStation = stations[0]?.id ?? null;
       const { error } = await supabase.from("officer_profiles").upsert(
         {
           user_id: userId,
           full_name: draft.full_name.trim(),
           phone: draft.phone.trim(),
-          badge_number: draft.badge_number.trim().toUpperCase(),
-          force_id: draft.force_id.trim() || null,
-          rank: draft.rank as OfficerRank,
-          station_id: draft.station_id,
-          jurisdiction_level: draft.jurisdiction_level,
-          jurisdiction_area: draft.jurisdiction_area.trim() || station?.district || null,
-          official_email: draft.official_email.trim(),
-          notification_prefs: draft.prefs,
+          badge_number: "ACCESS-REQUEST",
+          force_id: draft.org_id.trim() || null,
+          rank: rankMap[draft.role] ?? "operations_officer",
+          station_id: defaultStation,
+          jurisdiction_level: "Regional",
+          jurisdiction_area: draft.operating_area.trim() || draft.city || draft.district || draft.country,
+          official_email: draft.email.trim(),
+          notification_prefs: {
+            desktop: true,
+            sms: draft.tfa_method === "sms" || draft.tfa_method === "both",
+            email: true,
+            push: true,
+            scope: "critical",
+          },
           onboarding_step: 8,
           onboarding_completed: true,
           status: bootstrap ? "verified" : "pending",
@@ -121,14 +230,82 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
       return bootstrap;
     },
     onSuccess: (bootstrap) => {
-      toast.success(bootstrap ? "Command access activated" : "Submitted for verification");
+      toast.success(bootstrap ? "Access activated" : "Access request submitted");
       qc.invalidateQueries({ queryKey: ["officer", "me"] });
+      setPhase("submitted");
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const Icon = STEPS[step].icon;
-  const progress = ((step + 1) / STEPS.length) * 100;
+  const progress = (() => {
+    const phases = ["landing", "request", "verification", "role", "area", "security", "review", "submitted"];
+    const idx = phases.indexOf(phase);
+    if (idx <= 0) return 8;
+    return ((idx + 1) / phases.length) * 100;
+  })();
+
+  if (phase === "demo") {
+    return (
+      <div className="signal-streak min-h-screen px-4 py-8">
+        <div className="mx-auto w-full max-w-3xl">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold">DEMO SIMULATION</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold">Allma Operations Center</h1>
+            </div>
+            <div className="rounded-full border border-gold/40 bg-gold/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+              Simulated workspace
+            </div>
+          </div>
+          <div className="premium-surface rounded-3xl border border-border/60 p-6 shadow-lift">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Needs attention</div>
+                <div className="mt-3 font-display text-3xl font-semibold text-primary">03</div>
+              </div>
+              <div className="rounded-2xl border border-gold/35 bg-gold/10 p-4">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Unassigned</div>
+                <div className="mt-3 font-display text-3xl font-semibold text-gold">02</div>
+              </div>
+              <div className="rounded-2xl border border-success/35 bg-success/10 p-4">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Resolved today</div>
+                <div className="mt-3 font-display text-3xl font-semibold text-success">07</div>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-border/60 bg-secondary/40 p-4">
+              <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">SIMULATED INCIDENT FLOW</div>
+              <div className="flex flex-wrap gap-2">
+                {DEMO_EVENTS.map((event) => (
+                  <span key={event} className="rounded-full border border-border/60 bg-background/40 px-2.5 py-1.5 text-[10px] text-muted-foreground">
+                    {event}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-border/60 bg-secondary/40 p-4">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Current case</div>
+                <div className="mt-2 font-semibold text-foreground">DEMO INCIDENT #UG-DEMO-001</div>
+                <p className="mt-2 text-sm text-muted-foreground">SIMULATED: An incident has been received and a human operator is reviewing the summary.</p>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-secondary/40 p-4">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">AI summary</div>
+                <div className="mt-2 font-semibold text-foreground">Advisory only</div>
+                <p className="mt-2 text-sm text-muted-foreground">Allma AI provides operational observations. Human decisions remain responsible for any action.</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button className="rounded-full" onClick={() => setPhase("landing")}>Back to entry</Button>
+              <Button variant="secondary" className="rounded-full" onClick={() => setPhase("submitted")}>Enter demo workspace</Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="signal-streak min-h-screen px-4 py-8">
@@ -138,336 +315,314 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
             <Shield className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <p className="font-display text-sm font-semibold tracking-tight">Allma Command</p>
-            <p className="text-[11px] text-muted-foreground">Uganda Police operating system</p>
+            <p className="font-display text-sm font-semibold tracking-tight">ALLMA</p>
+            <p className="text-[11px] text-muted-foreground">Safety Operations Center</p>
           </div>
         </div>
 
         <div className="premium-surface overflow-hidden rounded-3xl border border-border/60 shadow-lift">
-          <div className="h-1 w-full bg-border/40">
-            <motion.div
-              className="h-full bg-gradient-to-r from-primary via-primary-glow to-gold"
-              animate={{ width: `${progress}%` }}
-              transition={{ type: "spring", stiffness: 120, damping: 20 }}
-            />
-          </div>
+          {phase !== "landing" && phase !== "submitted" && (
+            <div className="h-1 w-full bg-border/40">
+              <motion.div
+                className="h-full bg-gradient-to-r from-primary via-primary-glow to-gold"
+                animate={{ width: `${progress}%` }}
+                transition={{ type: "spring", stiffness: 120, damping: 20 }}
+              />
+            </div>
+          )}
 
           <div className="p-6">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl border border-border/60 bg-secondary/60">
-                <Icon className="h-4.5 w-4.5 text-gold" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                  Step {step + 1} of {STEPS.length}
-                </p>
-                <h1 className="truncate font-display text-lg font-semibold">{STEPS[step].title}</h1>
-              </div>
-            </div>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.22 }}
-                className="space-y-4"
-              >
-                {step === 0 && (
-                  <div className="space-y-4 text-sm text-muted-foreground">
-                    <p className="text-base text-foreground">
-                      This is a restricted police operating system for receiving citizen reports,
-                      verifying incidents, dispatching officers and managing cases across Uganda.
-                    </p>
-                    <ul className="space-y-2">
-                      {[
-                        "Every action you take is recorded in an audit trail",
-                        "Case data is confidential and must not be shared outside the force",
-                        "Your account is activated only after command verification",
-                      ].map((line) => (
-                        <li
-                          key={line}
-                          className="flex gap-2.5 rounded-2xl border border-border/50 bg-secondary/40 p-3"
-                        >
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-                          <span>{line}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* Access code gate */}
-                    <div className="space-y-1.5 rounded-2xl border border-border/60 bg-secondary/40 p-4">
-                      <Label className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                        <KeyRound className="h-3.5 w-3.5" /> Command access code
-                      </Label>
-                      <Input
-                        type="password"
-                        value={accessCode}
-                        maxLength={32}
-                        placeholder="Enter your access code"
-                        onChange={(e) => setAccessCode(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && canAdvance && setStep(1)}
-                        className="font-mono tracking-widest"
-                      />
-                      {accessCode.length > 0 && accessCode.trim() !== COMMAND_ACCESS_CODE && (
-                        <p className="text-[11px] text-destructive">Incorrect access code.</p>
-                      )}
-                    </div>
+            {phase === "landing" && (
+              <div className="space-y-6">
+                <div className="space-y-2 text-center">
+                  <div className="inline-flex rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                    Private Platform • Authorized Access Required
                   </div>
-                )}
+                  <h1 className="font-display text-3xl font-black tracking-[-0.04em]">ALLMA</h1>
+                  <p className="text-lg font-medium text-foreground">Safety Operations Center</p>
+                  <p className="text-sm text-muted-foreground">Secure access for authorized safety operations.</p>
+                </div>
 
-                {step === 1 && (
-                  <>
-                    <Field label="Full name (as on your service record)">
-                      <Input
-                        value={draft.full_name}
-                        maxLength={80}
-                        placeholder="e.g. Assistant Supt. Grace Nakato"
-                        onChange={(e) => set("full_name", e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Mobile number">
-                      <Input
-                        value={draft.phone}
-                        maxLength={20}
-                        placeholder="+2567..."
-                        onChange={(e) => set("phone", e.target.value)}
-                      />
-                    </Field>
-                  </>
-                )}
+                <div className="rounded-2xl border border-border/60 bg-secondary/40 p-4 text-sm leading-relaxed text-muted-foreground">
+                  Allma connects people who need help with trusted networks, responders, and safety resources. Command Center access is restricted to authorized users.
+                </div>
 
-                {step === 2 && (
-                  <>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Badge number">
-                        <Input
-                          value={draft.badge_number}
-                          maxLength={24}
-                          placeholder="UPF-00231"
-                          onChange={(e) => set("badge_number", e.target.value)}
-                        />
-                      </Field>
-                      <Field label="Force ID (optional)">
-                        <Input
-                          value={draft.force_id}
-                          maxLength={24}
-                          onChange={(e) => set("force_id", e.target.value)}
-                        />
-                      </Field>
-                    </div>
-                    <Field label="Rank / role">
-                      <div className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
-                        {RANKS.map((rank) => (
-                          <button
-                            key={rank.value}
-                            type="button"
-                            onClick={() => set("rank", rank.value)}
-                            className={cn(
-                              "flex w-full items-center justify-between gap-2 rounded-2xl border px-3.5 py-2.5 text-left text-sm transition",
-                              draft.rank === rank.value
-                                ? "border-primary/60 bg-primary/10 text-foreground"
-                                : "border-border/50 bg-secondary/35 text-muted-foreground hover:border-border",
-                            )}
-                          >
-                            <span className="min-w-0 truncate">{rank.label}</span>
-                            <span className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                              {rank.group}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </Field>
-                  </>
-                )}
+                <div className="space-y-3">
+                  <Button className="w-full rounded-full" onClick={() => setPhase("request")}>Request Access</Button>
+                  <Button variant="secondary" className="w-full rounded-full" onClick={() => setPhase("security")}>Sign In</Button>
+                  <Button variant="ghost" className="w-full rounded-full" onClick={() => setPhase("demo")}>Explore Demo</Button>
+                </div>
+              </div>
+            )}
 
-                {step === 3 && (
-                  <Field label="Select your duty station">
-                    <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
-                      {stationsLoading && (
-                        <p className="rounded-2xl border border-border/50 bg-secondary/35 p-4 text-sm text-muted-foreground">
-                          Loading available police stations…
-                        </p>
-                      )}
-                      {stationsError && (
-                        <p className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-                          We could not load police stations. Refresh the page and try again.
-                        </p>
-                      )}
-                      {!stationsLoading && !stationsError && stations.length === 0 && (
-                        <p className="rounded-2xl border border-gold/40 bg-gold/10 p-4 text-sm text-gold">
-                          No duty stations are available yet. Please ask an administrator to add
-                          your station before continuing.
-                        </p>
-                      )}
-                      {!stationsLoading &&
-                        !stationsError &&
-                        stations.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => set("station_id", s.id)}
-                            className={cn(
-                              "w-full rounded-2xl border px-3.5 py-2.5 text-left transition",
-                              draft.station_id === s.id
-                                ? "border-primary/60 bg-primary/10"
-                                : "border-border/50 bg-secondary/35 hover:border-border",
-                            )}
-                          >
-                            <p className="text-sm font-medium">{s.name}</p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {s.district} district · {s.region} region
-                            </p>
-                          </button>
-                        ))}
-                    </div>
-                  </Field>
-                )}
+            {phase === "request" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Request Command Center Access</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">Tell us who you are and how you intend to use Allma.</h2>
+                </div>
 
-                {step === 4 && (
-                  <>
-                    <Field label="Jurisdiction level">
-                      <div className="flex flex-wrap gap-1.5">
-                        {JURISDICTIONS.map((level) => (
-                          <button
-                            key={level}
-                            type="button"
-                            onClick={() => set("jurisdiction_level", level)}
-                            className={cn(
-                              "rounded-full border px-3.5 py-1.5 text-xs transition",
-                              draft.jurisdiction_level === level
-                                ? "border-gold/60 bg-gold/12 text-gold"
-                                : "border-border/50 bg-secondary/35 text-muted-foreground",
-                            )}
-                          >
-                            {level}
-                          </button>
-                        ))}
-                      </div>
-                    </Field>
-                    <Field label="Area of responsibility">
-                      <Input
-                        value={draft.jurisdiction_area}
-                        maxLength={80}
-                        placeholder={station?.coverage_area ?? "e.g. Kampala Central Division"}
-                        onChange={(e) => set("jurisdiction_area", e.target.value)}
-                      />
-                    </Field>
-                  </>
-                )}
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Full name"><Input value={draft.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Your full name" /></Field>
+                  <Field label="Email"><Input type="email" value={draft.email} onChange={(e) => set("email", e.target.value)} placeholder="name@company.org" /></Field>
+                  <Field label="Phone number"><Input value={draft.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+256..." /></Field>
+                  <Field label="Country"><Input value={draft.country} onChange={(e) => set("country", e.target.value)} /></Field>
+                  <Field label="City / District"><Input value={draft.city} onChange={(e) => set("city", e.target.value)} /></Field>
+                  <Field label="Organization"><Input value={draft.organization} onChange={(e) => set("organization", e.target.value)} placeholder="Organization or team name" /></Field>
+                </div>
 
-                {step === 5 && (
-                  <Field label="Official email">
-                    <Input
-                      type="email"
-                      value={draft.official_email}
-                      maxLength={120}
-                      onChange={(e) => set("official_email", e.target.value)}
-                    />
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      Dispatch notifications and verification updates are sent here.
-                    </p>
-                  </Field>
-                )}
-
-                {step === 6 && (
-                  <div className="space-y-2">
-                    {(
-                      [
-                        ["desktop", "Desktop alerts", "Sound + banner for new incidents"],
-                        ["push", "Push notifications", "On mobile devices"],
-                        ["email", "Email digest", "Case summaries and assignments"],
-                        ["sms", "SMS for critical", "Only for critical dispatches"],
-                      ] as const
-                    ).map(([key, title, sub]) => (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 bg-secondary/35 px-4 py-3"
+                <Field label="Organization type">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {ORG_TYPES.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => set("organization_type", option)}
+                        className={cn(
+                          "rounded-2xl border px-3 py-2 text-left text-sm transition",
+                          draft.organization_type === option ? "border-primary/60 bg-primary/10 text-foreground" : "border-border/50 bg-secondary/35 text-muted-foreground"
+                        )}
                       >
-                        <div>
-                          <p className="text-sm font-medium">{title}</p>
-                          <p className="text-[11px] text-muted-foreground">{sub}</p>
-                        </div>
-                        <Switch
-                          checked={draft.prefs[key]}
-                          onCheckedChange={(v) => set("prefs", { ...draft.prefs, [key]: v })}
-                        />
-                      </div>
+                        {option}
+                      </button>
                     ))}
                   </div>
-                )}
+                </Field>
 
-                {step === 7 && (
-                  <div className="space-y-2">
-                    {[
-                      ["Officer", draft.full_name || "—"],
-                      ["Badge", draft.badge_number || "—"],
-                      ["Rank", rankLabel(draft.rank as OfficerRank)],
-                      ["Station", station?.name ?? "—"],
-                      [
-                        "Jurisdiction",
-                        `${draft.jurisdiction_level} · ${draft.jurisdiction_area || station?.district || "—"}`,
-                      ],
-                      ["Contact", `${draft.phone} · ${draft.official_email}`],
-                    ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="flex items-start justify-between gap-4 rounded-2xl border border-border/50 bg-secondary/35 px-4 py-3"
-                      >
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                          {label}
-                        </span>
-                        <span className="text-right text-sm font-medium">{value}</span>
-                      </div>
-                    ))}
-                    {isCommandRank(draft.rank as OfficerRank) && (
-                      <p className="rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 text-[11px] text-gold">
-                        Command rank selected — you will be able to verify officers, publish alerts
-                        and dispatch across your jurisdiction.
-                      </p>
-                    )}
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Job title / role"><Input value={draft.job_title} onChange={(e) => set("job_title", e.target.value)} /></Field>
+                  <Field label="Reason for requesting access"><Input value={draft.reason} onChange={(e) => set("reason", e.target.value)} /></Field>
+                </div>
+
+                <div className="flex justify-between gap-3 pt-2">
+                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("landing")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
+                  <Button className="rounded-full" disabled={!canContinue} onClick={() => setPhase("verification")}>Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+                </div>
+              </div>
+            )}
+
+            {phase === "verification" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Verify your organization</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">Confirm your organization details and authorization.</h2>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Organization name"><Input value={draft.org_name} onChange={(e) => set("org_name", e.target.value)} /></Field>
+                  <Field label="Organization website"><Input value={draft.org_website} onChange={(e) => set("org_website", e.target.value)} placeholder="https://example.org" /></Field>
+                  <Field label="Official organization email"><Input value={draft.org_email} onChange={(e) => set("org_email", e.target.value)} placeholder="security@org.org" /></Field>
+                  <Field label="Organization ID / registration"><Input value={draft.org_id} onChange={(e) => set("org_id", e.target.value)} placeholder="Where applicable" /></Field>
+                </div>
+
+                <Field label="Organization address"><Input value={draft.org_address} onChange={(e) => set("org_address", e.target.value)} /></Field>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Supervisor / contact person"><Input value={draft.supervisor} onChange={(e) => set("supervisor", e.target.value)} /></Field>
+                  <Field label="Reason for access"><Input value={draft.verification_reason} onChange={(e) => set("verification_reason", e.target.value)} /></Field>
+                </div>
+
+                <div className="rounded-2xl border border-border/60 bg-secondary/40 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground"><FileText className="h-4 w-4 text-gold" /> Supporting documents</div>
+                  <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                    <span>• Organization identification</span>
+                    <span>• Authorization letter</span>
+                    <span>• Staff identification</span>
+                    <span>• Partnership documentation</span>
                   </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
+                  <p className="mt-3 text-[11px] text-muted-foreground">Documents are reviewed securely and are used only for access verification.</p>
+                </div>
 
-            <div className="mt-7 flex items-center justify-between gap-3">
-              <Button
-                variant="ghost"
-                className="rounded-full"
-                disabled={step === 0 || submit.isPending}
-                onClick={() => setStep((s) => Math.max(0, s - 1))}
-              >
-                <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
-              </Button>
+                <div className="flex justify-between gap-3 pt-2">
+                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("request")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
+                  <Button className="rounded-full" disabled={!canContinue} onClick={() => setPhase("role")}>Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+                </div>
+              </div>
+            )}
 
-              {step < STEPS.length - 1 ? (
-                <Button
-                  className="rounded-full"
-                  disabled={!canAdvance}
-                  onClick={() => setStep((s) => s + 1)}
-                >
-                  Continue <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  className="rounded-full"
-                  disabled={submit.isPending}
-                  onClick={() => submit.mutate()}
-                >
-                  {submit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Activate command access
-                </Button>
-              )}
-            </div>
+            {phase === "role" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Role selection</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">What will you do in Allma?</h2>
+                </div>
+
+                <div className="space-y-2">
+                  {ROLE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => set("role", option.value)}
+                      className={cn(
+                        "flex w-full items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition",
+                        draft.role === option.value ? "border-primary/60 bg-primary/10" : "border-border/50 bg-secondary/35"
+                      )}
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-foreground">{option.value}</div>
+                        <div className="mt-1 text-[11px] text-muted-foreground">{option.brief}</div>
+                      </div>
+                      {draft.role === option.value && <Check className="mt-1 h-4 w-4 text-primary" />}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex justify-between gap-3 pt-2">
+                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("verification")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
+                  <Button className="rounded-full" disabled={!canContinue} onClick={() => setPhase("area")}>Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+                </div>
+              </div>
+            )}
+
+            {phase === "area" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Jurisdiction / operating area</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">Where will you operate?</h2>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="Country"><Input value={draft.country} onChange={(e) => set("country", e.target.value)} /></Field>
+                  <Field label="Region"><Input value={draft.region} onChange={(e) => set("region", e.target.value)} /></Field>
+                  <Field label="District"><Input value={draft.district} onChange={(e) => set("district", e.target.value)} /></Field>
+                  <Field label="City"><Input value={draft.city} onChange={(e) => set("city", e.target.value)} /></Field>
+                </div>
+
+                <Field label="Operating area"><Input value={draft.operating_area} onChange={(e) => set("operating_area", e.target.value)} placeholder="e.g. Wairaka, Jinja" /></Field>
+                <p className="text-[11px] text-muted-foreground">Your operating area determines which incidents and resources you may be authorized to access.</p>
+
+                <div className="flex justify-between gap-3 pt-2">
+                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("role")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
+                  <Button className="rounded-full" disabled={!canContinue} onClick={() => setPhase("security")}>Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+                </div>
+              </div>
+            )}
+
+            {phase === "security" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Security setup</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">Protect the account before access is granted.</h2>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-secondary/35 px-4 py-3">
+                    <div>
+                      <div className="text-sm font-medium text-foreground">Email verification</div>
+                      <div className="text-[11px] text-muted-foreground">Confirm your primary account email</div>
+                    </div>
+                    <Switch checked={draft.email_verified} onCheckedChange={(v) => set("email_verified", v)} />
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-secondary/35 px-4 py-3">
+                    <div>
+                      <div className="text-sm font-medium text-foreground">Phone verification</div>
+                      <div className="text-[11px] text-muted-foreground">Confirm mobile access and recovery</div>
+                    </div>
+                    <Switch checked={draft.phone_verified} onCheckedChange={(v) => set("phone_verified", v)} />
+                  </div>
+                </div>
+
+                <Field label="Strong password"><Input type="password" value={draft.password} onChange={(e) => set("password", e.target.value)} placeholder="Create a strong password" /></Field>
+
+                <Field label="Two-factor authentication">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {SECURITY_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => set("tfa_method", option.value as Draft["tfa_method"])}
+                        className={cn(
+                          "rounded-2xl border px-3 py-2 text-sm transition",
+                          draft.tfa_method === option.value ? "border-primary/60 bg-primary/10 text-foreground" : "border-border/50 bg-secondary/35 text-muted-foreground"
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-secondary/35 px-4 py-3">
+                  <div>
+                    <div className="text-sm font-medium text-foreground">Use Face ID / device authentication</div>
+                    <div className="text-[11px] text-muted-foreground">Available on supported devices only</div>
+                  </div>
+                  <Switch checked={draft.use_biometric} onCheckedChange={(v) => set("use_biometric", v)} />
+                </div>
+
+                <div className="flex justify-between gap-3 pt-2">
+                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("area")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
+                  <Button className="rounded-full" disabled={!canContinue} onClick={() => setPhase("review")}>Review access <ChevronRight className="ml-1.5 h-4 w-4" /></Button>
+                </div>
+              </div>
+            )}
+
+            {phase === "review" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Access review</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">Confirm your application before submission.</h2>
+                </div>
+
+                <div className="space-y-2 rounded-2xl border border-border/60 bg-secondary/35 p-4">
+                  {[
+                    ["Applicant", draft.full_name],
+                    ["Organization", draft.org_name || draft.organization],
+                    ["Role", draft.role],
+                    ["Location", `${draft.country} / ${draft.region || draft.district || draft.city || draft.operating_area}`],
+                    ["Access Level", draft.access_level],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between gap-3 border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
+                      <span className="text-right text-sm font-medium text-foreground">{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl border border-gold/35 bg-gold/10 p-4 text-[11px] leading-relaxed text-gold">
+                  Command Center contains sensitive operational information. By continuing, you agree to use information only for authorized purposes, protect incident data, and follow Allma operational and privacy policies.
+                </div>
+
+                <div className="flex justify-between gap-3 pt-2">
+                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("security")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
+                  <Button className="rounded-full" disabled={submit.isPending} onClick={() => void submit.mutate()}>
+                    {submit.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Submit request
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {phase === "submitted" && (
+              <div className="space-y-5 text-center">
+                <div className="inline-flex rounded-full border border-success/35 bg-success/12 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-success">
+                  Access request submitted
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">PENDING REVIEW</p>
+                  <h2 className="mt-2 font-display text-2xl font-semibold">Your request is being reviewed.</h2>
+                </div>
+
+                <div className="grid gap-3 text-left sm:grid-cols-2">
+                  <InfoRow label="Application ID" value={applicationId} />
+                  <InfoRow label="Submitted" value={new Date(submittedAt).toLocaleDateString("en-UG", { day: "2-digit", month: "short", year: "numeric" })} />
+                  <InfoRow label="Organization" value={draft.org_name || draft.organization} />
+                  <InfoRow label="Requested role" value={draft.role} />
+                  <InfoRow label="Operating area" value={draft.operating_area || `${draft.country} / ${draft.city || draft.district || "Region"}`} />
+                  <InfoRow label="Status" value="Pending Review" />
+                </div>
+
+                <div className="rounded-2xl border border-border/60 bg-secondary/35 p-4 text-sm text-muted-foreground">
+                  You will receive an email when your access status changes. Until then, you may continue exploring the Allma demo environment.
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Button className="rounded-full" onClick={() => setPhase("landing")}>Return to start</Button>
+                  <Button variant="secondary" className="rounded-full" onClick={() => setPhase("demo")}>Explore demo</Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">
-          Restricted system. Unauthorised access or misuse of citizen data is an offence and is
-          recorded in the audit trail.
-        </p>
       </div>
     </div>
   );
@@ -476,10 +631,17 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-        {label}
-      </Label>
+      <Label className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border/50 bg-secondary/35 px-3 py-2.5 text-sm">
+      <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+      <div className="mt-1 font-medium text-foreground">{value}</div>
     </div>
   );
 }

@@ -28,21 +28,21 @@ const NAV_GROUPS = [
   {
     label: "Operations",
     items: [
-      { to: "/police",           label: "Command",         icon: LayoutDashboard, exact: true },
-      { to: "/police/national",  label: "National Safety", icon: Globe2,          exact: false },
-      { to: "/police/incidents", label: "Incidents",    icon: ListFilter,      exact: false },
-      { to: "/police/map",       label: "Live Map",     icon: Map,             exact: false },
-      { to: "/police/dispatch",  label: "Dispatch",     icon: Radio,           exact: false },
-      { to: "/police/authority", label: "Authority",    icon: Landmark,        exact: false },
+      { to: "/police",           label: "Command",              icon: LayoutDashboard, exact: true },
+      { to: "/police/national",  label: "Operations Overview",  icon: Globe2,          exact: false },
+      { to: "/police/incidents", label: "Incidents",           icon: ListFilter,      exact: false },
+      { to: "/police/map",       label: "Live Map",            icon: Map,             exact: false },
+      { to: "/police/dispatch",  label: "Dispatch",            icon: Radio,           exact: false },
+      { to: "/police/authority", label: "Authority",           icon: Landmark,        exact: false },
     ],
   },
   {
     label: "Community",
     items: [
-      { to: "/police/persons",   label: "Persons",      icon: UserSearch,  exact: false },
-      { to: "/police/alerts",    label: "Alerts",       icon: Megaphone,   exact: false },
-      { to: "/police/comms",     label: "Comms",        icon: Activity,    exact: false },
-      { to: "/police/officers",  label: "Officers",     icon: Users,       exact: false },
+      { to: "/police/persons",   label: "Persons",              icon: UserSearch,  exact: false },
+      { to: "/police/alerts",    label: "Nearby Help",          icon: Megaphone,   exact: false },
+      { to: "/police/comms",     label: "Comms",                icon: Activity,    exact: false },
+      { to: "/police/officers",  label: "Authorized Responders", icon: Users,       exact: false },
     ],
   },
   {
@@ -153,13 +153,13 @@ export function CommandShell({
           </div>
           <div className="min-w-0">
             <p className="font-display text-[14px] font-bold leading-none tracking-tight text-white">
-              Allma Command
+              Allma Operations Center
             </p>
             <p
               className="mt-1 text-[9px] font-bold uppercase tracking-[0.22em]"
               style={{ color: "oklch(0.855 0.175 88)" }}
             >
-              Police Integration Ready
+              Private Platform • Authorized Access
             </p>
           </div>
         </div>
