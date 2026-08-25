@@ -6,7 +6,7 @@ import { OnboardingWizard } from "@/components/police/onboarding-wizard";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
-import { myOfficerQuery } from "@/lib/police";
+import { myAdminRoleQuery, myOfficerQuery } from "@/lib/police";
 
 export const Route = createFileRoute("/_authenticated/police")({
   head: () => ({
@@ -40,6 +40,10 @@ function PoliceLayout() {
     refetch: refetchOfficer,
   } = useQuery({
     ...myOfficerQuery,
+    enabled: Boolean(user?.id),
+  });
+  const { data: isAdmin = false } = useQuery({
+    ...myAdminRoleQuery,
     enabled: Boolean(user?.id),
   });
 
@@ -105,7 +109,7 @@ function PoliceLayout() {
             </Button>
           </div>
         </div>
-      ) : !officer ? (
+      ) : !officer && !isAdmin ? (
         <OnboardingWizard userId={user.id} email={user.email ?? ""} />
       ) : (
         <Outlet />
