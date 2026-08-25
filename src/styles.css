@@ -128,9 +128,10 @@
   --gradient-brand: linear-gradient(
     105deg,
     oklch(0.2 0.01 60),
-    oklch(0.87 0.175 95) 45%,
+    oklch(0.66 0.17 78) 45%,
     oklch(0.53 0.225 27)
   );
+
   --shadow-soft: 0 1px 2px oklch(0.2 0.02 60 / 0.06), 0 12px 32px -16px oklch(0.2 0.02 60 / 0.2);
   --shadow-lift: 0 18px 48px -22px oklch(0.2 0.02 60 / 0.32);
   --glass-bg: color-mix(in oklab, var(--card) 76%, transparent);
