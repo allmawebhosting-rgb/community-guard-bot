@@ -10,8 +10,17 @@ import {
   stationsQuery,
   DUTY_STATUSES,
   dutyStatusLabel,
+  RANKS,
   type DutyStatusValue,
+  type OfficerRank,
 } from "@/lib/police";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/police/officers")({
@@ -51,6 +60,19 @@ function OfficersPage() {
     },
     onSuccess: () => {
       toast.success("Duty status updated");
+      qc.invalidateQueries({ queryKey: ["police", "officers"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setRank = useMutation({
+    mutationFn: async ({ id, rank }: { id: string; rank: OfficerRank }) => {
+      const { error } = await supabase.from("officer_profiles").update({ rank }).eq("id", id);
+      if (error) throw error;
+      await logAudit("officer_rank_changed", "officer_profiles", id, { rank });
+    },
+    onSuccess: () => {
+      toast.success("Officer role updated");
       qc.invalidateQueries({ queryKey: ["police", "officers"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -120,6 +142,29 @@ function OfficersPage() {
                   Suspend
                 </Button>
               )}
+            </div>
+
+            {/* Role assignment */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 pl-[52px]">
+              <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                Role:
+              </span>
+              <Select
+                value={officer.rank ?? undefined}
+                disabled={setRank.isPending}
+                onValueChange={(value) => setRank.mutate({ id: officer.id, rank: value as OfficerRank })}
+              >
+                <SelectTrigger className="h-8 w-[260px] rounded-full text-xs">
+                  <SelectValue placeholder="Assign a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {RANKS.map((r) => (
+                    <SelectItem key={r.value} value={r.value} className="text-xs">
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Duty status row (only for verified officers) */}
