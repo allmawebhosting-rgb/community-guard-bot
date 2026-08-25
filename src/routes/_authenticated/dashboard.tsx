@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       {
         name: "description",
         content:
-          "Track your incident reports, emergency history, community alerts and saved emergency contacts in one place.",
+          "Track your incident reports, emergency history, nearby resources and saved emergency contacts in one place.",
       },
       { property: "og:title", content: "Your dashboard — Allma Safety AI" },
       {
@@ -98,7 +98,7 @@ function Dashboard() {
                 Safety Dashboard
               </h1>
               <p className="mt-1.5 max-w-xl text-[13px] text-muted-foreground lg:text-[14px]">
-                Everything you have reported through Allma, plus live community alerts and the numbers you may need.
+                Everything you have reported through Allma, plus nearby resources and the numbers you may need.
               </p>
             </div>
             <Button
@@ -218,7 +218,7 @@ function Dashboard() {
             {alerts.isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             ) : (alerts.data ?? []).length === 0 ? (
-              <EmptyState icon={Megaphone} message="No active community alerts." />
+              <EmptyState icon={Megaphone} message="No active nearby resources or alerts." />
             ) : (
               <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
                 {alerts.data!.map((alert) => (

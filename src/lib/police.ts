@@ -24,9 +24,9 @@ export type Evidence = Database["public"]["Tables"]["report_evidence"]["Row"];
 export type SafetyActivity = Database["public"]["Tables"]["safety_activity"]["Row"];
 
 export const RANKS: { value: OfficerRank; label: string; group: string }[] = [
-  { value: "inspector_general", label: "Inspector General of Police", group: "National command" },
-  { value: "deputy_inspector_general", label: "Deputy Inspector General", group: "National command" },
-  { value: "director", label: "Director", group: "National command" },
+  { value: "inspector_general", label: "Inspector General of Police", group: "Allma operations command" },
+  { value: "deputy_inspector_general", label: "Deputy Inspector General", group: "Allma operations command" },
+  { value: "director", label: "Director", group: "Allma operations command" },
   { value: "regional_commander", label: "Regional Police Commander", group: "Regional command" },
   { value: "district_commander", label: "District Police Commander", group: "Regional command" },
   { value: "division_commander", label: "Division Commander", group: "Regional command" },

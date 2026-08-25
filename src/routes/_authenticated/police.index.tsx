@@ -151,13 +151,13 @@ function CommandDashboard() {
                 <Sparkles className="h-4 w-4 text-gold" />
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">Allma intelligence brief</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">Authorized command workspace · {officer?.jurisdiction_area ?? "Uganda"}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">AI-assisted operational intelligence</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Authorized Allma operations workspace · {officer?.jurisdiction_area ?? "Uganda"}</p>
               </div>
             </div>
             <h2 className="font-display text-2xl font-black tracking-[-0.04em] sm:text-3xl">Welcome back, {firstName}.</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Review the live queue, prioritize critical cases, and coordinate available resources. Humans command; Allma assists with observations from current system data.
+              Review the live queue, prioritize critical cases, and coordinate available resources. Humans remain in control. Allma assists operators by organizing current system data, identifying patterns, and highlighting important information.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <Link to="/police/ai" className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-lift transition hover:-translate-y-0.5">
@@ -178,9 +178,9 @@ function CommandDashboard() {
       <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3">
         <Siren className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <div>
-          <p className="text-xs font-semibold">Police integration-ready queue</p>
+          <p className="text-xs font-semibold">Emergency-service integration workspace</p>
           <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-            This restricted workspace surfaces authorized reports, SOS activity, locations, and evidence signals. It does not represent or contact an official emergency service.
+            This restricted workspace is designed to support authorized safety operations, incident coordination, SOS activity, locations, and evidence signals. Allma is currently independent and does not represent or contact official emergency services unless an authorized integration is established.
           </p>
         </div>
       </div>

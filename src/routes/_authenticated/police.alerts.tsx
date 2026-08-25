@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { communityAlertsQuery, logAudit, timeAgo } from "@/lib/police";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/police/alerts")({
+export const Route = createFileRoute("/_authenticated/police/nearby-help")({
   component: AlertsPage,
 });
 

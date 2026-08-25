@@ -377,7 +377,7 @@ function ToolCard({
   const meta: Record<string, { icon: typeof FileText; label: string; busy: string }> = {
     create_report: { icon: FileText, label: "Incident report", busy: "Filing your report…" },
     find_facilities: { icon: MapPin, label: "Nearby help", busy: "Searching the directory…" },
-    list_alerts: { icon: Megaphone, label: "Community alerts", busy: "Checking alerts…" },
+    list_alerts: { icon: Megaphone, label: "Nearby help", busy: "Checking nearby resources…" },
     ask_structured_question: { icon: HelpCircle, label: "Question", busy: "Preparing question…" },
     request_media: { icon: Upload, label: "Upload evidence", busy: "Preparing upload…" },
     recommend_actions: {

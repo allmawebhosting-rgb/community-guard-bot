@@ -215,7 +215,7 @@ function NationalSafetyCommand() {
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <ReadinessCard label="Organizations" value={organizations.data?.length ?? 0} detail={organizations.isError ? "Configuration pending" : "Configured organization records"} />
           <ReadinessCard label="Handover records" value={handover.data?.length ?? 0} detail={handover.data?.[0]?.acceptance_status ? `Latest: ${handover.data[0].acceptance_status}` : "No handover acceptance recorded"} />
-          <ReadinessCard label="Official integrations" value={0} detail="No confirmed government integration is configured in this workspace" />
+          <ReadinessCard label="Authorized integrations" value={0} detail="No official emergency-service integrations are currently configured" />
         </div>
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-border/40 bg-secondary/20 px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
           <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" /> Allma is the technology and intelligence layer. It is not the police, government or an emergency service. Official actions require authorized human approval and a confirmed provider response.

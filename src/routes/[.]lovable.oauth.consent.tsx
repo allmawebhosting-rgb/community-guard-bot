@@ -89,7 +89,7 @@ function Consent() {
               Connect {clientName} to your account
             </h1>
             <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-              {clientName} will be able to read and file your safety reports, see community alerts and
+              {clientName} will be able to read and file your safety reports, see nearby resources and
               manage your emergency contacts — acting as you. You can revoke access at any time.
             </p>
           </div>

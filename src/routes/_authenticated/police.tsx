@@ -11,11 +11,11 @@ import { myOfficerQuery } from "@/lib/police";
 export const Route = createFileRoute("/_authenticated/police")({
   head: () => ({
     meta: [
-      { title: "Police Command Center — Allma Safety AI" },
+      { title: "Allma Operations Center — Authorized Operators" },
       {
         name: "description",
         content:
-          "Restricted police integration command center for receiving reports, verifying incidents, dispatching officers and managing cases in real time.",
+          "Authorized Allma operations workspace for receiving reports, verifying incidents, coordinating available resources, and managing safety cases in real time. Allma is an independent platform and does not represent official emergency services.",
       },
       { property: "og:title", content: "Police Command Center — Allma Safety AI" },
       {

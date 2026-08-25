@@ -283,11 +283,11 @@ function ProfileScreen() {
                 {[
                   { to: "/chat", icon: MessageSquare, label: "Start a conversation", desc: "Chat with Allma Safety AI" },
                   { to: "/reports", icon: FileText, label: "My reports", desc: "View your filed cases and references" },
-                  { to: "/alerts", icon: Bell, label: "Community alerts", desc: "Live safety notices for your area" },
+                  { to: "/alerts", icon: Bell, label: "Nearby help", desc: "Connect with nearby resources and opportunities" },
                   { to: "/nearby", icon: MapPin, label: "Nearby help", desc: "Find hospitals and police stations" },
                   { to: "/health-reminders", icon: CalendarDays, label: "Health & Reminders", desc: "Keep appointments and routines on schedule" },
                   { to: "/responder", icon: Users, label: "Community responder", desc: "Opt in safely to help nearby people" },
-                  { to: "/police", icon: Shield, label: "Police command center", desc: "For verified officers only" },
+                  { to: "/police", icon: Shield, label: "Allma operations center", desc: "For authorized operators only" },
                 ].map(({ to, icon: Icon, label, desc }, idx, arr) => (
                   <Link
                     key={to}
