@@ -395,3 +395,20 @@ export async function logAudit(action: string, entityType?: string, entityId?: s
     details: details as never,
   });
 }
+
+/** Does the signed-in user hold the platform admin role? */
+export const myAdminRoleQuery = queryOptions({
+  queryKey: ["roles", "me", "admin"],
+  queryFn: async (): Promise<boolean> => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return false;
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", auth.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (error) return false;
+    return !!data;
+  },
+});
