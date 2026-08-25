@@ -517,13 +517,13 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
             this anytime
           </p>
         </div>
-        <div className="relative mx-auto hidden sm:block">
-          <div className="absolute inset-4 rounded-full bg-primary/15 blur-2xl" />
-          <Mascot size={170} priority className="relative" />
-          <div className="absolute -bottom-2 -right-2 rounded-2xl border border-border/60 bg-background/85 px-3 py-2 text-[10px] font-semibold shadow-soft backdrop-blur">
-            Always here when
-            <br />
-            <span className="text-primary">you need a steady hand.</span>
+        <div className="relative mx-auto hidden w-full max-w-[190px] sm:block">
+          <div className="relative grid place-items-center pb-3">
+            <div className="absolute inset-4 rounded-full bg-primary/15 blur-2xl" />
+            <Mascot size={170} priority className="relative" />
+          </div>
+          <div className="relative rounded-2xl border border-border/60 bg-background/90 px-3 py-2 text-center text-[10px] font-semibold leading-snug shadow-soft backdrop-blur">
+            Always here when <span className="text-primary">you need a steady hand.</span>
           </div>
         </div>
       </div>
