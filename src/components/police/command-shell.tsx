@@ -75,7 +75,7 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="tabular-nums font-mono text-[11px] text-muted-foreground/80 tracking-wider">
+    <span className="tabular-nums font-mono text-[11px] text-foreground/80 tracking-wider">
       {time.toLocaleTimeString("en-UG", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
     </span>
   );
@@ -170,7 +170,7 @@ export function CommandShell({
             <div key={group.label} className="mb-2">
               <p
                 className="px-2.5 pb-1.5 pt-3 text-[9px] font-bold uppercase tracking-[0.2em]"
-                style={{ color: "oklch(0.4 0.015 25)" }}
+                style={{ color: "oklch(0.7 0.022 80)" }}
               >
                 {group.label}
               </p>
@@ -188,11 +188,11 @@ export function CommandShell({
                         ? {
                             background: "linear-gradient(135deg, oklch(0.575 0.235 26 / 0.25), oklch(0.7 0.21 36 / 0.12))",
                             border: "1px solid oklch(0.575 0.235 26 / 0.35)",
-                            color: "white",
-                            fontWeight: 600,
+                            color: "oklch(0.99 0.006 95)",
+                            fontWeight: 700,
                           }
                         : {
-                            color: "oklch(0.55 0.015 25)",
+                            color: "oklch(0.8 0.02 80)",
                             border: "1px solid transparent",
                           }
                     }
@@ -209,7 +209,7 @@ export function CommandShell({
                     )}
                     <item.icon
                       className="h-4 w-4 shrink-0 transition-colors"
-                      style={active ? { color: "oklch(0.7 0.21 36)" } : {}}
+                      style={active ? { color: "oklch(0.7 0.21 36)" } : { color: "oklch(0.78 0.02 80)" }}
                     />
                     <span className="truncate">{item.label}</span>
                     {active && (
@@ -261,7 +261,7 @@ export function CommandShell({
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-[12.5px] font-semibold leading-none text-white">{fullName}</p>
-              <p className="mt-0.5 truncate text-[10px] leading-none" style={{ color: "oklch(0.4 0.015 25)" }}>
+              <p className="mt-0.5 truncate text-[10px] leading-none" style={{ color: "oklch(0.75 0.02 80)" }}>
                 {rankLabel(officer?.rank)}
               </p>
             </div>
@@ -269,7 +269,7 @@ export function CommandShell({
             <button
               aria-label="Sign out"
               className="shrink-0 rounded-xl p-1.5 transition"
-              style={{ color: "oklch(0.4 0.015 25)" }}
+              style={{ color: "oklch(0.72 0.02 80)" }}
               onClick={async () => {
                 await qc.cancelQueries();
                 qc.clear();
@@ -309,10 +309,10 @@ export function CommandShell({
                 {officer?.jurisdiction_level ?? "National"} Command
               </span>
               <span className="text-muted-foreground/40">·</span>
-              <span className="text-[13px] text-muted-foreground">{officer?.jurisdiction_area ?? "Uganda"}</span>
+              <span className="text-[13px] text-foreground/80">{officer?.jurisdiction_area ?? "Uganda"}</span>
             </div>
             {officer?.badge_number && (
-              <span className="hidden rounded-full border border-border/50 bg-muted/40 px-2.5 py-0.5 text-[10.5px] font-medium text-muted-foreground lg:block">
+              <span className="hidden rounded-full border border-border/70 bg-secondary/80 px-2.5 py-0.5 text-[10.5px] font-medium text-foreground/80 lg:block">
                 Badge {officer.badge_number}
               </span>
             )}
@@ -325,9 +325,9 @@ export function CommandShell({
             <span
               className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10.5px] font-semibold"
               style={{
-                background: "oklch(0.62 0.13 160 / 0.1)",
-                border: "1px solid oklch(0.62 0.13 160 / 0.3)",
-                color: "oklch(0.62 0.13 160)",
+                background: "oklch(0.16 0.08 156 / 0.26)",
+                border: "1px solid oklch(0.62 0.14 156 / 0.45)",
+                color: "oklch(0.9 0.03 156)",
               }}
             >
               <span className="relative flex h-1.5 w-1.5">
@@ -337,7 +337,7 @@ export function CommandShell({
                 />
                 <span
                   className="relative inline-flex h-1.5 w-1.5 rounded-full"
-                  style={{ background: "oklch(0.62 0.13 160)" }}
+                  style={{ background: "oklch(0.72 0.14 156)" }}
                 />
               </span>
               Live
@@ -345,10 +345,10 @@ export function CommandShell({
 
             <Link
               to="/chat"
-              className="hidden rounded-xl px-3 py-1.5 text-[11.5px] font-medium text-muted-foreground transition hover:text-foreground sm:block"
+              className="hidden rounded-xl px-3 py-1.5 text-[11.5px] font-medium text-foreground/80 transition hover:text-foreground sm:block"
               style={{
-                border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
-                background: "color-mix(in oklab, var(--muted) 40%, transparent)",
+                border: "1px solid color-mix(in oklab, var(--border) 85%, transparent)",
+                background: "color-mix(in oklab, var(--secondary) 70%, transparent)",
               }}
             >
               Citizen app
@@ -380,7 +380,7 @@ export function CommandShell({
                 to={item.to}
                 className={cn(
                   "flex h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors",
-                  active ? "text-primary" : "text-muted-foreground",
+                    active ? "text-primary" : "text-foreground/75",
                 )}
               >
                 <item.icon className="h-4 w-4" />
