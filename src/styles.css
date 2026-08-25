@@ -179,28 +179,29 @@
   --chart-3: oklch(0.7 0.21 36);
   --chart-4: oklch(0.72 0.14 156);
   --chart-5: oklch(0.6 0.15 300);
-  --sidebar: oklch(0.045 0.006 25);
-  --sidebar-foreground: oklch(0.95 0.006 60);
-  --sidebar-primary: oklch(0.575 0.235 26);
-  --sidebar-primary-foreground: oklch(0.99 0.004 60);
-  --sidebar-accent: oklch(0.14 0.016 25);
-  --sidebar-accent-foreground: oklch(0.95 0.006 60);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.575 0.235 26);
+  --sidebar: oklch(0.14 0.01 40);
+  --sidebar-foreground: oklch(0.955 0.006 95);
+  --sidebar-primary: oklch(0.585 0.235 27);
+  --sidebar-primary-foreground: oklch(0.99 0.004 95);
+  --sidebar-accent: oklch(0.25 0.018 40);
+  --sidebar-accent-foreground: oklch(0.955 0.006 95);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.585 0.235 27);
 
-  /* Gold → red brand gradient (wordmark, highlights) */
+  /* Yellow → red brand gradient (wordmark, highlights) */
   --gradient-brand: linear-gradient(
     105deg,
-    oklch(0.9 0.17 92),
+    oklch(0.9 0.18 96),
     oklch(0.78 0.19 62) 55%,
-    oklch(0.62 0.235 28)
+    oklch(0.6 0.235 28)
   );
   --gradient-hero: linear-gradient(
     140deg,
-    color-mix(in oklab, oklch(0.575 0.235 26) 22%, transparent),
-    color-mix(in oklab, oklch(0.855 0.175 88) 10%, transparent) 55%,
+    color-mix(in oklab, oklch(0.585 0.235 27) 20%, transparent),
+    color-mix(in oklab, oklch(0.87 0.18 95) 14%, transparent) 55%,
     transparent
   );
+
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.5), 0 14px 34px -18px oklch(0 0 0 / 0.75);
   --shadow-lift: 0 22px 54px -24px oklch(0 0 0 / 0.85);
   --glass-bg: color-mix(in oklab, var(--card) 60%, transparent);
