@@ -3,11 +3,18 @@ import { cn } from "@/lib/utils";
 
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <img
-      src={allmaMark}
-      alt="Allma Safety AI"
-      className={cn("h-9 w-9 rounded-xl object-cover shadow-soft", className)}
-    />
+    <span
+      className={cn(
+        "grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-background/60 shadow-soft",
+        className,
+      )}
+    >
+      <img
+        src={allmaMark}
+        alt="Allma Safety AI"
+        className="h-full w-full scale-[1.55] object-contain"
+      />
+    </span>
   );
 }
 
