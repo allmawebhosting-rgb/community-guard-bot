@@ -1464,7 +1464,7 @@ export function SOSExperience({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex h-[100dvh] w-screen max-w-full flex-col overflow-hidden bg-background">
+    <div className="fixed inset-0 z-[100] flex h-[100dvh] w-screen max-w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       {/* Ambient brand glow — same signal-streak wash as the onboarding wizard */}
       <div className="signal-streak pointer-events-none absolute inset-0" />
       {/* Subtle grid */}

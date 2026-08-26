@@ -231,6 +231,8 @@
     min-width: 0;
     width: 100%;
     overflow-x: hidden;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);

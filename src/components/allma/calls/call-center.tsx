@@ -420,7 +420,7 @@ export function CallCenter() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex flex-col bg-background/95 backdrop-blur-xl"
+          className="fixed inset-0 z-[80] flex flex-col bg-background/95 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
           role="dialog"
           aria-label="Allma voice call"
         >
