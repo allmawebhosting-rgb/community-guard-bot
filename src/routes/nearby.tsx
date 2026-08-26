@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, MapPin, Phone, Search } from "lucide-react";
+import { Clock, MapPin, Phone, RefreshCw, Search } from "lucide-react";
 import { useState } from "react";
 import { AppShell } from "@/components/allma/app-shell";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +48,7 @@ function NearbyScreen() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
 
-  const { data: facilities, isLoading } = useQuery({
+  const { data: facilities, isLoading, isError, refetch } = useQuery({
     queryKey: ["facilities"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -123,6 +123,21 @@ function NearbyScreen() {
             {Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="h-28 animate-pulse rounded-[1.4rem] border border-border/50 bg-card/50" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="rounded-[2rem] border border-destructive/25 bg-destructive/5 p-16 text-center">
+            <MapPin className="mx-auto h-10 w-10 text-destructive/70" />
+            <p className="mt-4 font-display text-lg font-bold">Nearby help could not be loaded</p>
+            <p className="mt-2 text-[13px] text-muted-foreground">
+              Check your connection and try again. For urgent help, use Emergency SOS or call official services.
+            </p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[13px] font-bold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <RefreshCw className="h-4 w-4" /> Try again
+            </button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-[2rem] border border-border/60 bg-card/70 p-16 text-center">
