@@ -1362,6 +1362,10 @@ export function SOSExperience({
       setSosActivityId(activityId);
     }
 
+    // Make the emergency screen and responder calling available as soon as the
+    // SOS record exists. GPS and nearby-resource lookups continue below.
+    setPhase("help");
+
 
     let loc: LocationInfo | null = null;
     try {
@@ -1398,11 +1402,13 @@ export function SOSExperience({
     }
 
     if (user) {
-      const { data: contacts, error } = await supabase
+      void supabase
         .from("emergency_contacts")
         .select("id, name, phone, relationship")
-        .order("created_at", { ascending: true });
-      if (!error) setTrustedContacts((contacts ?? []) as TrustedContact[]);
+        .order("created_at", { ascending: true })
+        .then(({ data, error }) => {
+          if (!error) setTrustedContacts((data ?? []) as TrustedContact[]);
+        });
     }
 
     const offersPromise = activityId && notifyResponders
@@ -1432,7 +1438,7 @@ export function SOSExperience({
       setOfficers([]);
       setResponderOffers(offers);
     }
-    setPhase("help");
+    // Nearby resources and responder offers update the already active SOS view.
   }
 
   async function handleSubmitReport() {
