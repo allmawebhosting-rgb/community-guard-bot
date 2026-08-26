@@ -46,7 +46,7 @@ const COPILOT_PROMPTS = [
   "What is still unknown?",
   "Summarize the timeline",
   "What should I verify?",
-  "Summarize the uploaded evidence",
+  "Summarize the community context and available evidence",
   "Prepare a handover brief",
 ];
 

@@ -90,9 +90,9 @@ export const QUICK_ACTIONS: QuickAction[] = [
   {
     id: "alerts",
     emoji: "📢",
-    label: "Community Alerts",
-    description: "Safety updates in your area",
-    prompt: "Show me the latest community safety alerts near me.",
+    label: "Nearby Help",
+    description: "Connect with nearby resources",
+    prompt: "Show me nearby help and resources in my area.",
     iconColor: "bg-sky-500 text-white",
     cardBg: "bg-sky-50 dark:bg-sky-950/20 hover:bg-sky-50/80 dark:hover:bg-sky-950/30",
   },
@@ -124,4 +124,4 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
 };
 
 export const DISCLAIMER =
-  "Allma Safety AI is an independent, Police Integration Ready platform. It is not affiliated with any police force, ambulance, fire or government service. In an emergency always call the official emergency numbers.";
+  "Allma Safety AI is an independent safety technology platform. It is not affiliated with or operated by any government, police force, ambulance service, fire service, or emergency authority unless explicitly stated through an authorized partnership. In an emergency always call the official emergency numbers.";

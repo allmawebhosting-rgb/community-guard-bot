@@ -17,6 +17,7 @@ import {
   X,
   PhoneCall,
   Users,
+  PackageSearch,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -25,7 +26,6 @@ import { MascotAvatar } from "@/components/allma/mascot";
 import { BrandLockup } from "@/components/allma/brand";
 import { NotificationsBell } from "@/components/allma/notifications-bell";
 import { ConnectionRequestsBanner } from "@/components/allma/safety-network/connection-requests-banner";
-
 import { SosButton } from "@/components/allma/sos-button";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,7 +34,7 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-type TabPath = "/chat" | "/alerts" | "/reports" | "/profile" | "/calls";
+type TabPath = "/chat" | "/alerts" | "/reports" | "/profile" | "/calls" | "/lost-found";
 
 const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Home", to: "/chat", icon: Home },
@@ -42,6 +42,7 @@ const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Reports", to: "/reports", icon: FileText },
   { label: "Profile", to: "/profile", icon: UserRound },
   { label: "Emergency calls", to: "/calls", icon: PhoneCall },
+  { label: "Lost & Found", to: "/lost-found", icon: PackageSearch },
 ];
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────── */
@@ -540,7 +541,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAuthenticated } = useAuth();
-  const isChat = pathname === "/chat" || pathname.startsWith("/chat/");
+  const isChat = pathname === "/" || pathname === "/chat" || pathname.startsWith("/chat/");
 
 
   useEffect(() => {
@@ -640,6 +641,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
       {/* One emergency control shared by every app-shell screen. */}
       <SosButton />
+
+      {/* The call overlay + ZEGOCLOUD RTC session is mounted once in __root. */}
+
     </div>
   );
 }

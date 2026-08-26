@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/allma/app-shell";
-import { EmergencyCallsWorkspace } from "@/components/allma/emergency-calls";
+import { CallHistory } from "@/components/allma/calls/call-history";
 
 export const Route = createFileRoute("/_authenticated/calls")({
   head: () => ({
@@ -18,7 +18,18 @@ export const Route = createFileRoute("/_authenticated/calls")({
 function CallsRoute() {
   return (
     <AppShell title="Emergency calls">
-      <EmergencyCallsWorkspace />
+      <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
+        <div className="mb-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/65">
+            Voice history
+          </p>
+          <h1 className="mt-1 font-display text-2xl font-black">Allma calls</h1>
+          <p className="mt-1 text-[12px] text-muted-foreground">
+            Calls are authorized through your Safety Network and carried by ZEGOCLOUD RTC.
+          </p>
+        </div>
+        <CallHistory />
+      </div>
     </AppShell>
   );
 }

@@ -242,7 +242,7 @@ function AuthorityPage() {
               <p className="text-sm font-semibold">{demoMode ? "DEMO coordination workspace" : "Production boundary active"}</p>
               <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
                 {demoMode
-                  ? "Every authority action below is simulated and labeled DEMO. It cannot notify police, ambulance, fire, or government systems."
+                  ? "Every authority action below is simulated and labeled DEMO. This is demonstration data. Allma does not notify police, ambulance, fire, or government systems."
                   : "Official integration not configured. Cases can be prepared for an authorized operator, but no notification will be sent automatically."}
               </p>
             </div>

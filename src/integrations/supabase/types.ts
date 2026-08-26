@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -644,6 +644,66 @@ export type Database = {
         }
         Relationships: []
       }
+      emergency_call_invitations: {
+        Row: {
+          accepted_at: string | null
+          call_session_id: string
+          cancelled_at: string | null
+          created_at: string
+          declined_at: string | null
+          delivered_at: string | null
+          emergency_id: string
+          id: string
+          recipient_user_id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          call_session_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          declined_at?: string | null
+          delivered_at?: string | null
+          emergency_id: string
+          id?: string
+          recipient_user_id: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          call_session_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          declined_at?: string | null
+          delivered_at?: string | null
+          emergency_id?: string
+          id?: string
+          recipient_user_id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_call_invitations_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_calls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_call_invitations_emergency_id_fkey"
+            columns: ["emergency_id"]
+            isOneToOne: false
+            referencedRelation: "safety_activity"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emergency_calls: {
         Row: {
           accepted_at: string | null
@@ -663,6 +723,8 @@ export type Database = {
           started_at: string | null
           status: string
           updated_at: string
+          zego_room_id: string | null
+          zego_session_id: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -682,6 +744,8 @@ export type Database = {
           started_at?: string | null
           status?: string
           updated_at?: string
+          zego_room_id?: string | null
+          zego_session_id?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -701,6 +765,8 @@ export type Database = {
           started_at?: string | null
           status?: string
           updated_at?: string
+          zego_room_id?: string | null
+          zego_session_id?: string | null
         }
         Relationships: []
       }
@@ -821,6 +887,111 @@ export type Database = {
           longitude?: number | null
           name?: string
           phone?: string | null
+        }
+        Relationships: []
+      }
+      health_reminder_settings: {
+        Row: {
+          call_window_end: string
+          call_window_start: string
+          calls_enabled: boolean
+          created_at: string
+          do_not_disturb: boolean
+          notifications_enabled: boolean
+          opted_in: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          call_window_end?: string
+          call_window_start?: string
+          calls_enabled?: boolean
+          created_at?: string
+          do_not_disturb?: boolean
+          notifications_enabled?: boolean
+          opted_in?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          call_window_end?: string
+          call_window_start?: string
+          calls_enabled?: boolean
+          created_at?: string
+          do_not_disturb?: boolean
+          notifications_enabled?: boolean
+          opted_in?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      health_reminders: {
+        Row: {
+          appointment_date: string
+          appointment_time: string
+          call_enabled: boolean
+          call_time: string | null
+          created_at: string
+          facility_optional: string | null
+          health_context_optional: string | null
+          id: string
+          last_delivered_at: string | null
+          next_delivery_at: string | null
+          notes_optional: string | null
+          notification_enabled: boolean
+          recurrence: Json
+          reminder_schedule: Json
+          reminder_type: string
+          status: string
+          timezone: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_date: string
+          appointment_time: string
+          call_enabled?: boolean
+          call_time?: string | null
+          created_at?: string
+          facility_optional?: string | null
+          health_context_optional?: string | null
+          id?: string
+          last_delivered_at?: string | null
+          next_delivery_at?: string | null
+          notes_optional?: string | null
+          notification_enabled?: boolean
+          recurrence?: Json
+          reminder_schedule?: Json
+          reminder_type: string
+          status?: string
+          timezone?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_date?: string
+          appointment_time?: string
+          call_enabled?: boolean
+          call_time?: string | null
+          created_at?: string
+          facility_optional?: string | null
+          health_context_optional?: string | null
+          id?: string
+          last_delivered_at?: string | null
+          next_delivery_at?: string | null
+          notes_optional?: string | null
+          notification_enabled?: boolean
+          recurrence?: Json
+          reminder_schedule?: Json
+          reminder_type?: string
+          status?: string
+          timezone?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1073,6 +1244,53 @@ export type Database = {
         }
         Relationships: []
       }
+      lost_found_claims: {
+        Row: {
+          claimant_name: string
+          claimant_phone: string
+          created_at: string
+          id: string
+          item_id: string
+          proof_text: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          claimant_name: string
+          claimant_phone: string
+          created_at?: string
+          id?: string
+          item_id: string
+          proof_text: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          claimant_name?: string
+          claimant_phone?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          proof_text?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_claims_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "lost_found_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lost_found_items: {
         Row: {
           claimed_by: string | null
@@ -1131,6 +1349,62 @@ export type Database = {
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lost_found_public_reports: {
+        Row: {
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          description: string | null
+          district: string | null
+          id: string
+          item_type: string
+          location_text: string | null
+          matched_item_id: string | null
+          occurred_on: string | null
+          photo_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          id?: string
+          item_type: string
+          location_text?: string | null
+          matched_item_id?: string | null
+          occurred_on?: string | null
+          photo_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          description?: string | null
+          district?: string | null
+          id?: string
+          item_type?: string
+          location_text?: string | null
+          matched_item_id?: string | null
+          occurred_on?: string | null
+          photo_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_public_reports_matched_item_id_fkey"
+            columns: ["matched_item_id"]
+            isOneToOne: false
+            referencedRelation: "lost_found_items"
             referencedColumns: ["id"]
           },
         ]
@@ -2348,6 +2622,35 @@ export type Database = {
           },
         ]
       }
+      sos_welfare_checks: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          sos_activity_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          sos_activity_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          sos_activity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sos_welfare_checks_sos_activity_id_fkey"
+            columns: ["sos_activity_id"]
+            isOneToOne: true
+            referencedRelation: "safety_activity"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       threads: {
         Row: {
           created_at: string
@@ -2399,11 +2702,77 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_configuration: {
+        Row: {
+          created_at: string
+          id: boolean
+          responder_timeout_seconds: number
+          token_ttl_seconds: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          responder_timeout_seconds?: number
+          token_ttl_seconds?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          responder_timeout_seconds?: number
+          token_ttl_seconds?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      accept_emergency_call_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: {
+          accepted: boolean
+          call_session_id: string
+        }[]
+      }
+      claim_due_health_reminders: {
+        Args: { p_limit?: number }
+        Returns: {
+          appointment_date: string
+          appointment_time: string
+          call_enabled: boolean
+          call_time: string | null
+          created_at: string
+          facility_optional: string | null
+          health_context_optional: string | null
+          id: string
+          last_delivered_at: string | null
+          next_delivery_at: string | null
+          notes_optional: string | null
+          notification_enabled: boolean
+          recurrence: Json
+          reminder_schedule: Json
+          reminder_type: string
+          status: string
+          timezone: string
+          title: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "health_reminders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      confirm_sos_welfare_check: {
+        Args: { p_sos_activity_id: string }
+        Returns: undefined
+      }
       create_sos_responder_offers: {
         Args: { p_radius_meters?: number; p_sos_activity_id: string }
         Returns: {
@@ -2414,6 +2783,7 @@ export type Database = {
           status: string
         }[]
       }
+      deliver_due_health_reminders: { Args: never; Returns: number }
       escalate_smart_sos_check: {
         Args: { _check_id: string; _confidence: string; _signals?: Json }
         Returns: Json
@@ -2514,6 +2884,7 @@ export type Database = {
       list_sos_call_attempts: {
         Args: { p_sos_activity_id: string }
         Returns: {
+          accepted_at: string
           avatar_url: string
           call_id: string
           connected_at: string
@@ -2635,6 +3006,8 @@ export type Database = {
           started_at: string | null
           status: string
           updated_at: string
+          zego_room_id: string | null
+          zego_session_id: string | null
         }
         SetofOptions: {
           from: "*"

@@ -4,7 +4,6 @@ import {
   MapPin,
   Mic,
   MicOff,
-  Network,
   Phone,
   PhoneOff,
   ShieldCheck,
@@ -17,22 +16,23 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyIncomingCall } from "@/lib/push.functions";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
-import { getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
+import { acceptEmergencyCallInvitation, getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
 import { startSosEmergencyCall } from "@/lib/sos-calling";
 import {
   VoiceCallEngine,
   formatDuration,
   microphoneErrorMessage,
   onVoiceCallRequest,
+  registerVoiceDevice,
   setCallStatus,
   startVoiceCall,
   type CallPeer,
   type ConnectionQuality,
-} from "@/lib/voice-call";
+} from "@/lib/zego-call";
 
 type Phase = "idle" | "outgoing" | "incoming" | "active" | "ended";
 
-const RING_TIMEOUT_MS = 45_000;
+const RING_TIMEOUT_MS = 40_000;
 
 const qualityCopy: Record<ConnectionQuality, string> = {
   connecting: "Connecting…",
@@ -52,15 +52,21 @@ export function CallCenter() {
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(true);
   const [endedNote, setEndedNote] = useState<string | null>(null);
-  const [relay, setRelay] = useState<boolean | null>(null);
   const [emergency, setEmergency] = useState<EmergencyCallContext | null>(null);
 
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
+  const sosOutgoingRef = useRef(new Map<string, CallPeer>());
+  const sosPrimaryClaimedRef = useRef(false);
+  const sosWinnerClaimedRef = useRef(false);
+  const phaseRef = useRef<Phase>("idle");
   const namesRef = useRef<Map<string, CallPeer>>(new Map());
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const peerRef = useRef<CallPeer | null>(null);
+  const isCallerRef = useRef(false);
   peerRef.current = peer;
+  isCallerRef.current = isCaller;
+  phaseRef.current = phase;
 
   const teardown = useCallback((note: string | null) => {
     engineRef.current?.close();
@@ -68,12 +74,14 @@ export function CallCenter() {
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     ringTimerRef.current = null;
     callIdRef.current = null;
+    sosOutgoingRef.current.clear();
+    sosPrimaryClaimedRef.current = false;
+    sosWinnerClaimedRef.current = false;
     setCallId(null);
     setSeconds(0);
     setMuted(false);
     setQuality("connecting");
     setEndedNote(note);
-    setRelay(null);
     setEmergency(null);
     setPhase(note ? "ended" : "idle");
     if (note) setTimeout(() => setPhase((current) => (current === "ended" ? "idle" : current)), 2600);
@@ -87,6 +95,9 @@ export function CallCenter() {
       if (!active) return;
       setUserId(data.user?.id ?? null);
       if (!data.user) return;
+        void registerVoiceDevice().catch((error) => {
+          console.warn("Allma Voice device registration unavailable", error);
+        });
       const { data: connections } = await supabase.rpc("list_safety_connections");
       if (!active) return;
       const map = new Map<string, CallPeer>();
@@ -108,11 +119,14 @@ export function CallCenter() {
     async (id: string, caller: boolean) => {
       const engine = new VoiceCallEngine(id, userId!, caller, {
         onQuality: setQuality,
-        onRelay: setRelay,
         onConnected: () => {
           setQuality("good");
           setPhase("active");
-          if (caller) void setCallStatus(id, "connected").catch(() => undefined);
+          void setCallStatus(id, "connected").catch(() => undefined);
+        },
+        onEnded: () => {
+          void setCallStatus(id, "ended").catch(() => undefined);
+          teardown("Call ended");
         },
         onFailed: (message) => {
           void setCallStatus(id, "failed", message).catch(() => undefined);
@@ -127,36 +141,50 @@ export function CallCenter() {
 
   // Outgoing call requests from anywhere in the app.
   useEffect(() => {
+    // Do not consume an SOS auto-call until authentication has restored. The
+    // request queue in zego-call will replay it once this listener is ready.
+    if (!userId) return;
     return onVoiceCallRequest((requested) => {
       void (async () => {
-        if (!userId) {
-          toast.error("Sign in to make an Allma call.");
-          return;
-        }
-        if (callIdRef.current) {
+        if (callIdRef.current && !requested.sosActivityId) {
           toast.error("You are already on a call.");
           return;
         }
-        setPeer(requested);
-        setIsCaller(true);
-        setPhase("outgoing");
-        setEndedNote(null);
-        setQuality("connecting");
+        const isPrimarySosCall = Boolean(
+          requested.sosActivityId && !callIdRef.current && !sosPrimaryClaimedRef.current,
+        );
+        if (isPrimarySosCall) {
+          sosPrimaryClaimedRef.current = true;
+          setPeer(requested);
+          setIsCaller(true);
+          setPhase("outgoing");
+          setEndedNote(null);
+          setQuality("connecting");
+        }
+        let id: string | null = null;
         try {
           // SOS calls go through the SOS-scoped RPC so the server can verify the
           // caller owns that emergency and link the call to it.
-          const id = requested.sosActivityId
+          id = requested.sosActivityId
             ? await startSosEmergencyCall(requested.id, requested.sosActivityId)
             : await startVoiceCall(requested.id);
-          callIdRef.current = id;
-          setCallId(id);
+          if (isPrimarySosCall || !requested.sosActivityId) callIdRef.current = id;
+          sosOutgoingRef.current.set(id, requested);
+          if (isPrimarySosCall) setCallId(id);
           // Best-effort: rings the recipient's device even if their app is closed.
           void notifyIncomingCall({ data: { callId: id } }).catch(() => undefined);
-          await beginEngine(id, true);
-          ringTimerRef.current = setTimeout(() => {
-            void setCallStatus(id, "missed").catch(() => undefined);
-            teardown(`${requested.name} did not answer.`);
-          }, RING_TIMEOUT_MS);
+          // Join from the user's Call tap so iOS Safari permits microphone access.
+          // CONNECTED is still deferred until ZEGOCLOUD reports a remote stream.
+          if (isPrimarySosCall || !requested.sosActivityId) {
+            const activeId = id;
+            await beginEngine(activeId, true);
+            await setCallStatus(activeId, "connecting");
+            ringTimerRef.current = setTimeout(() => {
+              void setCallStatus(activeId, "missed").catch(() => undefined);
+              teardown(`${requested.name} did not answer.`);
+            }, RING_TIMEOUT_MS);
+          }
+
         } catch (error) {
           const message =
             error instanceof DOMException
@@ -164,11 +192,12 @@ export function CallCenter() {
               : error instanceof Error
                 ? error.message
                 : "The call could not be placed.";
-          if (callIdRef.current) {
-            await setCallStatus(callIdRef.current, "failed", message).catch(() => undefined);
+          if (id && callIdRef.current === id) {
+            await setCallStatus(id, "failed", message).catch(() => undefined);
           }
-          teardown(message);
-          toast.error(message);
+          requested.onError?.(message);
+          if (isPrimarySosCall || !requested.sosActivityId) teardown(message);
+          if (isPrimarySosCall || !requested.sosActivityId) toast.error(message);
         }
       })();
     });
@@ -178,7 +207,10 @@ export function CallCenter() {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel(`allma-calls-${userId}`)
+      // Unique topic per mount: reusing a topic returns an already-subscribed
+      // channel, and adding listeners to that throws.
+      .channel(`allma-calls-${userId}-${Math.random().toString(36).slice(2)}`)
+
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "emergency_calls", filter: `recipient_id=eq.${userId}` },
@@ -206,10 +238,40 @@ export function CallCenter() {
         { event: "UPDATE", schema: "public", table: "emergency_calls" },
         (payload) => {
           const row = payload.new as { id: string; status: string };
+          const pendingSosPeer = sosOutgoingRef.current.get(row.id);
+          if (row.id !== callIdRef.current && pendingSosPeer && (row.status === "connecting" || row.status === "connected") && phaseRef.current === "outgoing" && !sosWinnerClaimedRef.current) {
+            sosWinnerClaimedRef.current = true;
+            engineRef.current?.close();
+            engineRef.current = null;
+            callIdRef.current = row.id;
+            setCallId(row.id);
+            setPeer(pendingSosPeer);
+            void beginEngine(row.id, true).then(() => setCallStatus(row.id, "connecting")).catch(() => undefined);
+          }
           if (row.id !== callIdRef.current) return;
           if (row.status === "declined") teardown(`${peerRef.current?.name ?? "They"} declined the call.`);
           else if (row.status === "ended") teardown("Call ended");
           else if (row.status === "missed") teardown("No answer");
+          else if (row.status === "connecting" || row.status === "connected") {
+            // The other side answered: stop the ring timeout so the call is never
+            // cut off while the audio streams are still being negotiated.
+            if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
+            ringTimerRef.current = null;
+            setPhase("active");
+            if (isCallerRef.current && !engineRef.current) {
+              void beginEngine(row.id, true).catch(async (error) => {
+                const message =
+                  error instanceof DOMException
+                    ? microphoneErrorMessage(error)
+                    : error instanceof Error
+                      ? error.message
+                      : "The voice connection could not start.";
+                await setCallStatus(row.id, "failed", message).catch(() => undefined);
+                teardown(message);
+                toast.error(message);
+              });
+            }
+          }
         },
       )
       .subscribe();
@@ -218,6 +280,38 @@ export function CallCenter() {
       void supabase.removeChannel(channel);
     };
     // Deliberately keyed only on identity: re-subscribing per render would leak channels.
+  }, [beginEngine, teardown, userId]);
+
+  // Cold-start recovery: a notification can open /calls after the realtime
+  // INSERT has already happened. Read only the authenticated recipient's live
+  // call row; sensitive emergency context is fetched through its RPC below.
+  useEffect(() => {
+    if (!userId || callIdRef.current || typeof window === "undefined") return;
+    const id = new URLSearchParams(window.location.search).get("call");
+    if (!id) return;
+    void (async () => {
+      const { data: row } = await supabase
+        .from("emergency_calls")
+        .select("id, caller_id, status")
+        .eq("id", id)
+        .eq("recipient_id", userId)
+        .in("status", ["initiating", "ringing", "connecting"])
+        .maybeSingle();
+      if (!row || callIdRef.current) return;
+      const known = namesRef.current.get(row.caller_id);
+      callIdRef.current = row.id;
+      setCallId(row.id);
+      setPeer(known ?? { id: row.caller_id, name: "Allma member" });
+      setIsCaller(false);
+      setEndedNote(null);
+      setEmergency(null);
+      setPhase("incoming");
+      void setCallStatus(row.id, "ringing").catch(() => undefined);
+      void getEmergencyCallContext(row.id).then((context) => {
+        if (callIdRef.current === row.id && context?.is_emergency) setEmergency(context);
+      });
+      ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
+    })();
   }, [teardown, userId]);
 
   // Call timer starts only when real audio is connected.
@@ -227,6 +321,28 @@ export function CallCenter() {
     return () => clearInterval(timer);
   }, [phase, quality]);
 
+  // Spoken announcement for emergency calls, so a recipient who only hears the
+  // device still learns who needs help. Uses the caller's real SOS record.
+  useEffect(() => {
+    if (phase !== "incoming" || !emergency?.is_emergency) return;
+    const speech = typeof window !== "undefined" ? window.speechSynthesis : undefined;
+    if (!speech) return;
+    const first = (emergency.caller_name || peerRef.current?.name || "An Allma member").split(" ")[0];
+    const type = emergency.emergency_type.replace(/_/g, " ");
+    const utterance = new SpeechSynthesisUtterance(
+      `${first} is in danger. ${type} emergency on Allma. Please answer.`,
+    );
+    utterance.rate = 1;
+    const timer = setInterval(() => {
+      if (!speech.speaking) speech.speak(utterance);
+    }, 6000);
+    speech.speak(utterance);
+    return () => {
+      clearInterval(timer);
+      speech.cancel();
+    };
+  }, [emergency, phase]);
+
   useEffect(() => () => engineRef.current?.close(), []);
 
   const answer = async () => {
@@ -234,8 +350,16 @@ export function CallCenter() {
     if (!id) return;
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     try {
+      const invitationId = new URLSearchParams(window.location.search).get("invitation");
+      if (invitationId) {
+        const result = await acceptEmergencyCallInvitation(invitationId);
+        if (!result.accepted) {
+          toast.message("Another responder has already accepted this emergency.");
+          teardown("Another responder has accepted this emergency.");
+          return;
+        }
+      }
       await setCallStatus(id, "connecting");
-      setPhase("active");
       await beginEngine(id, false);
     } catch (error) {
       const message =
@@ -330,7 +454,11 @@ export function CallCenter() {
               <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={112} />
             </motion.div>
 
-            <h2 className="mt-6 text-2xl font-bold tracking-tight">{peer?.name ?? "Allma member"}</h2>
+            <h2 className="mt-6 text-2xl font-bold tracking-tight">
+              {isEmergencyCall && phase === "incoming"
+                ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
+                : (peer?.name ?? "Allma member")}
+            </h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               {emergency && phase === "incoming"
                 ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
@@ -349,6 +477,16 @@ export function CallCenter() {
                   <MapPin className="h-3.5 w-3.5" />
                   {emergency.location_shared ? emergency.area : "Location not shared with you"}
                 </p>
+                {emergency.location_shared && emergency.latitude !== null && emergency.longitude !== null && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${emergency.latitude},${emergency.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    View shared location
+                  </a>
+                )}
               </div>
             )}
 
@@ -363,25 +501,6 @@ export function CallCenter() {
               In-app call · phone numbers stay private
             </p>
 
-            {relay !== null && phase !== "ended" && (
-              <p
-                className={cn(
-                  "mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium",
-                  relay ? "text-muted-foreground" : "text-gold",
-                )}
-              >
-                {relay ? (
-                  <>
-                    <Network className="h-3.5 w-3.5" /> Relay active — works on mobile networks
-                  </>
-                ) : (
-                  <>
-                    <Network className="h-3.5 w-3.5" /> Direct connection only — may fail on some
-                    mobile networks
-                  </>
-                )}
-              </p>
-            )}
           </div>
 
           <div className="relative px-6 pb-[max(2rem,env(safe-area-inset-bottom))]">

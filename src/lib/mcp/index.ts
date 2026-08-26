@@ -15,7 +15,7 @@ export default defineMcp({
   title: "Remix of Remix of Remix of Allma Safety AI",
   version: "0.1.0",
   instructions:
-    "Tools for Allma Safety AI, a Uganda citizen safety assistant. Use them to file and track a signed-in citizen's safety reports, read published community alerts, find police stations and hospitals, and manage emergency contacts. These tools are for non-emergency use: for a life-threatening emergency, tell the user to call 999 or press SOS in the app.",
+    "Tools for Allma Safety AI, a Uganda citizen safety assistant. Use them to file and track a signed-in citizen's safety reports, read published nearby resources, find police stations and hospitals, and manage emergency contacts. These tools are for non-emergency use: for a life-threatening emergency, tell the user to call 999 or press SOS in the app.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

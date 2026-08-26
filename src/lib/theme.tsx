@@ -7,17 +7,17 @@ type ThemeContextValue = {
   toggleTheme: () => void;
 };
 
-const ThemeContext = createContext<ThemeContextValue>({ theme: "dark", toggleTheme: () => {} });
+const ThemeContext = createContext<ThemeContextValue>({ theme: "light", toggleTheme: () => {} });
 
 const STORAGE_KEY = "allma-theme";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-    // Allma is dark-first by design; only an explicit stored choice switches it.
-    const preferred: Theme = stored ?? "dark";
+    // Allma is light-first (Uganda flag palette); only an explicit stored choice switches it.
+    const preferred: Theme = stored ?? "light";
     setTheme(preferred);
   }, []);
 
@@ -25,6 +25,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
+
 
   const toggleTheme = useCallback(() => {
     setTheme((current) => (current === "dark" ? "light" : "dark"));

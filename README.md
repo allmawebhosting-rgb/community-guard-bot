@@ -500,6 +500,24 @@ Build a modular architecture so this project can later become part of the larger
 
 ------------------------------------------------
 
+ZEGOCLOUD VOICE CALLING
+
+ALLMA uses ZEGOCLOUD RTC for authenticated Safety Network and SOS voice calls. Existing ALLMA authorization, call history, realtime incoming-call UI, and sequential SOS escalation remain the source of truth.
+
+Configure these server-side secrets:
+
+```text
+ZEGOCLOUD_APP_ID
+ZEGOCLOUD_SERVER_SECRET
+ZEGOCLOUD_SERVER_URL
+```
+
+`ZEGOCLOUD_SERVER_SECRET` must never use a `VITE_` prefix or appear in frontend code. The authenticated backend endpoint `POST /api/zego-token` verifies the existing `emergency_calls` participant relationship before issuing a short-lived token and unique `allma-call-{callId}` room.
+
+The web RTC SDK is loaded only when a user answers or starts a call. Native Capacitor background calling, APNs/FCM call notifications, iOS CallKit, and Android Telecom integration require native projects and physical-device configuration; this repository does not claim those native behaviors are complete.
+
+------------------------------------------------
+
 IMPORTANT
 
 Do not imply that this platform is officially connected to the Uganda Police Force or any emergency service.
@@ -530,3 +548,26 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Twilio Voice setup
+
+ALLMA now uses Twilio Voice for the existing Safety Network and SOS call flows. The browser receives only short-lived access tokens; Twilio auth secrets stay server-side.
+
+Configure these server secrets in the deployment environment:
+
+```text
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+TWILIO_API_KEY
+TWILIO_API_SECRET
+TWILIO_TWIML_APP_SID
+SUPABASE_URL
+SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+Set the Twilio Voice application Voice URL to `https://<your-domain>/api/voice-twiml` using POST. The TwiML route validates Twilio signatures, authorizes the existing ALLMA call record, and routes only to the authorized ALLMA recipient. Set the status callback URL to `https://<your-domain>/api/voice-status` using POST.
+
+Apply the migration `supabase/migrations/20260819090000_twilio_voice_foundation.sql` before enabling calling. It adds Twilio metadata, indexes, and centralized responder/token configuration without creating a duplicate call table.
+
+The current workspace has no Capacitor iOS/Android projects. Web calling is implemented through the Twilio Voice JavaScript SDK. Native background and locked-screen incoming calls still require a Capacitor bridge using Twilio Voice native SDKs, APNs/FCM credentials, CallKit on iOS, and Android Telecom/foreground-service setup; they are not claimed as complete here.

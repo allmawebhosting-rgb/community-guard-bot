@@ -164,7 +164,7 @@ Step 1 — Emergency SOS
 Step 2 — Crime Reporting
 Step 3 — Missing Persons
 Step 4 — Lost & Found
-Step 5 — Community Alerts
+Step 5 — Nearby Help
 Step 6 — AI Safety Assistant
 Then say: "You're all set. How can I help you today?"
 

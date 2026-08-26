@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as LostFoundRouteImport } from './routes/lost-found'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NearbyRouteImport } from './routes/nearby'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -21,13 +22,15 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedCallsRouteImport } from './routes/_authenticated/calls'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedHealthRemindersRouteImport } from './routes/_authenticated/health-reminders'
 import { Route as AuthenticatedPoliceRouteImport } from './routes/_authenticated/police'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedResponderRouteImport } from './routes/_authenticated/responder'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiHealthRemindersDeliverRouteImport } from './routes/api/health-reminders-deliver'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
-import { Route as ApiVoiceRouteImport } from './routes/api/voice'
+import { Route as ApiZegoTokenRouteImport } from './routes/api/zego-token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
@@ -41,6 +44,7 @@ import { Route as AuthenticatedPoliceAuthorityRouteImport } from './routes/_auth
 import { Route as AuthenticatedPoliceCommsRouteImport } from './routes/_authenticated/police.comms'
 import { Route as AuthenticatedPoliceDispatchRouteImport } from './routes/_authenticated/police.dispatch'
 import { Route as AuthenticatedPoliceIncidentsRouteImport } from './routes/_authenticated/police.incidents'
+import { Route as AuthenticatedPoliceLocationsRouteImport } from './routes/_authenticated/police.locations'
 import { Route as AuthenticatedPoliceMapRouteImport } from './routes/_authenticated/police.map'
 import { Route as AuthenticatedPoliceNationalRouteImport } from './routes/_authenticated/police.national'
 import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authenticated/police.officers'
@@ -66,6 +70,11 @@ const AlertsRoute = AlertsRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LostFoundRoute = LostFoundRouteImport.update({
+  id: '/lost-found',
+  path: '/lost-found',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -110,6 +119,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHealthRemindersRoute =
+  AuthenticatedHealthRemindersRouteImport.update({
+    id: '/health-reminders',
+    path: '/health-reminders',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPoliceRoute = AuthenticatedPoliceRouteImport.update({
   id: '/police',
   path: '/police',
@@ -135,14 +150,20 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRemindersDeliverRoute =
+  ApiHealthRemindersDeliverRouteImport.update({
+    id: '/api/health-reminders-deliver',
+    path: '/api/health-reminders-deliver',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   id: '/api/transcribe',
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiVoiceRoute = ApiVoiceRouteImport.update({
-  id: '/api/voice',
-  path: '/api/voice',
+const ApiZegoTokenRoute = ApiZegoTokenRouteImport.update({
+  id: '/api/zego-token',
+  path: '/api/zego-token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
@@ -220,6 +241,12 @@ const AuthenticatedPoliceIncidentsRoute =
     path: '/incidents',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const AuthenticatedPoliceLocationsRoute =
+  AuthenticatedPoliceLocationsRouteImport.update({
+    id: '/locations',
+    path: '/locations',
+    getParentRoute: () => AuthenticatedPoliceRoute,
+  } as any)
 const AuthenticatedPoliceMapRoute = AuthenticatedPoliceMapRouteImport.update({
   id: '/map',
   path: '/map',
@@ -266,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
@@ -274,13 +302,15 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/calls': typeof AuthenticatedCallsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/health-reminders': typeof AuthenticatedHealthRemindersRoute
   '/police': typeof AuthenticatedPoliceRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/api/voice': typeof ApiVoiceRoute
+  '/api/zego-token': typeof ApiZegoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -292,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
+  '/police/locations': typeof AuthenticatedPoliceLocationsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
   '/police/national': typeof AuthenticatedPoliceNationalRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
@@ -306,6 +337,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
@@ -314,12 +346,14 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/calls': typeof AuthenticatedCallsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/health-reminders': typeof AuthenticatedHealthRemindersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/api/voice': typeof ApiVoiceRoute
+  '/api/zego-token': typeof ApiZegoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -331,6 +365,7 @@ export interface FileRoutesByTo {
   '/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
+  '/police/locations': typeof AuthenticatedPoliceLocationsRoute
   '/police/map': typeof AuthenticatedPoliceMapRoute
   '/police/national': typeof AuthenticatedPoliceNationalRoute
   '/police/officers': typeof AuthenticatedPoliceOfficersRoute
@@ -347,6 +382,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
@@ -355,13 +391,15 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/calls': typeof AuthenticatedCallsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/health-reminders': typeof AuthenticatedHealthRemindersRoute
   '/_authenticated/police': typeof AuthenticatedPoliceRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/responder': typeof AuthenticatedResponderRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/api/voice': typeof ApiVoiceRoute
+  '/api/zego-token': typeof ApiZegoTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -373,6 +411,7 @@ export interface FileRoutesById {
   '/_authenticated/police/comms': typeof AuthenticatedPoliceCommsRoute
   '/_authenticated/police/dispatch': typeof AuthenticatedPoliceDispatchRoute
   '/_authenticated/police/incidents': typeof AuthenticatedPoliceIncidentsRoute
+  '/_authenticated/police/locations': typeof AuthenticatedPoliceLocationsRoute
   '/_authenticated/police/map': typeof AuthenticatedPoliceMapRoute
   '/_authenticated/police/national': typeof AuthenticatedPoliceNationalRoute
   '/_authenticated/police/officers': typeof AuthenticatedPoliceOfficersRoute
@@ -389,6 +428,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/auth'
+    | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
@@ -397,13 +437,15 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/calls'
     | '/dashboard'
+    | '/health-reminders'
     | '/police'
     | '/profile'
     | '/reports'
     | '/responder'
     | '/api/chat'
+    | '/api/health-reminders-deliver'
     | '/api/transcribe'
-    | '/api/voice'
+    | '/api/zego-token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -415,6 +457,7 @@ export interface FileRouteTypes {
     | '/police/comms'
     | '/police/dispatch'
     | '/police/incidents'
+    | '/police/locations'
     | '/police/map'
     | '/police/national'
     | '/police/officers'
@@ -429,6 +472,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/auth'
+    | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
@@ -437,12 +481,14 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/calls'
     | '/dashboard'
+    | '/health-reminders'
     | '/profile'
     | '/reports'
     | '/responder'
     | '/api/chat'
+    | '/api/health-reminders-deliver'
     | '/api/transcribe'
-    | '/api/voice'
+    | '/api/zego-token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -454,6 +500,7 @@ export interface FileRouteTypes {
     | '/police/comms'
     | '/police/dispatch'
     | '/police/incidents'
+    | '/police/locations'
     | '/police/map'
     | '/police/national'
     | '/police/officers'
@@ -469,6 +516,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/alerts'
     | '/auth'
+    | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
@@ -477,13 +525,15 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/calls'
     | '/_authenticated/dashboard'
+    | '/_authenticated/health-reminders'
     | '/_authenticated/police'
     | '/_authenticated/profile'
     | '/_authenticated/reports'
     | '/_authenticated/responder'
     | '/api/chat'
+    | '/api/health-reminders-deliver'
     | '/api/transcribe'
-    | '/api/voice'
+    | '/api/zego-token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/chat/$threadId'
@@ -495,6 +545,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police/comms'
     | '/_authenticated/police/dispatch'
     | '/_authenticated/police/incidents'
+    | '/_authenticated/police/locations'
     | '/_authenticated/police/map'
     | '/_authenticated/police/national'
     | '/_authenticated/police/officers'
@@ -511,6 +562,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AlertsRoute: typeof AlertsRoute
   AuthRoute: typeof AuthRoute
+  LostFoundRoute: typeof LostFoundRoute
   McpRoute: typeof McpRoute
   NearbyRoute: typeof NearbyRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -518,8 +570,9 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiHealthRemindersDeliverRoute: typeof ApiHealthRemindersDeliverRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
-  ApiVoiceRoute: typeof ApiVoiceRoute
+  ApiZegoTokenRoute: typeof ApiZegoTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
@@ -552,6 +605,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lost-found': {
+      id: '/lost-found'
+      path: '/lost-found'
+      fullPath: '/lost-found'
+      preLoaderRoute: typeof LostFoundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -610,6 +670,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/health-reminders': {
+      id: '/_authenticated/health-reminders'
+      path: '/health-reminders'
+      fullPath: '/health-reminders'
+      preLoaderRoute: typeof AuthenticatedHealthRemindersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/police': {
       id: '/_authenticated/police'
       path: '/police'
@@ -645,6 +712,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health-reminders-deliver': {
+      id: '/api/health-reminders-deliver'
+      path: '/api/health-reminders-deliver'
+      fullPath: '/api/health-reminders-deliver'
+      preLoaderRoute: typeof ApiHealthRemindersDeliverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/transcribe': {
       id: '/api/transcribe'
       path: '/api/transcribe'
@@ -652,11 +726,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/voice': {
-      id: '/api/voice'
-      path: '/api/voice'
-      fullPath: '/api/voice'
-      preLoaderRoute: typeof ApiVoiceRouteImport
+    '/api/zego-token': {
+      id: '/api/zego-token'
+      path: '/api/zego-token'
+      fullPath: '/api/zego-token'
+      preLoaderRoute: typeof ApiZegoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -750,6 +824,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceIncidentsRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/_authenticated/police/locations': {
+      id: '/_authenticated/police/locations'
+      path: '/locations'
+      fullPath: '/police/locations'
+      preLoaderRoute: typeof AuthenticatedPoliceLocationsRouteImport
+      parentRoute: typeof AuthenticatedPoliceRoute
+    }
     '/_authenticated/police/map': {
       id: '/_authenticated/police/map'
       path: '/map'
@@ -811,6 +892,7 @@ interface AuthenticatedPoliceRouteChildren {
   AuthenticatedPoliceCommsRoute: typeof AuthenticatedPoliceCommsRoute
   AuthenticatedPoliceDispatchRoute: typeof AuthenticatedPoliceDispatchRoute
   AuthenticatedPoliceIncidentsRoute: typeof AuthenticatedPoliceIncidentsRoute
+  AuthenticatedPoliceLocationsRoute: typeof AuthenticatedPoliceLocationsRoute
   AuthenticatedPoliceMapRoute: typeof AuthenticatedPoliceMapRoute
   AuthenticatedPoliceNationalRoute: typeof AuthenticatedPoliceNationalRoute
   AuthenticatedPoliceOfficersRoute: typeof AuthenticatedPoliceOfficersRoute
@@ -830,6 +912,7 @@ const AuthenticatedPoliceRouteChildren: AuthenticatedPoliceRouteChildren = {
   AuthenticatedPoliceCommsRoute: AuthenticatedPoliceCommsRoute,
   AuthenticatedPoliceDispatchRoute: AuthenticatedPoliceDispatchRoute,
   AuthenticatedPoliceIncidentsRoute: AuthenticatedPoliceIncidentsRoute,
+  AuthenticatedPoliceLocationsRoute: AuthenticatedPoliceLocationsRoute,
   AuthenticatedPoliceMapRoute: AuthenticatedPoliceMapRoute,
   AuthenticatedPoliceNationalRoute: AuthenticatedPoliceNationalRoute,
   AuthenticatedPoliceOfficersRoute: AuthenticatedPoliceOfficersRoute,
@@ -846,6 +929,7 @@ const AuthenticatedPoliceRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCallsRoute: typeof AuthenticatedCallsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedHealthRemindersRoute: typeof AuthenticatedHealthRemindersRoute
   AuthenticatedPoliceRoute: typeof AuthenticatedPoliceRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
@@ -857,6 +941,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCallsRoute: AuthenticatedCallsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedHealthRemindersRoute: AuthenticatedHealthRemindersRoute,
   AuthenticatedPoliceRoute: AuthenticatedPoliceRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
@@ -873,6 +958,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AlertsRoute: AlertsRoute,
   AuthRoute: AuthRoute,
+  LostFoundRoute: LostFoundRoute,
   McpRoute: McpRoute,
   NearbyRoute: NearbyRoute,
   OnboardingRoute: OnboardingRoute,
@@ -881,8 +967,9 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiHealthRemindersDeliverRoute: ApiHealthRemindersDeliverRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
-  ApiVoiceRoute: ApiVoiceRoute,
+  ApiZegoTokenRoute: ApiZegoTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }

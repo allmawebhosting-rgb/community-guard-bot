@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import {
-  Bell, ChevronRight, FileText, LogOut, MapPin, MessageSquare,
+  Bell, CalendarDays, ChevronRight, FileText, LogOut, MapPin, MessageSquare,
   Moon, Shield, Sun, UserRound, Users, LocateFixed, Loader2, Check, X,
   Navigation, CheckCircle2,
 } from "lucide-react";
@@ -12,6 +12,7 @@ import { SafetyNetworkPanel } from "@/components/allma/safety-network/safety-net
 import { BackgroundCallAlerts } from "@/components/allma/calls/background-call-alerts";
 import { RelayHealthCheck } from "@/components/allma/calls/relay-health-check";
 import { CallHistory } from "@/components/allma/calls/call-history";
+import { SmartSosPrivacyCenter } from "@/components/allma/sos/smart-sos-privacy-center";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/lib/theme";
@@ -282,10 +283,11 @@ function ProfileScreen() {
                 {[
                   { to: "/chat", icon: MessageSquare, label: "Start a conversation", desc: "Chat with Allma Safety AI" },
                   { to: "/reports", icon: FileText, label: "My reports", desc: "View your filed cases and references" },
-                  { to: "/alerts", icon: Bell, label: "Community alerts", desc: "Live safety notices for your area" },
+                  { to: "/alerts", icon: Bell, label: "Nearby help", desc: "Connect with nearby resources and opportunities" },
                   { to: "/nearby", icon: MapPin, label: "Nearby help", desc: "Find hospitals and police stations" },
+                  { to: "/health-reminders", icon: CalendarDays, label: "Health & Reminders", desc: "Keep appointments and routines on schedule" },
                   { to: "/responder", icon: Users, label: "Community responder", desc: "Opt in safely to help nearby people" },
-                  { to: "/police", icon: Shield, label: "Police command center", desc: "For verified officers only" },
+                  { to: "/police", icon: Shield, label: "Allma operations center", desc: "For authorized operators only" },
                 ].map(({ to, icon: Icon, label, desc }, idx, arr) => (
                   <Link
                     key={to}
@@ -312,6 +314,12 @@ function ProfileScreen() {
               </p>
               <div className="mb-4 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
                 <SafetyNetworkPanel />
+              </div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                Privacy center
+              </p>
+              <div className="mb-4 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
+                <SmartSosPrivacyCenter />
               </div>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
                 Allma calls

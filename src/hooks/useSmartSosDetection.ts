@@ -14,6 +14,10 @@ import {
 
 export type CheckPhase = "idle" | "checking" | "elevated";
 
+/** Final cancellable countdown before automatic hand-off to SOS. */
+const AUTO_ACTIVATION_SECONDS = 10;
+const SAFE_RECHECK_DELAY_MS = 5 * 60 * 1000;
+
 const ACTIVITY_EVENTS = [
   "pointerdown",
   "keydown",
@@ -39,16 +43,19 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   const [phase, setPhase] = useState<CheckPhase>("idle");
   const [signals, setSignals] = useState<SignalKey[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [autoSecondsLeft, setAutoSecondsLeft] = useState<number | null>(null);
   const [checkId, setCheckId] = useState<string | null>(null);
   const [audioActive, setAudioActive] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [escalationBlocked, setEscalationBlocked] = useState<string | null>(null);
 
   const idleTimer = useRef<number | null>(null);
+  const safeRecheckAt = useRef<number | null>(null);
   const tickTimer = useRef<number | null>(null);
   const phaseRef = useRef<CheckPhase>("idle");
   const signalsRef = useRef<SignalKey[]>([]);
   const checkIdRef = useRef<string | null>(null);
+  const safetyConfirmedRef = useRef(false);
   const motionRef = useRef<{ lastSpikeAt: number; stillSince: number }>({
     lastSpikeAt: 0,
     stillSince: Date.now(),
@@ -165,12 +172,14 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     setSignals([]);
     setCheckId(null);
     setSecondsLeft(0);
+    setAutoSecondsLeft(null);
     setEscalationBlocked(null);
     stopAudio();
   }, [stopAudio]);
 
   const beginCheck = useCallback(async () => {
     if (!userId || phaseRef.current !== "idle") return;
+    safetyConfirmedRef.current = false;
     const initial: SignalKey[] = ["prolonged_inactivity"];
     setSignals(initial);
     setPhase("checking");
@@ -188,10 +197,13 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
     const schedule = () => {
       if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
+      const cooldownRemaining = safeRecheckAt.current
+        ? Math.max(0, safeRecheckAt.current - Date.now())
+        : 0;
       idleTimer.current = window.setTimeout(() => {
         if (document.visibilityState === "visible") void beginCheck();
         else schedule();
-      }, Math.max(5, settings.inactivity_seconds) * 1000);
+      }, Math.max(Math.max(5, settings.inactivity_seconds) * 1000, cooldownRemaining));
     };
 
     const onActivity = () => schedule();
@@ -230,16 +242,23 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
     void (async () => {
       if (id) await logCheckEvent(id, "no_user_response", { confidence: scored.confidence });
-      if (!id || scored.confidence !== "high" || !settings.auto_escalation) {
-        if (id && scored.confidence === "high" && !settings.auto_escalation) {
+      if (safetyConfirmedRef.current) return;
+      const eligible = scored.confidence === "high" || scored.confidence === "medium";
+      if (!id || !eligible || !settings.auto_escalation) {
+        if (id && eligible && !settings.auto_escalation) {
           await logCheckEvent(id, "auto_sos_blocked", { reason: "auto_escalation_disabled" });
+          setEscalationBlocked("auto_escalation_disabled");
         }
         return;
       }
       const result = await requestAutoEscalation(id, scored.confidence, nextSignals);
+      if (safetyConfirmedRef.current) return;
       if (result.allowed) {
-        stopAudio();
-        onEscalate({ checkId: id, signals: nextSignals, confidence: scored.confidence });
+        setAutoSecondsLeft(AUTO_ACTIVATION_SECONDS);
+        await logCheckEvent(id, "auto_sos_countdown_started", {
+          seconds: AUTO_ACTIVATION_SECONDS,
+          confidence: scored.confidence,
+        });
       } else {
         setEscalationBlocked(result.reason);
         await logCheckEvent(id, "auto_sos_blocked", { reason: result.reason });
@@ -248,7 +267,29 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, secondsLeft]);
 
+  // Authorized automatic activation: final countdown, then hand off to SOS.
+  useEffect(() => {
+    if (autoSecondsLeft === null) return;
+    if (autoSecondsLeft <= 0) {
+      const id = checkIdRef.current;
+      const current = signalsRef.current;
+      if (safetyConfirmedRef.current || !id) return;
+      setAutoSecondsLeft(null);
+      stopAudio();
+      void logCheckEvent(id, "auto_sos_activated", { signals: current });
+      onEscalate({ checkId: id, signals: current, confidence: scoreSignals(current).confidence });
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setAutoSecondsLeft((current) => (current === null ? null : current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [autoSecondsLeft, onEscalate, stopAudio]);
+
+
   const confirmSafe = useCallback(async () => {
+    safetyConfirmedRef.current = true;
+    safeRecheckAt.current = Date.now() + SAFE_RECHECK_DELAY_MS;
     const id = checkIdRef.current;
     reset();
     if (id) await resolveSafetyCheck(id, "safe", { source: "user_confirmed" });
@@ -262,6 +303,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     setPhase("idle");
     setSignals([]);
     setCheckId(null);
+    setAutoSecondsLeft(null);
     if (id) onEscalate({ checkId: id, signals: current, confidence: "high" });
   }, [onEscalate, stopAudio]);
 
@@ -274,6 +316,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     signals,
     confidence,
     secondsLeft,
+    autoSecondsLeft,
     audioActive,
     audioError,
     escalationBlocked,

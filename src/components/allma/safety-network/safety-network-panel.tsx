@@ -30,7 +30,7 @@ import {
   respondToRequest,
   updateConnection,
 } from "@/lib/safety-network";
-import { requestVoiceCall } from "@/lib/voice-call";
+import { requestVoiceCall } from "@/lib/zego-call";
 import { AddSafetyContactDialog, Avatar } from "./add-safety-contact";
 
 export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {

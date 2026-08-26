@@ -42,6 +42,7 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
 import { cn } from "@/lib/utils";
+import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1061,13 +1062,9 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
   const [copied, setCopied] = useState(false);
   const level = MAP_ZOOM_LEVELS[zoom];
 
-  // Half-span of the viewport in metres → degrees for the OSM bbox.
-  const halfSpan = level.span / 2;
-  const dLat = halfSpan / 111_320;
-  const dLng = halfSpan / (111_320 * Math.max(0.2, Math.cos((location.lat * Math.PI) / 180)));
-  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - dLng},${
-    location.lat - dLat
-  },${location.lng + dLng},${location.lat + dLat}&layer=mapnik&marker=${location.lat},${location.lng}`;
+  // Google Maps embed uses the same zoom tiers as the existing map controls.
+  const googleZoom = [18, 16, 14, 12][zoom] ?? 16;
+  const mapUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}&output=embed`;
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / MAP_HEIGHT;
@@ -1157,12 +1154,12 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
 
       <div className="grid grid-cols-2 gap-2 border-t border-border/60 p-2.5">
         <a
-          href={`https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=17/${location.lat}/${location.lng}`}
+          href={`https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}`}
           target="_blank"
           rel="noreferrer"
           className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
         >
-          <ExternalLink className="h-3.5 w-3.5" /> Open in Maps
+          <ExternalLink className="h-3.5 w-3.5" /> Open in Google Maps
         </a>
         <button
           type="button"
@@ -1224,8 +1221,11 @@ function StatusTile({
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export function SOSExperience({ instant }: { instant?: boolean } = {}) {
-  const { user } = useAuth();
+export function SOSExperience({
+  instant,
+  smartCheckId,
+}: { instant?: boolean; smartCheckId?: string } = {}) {
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>(instant ? "loading" : "idle");
 
@@ -1246,6 +1246,9 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const activated = useRef(false);
+  // Guards the single emergency-session insert: without it, the auth-hydration
+  // backfill below could race the activation path and create two sessions.
+  const activityRecording = useRef(false);
 
   useEffect(() => {
     if (phase !== "help" || !location || !("geolocation" in navigator)) return;
@@ -1270,11 +1273,25 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [phase, Boolean(location)]);
 
+  // Wait for the session before auto-activating: activating first meant the
+  // emergency session row was never written, so the dialer had no session id
+  // and never placed a call.
   useEffect(() => {
-    if (!instant || activated.current) return;
+    if (!instant || authLoading || activated.current) return;
     void activateEmergency();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instant]);
+  }, [instant, authLoading]);
+
+  // Safety net: if SOS was activated before the session hydrated, record the
+  // emergency as soon as the user is known so responder calling can start.
+  useEffect(() => {
+    if (!user || !activated.current || sosActivityId || activityRecording.current) return;
+    void (async () => {
+      const id = await recordSosActivity(user.id, emergencyType);
+      if (id) setSosActivityId(id);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, sosActivityId, emergencyType]);
 
   function handleSosPress() {
     setPendingEmergencyType("other");
@@ -1290,6 +1307,42 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     setPhase("consent");
   }
 
+  async function recordSosActivity(userId: string, type: string) {
+    if (activityRecording.current) return null;
+    activityRecording.current = true;
+    const { data: activity, error } = await supabase
+      .from("safety_activity")
+      .insert({
+        user_id: userId,
+        activity_type: "sos_activated",
+        title: "Emergency SOS activated",
+        summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
+        severity: "critical",
+        location_text: "Location pending",
+        details: {
+          channel: "sos",
+          emergency_type: type,
+          location_consent: shareLocation,
+          responder_notification_consent: notifyResponders,
+          coordination_mode: "consent_based",
+          activation_mode: smartCheckId ? "smart_detection" : "manual",
+          ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
+        } as never,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.error("Failed to record SOS activity", error);
+      activityRecording.current = false;
+      return null;
+    }
+    const activityId = activity?.id ?? null;
+    if (activityId && smartCheckId) {
+      void logCheckEvent(smartCheckId, "sos_activated", { sos_activity_id: activityId });
+    }
+    return activityId;
+  }
+
   async function activateEmergency() {
     const type = pendingEmergencyType;
     if (activated.current) return;
@@ -1301,6 +1354,13 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     setEmergencyType(type);
     setPhase("loading");
     setLocationState(shareLocation ? "finding" : "skipped");
+
+    let activityId: string | null = null;
+    if (user) {
+      activityId = await recordSosActivity(user.id, type);
+      setSosActivityId(activityId);
+    }
+
 
     let loc: LocationInfo | null = null;
     try {
@@ -1314,19 +1374,13 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
     }
     setLocation(shareLocation ? loc : null);
 
-    let activityId: string | null = null;
-    if (user && loc) {
-      const { data: activity, error } = await supabase
+    if (user && activityId && loc && shareLocation) {
+      const { error } = await supabase
         .from("safety_activity")
-        .insert({
-          user_id: user.id,
-          activity_type: "sos_activated",
-          title: "Emergency SOS activated",
-          summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
-          severity: "critical",
+        .update({
           location_text: `${loc.address}, ${loc.district}`.replace(/, $/, ""),
-          latitude: shareLocation ? loc.lat : null,
-          longitude: shareLocation ? loc.lng : null,
+          latitude: loc.lat,
+          longitude: loc.lng,
           details: {
             channel: "sos",
             emergency_type: type,
@@ -1334,13 +1388,12 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
             location_consent: shareLocation,
             responder_notification_consent: notifyResponders,
             coordination_mode: "consent_based",
+            activation_mode: smartCheckId ? "smart_detection" : "manual",
+            ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
           } as never,
         })
-        .select("id")
-        .single();
-      activityId = activity?.id ?? null;
-      setSosActivityId(activityId);
-      if (error) console.error("Failed to record SOS activity", error);
+        .eq("id", activityId);
+      if (error) console.error("Failed to update SOS location", error);
     }
 
     if (user) {
@@ -1362,7 +1415,7 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
       setHospitals(
         realHospitals.length >= 2
           ? realHospitals.slice(0, 4)
-          : withDistance(DEMO_HOSPITALS, loc.lat, loc.lng),
+          : [],
       );
       setOfficers(
         realPolice.length >= 1
@@ -1450,27 +1503,36 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
         {phase === "loading" && (
           <LoadingScreen key="loading" emergencyId={emergencyId} />
         )}
+        {smartCheckId && phase !== "idle" && (
+          <div className="relative z-20 mx-auto mt-3 w-full max-w-2xl px-4">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/40 bg-destructive/[0.08] px-4 py-3">
+              <Brain className="h-4 w-4 shrink-0 text-destructive" />
+              <p className="min-w-0 flex-1 text-[12px] font-semibold leading-relaxed">
+                Activated automatically after a safety check you didn’t respond to.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  await resolveSafetyCheck(smartCheckId, "cancelled", { source: "sos_screen" });
+                  void navigate({ to: "/dashboard" });
+                }}
+                className="rounded-xl border border-border/70 bg-background/70 px-3 py-1.5 text-[11.5px] font-bold transition hover:bg-accent"
+              >
+                I’m safe — cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {phase === "help" && (
-          <HelpScreen
+          <MinimalEmergencyScreen
             key="help"
             emergencyType={emergencyType}
             emergencyId={emergencyId}
-            activatedAt={activatedAt}
             location={location}
             locationState={locationState}
-            hospitals={hospitals}
-            officers={officers}
-            trustedContacts={trustedContacts}
-            responsePlan={RESPONSE_PLANS[emergencyType] ?? RESPONSE_PLANS.other}
-            locationShared={shareLocation}
-            respondersNotified={notifyResponders}
-            responderOffers={responderOffers}
             activityId={sosActivityId}
-            onChangeType={(next) => {
-              setPendingEmergencyType(next);
-              setEmergencyType(next);
-            }}
-            onToggleLocation={() => setShareLocation((v) => !v)}
+            onReport={() => setPhase("report")}
             onEnableLocation={async () => {
               setLocationState("finding");
               try {
@@ -1484,9 +1546,6 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
                 );
               }
             }}
-            onToggleResponders={() => setNotifyResponders((v) => !v)}
-            onReport={() => setPhase("report")}
-
             onClose={() => {
               activated.current = false;
               setSosActivityId(null);
@@ -1507,8 +1566,15 @@ export function SOSExperience({ instant }: { instant?: boolean } = {}) {
             onSubmit={handleSubmitReport}
             onBack={() => setPhase("help")}
             submitting={submitting}
+            emergencyType={emergencyType}
+            emergencyId={emergencyId}
+            activatedAt={activatedAt}
+            locationState={locationState}
+            respondersNotified={notifyResponders}
+            responderCount={responderOffers.length}
           />
         )}
+
         {phase === "submitted" && (
           <SubmittedScreen
             key="submitted"
@@ -1550,10 +1616,6 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
           <span className="truncate text-[13px] font-semibold text-foreground">Allma Safety AI</span>
         </div>
          <div className="flex items-center gap-2">
-           <span className="hidden items-center gap-1.5 rounded-full border border-destructive/25 bg-destructive/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-destructive sm:flex">
-             <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
-             Demo mode
-           </span>
            <button
              type="button"
              onClick={onExit}
@@ -1591,7 +1653,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            Tap once for immediate help
+            Get emergency help
           </motion.p>
 
           {/* The button */}
@@ -1632,7 +1694,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
             transition={{ delay: 0.5 }}
           >
              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-             Demo mode · no real services contacted
+             Tap once to activate your emergency response
           </motion.p>
         </div>
 
@@ -2023,6 +2085,119 @@ function LoadingScreen({ emergencyId }: { emergencyId: string | null }) {
   );
 }
 
+function MinimalEmergencyScreen({
+  emergencyType,
+  emergencyId,
+  location,
+  locationState,
+  activityId,
+  onEnableLocation,
+  onReport,
+  onClose,
+}: {
+  emergencyType: string;
+  emergencyId: string | null;
+  location: LocationInfo | null;
+  locationState: LocationState;
+  activityId: string | null;
+  onEnableLocation: () => void;
+  onReport: () => void;
+  onClose: () => void;
+}) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [servicesOpen, setServicesOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [update, setUpdate] = useState("");
+  const area = location?.district || location?.suburb || "Location pending";
+  const locationReady = locationState === "found" || locationState === "approximate";
+  const closePanels = () => {
+    setMoreOpen(false);
+    setServicesOpen(false);
+    setUpdateOpen(false);
+  };
+
+  return (
+    <motion.main
+      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#0d0f10] text-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_50%_-20%,rgba(185,42,54,0.22),transparent_68%)]" />
+      <header className="relative mx-auto flex w-full max-w-xl items-center justify-between border-b border-white/[0.08] px-5 py-5 sm:px-7">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-400 shadow-[0_0_0_4px_rgba(248,113,113,0.12)]" />
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-300">SOS ACTIVE <span className="text-white/40">• LIVE</span></p>
+          </div>
+          <p className="mt-3 truncate text-[12px] font-medium tracking-[0.02em] text-white/45">{emergencyId ?? "Emergency session"}</p>
+          <p className="mt-0.5 truncate text-[12px] text-white/65">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
+        </div>
+        <button type="button" onClick={onClose} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-4 text-[12px] font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/[0.08]">
+          Close
+        </button>
+      </header>
+
+      <div className="relative mx-auto w-full max-w-xl px-5 pb-10 sm:px-7">
+        <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} compact />
+
+        <section aria-labelledby="actions-heading" className="border-b border-white/[0.08] py-6">
+          <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Immediate actions</p>
+          <div className="mt-4 grid gap-2.5">
+            <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-2xl bg-[#f5f5f2] px-4 text-left text-[14px] font-bold text-[#101214] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:bg-white active:scale-[0.99]">
+              <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#101214]/[0.08]"><Phone className="h-4 w-4" /></span>Call Emergency Services</span><ChevronRight className="h-4 w-4 opacity-45 transition-transform group-hover:translate-x-0.5" />
+            </button>
+            <button type="button" onClick={() => setUpdateOpen(true)} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
+              <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Send className="h-4 w-4 text-white/70" /></span>Send Update</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+            </button>
+            <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
+              <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Shield className="h-4 w-4 text-white/70" /></span>File an incident report</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+            </button>
+            <button type="button" onClick={onClose} className="min-h-12 text-[12px] font-semibold tracking-[0.01em] text-red-300/85 transition hover:text-red-200">
+              Stop SOS
+            </button>
+          </div>
+        </section>
+
+        <section aria-labelledby="location-heading" className="border-b border-white/[0.08] py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Location</p>
+              <p className="mt-3 flex items-center gap-2 text-[14px] font-semibold text-white">
+                <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-emerald-300 shadow-[0_0_0_4px_rgba(110,231,183,0.1)]" : "bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.1)]")} />
+                {locationReady ? "Shared" : "Unavailable"}
+              </p>
+              <p className="mt-1 text-[12px] text-white/45">{area}</p>
+            </div>
+            {locationReady ? (
+              <button type="button" onClick={() => setMoreOpen(true)} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-3 text-[12px] font-semibold text-white/75 transition hover:bg-white/[0.08]">View map</button>
+            ) : (
+              <button type="button" onClick={onEnableLocation} className="min-h-10 rounded-xl border border-amber-300/30 bg-amber-300/[0.04] px-3 text-[12px] font-semibold text-amber-200 transition hover:bg-amber-300/10">Enable Location</button>
+            )}
+          </div>
+        </section>
+
+        <button type="button" onClick={() => setMoreOpen(true)} className="group flex min-h-14 w-full items-center justify-between border-b border-white/[0.08] text-left">
+          <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">More</span>
+          <ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      </div>
+
+      {(moreOpen || servicesOpen || updateOpen) && (
+        <div className="fixed inset-0 z-20 flex items-end bg-black/70 p-3 backdrop-blur-[2px]" onClick={closePanels}>
+          <div className="mx-auto w-full max-w-xl rounded-[1.75rem] border border-white/[0.12] bg-[#191c1f] p-5 shadow-[0_-16px_60px_rgba(0,0,0,0.38)]" onClick={(event) => event.stopPropagation()}>
+            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-white/20" />
+            <div className="mb-5 flex items-center justify-between"><p className="text-sm font-semibold text-white">{servicesOpen ? "Emergency Services" : updateOpen ? "Send Update" : "More"}</p><button type="button" onClick={closePanels} aria-label="Close panel" className="grid h-9 w-9 place-items-center rounded-lg text-white/60 transition hover:bg-white/10"><X className="h-5 w-5" /></button></div>
+            {servicesOpen && <div className="grid gap-2">{EMERGENCY_NUMBERS.map((service) => <a key={service.label} href={`tel:${service.number}`} className="flex min-h-12 items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[13px] text-white transition hover:bg-white/[0.07]"><span>{service.label}</span><span className="font-bold text-white/70">{service.number}</span></a>)}</div>}
+            {updateOpen && <div><textarea value={update} onChange={(event) => setUpdate(event.target.value)} rows={3} placeholder="Tell responders what has changed" className="w-full resize-none rounded-xl border border-white/15 bg-black/20 p-3 text-[13px] text-white outline-none placeholder:text-white/35 focus:border-white/30" /><button type="button" onClick={() => { setUpdate(""); setUpdateOpen(false); }} disabled={!update.trim()} className="mt-3 min-h-12 w-full rounded-xl bg-[#f5f5f2] text-[13px] font-bold text-[#101214] transition hover:bg-white disabled:opacity-40">Send update</button></div>}
+            {moreOpen && <div className="grid divide-y divide-white/10">{["✦  Allma AI · Need help?", "Activity ›", "Nearby help ›", "Location details ›"].map((item) => <button type="button" key={item} onClick={closePanels} className="min-h-14 text-left text-[13px] text-white/80 transition hover:text-white">{item}</button>)}</div>}
+          </div>
+        </div>
+      )}
+    </motion.main>
+  );
+}
+
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
 function HelpScreen({
@@ -2039,6 +2214,7 @@ function HelpScreen({
   respondersNotified,
   responderOffers,
   activityId,
+  automatic,
   onChangeType,
   onToggleLocation,
   onEnableLocation,
@@ -2059,6 +2235,7 @@ function HelpScreen({
   respondersNotified: boolean;
   responderOffers: ResponderOffer[];
   activityId: string | null;
+  automatic: boolean;
   onChangeType: (type: string) => void;
   onToggleLocation: () => void;
   onEnableLocation: () => void;
@@ -2231,6 +2408,11 @@ function HelpScreen({
             <p className="mt-1 text-[11px] text-muted-foreground">
               Activated {formatEmergencyTime(activatedAt)} · {emergencyId ?? "Session starting"}
             </p>
+            <p className="mt-1 text-[11px] font-semibold text-destructive/80">
+              {automatic
+                ? "Activated automatically after a safety check you didn’t respond to."
+                : "Activated by you."}
+            </p>
           </div>
           <span className="rounded-full border border-destructive/25 bg-destructive/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-destructive">
             {typeInfo?.label ?? "Emergency"}
@@ -2248,18 +2430,15 @@ function HelpScreen({
         </div>
         <div className="p-3.5 sm:p-4">
           <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Response</p>
-          <p className="mt-1.5 text-[12px] font-semibold text-foreground">{responseStatus}</p>
-          <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-            {respondersNotified ? "Opt-in search path" : "Community search off"}
-          </p>
-        </div>
-        <div className="p-3.5 sm:p-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">People contacted</p>
           <p className="mt-1.5 text-[12px] font-semibold text-foreground">
-            {contactedContacts.length ? `${contactedContacts.length} trusted contact` : "None yet"}
+            {responseStatus}
           </p>
           <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-            {liveOffers.length ? `${liveOffers.length} responder offer${liveOffers.length === 1 ? "" : "s"} returned` : "No automatic calls"}
+            {liveOffers.length
+              ? `${liveOffers.length} responder${liveOffers.length === 1 ? "" : "s"} in the response path`
+              : respondersNotified
+                ? "Searching in priority order"
+                : "Safety Network not notified"}
           </p>
         </div>
         <div className="p-3.5 sm:p-4">
@@ -2269,18 +2448,6 @@ function HelpScreen({
             Official services require your tap
           </p>
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3">
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Official service
-        </span>
-        <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-gold">
-          {calledTargets.includes(officialNumber.label) ? "Dialer opened" : "Not connected"}
-        </span>
-        <span className="text-[10px] text-muted-foreground">
-          Allma has not contacted authorities automatically.
-        </span>
       </div>
 
       {!isOnline && (
@@ -2533,8 +2700,11 @@ function HelpScreen({
     <div id="official-call">
       <SectionLabel>
         <Phone className="mr-1.5 inline-block h-3 w-3 align-middle" />
-        Call now — your consent required
+        Official emergency services
       </SectionLabel>
+      <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
+        Need immediate official assistance? Tap a number to call police, ambulance or general emergency services.
+      </p>
       <div className="grid grid-cols-2 gap-2.5">
         {info.primaryNumbers.map((e) => (
           <a
@@ -2562,8 +2732,7 @@ function HelpScreen({
         ))}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-        Allma cannot place calls automatically. Tap a number to use your device dialer and share
-        details with the operator.
+        ALLMA does not automatically contact authorities. Safety Network calls and official services are separate.
       </p>
     </div>
   );
@@ -3105,29 +3274,37 @@ function HelpScreen({
         </div>
       </div>
 
+      <div className="shrink-0 border-b border-border/60 px-3 py-3 sm:px-5 lg:px-6">
+        <div className="mx-auto w-full max-w-4xl">
+          <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
+        </div>
+      </div>
+
       {/* ── Body ── */}
       <div className="flex min-h-0 flex-1 overflow-hidden lg:mx-auto lg:w-full lg:max-w-[90rem]">
         {/* Mobile: single scrolling column with everything */}
         <div className="flex-1 overflow-y-auto lg:hidden">
           <div className="mx-auto w-full max-w-lg space-y-5 px-3 py-4 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 sm:pb-16">
             {EmergencySummarySection}
-            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
             {AiSection}
-            {QuickActionsSection}
-            {EscalationSection}
-            {ResponsePlanSection}
-            {CallSection}
-            {TrustedContactsSection}
-            {UpdateSection}
             {StepsSection}
-            {StatusSection}
+            {CallSection}
             {LocationSection}
-            {ControlsSection}
-
             {MapSection}
-            {RespondersSection}
-            {FacilitiesSection}
-            {TimelineSection}
+            <details className="group rounded-2xl border border-border/60 bg-secondary/20 p-4">
+              <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Emergency timeline</summary>
+              <div className="mt-4">{TimelineSection}</div>
+            </details>
+            <details className="group rounded-2xl border border-border/60 bg-secondary/20 p-4">
+              <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Additional help</summary>
+              <div className="mt-4 space-y-5">
+                {FacilitiesSection}
+                {TrustedContactsSection}
+                {ResponsePlanSection}
+                {ControlsSection}
+                {UpdateSection}
+              </div>
+            </details>
 
             <div className="space-y-2 pt-1">
               <button
@@ -3150,13 +3327,8 @@ function HelpScreen({
         <div className="hidden flex-1 overflow-y-auto bg-background/10 lg:block">
           <div className="mx-auto w-full max-w-4xl space-y-5 px-6 py-5 pb-14 xl:px-8">
             {EmergencySummarySection}
-            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
             {AiSection}
-            {QuickActionsSection}
-            {EscalationSection}
-            {ResponsePlanSection}
             {StepsSection}
-            {TimelineSection}
           </div>
         </div>
 
@@ -3165,15 +3337,22 @@ function HelpScreen({
           <div className="flex-1 overflow-y-auto">
             <div className="space-y-5 p-5 pb-14 xl:p-6">
               {CallSection}
-              {TrustedContactsSection}
-              {UpdateSection}
-              {StatusSection}
               {LocationSection}
-              {ControlsSection}
-
               {MapSection}
-              {RespondersSection}
-              {FacilitiesSection}
+              <details className="rounded-2xl border border-border/60 bg-secondary/20 p-4">
+                <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Emergency timeline</summary>
+                <div className="mt-4">{TimelineSection}</div>
+              </details>
+              <details className="rounded-2xl border border-border/60 bg-secondary/20 p-4">
+                <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Additional help</summary>
+                <div className="mt-4 space-y-5">
+                  {FacilitiesSection}
+                  {TrustedContactsSection}
+                  {ResponsePlanSection}
+                  {ControlsSection}
+                  {UpdateSection}
+                </div>
+              </details>
 
               <div className="space-y-2 pt-1">
                 <button
@@ -3243,127 +3422,256 @@ function ReportScreen({
   onSubmit,
   onBack,
   submitting,
+  emergencyType,
+  emergencyId,
+  activatedAt,
+  locationState,
+  respondersNotified,
+  responderCount,
 }: {
   reportText: string;
   setReportText: (v: string) => void;
   onSubmit: () => void;
   onBack: () => void;
   submitting: boolean;
+  emergencyType: string;
+  emergencyId: string | null;
+  activatedAt: number | null;
+  locationState: LocationState;
+  respondersNotified: boolean;
+  responderCount: number;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!activatedAt) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [activatedAt]);
+
+  const elapsed = activatedAt ? Math.max(0, Math.floor((now - activatedAt) / 1000)) : null;
+  const elapsedLabel =
+    elapsed === null
+      ? "Not recorded"
+      : `${String(Math.floor(elapsed / 3600)).padStart(2, "0")}:${String(
+          Math.floor((elapsed % 3600) / 60),
+        ).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
+
+  const locationLabel =
+    locationState === "found"
+      ? "Precise GPS attached"
+      : locationState === "approximate"
+        ? "Approximate location attached"
+        : locationState === "finding"
+          ? "Finding your location…"
+          : locationState === "denied"
+            ? "Location permission denied"
+            : "Location unavailable";
+  const locationTone =
+    locationState === "found" || locationState === "approximate"
+      ? "bg-emerald-400"
+      : locationState === "finding"
+        ? "bg-[#FCDC04]"
+        : "bg-white/25";
+
+  const rows: Array<{ label: string; value: string; tone: string }> = [
+    {
+      label: "Emergency type",
+      value: EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other emergency",
+      tone: "bg-[#FCDC04]",
+    },
+    { label: "Elapsed time", value: elapsedLabel, tone: "bg-white/25" },
+    { label: "Location status", value: locationLabel, tone: locationTone },
+    {
+      label: "Safety network",
+      value: respondersNotified
+        ? responderCount > 0
+          ? `${responderCount} responder${responderCount === 1 ? "" : "s"} contacted`
+          : "Contacting your network"
+        : "Not sharing with responders",
+      tone: respondersNotified ? "bg-[#FCDC04]" : "bg-white/25",
+    },
+  ];
+
   return (
     <motion.div
-      className="flex h-full flex-col items-center overflow-y-auto px-5 pt-10 pb-10"
-      initial={{ opacity: 0, x: 30 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+      className="flex h-full flex-col items-center overflow-y-auto bg-[#0a0a0a] px-4 py-6 text-white sm:px-6 md:justify-center md:py-10"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.28 }}
     >
-      <div className="w-full max-w-lg">
-        <button
-          onClick={onBack}
-          className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border/70 bg-secondary/70 px-3.5 text-[13px] font-semibold text-foreground transition hover:border-primary/40 hover:bg-accent"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <h2 className="mb-1 font-display text-2xl font-black text-foreground">Quick incident report</h2>
-        <p className="mb-7 text-[13px] text-muted-foreground">
-          Takes 30 seconds. Helps responders understand the situation.
-        </p>
-
-        <div className="rounded-2xl border border-border/60 bg-secondary/40 p-5 lg:p-6">
-          <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-            What happened?
-          </label>
-          <textarea
-            value={reportText}
-            onChange={(e) => setReportText(e.target.value)}
-            placeholder="Briefly describe the situation — e.g. 'A man grabbed my bag near Shoprite and ran toward the market.'"
-            rows={6}
-            maxLength={2000}
-            className="w-full resize-none rounded-xl border border-border/60 bg-secondary/40 px-4 py-3 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-destructive/40"
-          />
-          <p className="mt-1.5 text-right text-[10px] text-muted-foreground">{reportText.length}/2000</p>
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_-25%,rgba(217,0,18,0.18),transparent_70%)]" />
+      <div className="relative grid w-full max-w-6xl grid-cols-1 overflow-hidden rounded-3xl border border-white/10 bg-[#1a1a1a] shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] md:grid-cols-12">
+        <div className="flex flex-col justify-between border-b border-white/10 bg-[#141414] p-6 sm:p-8 md:col-span-5 md:border-b-0 md:border-r md:p-11">
+          <div>
+            <div className="mb-7 inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/60">
+              <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-red-400" />
+              <span className="truncate">
+                {emergencyId ? `Session ${emergencyId.slice(0, 8)}` : "Session starting"}
+              </span>
+            </div>
+            <h2 className="mb-8 font-display text-3xl font-bold tracking-tight md:mb-11 md:text-4xl">
+              Incident
+              <br />
+              overview
+            </h2>
+            <div className="space-y-6 md:space-y-8">
+              {rows.map((row, index) => (
+                <motion.div
+                  key={row.label}
+                  className="flex items-start gap-4"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.06 * index + 0.08, duration: 0.3 }}
+                >
+                  <span className={cn("mt-2 h-2 w-2 shrink-0 rounded-full", row.tone)} />
+                  <div className="min-w-0">
+                    <p className="mb-1 text-[11px] uppercase tracking-[0.16em] text-white/40">
+                      {row.label}
+                    </p>
+                    <p className="text-[17px] font-medium leading-snug tabular-nums">{row.value}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-10 hidden border-t border-white/[0.07] pt-7 text-[11px] leading-relaxed text-white/30 md:block">
+            Your report is stored on your Allma account with a reference code. Allma does not contact
+            an authority automatically.
+          </p>
         </div>
 
-        <button
-          onClick={onSubmit}
-          disabled={submitting}
-          className="shadow-lift mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive py-4 font-display text-[15px] font-bold text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-60"
-        >
-          {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-          {submitting ? "Submitting…" : "Submit emergency report"}
-        </button>
-        <button
-          onClick={onBack}
-          className="mt-2.5 flex min-h-11 w-full items-center justify-center rounded-2xl border border-border/70 bg-secondary/70 py-3 text-[12px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
-        >
-          Cancel
-        </button>
+        <div className="flex min-h-[480px] flex-col p-6 sm:p-8 md:col-span-7 md:p-11">
+          <div className="flex-grow">
+            <button
+              type="button"
+              onClick={onBack}
+              className="group mb-7 inline-flex items-center gap-2 text-[13px] text-white/60 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              Back to status
+            </button>
+            <h1 className="mb-7 font-display text-2xl font-bold tracking-tight md:text-[26px]">
+              Quick incident report
+            </h1>
+            <label htmlFor="sos-report" className="mb-3 block text-[13px] font-medium text-white/80">
+              What happened?
+            </label>
+            <div className="relative">
+              <textarea
+                id="sos-report"
+                value={reportText}
+                onChange={(e) => setReportText(e.target.value)}
+                placeholder="Briefly describe the situation — e.g. 'A man grabbed my bag near Shoprite and ran toward the market.'"
+                maxLength={2000}
+                className="min-h-[220px] w-full resize-none rounded-xl border border-white/10 bg-black/40 p-5 pb-9 text-[15px] leading-relaxed text-white/90 outline-none transition-all placeholder:text-white/25 focus:border-[#FCDC04]/50 focus:ring-1 focus:ring-[#FCDC04]/20"
+              />
+              <span className="pointer-events-none absolute bottom-4 right-4 text-[10px] tracking-[0.14em] text-white/30 tabular-nums">
+                {reportText.length} / 2000
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row-reverse sm:items-center">
+            <motion.button
+              type="button"
+              onClick={onSubmit}
+              disabled={submitting}
+              whileTap={{ scale: 0.98 }}
+              className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#D90012] px-10 font-display text-[14px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_18px_40px_-20px_rgba(217,0,18,0.9)] transition hover:bg-[#b80010] disabled:opacity-60 sm:w-auto"
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              {submitting ? "Submitting…" : "Submit report"}
+            </motion.button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex min-h-[52px] w-full items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] px-10 text-[13px] font-medium text-white/60 transition hover:bg-white/10 hover:text-white sm:w-auto"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
 }
+
 
 // ─── Submitted ────────────────────────────────────────────────────────────────
 
 function SubmittedScreen({ reference, onDone }: { reference: string | null; onDone: () => void }) {
   return (
     <motion.div
-      className="flex h-full flex-col items-center justify-center px-6 text-center"
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
+      className="flex h-full flex-col items-center justify-center bg-[#0a0a0a] px-4 py-8 text-white sm:px-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.4, type: "spring", stiffness: 260, damping: 20 }}
+      transition={{ duration: 0.28 }}
     >
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_-25%,rgba(252,220,4,0.12),transparent_70%)]" />
       <motion.div
-        className="mb-6 grid h-20 w-20 place-items-center rounded-full bg-success/20 ring-1 ring-success/30 ring-offset-4 ring-offset-background"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#1a1a1a] p-8 text-center shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] sm:p-10"
+        initial={{ opacity: 0, y: 14, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.35, type: "spring", stiffness: 220, damping: 22 }}
       >
-        <CheckCircle2 className="h-10 w-10 text-success" />
-      </motion.div>
-      <motion.h2
-        className="mb-2 font-display text-2xl font-black text-foreground"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.18 }}
-      >
-        Report Submitted
-      </motion.h2>
-      {reference && (
         <motion.div
-          className="mb-4 rounded-2xl border border-border/60 bg-secondary/40 px-6 py-3.5"
+          className="mx-auto mb-7 grid h-16 w-16 place-items-center rounded-full bg-emerald-400/15 ring-1 ring-emerald-400/30"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+        >
+          <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+        </motion.div>
+        <motion.h2
+          className="mb-2 font-display text-2xl font-bold tracking-tight"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.24 }}
+          transition={{ delay: 0.16 }}
         >
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Reference</p>
-          <p className="mt-1 font-display text-2xl font-black tracking-wide text-gold">
-            {reference}
-          </p>
-        </motion.div>
-      )}
-      <motion.p
-        className="mb-10 max-w-sm text-[14px] leading-relaxed text-muted-foreground"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.28 }}
-      >
-         Your report is saved locally with the reference above. Allma has not contacted an authority
-         or responder automatically. Stay safe and use the official call options if you need urgent
-         help.
-      </motion.p>
-      <motion.button
-        onClick={onDone}
-        className="flex min-h-12 items-center gap-2 rounded-2xl border border-primary/35 bg-primary/10 px-8 py-3.5 text-[14px] font-bold text-foreground transition hover:border-primary/60 hover:bg-primary/15"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.32 }}
-        whileTap={{ scale: 0.97 }}
-      >
-        Close SOS <ChevronRight className="h-4 w-4" />
-      </motion.button>
+          Report submitted
+        </motion.h2>
+        {reference && (
+          <motion.div
+            className="mx-auto mb-6 mt-5 rounded-2xl border border-[#FCDC04]/25 bg-[#FCDC04]/[0.06] px-6 py-4"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.22 }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Reference</p>
+            <p className="mt-1.5 font-display text-2xl font-bold tracking-[0.06em] text-[#FCDC04]">
+              {reference}
+            </p>
+          </motion.div>
+        )}
+        <motion.p
+          className="mx-auto mb-8 max-w-sm text-[13.5px] leading-relaxed text-white/55"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.26 }}
+        >
+          Your report is saved locally with the reference above. Allma has not contacted an authority
+          or responder automatically. Stay safe and use the official call options if you need urgent
+          help.
+        </motion.p>
+        <motion.button
+          type="button"
+          onClick={onDone}
+          className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.05] text-[14px] font-semibold text-white transition hover:bg-white/10"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Close SOS <ChevronRight className="h-4 w-4" />
+        </motion.button>
+      </motion.div>
     </motion.div>
   );
+
 }

@@ -17,11 +17,16 @@ const TABS = [
   { id: "items", label: "Lost & found", icon: PackageSearch },
 ] as const;
 
+type PublicClaim = { id: string; item_id: string; claimant_name: string; claimant_phone: string; proof_text: string; status: string; created_at: string };
+type PublicLostReport = { id: string; item_type: string; description: string; location_text: string; district: string; occurred_on: string; contact_name: string; contact_phone: string; status: string; created_at: string };
+
 function PersonsPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("missing");
   const { data: persons = [] } = useQuery(missingPersonsQuery);
   const { data: items = [] } = useQuery(lostFoundQuery);
+  const { data: claims = [] } = useQuery({ queryKey: ["police", "lostfound", "claims"], queryFn: async () => { const { data, error } = await supabase.from("lost_found_claims").select("*").eq("status", "pending").order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as PublicClaim[]; }, enabled: tab === "items" });
+  const { data: publicReports = [] } = useQuery({ queryKey: ["police", "lostfound", "public-reports"], queryFn: async () => { const { data, error } = await supabase.from("lost_found_public_reports").select("*").eq("status", "pending").order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as PublicLostReport[]; }, enabled: tab === "items" });
 
   const setPersonStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -49,6 +54,21 @@ function PersonsPage() {
       toast.success("Item updated");
       qc.invalidateQueries({ queryKey: ["police", "lostfound"] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setClaimStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
+      if (status === "approved") {
+        const { error } = await (supabase as unknown as { rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: Error | null }> }).rpc("approve_lost_found_claim", { p_claim_id: id });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("lost_found_claims").update({ status }).eq("id", id);
+        if (error) throw error;
+      }
+      await logAudit(`lost_found_claim_${status}`, "lost_found_claims", id, { status });
+    },
+    onSuccess: () => { toast.success("Claim updated"); qc.invalidateQueries({ queryKey: ["police", "lostfound"] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -148,6 +168,8 @@ function PersonsPage() {
               No lost or found property logged.
             </p>
           )}
+          <section className="mt-6 space-y-2"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pending claims</p>{claims.map((claim) => <div key={claim.id} className="premium-surface rounded-3xl border border-gold/25 bg-gold/[0.04] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold">{claim.claimant_name} · {claim.claimant_phone}</p><p className="mt-1 text-[11px] text-muted-foreground">Item {claim.item_id} · {timeAgo(claim.created_at)}</p></div><div className="flex gap-2"><Button size="sm" className="rounded-full" disabled={setClaimStatus.isPending} onClick={() => setClaimStatus.mutate({ id: claim.id, status: "approved" })}>Approve & release</Button><Button size="sm" variant="outline" className="rounded-full" disabled={setClaimStatus.isPending} onClick={() => setClaimStatus.mutate({ id: claim.id, status: "rejected" })}>Reject</Button></div></div><p className="mt-3 rounded-xl bg-background/50 p-3 text-[12px] leading-relaxed">{claim.proof_text}</p></div>)}{claims.length === 0 && <p className="text-sm text-muted-foreground">No pending claims.</p>}</section>
+          <section className="mt-6 space-y-2"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Public lost reports</p>{publicReports.map((report) => <div key={report.id} className="premium-surface rounded-3xl border border-border/55 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold">{report.item_type} · {report.district}</p><p className="mt-1 text-[11px] text-muted-foreground">{report.location_text} · {report.occurred_on} · {report.contact_name} · {report.contact_phone}</p></div><span className="rounded-full bg-gold/10 px-2 py-1 text-[10px] font-bold uppercase text-gold">Pending match</span></div><p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">{report.description}</p></div>)}{publicReports.length === 0 && <p className="text-sm text-muted-foreground">No public lost reports awaiting review.</p>}</section>
         </div>
       )}
     </div>

@@ -17,20 +17,22 @@ self.addEventListener("push", (event) => {
   }
 
   const callId = payload.callId || "";
-  const title = payload.title || "Incoming Allma call";
-  const body = payload.body || "Someone is calling you on Allma.";
+  const invitationId = payload.invitationId || "";
+  const isEmergency = payload.type === "incoming_emergency_call";
+  const title = payload.title || (isEmergency ? "ALLMA EMERGENCY CALL" : "Incoming Allma call");
+  const body = payload.body || (isEmergency ? "Urgent assistance requested." : "Someone is calling you on Allma.");
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      tag: callId ? `call-${callId}` : "allma-call",
+      tag: invitationId ? `emergency-invitation-${invitationId}` : callId ? `call-${callId}` : "allma-call",
       renotify: true,
       requireInteraction: true,
       vibrate: [200, 100, 200, 100, 200],
-      data: { callId, type: payload.type || "incoming_call" },
+      data: { callId, invitationId, type: payload.type || "incoming_call" },
       actions: [
-        { action: "answer", title: "Answer" },
-        { action: "decline", title: "Decline" },
+        { action: "answer", title: "View" },
+        { action: "decline", title: "Dismiss" },
       ],
     }),
   );
@@ -38,22 +40,28 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const callId = (event.notification.data && event.notification.data.callId) || "";
+  const data = event.notification.data || {};
+  const callId = data.callId || "";
+  const invitationId = data.invitationId || "";
 
   if (event.action === "decline") {
     // Declining happens in the app; without a window we simply dismiss.
     return;
   }
 
-  const target = callId ? `/calls?call=${encodeURIComponent(callId)}` : "/calls";
+  const target = invitationId
+    ? `/calls?invitation=${encodeURIComponent(invitationId)}${callId ? `&call=${encodeURIComponent(callId)}` : ""}`
+    : callId
+      ? `/calls?call=${encodeURIComponent(callId)}`
+      : "/calls";
 
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of windows) {
         if (new URL(client.url).origin === self.location.origin) {
+          if (typeof client.navigate === "function") await client.navigate(target);
           await client.focus();
-          client.postMessage({ type: "allma:answer-call", callId });
           return;
         }
       }

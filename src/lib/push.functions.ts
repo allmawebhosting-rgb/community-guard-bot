@@ -89,7 +89,7 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: call } = await context.supabase
       .from("emergency_calls")
-      .select("id, caller_id, recipient_id, status")
+      .select("id, caller_id, recipient_id, status, sos_session_id")
       .eq("id", data.callId)
       .maybeSingle();
 
@@ -99,6 +99,23 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
     }
     if (!["initiating", "ringing", "connecting"].includes(call.status)) {
       return { delivered: 0, devices: 0 };
+    }
+
+    let invitation: { id: string } | null = null;
+    if (call.sos_session_id) {
+      const { data, error } = await context.supabase
+        .from("emergency_call_invitations")
+        .upsert({
+          emergency_id: call.sos_session_id,
+          call_session_id: call.id,
+          recipient_user_id: call.recipient_id,
+          status: "SENT",
+          sent_at: new Date().toISOString(),
+        }, { onConflict: "call_session_id,recipient_user_id" })
+        .select("id")
+        .single();
+      if (error || !data) throw new Error("Unable to create the emergency call invitation.");
+      invitation = data;
     }
 
     const publicKey = process.env["VAPID_PUBLIC_KEY"];
@@ -125,10 +142,15 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
     const vapid = { subject, publicKey, privateKey };
     const message = {
       data: JSON.stringify({
-        type: "incoming_call",
+        type: "incoming_emergency_call",
         callId: call.id,
-        title: "Incoming Allma call",
-        body: `${callerName} is calling you on Allma.`,
+        ...(invitation ? { invitationId: invitation.id } : {}),
+        title: call.sos_session_id
+          ? `${callerName.split(" ")[0]} is in danger`
+          : "Incoming Allma call",
+        body: call.sos_session_id
+          ? `${callerName} activated SOS and is calling you on Allma. Please answer.`
+          : `${callerName} is calling you on Allma.`,
       }),
       options: { ttl: 60, urgency: "high" as const },
     };
@@ -167,5 +189,14 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
       await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
     }
 
-    return { delivered, devices: devices.length };
+    if (invitation) {
+      await context.supabase
+        .from("emergency_call_invitations")
+        .update({
+          status: delivered ? "DELIVERED" : "FAILED",
+          delivered_at: delivered ? new Date().toISOString() : null,
+        })
+        .eq("id", invitation.id);
+    }
+    return { delivered, devices: devices.length, ...(invitation ? { invitationId: invitation.id } : {}) };
   });

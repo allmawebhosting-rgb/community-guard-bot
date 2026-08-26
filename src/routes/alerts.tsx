@@ -59,7 +59,7 @@ function AlertsScreen() {
   const other = (alerts ?? []).filter((a) => a.severity !== "critical" && a.severity !== "high");
 
   return (
-    <AppShell title="Community alerts">
+    <AppShell title="Nearby help">
       <div className="mx-auto w-full max-w-6xl px-5 pt-6 pb-6 lg:px-10 lg:pt-8">
 
         {/* Header */}
