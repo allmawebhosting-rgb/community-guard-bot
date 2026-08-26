@@ -168,14 +168,14 @@ export function EmergencyCallEscalation({
   };
 
   return (
-    <div className="premium-surface overflow-hidden rounded-3xl border border-border/60 shadow-soft">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 p-4 sm:p-5">
+    <div className="premium-surface overflow-hidden rounded-3xl border-2 border-destructive/40 bg-card shadow-lift">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-border/70 bg-destructive/10 p-5 sm:p-6">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-destructive">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-destructive">
             Safety Network
           </p>
-          <h3 className="mt-1 font-display text-lg font-black">Call your safety network</h3>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <h3 className="mt-2 font-display text-2xl font-black leading-tight text-foreground">Call your safety network</h3>
+          <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-foreground/80">
             Calling all available responders at once. The first person to answer connects.
           </p>
         </div>
@@ -187,7 +187,7 @@ export function EmergencyCallEscalation({
           <button
             type="button"
             onClick={() => controller?.stop()}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/70 px-3 py-1.5 text-[11px] font-bold"
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-border bg-background px-4 py-2.5 text-sm font-black text-foreground shadow-sm"
           >
             <SquareStop className="h-3.5 w-3.5" /> Stop calling
           </button>
@@ -196,7 +196,7 @@ export function EmergencyCallEscalation({
             type="button"
             onClick={start}
             disabled={loading || !callableCount || !activityId}
-            className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-3.5 py-2 text-[11px] font-bold text-background disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-destructive px-5 py-3 text-sm font-black text-destructive-foreground shadow-md disabled:opacity-50"
           >
             <Phone className="h-3.5 w-3.5" /> Call responders
           </button>
@@ -205,10 +205,10 @@ export function EmergencyCallEscalation({
 
       <div className="divide-y divide-border/60">
         {loading ? (
-          <p className="p-4 text-[12px] text-muted-foreground">Loading your Safety Network…</p>
+          <p className="p-6 text-base font-bold text-foreground">Loading your Safety Network...</p>
         ) : errored ? (
           <div className="space-y-3 p-4">
-            <p className="text-[12px] text-muted-foreground">Couldn't load your Safety Network.</p>
+            <p className="text-base font-bold text-foreground">Couldn't load your Safety Network.</p>
             <button
               type="button"
               onClick={() => {
@@ -220,27 +220,27 @@ export function EmergencyCallEscalation({
               }}
 
 
-              className="rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
+              className="rounded-xl border-2 border-border bg-secondary px-4 py-2.5 text-sm font-black text-foreground transition hover:bg-accent"
             >
               Retry
             </button>
           </div>
         ) : !rows.length ? (
-          <div className="space-y-2 p-4">
-            <p className="text-[12px] font-bold">Your Safety Network is empty.</p>
-            <p className="text-[11px] text-muted-foreground">
+          <div className="space-y-3 bg-secondary/20 p-6">
+            <p className="text-lg font-black text-foreground">Your Safety Network is empty.</p>
+            <p className="text-sm font-semibold text-foreground/75">
               Add trusted people so Allma can contact them during an emergency.
             </p>
             <Link
               to="/profile"
-              className="inline-flex rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11px] font-bold text-foreground transition hover:bg-accent"
+              className="inline-flex rounded-xl border-2 border-border bg-secondary px-4 py-2.5 text-sm font-black text-foreground transition hover:bg-accent"
             >
               Manage Safety Network
             </Link>
           </div>
         ) : (
           rows.map(({ target, attempt }, index) => {
-            const isCurrent = running && state?.currentIndex === index && !answered;
+            const isCurrent = running && !answered;
             const isAnswered = answered?.recipient_id === target.member_id;
             const derived = attempt ? attemptState(attempt.status) : null;
             const copy = derived ? ATTEMPT_COPY[derived] : null;
@@ -254,17 +254,17 @@ export function EmergencyCallEscalation({
                   ? (copy?.label ?? "NEXT").toUpperCase()
                   : "NEXT";
             return (
-              <div key={target.member_id} className="flex items-center gap-3 p-3.5">
-                <Avatar name={target.full_name} url={target.avatar_url} size={38} />
+              <div key={target.member_id} className={cn("mx-3 my-2 flex items-center gap-4 rounded-2xl border-2 p-4 shadow-sm sm:mx-4", isAnswered ? "border-success/60 bg-success/10" : isCurrent ? "border-gold/70 bg-gold/10" : "border-border/70 bg-secondary/35")}>
+                <Avatar name={target.full_name} url={target.avatar_url} size={48} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-bold">{target.full_name}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="truncate text-base font-black text-foreground">{target.full_name}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground/70">
                     {target.safety_role || "Safety contact"} · priority {target.priority}
                   </p>
                 </div>
                 <span
                   className={cn(
-                    "text-[10px] font-bold uppercase tracking-[0.12em]",
+                    "text-sm font-black uppercase tracking-[0.08em]",
                     isAnswered ? "text-success" : (copy?.tone ?? "text-muted-foreground"),
                     isCurrent && !isAnswered && "text-gold",
                   )}
@@ -277,9 +277,9 @@ export function EmergencyCallEscalation({
         )}
       </div>
 
-      <div className="space-y-1.5 border-t border-border/60 p-4">
+      <div className="space-y-2 border-t-2 border-border/70 bg-secondary/20 p-5 sm:p-6">
         {running && !answered && (state?.round ?? 0) > 0 && (
-          <p className="text-[11px] font-semibold text-gold">
+          <p className="text-sm font-black text-gold">
             Round {state?.round}
             {state?.waitSeconds
               ? ` · next contact in ${state.waitSeconds}s`
@@ -289,14 +289,14 @@ export function EmergencyCallEscalation({
           </p>
         )}
         {!running && !answered && (state?.round ?? 0) > 0 && (
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-gold">
+          <p className="flex items-center gap-2 text-sm font-black text-gold">
             <PhoneOff className="h-3.5 w-3.5" /> Calling stopped — no responder answered yet.
           </p>
         )}
         {state?.error && (
-          <p className="text-[11px] font-semibold text-destructive">Call could not start: {state.error}</p>
+          <p className="rounded-xl border-2 border-destructive/50 bg-destructive/10 px-4 py-3 text-sm font-black text-destructive">Call could not start: {state.error}</p>
         )}
-        <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <p className="flex items-center gap-2 text-xs font-semibold text-foreground/70">
           <ShieldCheck className="h-3.5 w-3.5 text-success" />
           Calls stay inside Allma — phone numbers are never shared. Calling continues while this
           screen stays open.
