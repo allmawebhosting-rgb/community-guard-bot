@@ -132,6 +132,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap",
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/icons/allma-192.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
@@ -175,9 +176,20 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
+    const repairPush = () => {
+      void ensurePushRegistered().catch((error) => {
+        console.warn("[ALLMA PUSH] background subscription repair failed", error);
+      });
+    };
     void supabase.auth.getUser().then(({ data }) => {
-      if (data.user) void ensurePushRegistered().catch(() => undefined);
+      if (data.user) repairPush();
     });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
+        repairPush();
+      }
+    });
+    return () => data.subscription.unsubscribe();
   }, []);
 
   return (
