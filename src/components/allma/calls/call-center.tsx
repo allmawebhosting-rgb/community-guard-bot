@@ -172,7 +172,19 @@ export function CallCenter() {
           sosOutgoingRef.current.set(id, requested);
           if (isPrimarySosCall) setCallId(id);
           // Best-effort: rings the recipient's device even if their app is closed.
-          void notifyIncomingCall({ data: { callId: id } }).catch(() => undefined);
+          void notifyIncomingCall({ data: { callId: id } }).then((result) => {
+            if (result.devices === 0) {
+              console.warn("[ALLMA PUSH] no registered recipient devices", {
+                callId: id,
+                recipientId: requested.id,
+              });
+            }
+          }).catch((error) => {
+            console.error("[ALLMA PUSH] incoming call notification failed", {
+              callId: id,
+              message: error instanceof Error ? error.message : "unknown",
+            });
+          });
           // Join from the user's Call tap so iOS Safari permits microphone access.
           // CONNECTED is still deferred until ZEGOCLOUD reports a remote stream.
           if (isPrimarySosCall || !requested.sosActivityId) {

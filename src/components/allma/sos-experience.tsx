@@ -601,6 +601,7 @@ async function createResponderOffers(
   });
   if (error) {
     console.warn("Responder offer creation unavailable", error);
+    toast.error("SOS was activated, but responder notifications could not be sent.");
     return [];
   }
   const offers = (rawOffers as Omit<ResponderOffer, "phone">[] | null) ?? [];
@@ -1404,13 +1405,15 @@ export function SOSExperience({
       if (!error) setTrustedContacts((contacts ?? []) as TrustedContact[]);
     }
 
+    const offersPromise = activityId && notifyResponders
+      ? createResponderOffers(activityId, COMMUNITY_RADIUS[type] ?? 1000)
+      : Promise.resolve([] as ResponderOffer[]);
+
     if (loc && shareLocation) {
       const [realHospitals, realPolice, offers] = await Promise.all([
         fetchOverpass(loc.lat, loc.lng, "hospital").catch(() => [] as Facility[]),
         fetchOverpass(loc.lat, loc.lng, "police").catch(() => [] as Facility[]),
-        activityId && notifyResponders
-          ? createResponderOffers(activityId, COMMUNITY_RADIUS[type] ?? 1000)
-          : Promise.resolve([]),
+        offersPromise,
       ]);
       setHospitals(
         realHospitals.length >= 2
@@ -1424,9 +1427,10 @@ export function SOSExperience({
       );
       setResponderOffers(offers);
     } else {
+      const offers = await offersPromise;
       setHospitals([]);
       setOfficers([]);
-      setResponderOffers([]);
+      setResponderOffers(offers);
     }
     setPhase("help");
   }
