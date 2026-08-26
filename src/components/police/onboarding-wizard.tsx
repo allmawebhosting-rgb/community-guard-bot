@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { RANKS, isCommandRank, rankLabel, stationsQuery, type OfficerRank } from "@/lib/police";
 import { cn } from "@/lib/utils";
 
-type Phase = "landing" | "request" | "verification" | "role" | "area" | "security" | "review" | "submitted" | "demo";
+type Phase = "landing" | "request" | "verification" | "role" | "area" | "coordination" | "security" | "review" | "submitted" | "demo";
 
 type Draft = {
   full_name: string;
@@ -52,6 +52,8 @@ type Draft = {
   region: string;
   district: string;
   operating_area: string;
+  location_access: "view" | "coordinate" | "manage";
+  external_contact_permission: boolean;
   password: string;
   email_verified: boolean;
   phone_verified: boolean;
@@ -138,6 +140,8 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
     region: "",
     district: "",
     operating_area: "",
+    location_access: "view",
+    external_contact_permission: false,
     password: "",
     email_verified: false,
     phone_verified: false,
@@ -218,6 +222,9 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
             email: true,
             push: true,
             scope: "critical",
+            location_access: draft.location_access,
+            external_contact_permission: draft.external_contact_permission,
+            operating_area: draft.operating_area.trim() || draft.city || draft.district || draft.country,
           },
           onboarding_step: 8,
           onboarding_completed: true,
@@ -238,7 +245,7 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
   });
 
   const progress = (() => {
-    const phases = ["landing", "request", "verification", "role", "area", "security", "review", "submitted"];
+    const phases = ["landing", "request", "verification", "role", "area", "coordination", "security", "review", "submitted"];
     const idx = phases.indexOf(phase);
     if (idx <= 0) return 8;
     return ((idx + 1) / phases.length) * 100;
@@ -492,7 +499,40 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
 
                 <div className="flex justify-between gap-3 pt-2">
                   <Button variant="ghost" className="rounded-full" onClick={() => setPhase("role")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
-                  <Button className="rounded-full" disabled={!canContinue} onClick={() => setPhase("security")}>Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+                  <Button className="rounded-full" disabled={!canContinue} onClick={() => setPhase("coordination")}>Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+                </div>
+              </div>
+            )}
+
+            {phase === "coordination" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Locations &amp; coordination scope</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">What should you be able to coordinate?</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Access is limited to your approved operating area. External police, medical, fire, and security facilities remain independent unless an authorized relationship is recorded.</p>
+                </div>
+
+                <div className="space-y-2">
+                  {[
+                    ["view", "View locations and coverage", "Review Allma offices, listed facilities, incidents, and verified location information."],
+                    ["coordinate", "Coordinate approved resources", "Identify nearby resources and prepare human-reviewed coordination requests."],
+                    ["manage", "Manage an Allma location network", "Administer Allma offices, response points, and organization records if authorized."]
+                  ].map(([value, label, brief]) => (
+                    <button key={value} type="button" onClick={() => set("location_access", value as Draft["location_access"])} className={cn("flex w-full items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition", draft.location_access === value ? "border-primary/60 bg-primary/10" : "border-border/50 bg-secondary/35")}>
+                      <div><div className="text-sm font-medium text-foreground">{label}</div><div className="mt-1 text-[11px] text-muted-foreground">{brief}</div></div>
+                      {draft.location_access === value && <Check className="mt-1 h-4 w-4 shrink-0 text-primary" />}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-secondary/35 px-4 py-3">
+                  <Switch checked={draft.external_contact_permission} onCheckedChange={(value) => set("external_contact_permission", value)} />
+                  <div><div className="text-sm font-medium text-foreground">Request contact with external facilities</div><div className="text-[11px] leading-relaxed text-muted-foreground">This never dispatches emergency services automatically. Each contact or share requires authorization and an operator decision.</div></div>
+                </div>
+
+                <div className="flex justify-between gap-3 pt-2">
+                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("area")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
+                  <Button className="rounded-full" onClick={() => setPhase("security")}>Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Button>
                 </div>
               </div>
             )}
@@ -550,7 +590,7 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
                 </div>
 
                 <div className="flex justify-between gap-3 pt-2">
-                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("area")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
+                  <Button variant="ghost" className="rounded-full" onClick={() => setPhase("coordination")}><ArrowLeft className="mr-1.5 h-4 w-4" /> Back</Button>
                   <Button className="rounded-full" disabled={!canContinue} onClick={() => setPhase("review")}>Review access <ChevronRight className="ml-1.5 h-4 w-4" /></Button>
                 </div>
               </div>
@@ -569,6 +609,8 @@ export function OnboardingWizard({ userId, email }: { userId: string; email: str
                     ["Organization", draft.org_name || draft.organization],
                     ["Role", draft.role],
                     ["Location", `${draft.country} / ${draft.region || draft.district || draft.city || draft.operating_area}`],
+                    ["Location access", draft.location_access === "manage" ? "Manage Allma network" : draft.location_access === "coordinate" ? "Coordinate approved resources" : "View locations and coverage"],
+                    ["External contact", draft.external_contact_permission ? "Request with authorization" : "Not requested"],
                     ["Access Level", draft.access_level],
                   ].map(([label, value]) => (
                     <div key={label} className="flex items-center justify-between gap-3 border-b border-border/40 pb-2 last:border-0 last:pb-0">
