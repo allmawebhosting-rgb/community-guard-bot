@@ -228,7 +228,15 @@ export function CallCenter() {
           void setCallStatus(row.id, "ringing").catch(() => undefined);
           // Only the authorised recipient can read this, and only permitted fields.
           void getEmergencyCallContext(row.id).then((context) => {
-            if (callIdRef.current === row.id && context?.is_emergency) setEmergency(context);
+            if (callIdRef.current !== row.id || !context) return;
+            if (context.is_emergency) {
+              setEmergency(context);
+              setPeer((current) => ({
+                ...(current ?? { id: row.caller_id }),
+                name: context.caller_name,
+                avatarUrl: context.caller_avatar_url,
+              }));
+            }
           });
           ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
         },
@@ -308,7 +316,15 @@ export function CallCenter() {
       setPhase("incoming");
       void setCallStatus(row.id, "ringing").catch(() => undefined);
       void getEmergencyCallContext(row.id).then((context) => {
-        if (callIdRef.current === row.id && context?.is_emergency) setEmergency(context);
+        if (callIdRef.current !== row.id || !context) return;
+        if (context.is_emergency) {
+          setEmergency(context);
+          setPeer((current) => ({
+            ...(current ?? { id: row.caller_id }),
+            name: context.caller_name,
+            avatarUrl: context.caller_avatar_url,
+          }));
+        }
       });
       ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
     })();
