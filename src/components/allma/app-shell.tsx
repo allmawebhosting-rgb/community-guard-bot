@@ -326,7 +326,7 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-sm flex-col border-r border-border/60 bg-sidebar lg:hidden"
+            className="fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-sm flex-col border-r border-border/60 bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:hidden"
           >
             <div className="relative shrink-0 overflow-hidden px-5 pb-4 pt-5">
               <div className="signal-streak pointer-events-none absolute inset-0" />
