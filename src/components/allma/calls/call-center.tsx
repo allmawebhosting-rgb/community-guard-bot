@@ -58,6 +58,7 @@ export function CallCenter() {
   const callIdRef = useRef<string | null>(null);
   const sosOutgoingRef = useRef(new Map<string, CallPeer>());
   const sosPrimaryClaimedRef = useRef(false);
+  const sosWinnerClaimedRef = useRef(false);
   const phaseRef = useRef<Phase>("idle");
   const namesRef = useRef<Map<string, CallPeer>>(new Map());
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,6 +76,7 @@ export function CallCenter() {
     callIdRef.current = null;
     sosOutgoingRef.current.clear();
     sosPrimaryClaimedRef.current = false;
+    sosWinnerClaimedRef.current = false;
     setCallId(null);
     setSeconds(0);
     setMuted(false);
@@ -237,9 +239,8 @@ export function CallCenter() {
         (payload) => {
           const row = payload.new as { id: string; status: string };
           const pendingSosPeer = sosOutgoingRef.current.get(row.id);
-          if (row.id !== callIdRef.current && pendingSosPeer && (row.status === "connecting" || row.status === "connected") && phaseRef.current === "outgoing") {
-            const previousId = callIdRef.current;
-            if (previousId) void setCallStatus(previousId, "ended").catch(() => undefined);
+          if (row.id !== callIdRef.current && pendingSosPeer && (row.status === "connecting" || row.status === "connected") && phaseRef.current === "outgoing" && !sosWinnerClaimedRef.current) {
+            sosWinnerClaimedRef.current = true;
             engineRef.current?.close();
             engineRef.current = null;
             callIdRef.current = row.id;

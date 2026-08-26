@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/zego-token")({
           return jsonError("You cannot call this person.", 403, "CALL_NOT_AUTHORIZED");
         }
         if (["ended", "declined", "missed", "failed"].includes(call.status)) {
-          return jsonError("This call is no longer available.", 409, "CALL_NOT_ACTIVE");
+          return jsonError("This call already ended — they may be calling again.", 409, "CALL_NOT_ACTIVE");
         }
 
         const roomId = call.zego_room_id || `allma-call-${call.id}`;

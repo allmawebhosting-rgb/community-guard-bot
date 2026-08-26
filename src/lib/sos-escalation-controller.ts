@@ -22,7 +22,7 @@ import {
 /** How long all contacts are given to answer before another round starts. */
 export const RING_WINDOW_MS = 42_000;
 /** Pause before starting the next full round through the contact list. */
-export const ROUND_GAP_SECONDS = 7 * 60;
+export const ROUND_GAP_SECONDS = 20;
 
 export type EscalationState = {
   loading: boolean;
@@ -215,22 +215,30 @@ class SosEscalation {
       if (outcome) {
         const winner = this.state.answered;
         if (winner) {
+          const winnerCreatedAt = new Date(winner.created_at).getTime();
           await Promise.all(
             this.state.attempts
-              .filter((attempt) => attempt.call_id !== winner.call_id && !isTerminal(attempt.status))
+              .filter((attempt) => {
+                const createdAt = new Date(attempt.created_at).getTime();
+                return (
+                  attempt.call_id !== winner.call_id &&
+                  createdAt >= startedAt - 15_000 &&
+                  createdAt <= winnerCreatedAt &&
+                  !isTerminal(attempt.status)
+                );
+              })
               .map((attempt) => setCallStatus(attempt.call_id, "ended").catch(() => undefined)),
           );
         }
-        this.patch({ currentIndex: -1, waitSeconds: null });
-        if (this.state.welfareConfirmed) {
-          this.patch({ running: false });
-          return;
-        }
-        await this.countdown(ROUND_GAP_SECONDS, alive);
-        continue;
+        this.patch({ running: false, currentIndex: -1, waitSeconds: null });
+        return;
       }
 
       this.patch({ currentIndex: -1 });
+      if (this.state.welfareConfirmed) {
+        this.patch({ running: false });
+        return;
+      }
       await this.countdown(ROUND_GAP_SECONDS, alive);
     }
   }

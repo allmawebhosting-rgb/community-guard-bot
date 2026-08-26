@@ -24,7 +24,14 @@ BEGIN
   END IF;
   SELECT count(*) INTO recent FROM public.emergency_calls
   WHERE caller_id = me AND created_at > now() - interval '10 minutes';
-  IF recent >= 30 THEN RAISE EXCEPTION 'Too many call attempts. Please wait a moment.'; END IF;
+  IF recent >= 100 THEN RAISE EXCEPTION 'Too many call attempts. Please wait a moment.'; END IF;
+
+  -- Clear stale calls, but never cancel sibling calls in this SOS session.
+  UPDATE public.emergency_calls
+  SET status = 'ended', ended_at = now(), updated_at = now()
+  WHERE caller_id = me
+    AND sos_session_id IS DISTINCT FROM p_sos_activity_id
+    AND status IN ('initiating','ringing','connecting','accepted','connected','calling');
 
   INSERT INTO public.emergency_calls (
     caller_id, recipient_id, call_type, status, provider_mode,
