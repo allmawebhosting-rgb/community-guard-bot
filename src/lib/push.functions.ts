@@ -126,7 +126,16 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
     const publicKey = process.env["VAPID_PUBLIC_KEY"];
     const privateKey = process.env["VAPID_PRIVATE_KEY"];
     const subject = process.env["VAPID_SUBJECT"] ?? "mailto:safety@allma.app";
-    if (!publicKey || !privateKey) return { delivered: 0, devices: 0 };
+    if (!publicKey || !privateKey) {
+      if (invitation) {
+        await context.supabase
+          .from("emergency_call_invitations")
+          .update({ status: "FAILED" })
+          .eq("id", invitation.id);
+      }
+      console.error("[push] VAPID keys are not configured");
+      throw new Error("Background notifications are not configured for this deployment.");
+    }
 
     const { data: profile } = await context.supabase
       .from("profiles")
@@ -141,7 +150,16 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
       .select("id, endpoint, p256dh, auth_key")
       .eq("user_id", call.recipient_id);
 
-    if (!devices?.length) return { delivered: 0, devices: 0 };
+    if (!devices?.length) {
+      if (invitation) {
+        await context.supabase
+          .from("emergency_call_invitations")
+          .update({ status: "FAILED" })
+          .eq("id", invitation.id);
+      }
+      console.warn("[push] recipient has no registered devices", { recipientId: call.recipient_id });
+      return { delivered: 0, devices: 0, ...(invitation ? { invitationId: invitation.id } : {}) };
+    }
 
     const { buildPushPayload } = await import("@block65/webcrypto-web-push");
     const vapid = { subject, publicKey, privateKey };

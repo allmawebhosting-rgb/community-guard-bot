@@ -178,6 +178,11 @@ export function CallCenter() {
                 callId: id,
                 recipientId: requested.id,
               });
+              if (isPrimarySosCall) {
+                toast.message(`${requested.name} has not enabled background notifications on their device.`);
+              }
+            } else if (isPrimarySosCall && result.delivered === 0) {
+              toast.message(`Background alert could not reach ${requested.name}'s device.`);
             }
           }).catch((error) => {
             console.error("[ALLMA PUSH] incoming call notification failed", {
