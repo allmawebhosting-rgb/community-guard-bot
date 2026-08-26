@@ -89,7 +89,7 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: call } = await context.supabase
       .from("emergency_calls")
-      .select("id, caller_id, recipient_id, status, sos_session_id")
+      .select("id, caller_id, recipient_id, status, sos_session_id, created_at")
       .eq("id", data.callId)
       .maybeSingle();
 
@@ -97,7 +97,12 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
     if (!call || call.caller_id !== context.userId) {
       throw new Error("You cannot send alerts for this call.");
     }
-    if (!["initiating", "ringing", "connecting"].includes(call.status)) {
+    const recentSosCall = Boolean(
+      call.sos_session_id &&
+      call.status === "ended" &&
+      new Date(call.created_at ?? 0).getTime() >= Date.now() - 30_000,
+    );
+    if (!["initiating", "ringing", "connecting"].includes(call.status) && !recentSosCall) {
       return { delivered: 0, devices: 0 };
     }
 
@@ -199,4 +204,47 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
         .eq("id", invitation.id);
     }
     return { delivered, devices: devices.length, ...(invitation ? { invitationId: invitation.id } : {}) };
+  });
+
+export const sendTestPushAlert = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const publicKey = process.env["VAPID_PUBLIC_KEY"];
+    const privateKey = process.env["VAPID_PRIVATE_KEY"];
+    const subject = process.env["VAPID_SUBJECT"] ?? "mailto:safety@allma.app";
+    if (!publicKey || !privateKey) throw new Error("Push delivery is not configured.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: devices } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth_key")
+      .eq("user_id", context.userId);
+    if (!devices?.length) return { delivered: 0, devices: 0 };
+
+    const { buildPushPayload } = await import("@block65/webcrypto-web-push");
+    let delivered = 0;
+    const stale: string[] = [];
+    await Promise.all(devices.map(async (device) => {
+      try {
+        const payload = await buildPushPayload(
+          {
+            data: JSON.stringify({
+              type: "allma_test_alert",
+              title: "Allma test alert",
+              body: "Background alerts are working on this device.",
+            }),
+            options: { ttl: 60, urgency: "high" as const },
+          },
+          { endpoint: device.endpoint, expirationTime: null, keys: { p256dh: device.p256dh, auth: device.auth_key } },
+          { subject, publicKey, privateKey },
+        );
+        const response = await fetch(device.endpoint, { ...payload, body: payload.body as unknown as BodyInit });
+        if (response.status === 404 || response.status === 410) stale.push(device.id);
+        else if (response.ok) delivered += 1;
+      } catch (error) {
+        console.error("[push] test alert failed", error);
+      }
+    }));
+    if (stale.length) await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
+    return { delivered, devices: devices.length };
   });

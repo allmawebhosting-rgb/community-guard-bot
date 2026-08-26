@@ -16,6 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CallCenter } from "@/components/allma/calls/call-center";
 import { SmartSosGuardian } from "@/components/allma/sos/smart-sos-guardian";
+import { ensurePushRegistered } from "@/lib/push";
 
 function NotFoundComponent() {
   return (
@@ -93,6 +94,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "author", content: "Allma AI" },
       { name: "theme-color", content: "#0f1720" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Allma" },
       { property: "og:title", content: "Allma Safety AI — Uganda's AI safety assistant" },
       {
         property: "og:description",
@@ -127,6 +132,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap",
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -167,6 +173,12 @@ function AuthSync() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      if (data.user) void ensurePushRegistered().catch(() => undefined);
+    });
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

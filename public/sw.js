@@ -31,7 +31,7 @@ self.addEventListener("push", (event) => {
       vibrate: [200, 100, 200, 100, 200],
       data: { callId, invitationId, type: payload.type || "incoming_call" },
       actions: [
-        { action: "answer", title: "View" },
+        { action: "answer", title: "Answer" },
         { action: "decline", title: "Dismiss" },
       ],
     }),

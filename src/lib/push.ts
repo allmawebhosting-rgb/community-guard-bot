@@ -105,6 +105,30 @@ export async function enableBackgroundCallAlerts(): Promise<PushState> {
   return "enabled";
 }
 
+/** Repairs a granted browser subscription without showing a permission prompt. */
+export async function ensurePushRegistered(): Promise<PushState> {
+  if (!pushSupported()) return isIos() && !isStandalone() ? "ios-needs-install" : "unsupported";
+  if (isIos() && !isStandalone()) return "ios-needs-install";
+  if (Notification.permission !== "granted") return readPushState();
+
+  const config = await getPushConfig().catch(() => null);
+  if (!config?.publicKey) return "not-configured";
+  const reg = await registration();
+  const subscription = await reg.pushManager.getSubscription();
+  if (!subscription) return "prompt";
+  const json = subscription.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) return "prompt";
+  await savePushSubscription({
+    data: {
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      userAgent: navigator.userAgent,
+    },
+  });
+  return "enabled";
+}
+
 export async function disableBackgroundCallAlerts() {
   if (!pushSupported()) return;
   const reg = await navigator.serviceWorker.getRegistration("/");

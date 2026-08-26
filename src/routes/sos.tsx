@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SOSExperience } from "@/components/allma/sos-experience";
+import { BackgroundCallPrompt } from "@/components/allma/calls/background-call-prompt";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -40,5 +41,5 @@ export const Route = createFileRoute("/sos")({
 
 function SOSRoute() {
   const { instant, check } = Route.useSearch();
-  return <SOSExperience instant={instant} smartCheckId={check} />;
+  return <><BackgroundCallPrompt /><SOSExperience instant={instant} smartCheckId={check} /></>;
 }

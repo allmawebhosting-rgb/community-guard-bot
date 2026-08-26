@@ -8,6 +8,7 @@ import {
   readPushState,
   type PushState,
 } from "@/lib/push";
+import { sendTestPushAlert } from "@/lib/push.functions";
 
 const copy: Record<PushState, { title: string; detail: string }> = {
   enabled: {
@@ -44,6 +45,7 @@ const copy: Record<PushState, { title: string; detail: string }> = {
 export function BackgroundCallAlerts() {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -80,6 +82,19 @@ export function BackgroundCallAlerts() {
     }
   };
 
+  const test = async () => {
+    setTesting(true);
+    try {
+      const result = await sendTestPushAlert();
+      if (result.delivered) toast.success("Test alert sent to this device.");
+      else toast.error("No active push subscription was found for this device.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Test alert could not be sent.");
+    } finally {
+      setTesting(false);
+    }
+  };
+
   if (!state) return null;
   const text = copy[state];
 
@@ -110,6 +125,11 @@ export function BackgroundCallAlerts() {
             >
               {busy && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               {state === "enabled" ? "Turn off on this device" : "Enable background alerts"}
+            </Button>
+          )}
+          {state === "enabled" && (
+            <Button type="button" size="sm" variant="ghost" className="mt-3 ml-2" disabled={testing} onClick={() => void test()}>
+              {testing && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}Send test alert
             </Button>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/allma/app-shell";
 import { CallHistory } from "@/components/allma/calls/call-history";
+import { BackgroundCallPrompt } from "@/components/allma/calls/background-call-prompt";
 
 export const Route = createFileRoute("/_authenticated/calls")({
   head: () => ({
@@ -19,6 +20,7 @@ function CallsRoute() {
   return (
     <AppShell title="Emergency calls">
       <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
+        <BackgroundCallPrompt />
         <div className="mb-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/65">
             Voice history
