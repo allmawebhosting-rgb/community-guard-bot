@@ -37,3 +37,7 @@ Over the last two days: 442 calls ended, 25 declined, 12 stuck at "initiating", 
 
 - After a test SOS: the activity row shows real coordinates and a real `location_text`; the receiver's call screen shows the area.
 - `emergency_calls` shows rows reaching `connecting` then `connected` with `connected_at` set, and no new "Microphone access is required" failures.
+
+## Also needed
+
+- The SOS screen currently has a missing import for its toast helper (`src/components/allma/sos-experience.tsx`), which breaks the build. Adding `import { toast } from "sonner";` is included in this work.
