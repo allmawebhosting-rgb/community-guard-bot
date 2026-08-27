@@ -41,6 +41,7 @@ export type EmergencyCallContext = {
 function friendly(message: string) {
   const clean = message.replace(/^.*?:\s*/, "").trim();
   return clean || "Something went wrong. Please try again.";
+  accuracy_m: number | null;
 }
 
 const DISCOVERY_TIMEOUT_MS = 8_000;

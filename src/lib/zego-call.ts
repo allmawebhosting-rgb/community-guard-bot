@@ -67,6 +67,7 @@ export type CallPeer = {
   sosActivityId?: string;
   emergencyType?: string;
   onError?: (message: string) => void;
+  microphoneStream?: MediaStream;
 };
 
 export type ConnectionQuality = "connecting" | "good" | "poor" | "reconnecting";
@@ -111,6 +112,17 @@ export function microphoneErrorMessage(error: unknown) {
   }
   if (name === "NotReadableError") return "Your microphone is being used by another app.";
   return "Allma could not start audio on this device.";
+}
+
+export async function primeMicrophone() {
+  if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Microphone access is required for an Allma voice call.");
+  }
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (error) {
+    throw error;
+  }
 }
 
 async function getZegoToken(callId: string): Promise<ZegoTokenResponse> {
@@ -182,6 +194,7 @@ export class VoiceCallEngine {
     private readonly userId: string,
     private readonly isCaller: boolean,
     private readonly events: EngineEvents,
+    private readonly prewarmedStream?: MediaStream,
   ) {}
 
   async start() {
@@ -239,7 +252,7 @@ export class VoiceCallEngine {
     if (!loggedIn) throw new Error("Unable to join the ZEGOCLOUD voice room.");
     let microphone: MediaStream;
     try {
-      microphone = await engine.createStream({ camera: { video: false }, microphone: true });
+      microphone = this.prewarmedStream ?? await engine.createStream({ camera: { video: false }, microphone: true });
       this.localStream = microphone;
       await engine.startPublishingStream(this.publishStreamId, microphone);
     } catch (error) {

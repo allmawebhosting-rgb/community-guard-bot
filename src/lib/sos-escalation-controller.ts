@@ -68,6 +68,7 @@ class SosEscalation {
   private initialised = false;
   private loadingTargets = false;
   private autoStartRequested = false;
+  private microphoneStream: MediaStream | undefined;
   private disposeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -77,6 +78,10 @@ class SosEscalation {
 
   setEmergencyType(type: string) {
     this.emergencyType = type;
+  }
+
+  setMicrophoneStream(stream: MediaStream | undefined) {
+    this.microphoneStream = stream;
   }
 
   subscribe(listener: () => void) {
@@ -201,6 +206,7 @@ class SosEscalation {
           avatarUrl: target.avatar_url,
           sosActivityId: this.activityId,
           emergencyType: this.emergencyType,
+          microphoneStream: this.microphoneStream,
           onError: (message) => {
             if (!alive()) return;
             this.patch({

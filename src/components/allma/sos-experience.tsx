@@ -44,6 +44,8 @@ import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-e
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 import { notifySosActivity } from "@/lib/push.functions";
+import { primeMicrophone } from "@/lib/zego-call";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1244,6 +1246,7 @@ export function SOSExperience({
   const [trustedContacts, setTrustedContacts] = useState<TrustedContact[]>([]);
   const [responderOffers, setResponderOffers] = useState<ResponderOffer[]>([]);
   const [sosActivityId, setSosActivityId] = useState<string | null>(null);
+  const [microphoneStream, setMicrophoneStream] = useState<MediaStream | undefined>();
   const [reportText, setReportText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
@@ -1349,6 +1352,11 @@ export function SOSExperience({
     const type = pendingEmergencyType;
     if (activated.current) return;
     activated.current = true;
+    try {
+      setMicrophoneStream(await primeMicrophone());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Microphone access is required for SOS calls.");
+    }
     setEmergencyId(createEmergencyId());
     setActivatedAt(Date.now());
     setSosActivityId(null);
@@ -1405,6 +1413,7 @@ export function SOSExperience({
         })
         .eq("id", activityId);
       if (error) console.error("Failed to update SOS location", error);
+      if (error) toast.error("SOS is active, but your location could not be shared.");
     }
 
     if (user) {
@@ -1556,6 +1565,17 @@ export function SOSExperience({
                 setLocation(nextLocation);
                 setShareLocation(true);
                 setLocationState(nextLocation.accuracy <= 30 ? "found" : "approximate");
+                if (sosActivityId) {
+                  const { error } = await supabase
+                    .from("safety_activity")
+                    .update({
+                      location_text: `${nextLocation.address}, ${nextLocation.district}`.replace(/, $/, ""),
+                      latitude: nextLocation.lat,
+                      longitude: nextLocation.lng,
+                    })
+                    .eq("id", sosActivityId);
+                  if (error) toast.error("Location could not be saved. Please try again.");
+                }
               } catch (error) {
                 setLocationState(
                   error instanceof Error && error.name === "denied" ? "denied" : "unavailable",
@@ -2155,7 +2175,7 @@ function MinimalEmergencyScreen({
       </header>
 
       <div className="relative mx-auto w-full max-w-xl px-5 pb-10 sm:px-7">
-        <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} compact />
+              <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
 
         <section aria-labelledby="actions-heading" className="border-b border-white/[0.08] py-6">
           <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Immediate actions</p>
@@ -3292,7 +3312,7 @@ function HelpScreen({
 
       <div className="shrink-0 border-b border-border/60 px-3 py-3 sm:px-5 lg:px-6">
         <div className="mx-auto w-full max-w-4xl">
-          <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} />
+          <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} />
         </div>
       </div>
 

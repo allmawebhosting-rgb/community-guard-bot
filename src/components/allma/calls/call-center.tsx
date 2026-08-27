@@ -22,6 +22,7 @@ import {
   VoiceCallEngine,
   formatDuration,
   microphoneErrorMessage,
+  primeMicrophone,
   onVoiceCallRequest,
   registerVoiceDevice,
   setCallStatus,
@@ -116,7 +117,7 @@ export function CallCenter() {
   }, []);
 
   const beginEngine = useCallback(
-    async (id: string, caller: boolean) => {
+    async (id: string, caller: boolean, stream?: MediaStream) => {
       const engine = new VoiceCallEngine(id, userId!, caller, {
         onQuality: setQuality,
         onConnected: () => {
@@ -132,7 +133,7 @@ export function CallCenter() {
           void setCallStatus(id, "failed", message).catch(() => undefined);
           teardown(message);
         },
-      });
+      }, stream);
       engineRef.current = engine;
       await engine.start();
     },
@@ -194,7 +195,8 @@ export function CallCenter() {
           // CONNECTED is still deferred until ZEGOCLOUD reports a remote stream.
           if (isPrimarySosCall || !requested.sosActivityId) {
             const activeId = id;
-            await beginEngine(activeId, true);
+            const microphoneStream = requested.microphoneStream ?? await primeMicrophone();
+            await beginEngine(activeId, true, microphoneStream);
             await setCallStatus(activeId, "connecting");
             ringTimerRef.current = setTimeout(() => {
               void setCallStatus(activeId, "missed").catch(() => undefined);
@@ -271,7 +273,9 @@ export function CallCenter() {
             callIdRef.current = row.id;
             setCallId(row.id);
             setPeer(pendingSosPeer);
-            void beginEngine(row.id, true).then(() => setCallStatus(row.id, "connecting")).catch(() => undefined);
+            void beginEngine(row.id, true, pendingSosPeer.microphoneStream)
+              .then(() => setCallStatus(row.id, "connecting"))
+              .catch(() => undefined);
           }
           if (row.id !== callIdRef.current) return;
           if (row.status === "declined") teardown(`${peerRef.current?.name ?? "They"} declined the call.`);
@@ -343,9 +347,28 @@ export function CallCenter() {
           }));
         }
       });
+      const contextTimer = window.setInterval(() => {
+        if (callIdRef.current === row.id && (phaseRef.current === "incoming" || phaseRef.current === "active")) {
+          void getEmergencyCallContext(row.id).then((context) => {
+            if (callIdRef.current === row.id && context) setEmergency(context);
+          });
+        }
+      }, 3000);
       ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
+      window.setTimeout(() => window.clearInterval(contextTimer), RING_TIMEOUT_MS);
     })();
   }, [teardown, userId]);
+
+  useEffect(() => {
+    if (!callId || (phase !== "incoming" && phase !== "active")) return;
+    const refreshContext = () => {
+      void getEmergencyCallContext(callId).then((context) => {
+        if (callIdRef.current === callId && context) setEmergency(context);
+      });
+    };
+    const timer = window.setInterval(refreshContext, 3000);
+    return () => window.clearInterval(timer);
+  }, [callId, emergency?.is_emergency, phase]);
 
   // Call timer starts only when real audio is connected.
   useEffect(() => {
@@ -392,8 +415,9 @@ export function CallCenter() {
           return;
         }
       }
+      const microphoneStream = await primeMicrophone();
       await setCallStatus(id, "connecting");
-      await beginEngine(id, false);
+      await beginEngine(id, false, microphoneStream);
     } catch (error) {
       const message =
         error instanceof DOMException
@@ -510,6 +534,11 @@ export function CallCenter() {
                   <MapPin className="h-3.5 w-3.5" />
                   {emergency.location_shared ? emergency.area : "Location not shared with you"}
                 </p>
+                {emergency.location_shared && emergency.accuracy_m !== null && (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
+                  </p>
+                )}
                 {emergency.location_shared && emergency.latitude !== null && emergency.longitude !== null && (
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${emergency.latitude},${emergency.longitude}`}
