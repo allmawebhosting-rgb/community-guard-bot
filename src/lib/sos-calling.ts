@@ -36,12 +36,12 @@ export type EmergencyCallContext = {
   location_shared: boolean;
   latitude: number | null;
   longitude: number | null;
+  accuracy_m?: number | null;
 };
 
 function friendly(message: string) {
   const clean = message.replace(/^.*?:\s*/, "").trim();
   return clean || "Something went wrong. Please try again.";
-  accuracy_m: number | null;
 }
 
 const DISCOVERY_TIMEOUT_MS = 8_000;
