@@ -2806,7 +2806,9 @@ export type Database = {
           caller_name: string
           emergency_type: string
           is_emergency: boolean
+          latitude: number
           location_shared: boolean
+          longitude: number
           severity: string
         }[]
       }
