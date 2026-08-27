@@ -534,7 +534,7 @@ export function CallCenter() {
                   <MapPin className="h-3.5 w-3.5" />
                   {emergency.location_shared ? emergency.area : "Location not shared with you"}
                 </p>
-                {emergency.location_shared && emergency.accuracy_m !== null && (
+                {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
                   <p className="mt-1 text-[10px] text-muted-foreground">
                     GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
                   </p>
