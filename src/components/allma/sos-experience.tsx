@@ -2128,6 +2128,7 @@ function MinimalEmergencyScreen({
   location,
   locationState,
   activityId,
+  microphoneStream,
   onEnableLocation,
   onReport,
   onClose,
