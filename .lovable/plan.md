@@ -1,49 +1,37 @@
-# Make calls ring when the browser is closed
+# Fix iPhone background alerts for SOS calls and activity
 
-## What the data shows
+## What is actually broken
 
-- Only **1 device** is registered for background alerts across the whole app (`push_subscriptions`: 1 row, 1 user, last used 24 Aug). Everyone else has no subscription, so there is nothing to push to — a closed browser can never ring for them.
-- **648 SOS calls** have been placed, but the emergency invitation table has **0 rows**. The push routine writes an invitation before it ever touches the VAPID keys, so zero rows means the routine returned or failed before that point on every single call. The most likely reason is the status guard at the top: it only pushes when the call row is still `initiating`/`ringing`/`connecting`, and SOS rows were being marked `ended` within milliseconds (the sibling-cancellation bug). Any other failure is swallowed by a silent `.catch()`.
-- There is **no web app manifest** in the project (`public/` has only favicons/robots/sw.js) and no manifest link in the app head. Without an installable app, iPhone/iPad cannot deliver web push at all, and Android never offers "Install app".
+Verified against the live database:
 
-So three independent things must change: people must actually be subscribed, the push must not be skipped, and the app must be installable.
+- Two iPhones (iOS 18.7) **are** registered for background alerts, plus three other devices — so installing to the home screen and the permission prompt are working.
+- The `emergency_call_invitations` table has **0 rows, ever**. Every SOS call push goes through that table first, so no background alert has ever been sent for a call.
+- Root cause: the person who activates SOS is allowed to *create* an invitation row but has **no permission to read it back**. The app creates the row and immediately reads it to confirm; that read is blocked, the whole step fails, and the push is abandoned silently. Only the recipient can currently read invitations.
+- Separately, SOS activity (the "X activated SOS" alert that lands in the in-app bell) creates an in-app notification row only — there is no background push for it at all, so a closed iPhone shows nothing.
 
-## The fix
+## Changes
 
-1. Ask for background alerts where people actually are
-   - Move the opt-in out of the Profile page only: show a one-time, dismissible prompt on the SOS screen and the Calls screen for signed-in users whose device has no subscription yet.
-   - Re-register silently on every app load when permission is already granted but the subscription row is missing or stale (this repairs devices whose subscription expired), and refresh `last_used_at`.
-   - Keep the existing Profile card as the on/off control.
+### 1. Database: let the SOS caller read their own invitation
 
-2. Make the app installable (required for iOS push)
-   - Add a real web app manifest (name, short name, Uganda-palette theme/background colors, maskable icons, `display: standalone`, start URL `/`) and link it plus `apple-mobile-web-app-*` tags from the root head.
-   - Keep the existing Add-to-Home-Screen guidance copy, which then becomes accurate.
+Add a read rule on emergency call invitations for the person who placed the call (mirroring the update rule that already exists). This unblocks the confirm-and-send step, so pushes actually go out to the recipient's iPhone.
 
-3. Stop dropping the push
-   - Send the alert for every dialed recipient, including each contact in an SOS round, not only the primary row.
-   - Relax the status guard so a row that is merely being created/`ended`-raced still pushes, and stop swallowing errors: log the failure reason server-side and surface a non-blocking indication to the caller when zero devices were reached.
-   - Record the outcome per recipient in the invitation row as today (`SENT` -> `DELIVERED`/`FAILED`) so delivery is auditable with real data.
+### 2. Push background alerts for SOS activity, not just calls
 
-4. Make the notification behave like a call
-   - Service worker: keep the notification sticky, re-notify per round, and show "Answer"/"Dismiss"; tapping Answer focuses or opens `/calls` with the call and invitation ids as it does now.
-   - Add a "Send test alert" action next to the Profile toggle so a user can prove their own device rings while the browser is closed.
+When SOS is activated, each safety-network member who gets the in-app alert also gets a background push (title: "<Name> activated SOS", body with the area when location was shared, link to their alerts/calls screen). This reuses the same delivery code path as call pushes, with a distinct notification tag so it does not replace an incoming-call banner.
 
-## Honest limitation to state in the UI
+### 3. Make failures visible instead of silent
 
-Web push wakes a notification, not a full-screen native ringer. On iOS it only works after Add to Home Screen, and the OS may delay delivery. The copy will say this plainly rather than promise CallKit-style ringing.
+Today a failed push is swallowed. After the fix, a failed background alert is logged server-side with the reason and surfaced to the SOS user as a plain sentence ("Background alert could not reach Jane's phone"), so a real delivery problem is never mistaken for success.
 
 ## Technical notes
 
-- New: `public/manifest.webmanifest` + icons; head links in `src/routes/__root.tsx`.
-- `src/lib/push.ts`: add `ensurePushRegistered()` (silent repair when `Notification.permission === "granted"`), export a "needs opt-in" check for the prompt.
-- New small component for the inline prompt, mounted on `src/routes/sos.tsx` and `src/routes/_authenticated/calls.tsx`; dismissal stored per device.
-- `src/lib/push.functions.ts`: widen the status guard, `console.error` real reasons, add `sendTestPushAlert` (self-only, rate-limited).
-- `src/components/allma/calls/call-center.tsx` / `src/lib/sos-escalation-controller.ts`: call `notifyIncomingCall` for every recipient dialed in a round.
-- `public/sw.js`: answer/dismiss actions and per-round renotify.
-- No schema change needed; `push_subscriptions` and `emergency_call_invitations` already exist with correct policies.
+- Migration: `CREATE POLICY "SOS callers view own invitations" ON public.emergency_call_invitations FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.emergency_calls c WHERE c.id = call_session_id AND c.caller_id = auth.uid()))`. Grants are already correct (verified with `has_table_privilege`).
+- `src/lib/push.functions.ts`: add a `notifySosActivity` server function that fans out to each safety-network member's `push_subscriptions` rows using the existing `@block65/webcrypto-web-push` payload builder and prunes 404/410 endpoints.
+- SOS activation path (`src/lib/sos-escalation-controller.ts` / `sos-experience.tsx`) calls `notifySosActivity` once per activation, best-effort.
+- `public/sw.js`: handle `type: "sos_activity"` with its own tag and an "Open" action; keep the existing call answer/dismiss behaviour untouched.
+- No change to the ZEGOCLOUD call engine, ring timeouts, or the escalation order.
 
 ## Verification
 
-- Enable alerts on a second device, close the browser completely, place a call, and confirm the notification appears and Answer opens the ringing call.
-- Confirm `push_subscriptions` gains rows for each device and invitations move `SENT` -> `DELIVERED`.
-- Confirm the manifest makes "Add to Home Screen" produce a standalone app that still receives the alert.
+- Re-query `emergency_call_invitations` after a test SOS: rows should appear with status `DELIVERED`.
+- Server logs should show delivery counts per device instead of nothing.
