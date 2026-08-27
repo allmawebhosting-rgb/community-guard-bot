@@ -1,37 +1,39 @@
-# Fix iPhone background alerts for SOS calls and activity
+# Fix SOS call location and calls that never connect
 
-## What is actually broken
+## What is actually broken (verified against the live database)
 
-Verified against the live database:
+**1. Location never reaches the person you call.**
+Of 160 SOS activations, only 1 ever stored coordinates — every other row still reads "Location pending" with empty latitude/longitude. The reason: the SOS record is created first and the GPS position is saved a second later with an update, but the activity table has **no update rule at all** (only insert and read rules exist). So every location save is silently rejected. The receiver's call screen then correctly reports "Location not available" because there is genuinely nothing stored.
 
-- Two iPhones (iOS 18.7) **are** registered for background alerts, plus three other devices — so installing to the home screen and the permission prompt are working.
-- The `emergency_call_invitations` table has **0 rows, ever**. Every SOS call push goes through that table first, so no background alert has ever been sent for a call.
-- Root cause: the person who activates SOS is allowed to *create* an invitation row but has **no permission to read it back**. The app creates the row and immediately reads it to confirm; that read is blocked, the whole step fails, and the push is abandoned silently. Only the recipient can currently read invitations.
-- Separately, SOS activity (the "X activated SOS" alert that lands in the in-app bell) creates an in-app notification row only — there is no background push for it at all, so a closed iPhone shows nothing.
+**2. No call has ever connected.**
+Over the last two days: 442 calls ended, 25 declined, 12 stuck at "initiating", and 54 failed — every single failure with the same reason, "Microphone access is required for an Allma voice call." Not one call reached the connected state. Audio is requested only after the voice room has been joined, which on a phone happens well after the tap that started the call, so the browser/iOS no longer treats it as a user action and refuses the microphone. During SOS auto-dial there is no tap at all, so the caller side fails within ~3 seconds of every attempt.
 
 ## Changes
 
-### 1. Database: let the SOS caller read their own invitation
+### 1. Allow the SOS location to be saved (and shown live)
 
-Add a read rule on emergency call invitations for the person who placed the call (mirroring the update rule that already exists). This unblocks the confirm-and-send step, so pushes actually go out to the recipient's iPhone.
+- Add an update rule so a person can update their own safety activity row (and keep officer/receiver access unchanged).
+- The receiver's call screen refreshes the emergency context when the caller's location arrives, instead of only reading it once at ring time — so "Location pending" turns into the real area within seconds.
+- Show the location properly on the incoming/active call screen: area text, accuracy, and an "Open in Maps" action when coordinates exist; an honest "Location not shared" line when they don't.
+- If the phone refuses location, the SOS screen says so plainly and offers a retry, rather than leaving a silent "pending".
 
-### 2. Push background alerts for SOS activity, not just calls
+### 2. Make answered calls actually connect
 
-When SOS is activated, each safety-network member who gets the in-app alert also gets a background push (title: "<Name> activated SOS", body with the area when location was shared, link to their alerts/calls screen). This reuses the same delivery code path as call pushes, with a distinct notification tag so it does not replace an incoming-call banner.
-
-### 3. Make failures visible instead of silent
-
-Today a failed push is swallowed. After the fix, a failed background alert is logged server-side with the reason and surfaced to the SOS user as a plain sentence ("Background alert could not reach Jane's phone"), so a real delivery problem is never mistaken for success.
+- Ask for the microphone at the moment of the tap — the SOS activation tap for the caller, the Answer tap for the receiver — and reuse that same audio for the call and for every follow-up attempt in the SOS round. This is the single change that fixes the recurring microphone failure.
+- Mark the call as connecting only once audio is genuinely captured, so the receiver never sees a call that cannot carry sound.
+- If the microphone is blocked, show one clear message with an "Enable microphone and retry" action instead of failing the call silently 54 times in a row.
+- Calls stuck at "initiating" (the receiver's device never picked up the ring) are closed out with the honest "No answer" state after the ring window instead of lingering.
 
 ## Technical notes
 
-- Migration: `CREATE POLICY "SOS callers view own invitations" ON public.emergency_call_invitations FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.emergency_calls c WHERE c.id = call_session_id AND c.caller_id = auth.uid()))`. Grants are already correct (verified with `has_table_privilege`).
-- `src/lib/push.functions.ts`: add a `notifySosActivity` server function that fans out to each safety-network member's `push_subscriptions` rows using the existing `@block65/webcrypto-web-push` payload builder and prunes 404/410 endpoints.
-- SOS activation path (`src/lib/sos-escalation-controller.ts` / `sos-experience.tsx`) calls `notifySosActivity` once per activation, best-effort.
-- `public/sw.js`: handle `type: "sos_activity"` with its own tag and an "Open" action; keep the existing call answer/dismiss behaviour untouched.
-- No change to the ZEGOCLOUD call engine, ring timeouts, or the escalation order.
+- Migration: `CREATE POLICY "Users can update their own activity" ON public.safety_activity FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);` (verified missing via `pg_policies`).
+- `src/components/allma/sos-experience.tsx`: report the update error to the user path, and keep `location_text`/lat/lng write as-is once the policy exists.
+- `src/components/allma/calls/call-center.tsx`: re-poll `get_emergency_call_context` on a short interval / on `safety_activity` UPDATE realtime while `phase === "incoming" | "active"`; render area + maps link from `latitude/longitude`.
+- `src/lib/zego-call.ts`: acquire `getUserMedia` (or `engine.createStream`) before `loginRoom`, accept an optional pre-warmed `MediaStream` in `VoiceCallEngine`, and expose a `primeMicrophone()` helper called from the SOS activate handler and from `answer()`.
+- `src/lib/sos-escalation-controller.ts`: pass the primed stream through sequential attempts; do not re-prompt per attempt.
+- No changes to escalation order, ring duration, or ZEGOCLOUD credentials.
 
 ## Verification
 
-- Re-query `emergency_call_invitations` after a test SOS: rows should appear with status `DELIVERED`.
-- Server logs should show delivery counts per device instead of nothing.
+- After a test SOS: the activity row shows real coordinates and a real `location_text`; the receiver's call screen shows the area.
+- `emergency_calls` shows rows reaching `connecting` then `connected` with `connected_at` set, and no new "Microphone access is required" failures.
