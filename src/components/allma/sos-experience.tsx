@@ -1557,6 +1557,7 @@ export function SOSExperience({
             location={location}
             locationState={locationState}
             activityId={sosActivityId}
+            microphoneStream={microphoneStream}
             onReport={() => setPhase("report")}
             onEnableLocation={async () => {
               setLocationState("finding");
@@ -2136,6 +2137,7 @@ function MinimalEmergencyScreen({
   location: LocationInfo | null;
   locationState: LocationState;
   activityId: string | null;
+  microphoneStream?: MediaStream;
   onEnableLocation: () => void;
   onReport: () => void;
   onClose: () => void;
@@ -2250,6 +2252,7 @@ function HelpScreen({
   respondersNotified,
   responderOffers,
   activityId,
+  microphoneStream,
   automatic,
   onChangeType,
   onToggleLocation,
@@ -2271,6 +2274,7 @@ function HelpScreen({
   respondersNotified: boolean;
   responderOffers: ResponderOffer[];
   activityId: string | null;
+  microphoneStream?: MediaStream;
   automatic: boolean;
   onChangeType: (type: string) => void;
   onToggleLocation: () => void;
