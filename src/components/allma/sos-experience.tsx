@@ -43,6 +43,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
+import { notifySosActivity } from "@/lib/push.functions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1365,6 +1366,11 @@ export function SOSExperience({
     // Make the emergency screen and responder calling available as soon as the
     // SOS record exists. GPS and nearby-resource lookups continue below.
     setPhase("help");
+    if (activityId && notifyResponders) {
+      void notifySosActivity({ data: { activityId } }).catch((error) => {
+        console.error("[ALLMA PUSH] SOS activity notification failed", error);
+      });
+    }
 
 
     let loc: LocationInfo | null = null;

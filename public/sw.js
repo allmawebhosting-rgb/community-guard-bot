@@ -19,19 +19,20 @@ self.addEventListener("push", (event) => {
   const callId = payload.callId || "";
   const invitationId = payload.invitationId || "";
   const isEmergency = payload.type === "incoming_emergency_call";
-  const title = payload.title || (isEmergency ? "ALLMA EMERGENCY CALL" : "Incoming Allma call");
-  const body = payload.body || (isEmergency ? "Urgent assistance requested." : "Someone is calling you on Allma.");
+  const isSosActivity = payload.type === "sos_activity";
+  const title = payload.title || (isEmergency ? "ALLMA EMERGENCY CALL" : isSosActivity ? "ALLMA SOS ALERT" : "Incoming Allma call");
+  const body = payload.body || (isEmergency ? "Urgent assistance requested." : isSosActivity ? "A Safety Network member needs help." : "Someone is calling you on Allma.");
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      tag: invitationId ? `emergency-invitation-${invitationId}` : callId ? `call-${callId}` : "allma-call",
+      tag: isSosActivity ? `sos-activity-${payload.activityId || "alert"}` : invitationId ? `emergency-invitation-${invitationId}` : callId ? `call-${callId}` : "allma-call",
       renotify: true,
       requireInteraction: true,
       vibrate: [200, 100, 200, 100, 200],
       data: { callId, invitationId, type: payload.type || "incoming_call" },
       actions: [
-        { action: "answer", title: "Answer" },
+        { action: isSosActivity ? "open" : "answer", title: isSosActivity ? "Open" : "Answer" },
         { action: "decline", title: "Dismiss" },
       ],
     }),
@@ -49,7 +50,9 @@ self.addEventListener("notificationclick", (event) => {
     return;
   }
 
-  const target = invitationId
+  const target = data.type === "sos_activity"
+    ? "/alerts"
+    : invitationId
     ? `/calls?invitation=${encodeURIComponent(invitationId)}${callId ? `&call=${encodeURIComponent(callId)}` : ""}`
     : callId
       ? `/calls?call=${encodeURIComponent(callId)}`

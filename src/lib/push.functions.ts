@@ -266,3 +266,70 @@ export const sendTestPushAlert = createServerFn({ method: "POST" })
     if (stale.length) await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
     return { delivered, devices: devices.length };
   });
+
+export const notifySosActivity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { activityId: string }) => {
+    if (!input || typeof input.activityId !== "string" || !UUID.test(input.activityId)) {
+      throw new Error("A valid SOS activity id is required.");
+    }
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { data: activity, error: activityError } = await context.supabase
+      .from("safety_activity")
+      .select("id, user_id, location_text, details")
+      .eq("id", data.activityId)
+      .eq("user_id", context.userId)
+      .eq("activity_type", "sos_activated")
+      .maybeSingle();
+    if (activityError || !activity) throw new Error("SOS activity could not be found.");
+
+    const { data: connections, error: connectionsError } = await context.supabase.rpc("list_safety_connections");
+    if (connectionsError) throw new Error("Safety Network members could not be loaded.");
+    const recipientIds = Array.from(new Set(
+      ((connections ?? []) as Array<{ member_id?: string; notify_on_sos?: boolean }>)
+        .filter((connection) => connection.member_id && connection.notify_on_sos !== false)
+        .map((connection) => connection.member_id!),
+    ));
+    if (!recipientIds.length) return { delivered: 0, devices: 0, recipients: 0 };
+
+    const publicKey = process.env["VAPID_PUBLIC_KEY"];
+    const privateKey = process.env["VAPID_PRIVATE_KEY"];
+    if (!publicKey || !privateKey) throw new Error("Background notifications are not configured for this deployment.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profile } = await context.supabase.from("profiles").select("full_name").eq("id", context.userId).maybeSingle();
+    const callerName = profile?.full_name?.trim() || "An Allma member";
+    const location = activity.location_text && activity.location_text !== "Location pending"
+      ? ` Location: ${activity.location_text}.`
+      : " Location details will follow when available.";
+    const { data: devices } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id, user_id, endpoint, p256dh, auth_key")
+      .in("user_id", recipientIds);
+    if (!devices?.length) return { delivered: 0, devices: 0, recipients: recipientIds.length };
+
+    const { buildPushPayload } = await import("@block65/webcrypto-web-push");
+    const stale: string[] = [];
+    let delivered = 0;
+    await Promise.all(devices.map(async (device) => {
+      try {
+        const payload = await buildPushPayload(
+          {
+            data: JSON.stringify({ type: "sos_activity", activityId: activity.id, title: `${callerName} activated SOS`, body: `${callerName} needs help on Allma.${location}` }),
+            options: { ttl: 120, urgency: "high" as const },
+          },
+          { endpoint: device.endpoint, expirationTime: null, keys: { p256dh: device.p256dh, auth: device.auth_key } },
+          { subject: process.env["VAPID_SUBJECT"] ?? "mailto:safety@allma.app", publicKey, privateKey },
+        );
+        const response = await fetch(device.endpoint, { ...payload, body: payload.body as unknown as BodyInit });
+        if (response.status === 404 || response.status === 410) stale.push(device.id);
+        else if (response.ok) delivered += 1;
+      } catch (error) {
+        console.error("[push] SOS activity delivery failed", { recipientId: device.user_id, error });
+      }
+    }));
+    if (stale.length) await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
+    console.info("[push] SOS activity delivery", { activityId: activity.id, recipients: recipientIds.length, devices: devices.length, delivered });
+    return { delivered, devices: devices.length, recipients: recipientIds.length };
+  });
