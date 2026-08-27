@@ -2801,6 +2801,7 @@ export type Database = {
       get_emergency_call_context: {
         Args: { p_call_id: string }
         Returns: {
+          accuracy_m: number
           area: string
           caller_avatar_url: string
           caller_name: string
