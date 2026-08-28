@@ -1,0 +1,1 @@
+ALTER TABLE public.lost_found_public_reports ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'lost' CHECK (kind IN ('lost','found'));

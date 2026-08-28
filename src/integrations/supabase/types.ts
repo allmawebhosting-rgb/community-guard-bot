@@ -1362,6 +1362,7 @@ export type Database = {
           district: string | null
           id: string
           item_type: string
+          kind: string
           location_text: string | null
           matched_item_id: string | null
           occurred_on: string | null
@@ -1377,6 +1378,7 @@ export type Database = {
           district?: string | null
           id?: string
           item_type: string
+          kind?: string
           location_text?: string | null
           matched_item_id?: string | null
           occurred_on?: string | null
@@ -1392,6 +1394,7 @@ export type Database = {
           district?: string | null
           id?: string
           item_type?: string
+          kind?: string
           location_text?: string | null
           matched_item_id?: string | null
           occurred_on?: string | null
