@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
-import { PackageSearch, PlusCircle, Search, ShieldCheck, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { ArrowLeft, PackageSearch, PlusCircle, Search, ShieldCheck, X } from "lucide-react";
 import { AppShell } from "@/components/allma/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,20 @@ function LostFoundPage() {
   const [category, setCategory] = useState<LfCategoryId | "">("");
   const [selected, setSelected] = useState<PublicLostFoundItem | null>(null);
   const [reporting, setReporting] = useState(false);
+
+  useEffect(() => {
+    if (!reporting) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setReporting(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [reporting]);
 
   const { data: items = [], isLoading } = useQuery(publicLostFoundQuery);
 
@@ -128,35 +142,23 @@ function LostFoundPage() {
           </div>
         </motion.header>
 
-        {reporting && (
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 240, damping: 24 }}
-            className="premium-surface mt-6 rounded-[1.8rem] border border-gold/25 p-5 shadow-soft sm:p-7"
-          >
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-display text-xl font-black tracking-[-0.03em]">
-                  Post a lost item
-                </h2>
-                <p className="mt-1 text-[12.5px] text-muted-foreground">
-                  Your report goes to verified officers for matching. Your contact details stay
-                  private.
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Close lost item form"
-                onClick={() => setReporting(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <ReportLostForm onDone={() => setReporting(false)} />
-          </motion.section>
-        )}
+        <AnimatePresence>
+          {reporting && (
+            <motion.div
+              className="fixed inset-0 z-50 flex min-h-[100dvh] flex-col overflow-hidden bg-background/95 backdrop-blur-2xl"
+              initial={{ opacity: 0, scale: 0.985 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.985 }}
+              transition={{ duration: 0.22 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="lost-item-dialog-title"
+            >
+              <div className="signal-streak pointer-events-none absolute inset-0 opacity-50" />
+              <ReportLostForm onDone={() => setReporting(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div id="handed-in" className="mt-8 scroll-mt-24">
           <div className="flex flex-col gap-3 sm:flex-row">
