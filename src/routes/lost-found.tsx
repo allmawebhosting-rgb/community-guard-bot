@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
@@ -39,6 +39,9 @@ export const Route = createFileRoute("/lost-found")({
     ],
   }),
   component: LostFoundPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    post: (search.post as "lost" | "found" | undefined) ?? undefined,
+  }),
 });
 
 const CATEGORY_OPTIONS: { id: LfCategoryId; label: string }[] = [
@@ -47,11 +50,14 @@ const CATEGORY_OPTIONS: { id: LfCategoryId; label: string }[] = [
 ];
 
 function LostFoundPage() {
-  const [search, setSearch] = useState("");
+  const search = useSearch({ from: "/lost-found" });
+  const initialKind = search.post ? (search.post as "lost" | "found") : undefined;
+  
+  const [searchText, setSearchText] = useState("");
   const [district, setDistrict] = useState("");
   const [category, setCategory] = useState<LfCategoryId | "">("");
   const [selected, setSelected] = useState<PublicLostFoundItem | null>(null);
-  const [reporting, setReporting] = useState(false);
+  const [reporting, setReporting] = useState(Boolean(initialKind));
 
   useEffect(() => {
     if (!reporting) return;
@@ -79,12 +85,12 @@ function LostFoundPage() {
       items.filter((item) => {
         const haystack = `${item.item_type} ${item.description ?? ""}`.toLowerCase();
         return (
-          (!search || haystack.includes(search.toLowerCase())) &&
+          (!searchText || haystack.includes(searchText.toLowerCase())) &&
           (!district || item.district === district) &&
           (!category || categoryOf(item) === category)
         );
       }),
-    [items, search, district, category],
+    [items, searchText, district, category],
   );
 
   const available = items.filter(
@@ -119,7 +125,7 @@ function LostFoundPage() {
                   onClick={() => setReporting(true)}
                   className="h-11 rounded-full px-5 text-[14px] font-semibold transition-transform active:scale-[0.98]"
                 >
-                  <PlusCircle className="mr-2 h-4 w-4" /> Post a lost item
+                  <PlusCircle className="mr-2 h-4 w-4" /> Post an item
                 </Button>
                 <Button
                   variant="secondary"
@@ -155,7 +161,10 @@ function LostFoundPage() {
               aria-labelledby="lost-item-dialog-title"
             >
               <div className="signal-streak pointer-events-none absolute inset-0 opacity-50" />
-              <ReportLostForm onDone={() => setReporting(false)} />
+              <ReportLostForm
+                onDone={() => setReporting(false)}
+                initialKind={initialKind}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -165,18 +174,18 @@ function LostFoundPage() {
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
               <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
                 placeholder="Search item type or description"
                 aria-label="Search handed-in items"
-                className="h-12 rounded-full bg-secondary/40 pl-10 text-[15px] focus-visible:ring-gold/40"
+                className="h-12 rounded-full bg-secondary/40 pl-10 text-base focus-visible:ring-gold/40"
               />
             </div>
             <select
               value={district}
               onChange={(event) => setDistrict(event.target.value)}
               aria-label="Filter by district"
-              className="h-12 rounded-full border border-border/60 bg-secondary/40 px-4 text-[14px] sm:w-52"
+              className="h-12 rounded-full border border-border/60 bg-secondary/40 px-4 text-base"
             >
               <option value="">All districts</option>
               {districts.map((value) => (

@@ -96,6 +96,7 @@ export async function submitPublicLostReport(input: {
   contactName: string;
   contactPhone: string;
   photoUrl?: string;
+  kind?: "lost" | "found";
 }) {
   const { error } = await supabase.from("lost_found_public_reports").insert({
     item_type: input.itemType.trim(),
@@ -106,6 +107,7 @@ export async function submitPublicLostReport(input: {
     contact_name: input.contactName.trim(),
     contact_phone: input.contactPhone.trim(),
     photo_url: input.photoUrl ?? null,
+    kind: input.kind ?? "lost",
   });
   if (error) throw error;
 }

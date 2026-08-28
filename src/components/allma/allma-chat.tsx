@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { toast } from "sonner";
@@ -110,8 +111,8 @@ const STEP_FALLBACK_CHIPS: Array<{ matches: RegExp; chips: Suggestion[] }> = [
   {
     matches: /\b(lose|lost)\b.*\b(or|vs)\b.*\bfound\b|did you lose|lost or found|lose an item|find someone else/i,
     chips: [
-      { label: "I lost something", prompt: "I lost something" },
-      { label: "I found something", prompt: "I found something" },
+      { label: "I lost something", prompt: "__lost_found_lost__" },
+      { label: "I found something", prompt: "__lost_found_found__" },
     ],
   },
   {
@@ -959,6 +960,7 @@ export function AllmaChat({
   fixedComposer?: boolean;
   className?: string;
 }) {
+  const navigate = useNavigate();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
@@ -1486,13 +1488,19 @@ export function AllmaChat({
                               }}
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.95 }}
-                              onClick={() =>
-                                chip.prompt === ATTACH_CHIP
-                                  ? openAttach("photo")
-                                  : chip.prompt === LOCATION_CHIP
-                                    ? shareLocation()
-                                    : send(chip.prompt)
-                              }
+                              onClick={() => {
+                                if (chip.prompt === ATTACH_CHIP) {
+                                  openAttach("photo");
+                                } else if (chip.prompt === LOCATION_CHIP) {
+                                  shareLocation();
+                                } else if (chip.prompt === "__lost_found_lost__") {
+                                  navigate({ to: "/lost-found", search: { post: "lost" } });
+                                } else if (chip.prompt === "__lost_found_found__") {
+                                  navigate({ to: "/lost-found", search: { post: "found" } });
+                                } else {
+                                  send(chip.prompt);
+                                }
+                              }}
 
 
                               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/30 bg-card/70 px-3.5 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/60 hover:bg-primary/[0.06] hover:text-foreground"
