@@ -1489,7 +1489,7 @@ export function SOSExperience({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex h-[100dvh] w-screen max-w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className="signal-slate fixed inset-0 z-[100] flex h-[100dvh] w-screen max-w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       {/* Ambient brand glow — same signal-streak wash as the onboarding wizard */}
       <div className="signal-streak pointer-events-none absolute inset-0" />
       {/* Subtle grid */}
@@ -1638,7 +1638,7 @@ export function SOSExperience({
 function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: () => void }) {
   return (
     <motion.div
-      className="flex min-h-0 flex-1 flex-col"
+      className="signal-screen signal-idle flex min-h-0 flex-1 flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
@@ -1785,7 +1785,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
 function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
   return (
     <motion.div
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      className="signal-screen signal-type-select flex min-h-0 flex-1 flex-col overflow-y-auto"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
@@ -1860,7 +1860,7 @@ function ConsentScreen({
 
   return (
     <motion.div
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      className="signal-screen signal-consent flex min-h-0 flex-1 flex-col overflow-y-auto"
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -18 }}
@@ -2048,7 +2048,7 @@ function LoadingScreen({ emergencyId }: { emergencyId: string | null }) {
 
   return (
     <motion.div
-      className="flex h-full flex-col items-center justify-center px-8 text-center"
+      className="signal-screen signal-loading flex h-full flex-col items-center justify-center px-8 text-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -2156,7 +2156,7 @@ function MinimalEmergencyScreen({
 
   return (
     <motion.main
-      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#0d0f10] text-white"
+      className="signal-screen signal-minimal relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#0d0f10] text-white"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -3255,7 +3255,7 @@ function HelpScreen({
 
   return (
     <motion.div
-      className="flex min-h-0 flex-1 flex-col"
+      className="signal-screen signal-help flex min-h-0 flex-1 flex-col"
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
@@ -3534,7 +3534,7 @@ function ReportScreen({
 
   return (
     <motion.div
-      className="flex h-full flex-col items-center overflow-y-auto bg-[#0a0a0a] px-4 py-6 text-white sm:px-6 md:justify-center md:py-10"
+      className="signal-screen signal-report flex h-full flex-col items-center overflow-y-auto bg-[#0a0a0a] px-4 py-6 text-white sm:px-6 md:justify-center md:py-10"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -3647,7 +3647,7 @@ function ReportScreen({
 function SubmittedScreen({ reference, onDone }: { reference: string | null; onDone: () => void }) {
   return (
     <motion.div
-      className="flex h-full flex-col items-center justify-center bg-[#0a0a0a] px-4 py-8 text-white sm:px-6"
+      className="signal-screen signal-submitted flex h-full flex-col items-center justify-center bg-[#0a0a0a] px-4 py-8 text-white sm:px-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

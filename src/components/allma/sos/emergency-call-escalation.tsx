@@ -171,7 +171,7 @@ export function EmergencyCallEscalation({
   };
 
   return (
-    <div className="premium-surface overflow-hidden rounded-3xl border-2 border-destructive/40 bg-card shadow-lift">
+    <div className="signal-escalation premium-surface overflow-hidden rounded-3xl border-2 border-destructive/40 bg-card shadow-lift">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-border/70 bg-destructive/10 p-5 sm:p-6">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-destructive">

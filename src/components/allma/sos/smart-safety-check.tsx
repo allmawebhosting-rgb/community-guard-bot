@@ -60,7 +60,7 @@ export function SmartSafetyCheck({
             exit={{ y: 16, opacity: 0 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
             className={cn(
-              "w-full max-w-md overflow-hidden rounded-[2rem] border bg-card p-6 shadow-soft",
+              "signal-safety-check w-full max-w-md overflow-hidden rounded-[2rem] border bg-card p-6 shadow-soft",
               elevated ? "border-destructive/50" : "border-border/60",
             )}
           >

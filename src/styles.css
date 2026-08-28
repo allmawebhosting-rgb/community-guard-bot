@@ -66,6 +66,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-signal-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-signal-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
@@ -135,6 +137,12 @@
   --shadow-soft: 0 1px 2px oklch(0.2 0.02 60 / 0.06), 0 12px 32px -16px oklch(0.2 0.02 60 / 0.2);
   --shadow-lift: 0 18px 48px -22px oklch(0.2 0.02 60 / 0.32);
   --glass-bg: color-mix(in oklab, var(--card) 76%, transparent);
+  --signal-canvas: #111418;
+  --signal-panel: #1e242c;
+  --signal-critical: #e63946;
+  --signal-attention: #f1c40f;
+  --signal-ink: #f4f7f8;
+  --signal-muted: #91a0ad;
 }
 
 
@@ -206,6 +214,12 @@
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.5), 0 14px 34px -18px oklch(0 0 0 / 0.75);
   --shadow-lift: 0 22px 54px -24px oklch(0 0 0 / 0.85);
   --glass-bg: color-mix(in oklab, var(--card) 60%, transparent);
+  --signal-canvas: #111418;
+  --signal-panel: #1e242c;
+  --signal-critical: #e63946;
+  --signal-attention: #f1c40f;
+  --signal-ink: #f4f7f8;
+  --signal-muted: #91a0ad;
 }
 
 @layer base {
@@ -340,6 +354,23 @@
   box-shadow: var(--shadow-lift);
 }
 
+@utility signal-canvas {
+  background-color: var(--signal-canvas);
+  color: var(--signal-ink);
+  font-family: var(--font-signal-body);
+}
+
+@utility signal-panel {
+  background-color: var(--signal-panel);
+  border: 1px solid color-mix(in srgb, var(--signal-ink) 12%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 7%, transparent), 0 14px 36px -28px rgb(0 0 0 / 0.8);
+}
+
+@utility signal-display {
+  font-family: var(--font-signal-display);
+  font-variant-numeric: tabular-nums;
+}
+
 @keyframes allma-pulse {
   0%,
   100% {
@@ -420,6 +451,285 @@
 
 @utility animate-pulse-slow {
   animation: allma-pulse-slow 4s ease-in-out infinite;
+}
+
+/* Signal Slate command surface for the SOS workflow. */
+.signal-slate {
+  --signal-border: rgb(244 247 248 / 0.12);
+  --signal-border-strong: rgb(244 247 248 / 0.2);
+  --signal-panel-raised: #252d36;
+  background: var(--signal-canvas) !important;
+  color: var(--signal-ink) !important;
+  font-family: var(--font-signal-body);
+}
+
+.signal-slate .signal-screen {
+  background: var(--signal-canvas) !important;
+  color: var(--signal-ink) !important;
+}
+
+.signal-slate h1,
+.signal-slate h2,
+.signal-slate h3,
+.signal-slate .font-display {
+  font-family: var(--font-signal-display) !important;
+}
+
+.signal-slate .signal-screen .premium-surface,
+.signal-slate .signal-screen .bg-card,
+.signal-slate .signal-screen .bg-secondary\/40,
+.signal-slate .signal-screen .bg-secondary\/25,
+.signal-slate .signal-screen .bg-secondary\/20 {
+  background: var(--signal-panel) !important;
+  border-color: var(--signal-border) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 18px 40px -32px rgb(0 0 0 / 0.9) !important;
+}
+
+.signal-slate .signal-screen .text-foreground {
+  color: var(--signal-ink) !important;
+}
+
+.signal-slate .signal-screen .text-muted-foreground {
+  color: var(--signal-muted) !important;
+}
+
+.signal-slate .signal-screen .border-border\/60,
+.signal-slate .signal-screen .border-border\/70,
+.signal-slate .signal-screen .border-border\/50 {
+  border-color: var(--signal-border) !important;
+}
+
+.signal-slate .signal-screen button:focus-visible,
+.signal-slate .signal-screen a:focus-visible,
+.signal-slate .signal-safety-check button:focus-visible {
+  outline: 2px solid var(--signal-attention) !important;
+  outline-offset: 3px;
+}
+
+.signal-slate .signal-idle > div:first-child {
+  background: #151a20 !important;
+  border-color: var(--signal-border) !important;
+}
+
+.signal-slate .signal-idle > div:nth-child(2) {
+  align-items: stretch;
+}
+
+.signal-slate .signal-idle > div:nth-child(2) > div:first-child {
+  justify-content: center;
+  min-height: min(34rem, 68vh);
+  border: 1px solid rgb(230 57 70 / 0.26) !important;
+  border-radius: 18px;
+  background: var(--signal-panel) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 60px -40px rgb(0 0 0 / 0.95) !important;
+}
+
+.signal-slate .signal-idle h1 {
+  font-size: clamp(3.5rem, 11vw, 6.5rem) !important;
+  letter-spacing: 0.08em !important;
+  color: var(--signal-ink) !important;
+}
+
+.signal-slate .signal-idle button[aria-label="Activate Emergency SOS"] {
+  filter: drop-shadow(0 18px 28px rgb(230 57 70 / 0.28));
+  transition: transform 220ms ease, filter 220ms ease;
+}
+
+.signal-slate .signal-idle button[aria-label="Activate Emergency SOS"]:hover {
+  filter: drop-shadow(0 22px 38px rgb(230 57 70 / 0.42));
+  transform: scale(1.025);
+}
+
+.signal-slate .signal-idle > div:nth-child(2) > div:last-child {
+  align-self: stretch;
+  border: 1px solid var(--signal-border) !important;
+  border-radius: 18px;
+  background: #151a20 !important;
+}
+
+.signal-slate .signal-type-select > div,
+.signal-slate .signal-consent > div {
+  max-width: 54rem;
+}
+
+.signal-slate .signal-type-select button {
+  min-height: 7.5rem;
+  align-items: flex-start;
+  justify-content: center;
+  border-color: var(--signal-border) !important;
+  border-radius: 16px !important;
+  background: var(--signal-panel) !important;
+  text-align: left !important;
+  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+}
+
+.signal-slate .signal-type-select button:hover,
+.signal-slate .signal-type-select button:active {
+  border-color: rgb(241 196 15 / 0.7) !important;
+  background: var(--signal-panel-raised) !important;
+  box-shadow: 0 0 0 1px rgb(241 196 15 / 0.18), 0 18px 40px -28px rgb(241 196 15 / 0.45) !important;
+}
+
+.signal-slate .signal-type-select button > div {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.05) !important;
+}
+
+.signal-slate .signal-consent > div > button:first-child {
+  border-color: var(--signal-border-strong) !important;
+  background: transparent !important;
+}
+
+.signal-slate .signal-consent button[aria-pressed="true"] {
+  border-color: rgb(241 196 15 / 0.62) !important;
+  background: rgb(241 196 15 / 0.1) !important;
+}
+
+.signal-slate .signal-consent button[aria-pressed="true"] > div {
+  background: rgb(241 196 15 / 0.16) !important;
+  color: var(--signal-attention) !important;
+}
+
+.signal-slate .signal-consent button[aria-pressed="true"] > span:last-child {
+  border-color: var(--signal-attention) !important;
+  background: var(--signal-attention) !important;
+  color: #111418 !important;
+}
+
+.signal-slate .signal-consent button[aria-pressed="false"] {
+  background: var(--signal-panel) !important;
+}
+
+.signal-slate .signal-consent > div > button:last-of-type,
+.signal-slate .signal-consent button.bg-destructive {
+  min-height: 3.5rem;
+  border-radius: 14px !important;
+  background: var(--signal-critical) !important;
+  color: white !important;
+  box-shadow: 0 16px 32px -22px rgb(230 57 70 / 0.9);
+}
+
+.signal-slate .signal-loading {
+  background: radial-gradient(circle at 50% 40%, rgb(230 57 70 / 0.1), transparent 32%), var(--signal-canvas) !important;
+}
+
+.signal-slate .signal-loading .text-gold,
+.signal-slate .signal-loading .bg-gold {
+  color: var(--signal-attention) !important;
+}
+
+.signal-slate .signal-loading .font-display {
+  letter-spacing: 0.01em;
+}
+
+.signal-slate .signal-minimal,
+.signal-slate .signal-help,
+.signal-slate .signal-report,
+.signal-slate .signal-submitted {
+  background: var(--signal-canvas) !important;
+}
+
+.signal-slate .signal-minimal > header,
+.signal-slate .signal-help > div:first-child {
+  background: #151a20 !important;
+  border-color: var(--signal-border) !important;
+  box-shadow: inset 0 -1px 0 rgb(255 255 255 / 0.03);
+}
+
+.signal-slate .signal-minimal .text-white\/40,
+.signal-slate .signal-help .text-muted-foreground {
+  color: var(--signal-muted) !important;
+}
+
+.signal-slate .signal-minimal .text-red-300,
+.signal-slate .signal-help .text-destructive,
+.signal-slate .signal-help .bg-destructive\/10 {
+  color: var(--signal-critical) !important;
+}
+
+.signal-slate .signal-help .premium-surface,
+.signal-slate .signal-help .rounded-3xl,
+.signal-slate .signal-help details,
+.signal-slate .signal-help #emergency-update {
+  border-radius: 16px !important;
+  border-color: var(--signal-border) !important;
+  background: var(--signal-panel) !important;
+}
+
+.signal-slate .signal-escalation {
+  border: 1px solid rgb(241 196 15 / 0.45) !important;
+  border-radius: 16px !important;
+  background: var(--signal-panel) !important;
+}
+
+.signal-slate .signal-escalation > div:first-child {
+  background: rgb(241 196 15 / 0.08) !important;
+  border-color: rgb(241 196 15 / 0.2) !important;
+}
+
+.signal-slate .signal-escalation .text-gold {
+  color: var(--signal-attention) !important;
+}
+
+.signal-slate .signal-escalation .border-gold\/70 {
+  border-color: rgb(241 196 15 / 0.7) !important;
+}
+
+.signal-slate .signal-report > div,
+.signal-slate .signal-submitted > div {
+  border-color: var(--signal-border-strong) !important;
+  border-radius: 16px !important;
+  background: var(--signal-panel) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 60px -42px rgb(0 0 0 / 0.9) !important;
+}
+
+.signal-slate .signal-report textarea:focus {
+  border-color: var(--signal-attention) !important;
+  box-shadow: 0 0 0 1px rgb(241 196 15 / 0.3) !important;
+}
+
+.signal-slate .signal-report button.bg-\[\#D90012\],
+.signal-slate .signal-report button.bg-destructive {
+  background: var(--signal-critical) !important;
+}
+
+.signal-slate .signal-submitted .text-\[\#FCDC04\],
+.signal-slate .signal-submitted .bg-\[\#FCDC04\] {
+  color: var(--signal-attention) !important;
+}
+
+.signal-slate .signal-safety-check {
+  border-color: var(--signal-border-strong) !important;
+  border-radius: 18px !important;
+  background: var(--signal-panel) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 60px -34px rgb(0 0 0 / 0.95) !important;
+}
+
+@media (max-width: 767px) {
+  .signal-slate .signal-idle > div:nth-child(2) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .signal-slate .signal-idle > div:nth-child(2) > div:first-child {
+    min-height: 24rem;
+  }
+
+  .signal-slate .signal-type-select button {
+    min-height: 6.75rem;
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-slate *,
+  .signal-slate *::before,
+  .signal-slate *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* Input bar outer glow — animated green/blue shimmer ring */
