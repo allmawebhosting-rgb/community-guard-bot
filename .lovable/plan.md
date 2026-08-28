@@ -1,39 +1,31 @@
-# Lost & Found posting — onboarding-style premium wizard
+# Full-page premium "Post a lost item" experience
 
-Turn the single long "Post my lost item" form into a guided, multi-step flow that matches the onboarding experience, with the same premium gradient styling and motion. Presentation only — the submission logic, storage upload and database writes stay exactly as they are.
+Right now the posting wizard renders as a card section inside the Lost & Found page, so it competes with the hero, search bar and item grid. It becomes its own full-screen experience instead.
 
-## The new posting flow
+## What changes for the user
 
-Five steps, one focused question set per screen, with an onboarding-style header above the card:
+- Tapping "Post a lost item" opens a full-screen posting flow that covers the entire viewport — no page chrome, no grid showing through, nothing to scroll past.
+- A slim top bar: back/close control on the left, "Post a lost item" label centre, step counter (`02 / 05`) on the right.
+- Directly under it, a full-width gradient progress bar (gold to primary-glow to primary) that springs to its new width on each advance.
+- The step content sits centred in the viewport, one focused question set per screen, max width ~40rem on desktop and edge-to-edge on mobile: icon tile, eyebrow, heading, one-line helper, then the fields.
+- On desktop the five step labels appear as a horizontal strip with dots for completed steps; on mobile only the counter and bar show.
+- Actions live in a sticky bottom action bar pinned to the bottom of the screen (safe-area aware): Back on the left, Continue/Post on the right, Continue disabled until that step is valid.
+- Ambient premium backdrop behind everything: dark gradient wash plus a soft signal-streak glow, blurred, non-distracting.
+- On success the same full screen becomes a confirmation panel: animated check, "Posted for matching", what happens next, and a button that closes the flow and returns to browsing items.
+- Escape key and the close control exit the flow; body scroll is locked while it is open.
 
-1. **The item** — what you lost, category chips (Phone, Bag, Documents, Wallet, Keys, Other), free-text item name.
-2. **Where & when** — place description, district, date lost.
-3. **Details** — description textarea (colour, marks, contents, serial you remember) with a live character counter.
-4. **Photo** — large dashed drop tile, tap-to-upload, preview with remove; clearly optional and skippable.
-5. **Your contact** — name and phone with inline validation, plus the "only verified officers see this" reassurance, then a review summary and the submit button.
+## Steps (unchanged content)
 
-Shared chrome, copied from the onboarding pattern:
-
-- Step counter (`02 / 05`) and a gradient progress bar (gold → primary-glow → primary) that animates on advance.
-- Desktop step-label strip with dots for completed steps.
-- Icon tile + eyebrow label + heading + one-line helper at the top of each step.
-- Back / Continue pair at the bottom; Continue disabled until that step's required fields are valid (item name on step 1, name + valid phone on step 5). Steps 2–4 are all skippable.
-- Success state becomes a full confirmation panel: animated check, "Posted for matching", what happens next, and a button back to browsing items.
-
-## Design and animation
-
-- Card surface: `premium-surface` / `bg-card/65` with hairline border, 2rem radius, backdrop blur and soft lift shadow — same as onboarding cards.
-- Gradient accents from existing tokens only (gold, primary, primary-glow); no hardcoded colours. Subtle `signal-streak` glow behind the wizard.
-- Motion for React: step content cross-fades with a small x-offset in the advance direction, progress bar width springs, category chips and fields stagger in, buttons scale on press. `prefers-reduced-motion` respected.
-- Mobile-first: full-width single column, 44px+ touch targets, no zoom on input focus, sticky footer action row on small screens.
+1. The item — category chips + item name
+2. Where & when — place, district, date
+3. Details — description with character counter
+4. Photo — dashed drop tile, optional and skippable
+5. Your contact — name, phone with inline validation, privacy reassurance, review summary, submit
 
 ## Technical notes
 
-- Rewrite `src/components/allma/lost-found/report-lost-form.tsx` as a stepped wizard: one `step` state, existing field state and the existing `useMutation` (photo upload to `lost-found-public`, then `submitPublicLostReport`) untouched.
-- Extract small local pieces in that file: `WizardHeader`, `StepShell`, `Field`, `CategoryChips`, `PhotoStep`, `ReviewSummary`.
-- `src/routes/lost-found.tsx` keeps rendering `<ReportLostForm onDone={...} />`; only the container padding/width is adjusted so the wizard has room.
-- No database, RLS, storage or validation-rule changes.
-
-## Build fix included
-
-`src/routes/__root.tsx` currently has an orphaned font-stylesheet fragment at lines 12–13, in the middle of the import block, which breaks the build. Remove those two stray lines; the real font `<link>` already lives in the `links` array in `head()` (line ~126). If Sora/Manrope are wanted, they get added to that existing stylesheet href, not to a loose fragment.
+- `src/routes/lost-found.tsx`: remove the inline `reporting` card section; instead render `<ReportLostForm />` inside a fixed full-screen overlay (`fixed inset-0 z-50`) mounted via `AnimatePresence`, with a fade + slight scale entrance and body scroll lock while open.
+- `src/components/allma/lost-found/report-lost-form.tsx`: restructure the wizard shell into full-screen layout — sticky header (title, counter, progress bar), scrollable centred content region, sticky footer action bar. Field state, validation and the existing `useMutation` (photo upload to `lost-found-public`, then `submitPublicLostReport`) are untouched.
+- Styling uses existing semantic tokens only (`gold`, `primary`, `primary-glow`, `premium-surface`, `shadow-lift`); no hardcoded colours.
+- Motion for React for step cross-fade with directional x-offset, progress spring, chip/field stagger, button press scale; `prefers-reduced-motion` respected.
+- No database, RLS, storage or validation changes.
