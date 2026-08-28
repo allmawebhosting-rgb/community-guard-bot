@@ -33,3 +33,7 @@ Shared chrome, copied from the onboarding pattern:
 - Extract small local pieces in that file: `WizardHeader`, `StepShell`, `Field`, `CategoryChips`, `PhotoStep`, `ReviewSummary`.
 - `src/routes/lost-found.tsx` keeps rendering `<ReportLostForm onDone={...} />`; only the container padding/width is adjusted so the wizard has room.
 - No database, RLS, storage or validation-rule changes.
+
+## Build fix included
+
+`src/routes/__root.tsx` currently has an orphaned font-stylesheet fragment at lines 12–13, in the middle of the import block, which breaks the build. Remove those two stray lines; the real font `<link>` already lives in the `links` array in `head()` (line ~126). If Sora/Manrope are wanted, they get added to that existing stylesheet href, not to a loose fragment.
