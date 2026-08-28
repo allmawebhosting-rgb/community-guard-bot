@@ -79,7 +79,7 @@ function LostFoundPage() {
 
   return (
     <AppShell title="Lost & Found">
-      <main className="mx-auto w-full max-w-6xl px-5 pb-14 pt-6 lg:px-10 lg:pt-8">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-14 pt-6 sm:px-6 lg:px-10 lg:pt-8">
         <motion.header
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
