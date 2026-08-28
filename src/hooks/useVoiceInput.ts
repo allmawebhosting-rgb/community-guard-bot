@@ -202,5 +202,5 @@ export function useVoiceInput({
     else void start();
   }, [recording, start, stop]);
 
-  return { recording, transcribing, toggle, cancel, level, seconds };
+  return { recording, transcribing, toggle, start, stop, cancel, level, seconds };
 }

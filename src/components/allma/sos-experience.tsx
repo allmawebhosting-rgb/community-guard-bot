@@ -41,6 +41,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
+import { AllmaVoice } from "@/components/allma/sos/allma-voice";
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 import { notifySosActivity } from "@/lib/push.functions";
@@ -2146,6 +2147,7 @@ function MinimalEmergencyScreen({
   const [moreOpen, setMoreOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [closeConfirm, setCloseConfirm] = useState(false);
   const [update, setUpdate] = useState("");
   const area = location?.district || location?.suburb || "Location pending";
   const locationReady = locationState === "found" || locationState === "approximate";
@@ -2172,13 +2174,14 @@ function MinimalEmergencyScreen({
           <p className="mt-3 truncate text-[12px] font-medium tracking-[0.02em] text-white/45">{emergencyId ?? "Emergency session"}</p>
           <p className="mt-0.5 truncate text-[12px] text-white/65">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
         </div>
-        <button type="button" onClick={onClose} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-4 text-[12px] font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/[0.08]">
+        <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-4 text-[12px] font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/[0.08]">
           Close
         </button>
       </header>
 
       <div className="relative mx-auto w-full max-w-xl px-5 pb-10 sm:px-7">
-              <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
+        <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
+        <AllmaVoice activityId={activityId} compact />
 
         <section aria-labelledby="actions-heading" className="border-b border-white/[0.08] py-6">
           <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Immediate actions</p>
@@ -2192,7 +2195,7 @@ function MinimalEmergencyScreen({
             <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
               <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Shield className="h-4 w-4 text-white/70" /></span>File an incident report</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
             </button>
-            <button type="button" onClick={onClose} className="min-h-12 text-[12px] font-semibold tracking-[0.01em] text-red-300/85 transition hover:text-red-200">
+            <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-12 text-[12px] font-semibold tracking-[0.01em] text-red-300/85 transition hover:text-red-200">
               Stop SOS
             </button>
           </div>
@@ -2230,6 +2233,25 @@ function MinimalEmergencyScreen({
             {servicesOpen && <div className="grid gap-2">{EMERGENCY_NUMBERS.map((service) => <a key={service.label} href={`tel:${service.number}`} className="flex min-h-12 items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[13px] text-white transition hover:bg-white/[0.07]"><span>{service.label}</span><span className="font-bold text-white/70">{service.number}</span></a>)}</div>}
             {updateOpen && <div><textarea value={update} onChange={(event) => setUpdate(event.target.value)} rows={3} placeholder="Tell responders what has changed" className="w-full resize-none rounded-xl border border-white/15 bg-black/20 p-3 text-[13px] text-white outline-none placeholder:text-white/35 focus:border-white/30" /><button type="button" onClick={() => { setUpdate(""); setUpdateOpen(false); }} disabled={!update.trim()} className="mt-3 min-h-12 w-full rounded-xl bg-[#f5f5f2] text-[13px] font-bold text-[#101214] transition hover:bg-white disabled:opacity-40">Send update</button></div>}
             {moreOpen && <div className="grid divide-y divide-white/10">{["✦  Allma AI · Need help?", "Activity ›", "Nearby help ›", "Location details ›"].map((item) => <button type="button" key={item} onClick={closePanels} className="min-h-14 text-left text-[13px] text-white/80 transition hover:text-white">{item}</button>)}</div>}
+          </div>
+        </div>
+      )}
+      {closeConfirm && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#191c1f] p-5 shadow-2xl">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-300">End SOS</p>
+            <h2 className="mt-2 text-xl font-bold text-white">Are you sure you are safe?</h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-white/60">
+              Ending SOS stops this emergency session and its active response path.
+            </p>
+            <div className="mt-5 grid gap-2">
+              <button type="button" onClick={() => setCloseConfirm(false)} className="min-h-12 rounded-xl border border-white/15 text-[13px] font-bold text-white transition hover:bg-white/10">
+                No, keep SOS active
+              </button>
+              <button type="button" onClick={onClose} className="min-h-12 rounded-xl bg-red-500 text-[13px] font-black text-white transition hover:bg-red-400">
+                Yes, end SOS
+              </button>
+            </div>
           </div>
         </div>
       )}

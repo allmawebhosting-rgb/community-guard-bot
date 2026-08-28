@@ -31,6 +31,12 @@ import {
   updateConnection,
 } from "@/lib/safety-network";
 import { requestVoiceCall } from "@/lib/zego-call";
+import {
+  DEFAULT_SOS_CALLING_SETTINGS,
+  loadSosCallingSettings,
+  saveSosCallingSettings,
+  type SosCallingSettings,
+} from "@/lib/sos-calling-settings";
 import { AddSafetyContactDialog, Avatar } from "./add-safety-contact";
 
 export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
@@ -41,6 +47,9 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [discoverable, setDiscoverable] = useState(true);
+  const [callingSettings, setCallingSettings] = useState<SosCallingSettings>(
+    DEFAULT_SOS_CALLING_SETTINGS,
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -55,6 +64,7 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
   }, []);
 
   useEffect(() => {
+    setCallingSettings(loadSosCallingSettings());
     void refresh();
     void (async () => {
       const { data: auth } = await supabase.auth.getUser();
@@ -67,6 +77,15 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
       if (data) setDiscoverable(data.discoverable_by_phone);
     })();
   }, [refresh]);
+
+  function updateCallingSetting(key: keyof SosCallingSettings, value: string) {
+    const next = {
+      ...callingSettings,
+      [key]: Number(value),
+    };
+    setCallingSettings(next);
+    saveSosCallingSettings(next);
+  }
 
   async function toggleDiscoverable(next: boolean) {
     setDiscoverable(next);
@@ -130,6 +149,25 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
 
   const incoming = requests.filter((request) => request.direction === "incoming");
   const outgoing = requests.filter((request) => request.direction === "outgoing");
+  const priorityCounts = connections.reduce<Record<number, number>>((counts, connection) => {
+    const priority = Math.min(Math.max(connection.priority || 3, 1), 3);
+    counts[priority] = (counts[priority] ?? 0) + 1;
+    return counts;
+  }, {});
+
+  async function setPriority(connection: SafetyConnection, priority: number) {
+    const limit = priority === 1 ? 3 : priority === 2 ? 5 : Number.POSITIVE_INFINITY;
+    const alreadyAssigned = Math.min(Math.max(connection.priority || 3, 1), 3) === priority;
+    if (!alreadyAssigned && (priorityCounts[priority] ?? 0) >= limit) {
+      toast.error(
+        priority === 1
+          ? "Priority 1 can have up to 3 contacts."
+          : "Priority 2 can have up to 5 contacts.",
+      );
+      return;
+    }
+    await patch(connection, { priority });
+  }
 
   return (
     <div className="space-y-4">
@@ -206,6 +244,22 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
             </Button>
           )}
         </div>
+
+        {connections.length > 0 && (
+          <div className="mb-3 grid gap-2 sm:grid-cols-3">
+            {[1, 2, 3].map((priority) => (
+              <div key={priority} className="rounded-xl border border-border/50 bg-background/35 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  Priority {priority}
+                </p>
+                <p className="mt-1 text-[12px] font-bold text-foreground">
+                  {priorityCounts[priority] ?? 0} contact{priorityCounts[priority] === 1 ? "" : "s"}
+                  {priority < 3 ? ` · max ${priority === 1 ? 3 : 5}` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <div className="space-y-2">
@@ -287,6 +341,31 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
                       className="overflow-hidden"
                     >
                       <div className="space-y-4 border-t border-border/50 p-4">
+                        <div>
+                          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                            SOS calling order
+                          </p>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {[1, 2, 3].map((priority) => (
+                              <button
+                                key={priority}
+                                type="button"
+                                onClick={() => void setPriority(connection, priority)}
+                                className={cn(
+                                  "rounded-lg border px-2 py-2 text-[11px] font-bold transition-colors",
+                                  Math.min(Math.max(connection.priority || 3, 1), 3) === priority
+                                    ? "border-primary/50 bg-primary/12 text-primary"
+                                    : "border-border/60 text-muted-foreground hover:bg-accent",
+                                )}
+                              >
+                                Priority {priority}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                            All contacts in a priority group are called together. Priority 1 supports up to 3 and Priority 2 up to 5.
+                          </p>
+                        </div>
                         <div>
                           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                             Safety role
@@ -389,6 +468,41 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
         </div>
         <Switch checked={discoverable} onCheckedChange={(next) => void toggleDiscoverable(next)} />
       </label>
+
+      <section className="rounded-2xl border border-border/50 bg-background/35 p-4">
+        <p className="text-[12.5px] font-bold">SOS calling timing</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          All contacts in the active priority group are called together. The next group starts after the response window.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              Response window (seconds)
+            </span>
+            <input
+              type="number"
+              min={10}
+              max={120}
+              value={callingSettings.responseWindowSeconds}
+              onChange={(event) => updateCallingSetting("responseWindowSeconds", event.target.value)}
+              className="h-10 w-full rounded-xl border border-border/60 bg-background px-3 text-sm"
+            />
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              Retry interval (seconds)
+            </span>
+            <input
+              type="number"
+              min={30}
+              max={600}
+              value={callingSettings.retryIntervalSeconds}
+              onChange={(event) => updateCallingSetting("retryIntervalSeconds", event.target.value)}
+              className="h-10 w-full rounded-xl border border-border/60 bg-background px-3 text-sm"
+            />
+          </label>
+        </div>
+      </section>
 
       <AddSafetyContactDialog open={adding} onOpenChange={setAdding} onRequestSent={() => void refresh()} />
     </div>

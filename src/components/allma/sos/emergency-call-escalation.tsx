@@ -109,9 +109,12 @@ export function EmergencyCallEscalation({
 
   if (compact) {
     const currentIndex = state?.currentIndex ?? -1;
+    const activeRows = rows.filter(
+      ({ target }) => Math.min(Math.max(target.priority || 3, 1), 3) === state?.priority,
+    );
     const current = answered
       ? rows.find(({ target }) => target.member_id === answered.recipient_id)
-      : rows[currentIndex];
+      : activeRows[currentIndex];
     const currentState = current?.attempt ? attemptState(current.attempt.status) : null;
     const currentLabel = answered
       ? "CONNECTED"
@@ -129,7 +132,7 @@ export function EmergencyCallEscalation({
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">Response</p>
             <h2 id="response-heading" className="mt-2 text-xl font-semibold text-white">
-              {answered ? `${current?.target.full_name ?? "Responder"} is responding` : "Someone is being contacted"}
+              {answered ? `${current?.target.full_name ?? "Responder"} is responding` : state?.priority ? `Priority ${state.priority} contacts` : "Safety Network retrying"}
             </h2>
           </div>
           <span className={cn("shrink-0 text-[11px] font-bold uppercase tracking-[0.14em]", answered ? "text-emerald-300" : "text-white/65")}>
@@ -146,13 +149,13 @@ export function EmergencyCallEscalation({
           </div>
         </div>
         <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
-          {rows.slice(0, 4).map(({ target, attempt }, index) => {
+          {activeRows.slice(0, 4).map(({ target, attempt }) => {
             const derived = attempt ? attemptState(attempt.status) : null;
             return (
               <div key={target.member_id} className="flex items-center justify-between gap-3 text-[12px]">
                 <span className="truncate text-white/75">{target.full_name}</span>
                 <span className={cn("shrink-0 font-semibold", derived === "answered" ? "text-emerald-300" : derived === "calling" ? "text-white" : "text-white/40")}>
-                  {derived === "answered" ? "Connected" : derived === "calling" ? "Calling" : derived === "alerted" ? "Notified" : index === currentIndex && running ? "Calling" : index === currentIndex + 1 ? "Next" : "Waiting"}
+                  {derived === "answered" ? "Connected" : derived === "calling" ? "Calling" : derived === "alerted" ? "Notified" : "Waiting"}
                 </span>
               </div>
             );
@@ -243,17 +246,13 @@ export function EmergencyCallEscalation({
           </div>
         ) : (
           rows.map(({ target, attempt }, index) => {
-            const isCurrent = running && !answered;
+            const isCurrent = running && !answered && Math.min(Math.max(target.priority || 3, 1), 3) === state?.priority;
             const isAnswered = answered?.recipient_id === target.member_id;
             const derived = attempt ? attemptState(attempt.status) : null;
             const copy = derived ? ATTEMPT_COPY[derived] : null;
             const label = isAnswered
               ? "CONNECTED"
-              : isCurrent
-                ? derived === "calling"
-                  ? "RINGING"
-                  : "CALLING"
-                : derived
+              : derived
                   ? (copy?.label ?? "NEXT").toUpperCase()
                   : "NEXT";
             return (
@@ -283,7 +282,7 @@ export function EmergencyCallEscalation({
       <div className="space-y-2 border-t-2 border-border/70 bg-secondary/20 p-5 sm:p-6">
         {running && !answered && (state?.round ?? 0) > 0 && (
           <p className="text-sm font-black text-gold">
-            Round {state?.round}
+            Priority {state?.priority || 3} of 3 · round {state?.round}
             {state?.waitSeconds
               ? ` · next contact in ${state.waitSeconds}s`
               : state && state.currentIndex >= 0
