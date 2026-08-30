@@ -41,6 +41,8 @@ function ProfileScreen() {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [responderAvailable, setResponderAvailable] = useState(false);
+  const [nearbySharingEnabled, setNearbySharingEnabled] = useState(false);
+  const [nearbySharingSaving, setNearbySharingSaving] = useState(false);
   const [responderSaving, setResponderSaving] = useState(false);
   const [sosOffers, setSosOffers] = useState<SosOffer[]>([]);
   const [offerSaving, setOfferSaving] = useState<string | null>(null);
@@ -107,13 +109,25 @@ function ProfileScreen() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    void responderTable.from("community_responder_locations")
-      .select("is_available")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setResponderAvailable(Boolean(data?.is_available));
-      });
+
+    void Promise.all([
+      responderTable.from("community_responder_locations")
+        .select("is_available")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!cancelled) setResponderAvailable(Boolean(data?.is_available));
+        }),
+      (supabase as any)
+        .from("profiles")
+        .select("discoverable_nearby")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!cancelled) setNearbySharingEnabled(Boolean(data?.discoverable_nearby));
+        }),
+    ]);
+
     return () => {
       cancelled = true;
       if (responderWatch.current !== null && "geolocation" in navigator) {
@@ -202,6 +216,51 @@ function ProfileScreen() {
       },
       { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
     );
+  }
+
+  async function setNearbySharing(enabled: boolean) {
+    if (!user) return;
+    setNearbySharingSaving(true);
+
+    try {
+      if (!enabled) {
+        if ("geolocation" in navigator) {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 });
+          });
+          await (supabase as any).rpc("upsert_member_presence", {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            sharing_enabled: false,
+          });
+        }
+        await (supabase as any).from("profiles").update({ discoverable_nearby: false }).eq("id", user.id);
+        await (supabase as any).from("member_presence").delete().eq("user_id", user.id);
+        setNearbySharingEnabled(false);
+        return;
+      }
+
+      if (!("geolocation" in navigator)) {
+        throw new Error("Location access is required to share nearby status.");
+      }
+
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 });
+      });
+
+      await (supabase as any).rpc("upsert_member_presence", {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        sharing_enabled: true,
+      });
+      await (supabase as any).from("profiles").update({ discoverable_nearby: true }).eq("id", user.id);
+      setNearbySharingEnabled(true);
+    } catch (error) {
+      console.error("Failed to update nearby presence", error);
+      setNearbySharingEnabled(false);
+    } finally {
+      setNearbySharingSaving(false);
+    }
   }
 
   const { data: stats } = useQuery({
@@ -445,6 +504,35 @@ function ProfileScreen() {
                     />
                   )}
                 </div>
+                <div className="flex items-center gap-4 border-b border-border/50 px-5 py-4">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10">
+                    <MapPin className="h-4 w-4 text-primary" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[13.5px] font-semibold">Let nearby members see that I'm active</span>
+                    <span className="mt-0.5 block text-[11.5px] leading-relaxed text-muted-foreground">
+                      Opt in to appear for nearby members for a short time, without exposing your coordinates or address.
+                    </span>
+                  </div>
+                  {nearbySharingSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Switch
+                      checked={nearbySharingEnabled}
+                      onCheckedChange={(value) => void setNearbySharing(Boolean(value))}
+                      aria-label="Let nearby members see that I am active"
+                    />
+                  )}
+                </div>
+                {nearbySharingEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => void setNearbySharing(false)}
+                    className="flex w-full items-center justify-center gap-2 px-5 py-3 text-[12px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
+                  >
+                    <X className="h-3.5 w-3.5" /> Stop sharing
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={toggleTheme}
