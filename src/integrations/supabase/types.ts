@@ -1469,6 +1469,41 @@ export type Database = {
         }
         Relationships: []
       }
+      member_presence: {
+        Row: {
+          geohash: string
+          lat: number
+          lng: number
+          sharing_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          geohash: string
+          lat: number
+          lng: number
+          sharing_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          geohash?: string
+          lat?: number
+          lng?: number
+          sharing_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string
@@ -1801,6 +1836,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           discoverable_by_phone: boolean
+          discoverable_nearby: boolean
           full_name: string | null
           id: string
           locale: string
@@ -1817,6 +1853,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           discoverable_by_phone?: boolean
+          discoverable_nearby?: boolean
           full_name?: string | null
           id: string
           locale?: string
@@ -1833,6 +1870,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           discoverable_by_phone?: boolean
+          discoverable_nearby?: boolean
           full_name?: string | null
           id?: string
           locale?: string
@@ -2801,6 +2839,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      find_nearby_members: {
+        Args: { lat: number; limit_n?: number; lng: number; radius_m: number }
+        Returns: {
+          avatar_url: string
+          distance_m: number
+          full_name: string
+          phone_verified: boolean
+          relationship_state: string
+          user_id: string
+        }[]
+      }
+      geohash_encode: {
+        Args: { p_lat: number; p_lng: number }
+        Returns: string
+      }
       get_emergency_call_context: {
         Args: { p_call_id: string }
         Returns: {
@@ -3021,6 +3074,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      upsert_member_presence: {
+        Args: { lat: number; lng: number; sharing_enabled?: boolean }
+        Returns: undefined
       }
     }
     Enums: {
