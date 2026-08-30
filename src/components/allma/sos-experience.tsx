@@ -66,10 +66,12 @@ type LocationInfo = {
 
 type Facility = {
   name: string;
-  type: "hospital" | "police";
+  type: "hospital" | "police" | "ambulance";
   distance: string;
   phone: string;
   address: string;
+  lat?: number;
+  lng?: number;
 };
 
 type ResponderStatus = "offered" | "accepted" | "declined" | "en_route" | "arrived" | "cancelled";
@@ -481,6 +483,13 @@ function withDistance(items: Omit<Facility, "distance">[], lat: number, lng: num
     });
 }
 
+function buildDirectionsUrl(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+) {
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=driving`;
+}
+
 async function fetchOverpass(
   lat: number,
   lng: number,
@@ -507,6 +516,8 @@ async function fetchOverpass(
         ? `${tags["addr:housenumber"] || ""} ${tags["addr:street"]}`.trim()
         : "Nearby",
       distance: km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`,
+      lat: elLat,
+      lng: elLng,
     };
   });
   return items.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
@@ -2214,6 +2225,8 @@ function MinimalEmergencyScreen({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(true);
+  const [nearbyHelp, setNearbyHelp] = useState<Facility[]>([]);
+  const [nearbyHelpLoading, setNearbyHelpLoading] = useState(false);
 
   const [servicesOpen, setServicesOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -2226,6 +2239,50 @@ function MinimalEmergencyScreen({
     setServicesOpen(false);
     setUpdateOpen(false);
   };
+
+  useEffect(() => {
+    if (!location || !locationReady) {
+      setNearbyHelp([]);
+      setNearbyHelpLoading(false);
+      return;
+    }
+
+    let isActive = true;
+    setNearbyHelpLoading(true);
+
+    void Promise.all([
+      fetchOverpass(location.lat, location.lng, "hospital").catch(() => [] as Facility[]),
+      fetchOverpass(location.lat, location.lng, "police").catch(() => [] as Facility[]),
+    ])
+      .then(([hospitals, police]) => {
+        if (!isActive) return;
+        const ambulanceOptions = hospitals.slice(0, 2).map((item, index) => ({
+          ...item,
+          type: "ambulance" as const,
+          name: index === 0 ? "Nearest ambulance / ER" : "Ambulance coordination",
+          phone: "911",
+          address: item.address || "Nearest response point",
+          lat: item.lat ?? location.lat,
+          lng: item.lng ?? location.lng,
+        }));
+
+        setNearbyHelp([
+          ...hospitals.slice(0, 3),
+          ...police.slice(0, 3),
+          ...ambulanceOptions,
+        ].slice(0, 6));
+      })
+      .catch(() => {
+        if (isActive) setNearbyHelp([]);
+      })
+      .finally(() => {
+        if (isActive) setNearbyHelpLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [locationReady, location]);
 
   return (
     <motion.main
@@ -2294,6 +2351,74 @@ function MinimalEmergencyScreen({
           )}
         </section>
 
+
+        {locationReady && (
+          <section aria-labelledby="nearby-help-heading" className="border-b border-white/[0.08] py-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p id="nearby-help-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Nearby help</p>
+                <p className="mt-2 text-[13px] font-semibold text-white">Hospitals, police and ambulance options near you</p>
+              </div>
+              {nearbyHelp.length > 0 && (
+                <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
+                  {nearbyHelp.length} ready
+                </span>
+              )}
+            </div>
+
+            {nearbyHelpLoading ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-[12px] text-white/60">
+                Finding nearby emergency services…
+              </div>
+            ) : nearbyHelp.length ? (
+              <div className="space-y-2.5">
+                {nearbyHelp.map((facility) => (
+                  <div key={`${facility.type}-${facility.name}-${facility.address}`} className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-3">
+                    <div className="flex items-start gap-3">
+                      <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", facility.type === "hospital" ? "bg-emerald-400/10 text-emerald-300" : facility.type === "ambulance" ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300")}>
+                        {facility.type === "hospital" ? <Building2 className="h-4 w-4" /> : facility.type === "ambulance" ? <Heart className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-[13px] font-semibold text-white">{facility.name}</p>
+                          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]", facility.type === "hospital" ? "bg-emerald-400/10 text-emerald-300" : facility.type === "ambulance" ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300")}>{facility.type === "ambulance" ? "Ambulance" : facility.type === "police" ? "Police" : "Hospital"}</span>
+                        </div>
+                        <p className="mt-1 flex items-center gap-1 text-[11px] text-white/55">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{facility.address}</span>
+                        </p>
+                        <p className="mt-1 text-[11px] font-semibold text-white/75">{facility.distance}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <a
+                        href={buildDirectionsUrl(
+                          { lat: location.lat, lng: location.lng },
+                          { lat: facility.lat ?? location.lat, lng: facility.lng ?? location.lng },
+                        )}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[11px] font-bold text-white transition hover:bg-white/[0.08]"
+                      >
+                        <Navigation2 className="h-3.5 w-3.5" /> Directions
+                      </a>
+                      <a
+                        href={`tel:${facility.phone.replace(/[^\d+]/g, "")}`}
+                        className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[11px] font-bold text-white transition hover:bg-white/[0.08]"
+                      >
+                        <Phone className="h-3.5 w-3.5" /> Call
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-[12px] text-white/60">
+                We could not find nearby emergency services yet. Use the emergency phone numbers below instead.
+              </div>
+            )}
+          </section>
+        )}
 
         <button type="button" onClick={() => setMoreOpen(true)} className="group flex min-h-14 w-full items-center justify-between border-b border-white/[0.08] text-left">
           <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">More</span>
