@@ -157,6 +157,31 @@ function NearbyScreen() {
 
   const hasLocation = Boolean(location) && !locationError;
 
+  const cards = useMemo(() => {
+    if (hasLocation) {
+      return livePlaces.map((place) => ({
+        id: place.id,
+        name: place.name,
+        type: place.type,
+        address: place.address,
+        phone: place.phone,
+        open_now: place.open_now,
+        distance_m: place.distance_m,
+        source: place.source as string,
+      }));
+    }
+    return (filtered ?? []).map((facility) => ({
+      id: facility.id,
+      name: facility.name,
+      type: facility.facility_type,
+      address: facility.address ?? facility.district,
+      phone: facility.phone,
+      open_now: null as boolean | null,
+      distance_m: 0,
+      source: "seeded" as string,
+    }));
+  }, [hasLocation, livePlaces, filtered]);
+
   return (
     <AppShell title="Nearby help">
       <div className="mx-auto w-full max-w-6xl px-5 pb-6 pt-6 lg:px-10 lg:pt-8">
