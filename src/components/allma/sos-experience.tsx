@@ -1061,6 +1061,74 @@ const MAP_ZOOM_LEVELS = [
 ] as const;
 
 const MAP_HEIGHT = 208;
+const TILE_SIZE = 256;
+
+function lngToTileX(lng: number, z: number) {
+  return ((lng + 180) / 360) * 2 ** z;
+}
+
+function latToTileY(lat: number, z: number) {
+  const rad = (lat * Math.PI) / 180;
+  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z;
+}
+
+/** Keyless OpenStreetMap raster tile map centred on the given coordinates. */
+function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }) {
+  const [failed, setFailed] = useState(false);
+
+  const xExact = lngToTileX(lng, zoom);
+  const yExact = latToTileY(lat, zoom);
+  const max = 2 ** zoom;
+  const cx = Math.floor(xExact);
+  const cy = Math.floor(yExact);
+
+  const tiles: { key: string; url: string; left: number; top: number }[] = [];
+  for (let dx = -2; dx <= 2; dx += 1) {
+    for (let dy = -1; dy <= 1; dy += 1) {
+      const tx = cx + dx;
+      const ty = cy + dy;
+      if (ty < 0 || ty >= max) continue;
+      const wrappedX = ((tx % max) + max) % max;
+      tiles.push({
+        key: `${zoom}-${tx}-${ty}`,
+        url: `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${ty}.png`,
+        left: (tx - xExact) * TILE_SIZE,
+        top: (ty - yExact) * TILE_SIZE,
+      });
+    }
+  }
+
+  if (failed) return null;
+
+  return (
+    <div className="map-tint absolute inset-0 overflow-hidden" aria-hidden>
+      {tiles.map((tile) => (
+        <img
+          key={tile.key}
+          src={tile.url}
+          alt=""
+          width={TILE_SIZE}
+          height={TILE_SIZE}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setFailed(true)}
+          className="pointer-events-none absolute select-none"
+          style={{
+            width: TILE_SIZE,
+            height: TILE_SIZE,
+            left: `calc(50% + ${tile.left}px)`,
+            top: `calc(50% + ${tile.top}px)`,
+          }}
+        />
+      ))}
+      <span className="absolute bottom-1 right-1.5 rounded bg-background/70 px-1 text-[8.5px] font-medium text-muted-foreground">
+        © OpenStreetMap contributors
+      </span>
+    </div>
+  );
+}
+
 
 function LiveLocationMap({ location }: { location: LocationInfo }) {
   const [zoom, setZoom] = useState(1);
