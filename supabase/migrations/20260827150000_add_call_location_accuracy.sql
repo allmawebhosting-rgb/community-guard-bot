@@ -23,15 +23,32 @@ AS $$
     COALESCE(sa.details ->> 'emergency_type', 'unspecified'),
     COALESCE(sa.severity, 'high'),
     CASE
-      WHEN sc.share_location_on_sos IS TRUE AND sa.latitude IS NOT NULL AND sa.longitude IS NOT NULL
+      WHEN (
+            COALESCE((sa.details ->> 'location_consent')::boolean, true)
+            OR sc.share_location_on_sos IS TRUE
+          )
+          AND sa.latitude IS NOT NULL AND sa.longitude IS NOT NULL
         THEN COALESCE(NULLIF(sa.location_text, ''), 'Location shared')
       ELSE 'Location not available'
     END,
-    sc.share_location_on_sos IS TRUE AND sa.id IS NOT NULL
+    (
+      COALESCE((sa.details ->> 'location_consent')::boolean, true)
+      OR sc.share_location_on_sos IS TRUE
+    )
+      AND sa.id IS NOT NULL
       AND sa.latitude IS NOT NULL AND sa.longitude IS NOT NULL,
-    CASE WHEN sc.share_location_on_sos IS TRUE THEN sa.latitude ELSE NULL END,
-    CASE WHEN sc.share_location_on_sos IS TRUE THEN sa.longitude ELSE NULL END,
-    CASE WHEN sc.share_location_on_sos IS TRUE THEN (sa.details ->> 'accuracy_m')::double precision ELSE NULL END
+    CASE WHEN (
+      COALESCE((sa.details ->> 'location_consent')::boolean, true)
+      OR sc.share_location_on_sos IS TRUE
+    ) THEN sa.latitude ELSE NULL END,
+    CASE WHEN (
+      COALESCE((sa.details ->> 'location_consent')::boolean, true)
+      OR sc.share_location_on_sos IS TRUE
+    ) THEN sa.longitude ELSE NULL END,
+    CASE WHEN (
+      COALESCE((sa.details ->> 'location_consent')::boolean, true)
+      OR sc.share_location_on_sos IS TRUE
+    ) THEN (sa.details ->> 'accuracy_m')::double precision ELSE NULL END
   FROM public.emergency_calls c
   JOIN public.profiles p ON p.id = c.caller_id
   LEFT JOIN public.safety_activity sa ON sa.id = c.sos_session_id
