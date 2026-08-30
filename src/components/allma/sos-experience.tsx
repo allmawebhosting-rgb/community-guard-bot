@@ -1158,13 +1158,8 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
       <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
-        <iframe
-          key={mapUrl}
-          src={mapUrl}
-          title="Your live location"
-          loading="lazy"
-          className="map-tint h-full w-full border-0"
-        />
+        <OsmTileMap lat={location.lat} lng={location.lng} zoom={googleZoom} />
+
 
 
         {/* Accuracy radius + pulsing position marker */}
