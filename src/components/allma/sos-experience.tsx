@@ -1061,15 +1061,83 @@ const MAP_ZOOM_LEVELS = [
 ] as const;
 
 const MAP_HEIGHT = 208;
+const TILE_SIZE = 256;
+
+function lngToTileX(lng: number, z: number) {
+  return ((lng + 180) / 360) * 2 ** z;
+}
+
+function latToTileY(lat: number, z: number) {
+  const rad = (lat * Math.PI) / 180;
+  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z;
+}
+
+/** Keyless OpenStreetMap raster tile map centred on the given coordinates. */
+function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }) {
+  const [failed, setFailed] = useState(false);
+
+  const xExact = lngToTileX(lng, zoom);
+  const yExact = latToTileY(lat, zoom);
+  const max = 2 ** zoom;
+  const cx = Math.floor(xExact);
+  const cy = Math.floor(yExact);
+
+  const tiles: { key: string; url: string; left: number; top: number }[] = [];
+  for (let dx = -2; dx <= 2; dx += 1) {
+    for (let dy = -1; dy <= 1; dy += 1) {
+      const tx = cx + dx;
+      const ty = cy + dy;
+      if (ty < 0 || ty >= max) continue;
+      const wrappedX = ((tx % max) + max) % max;
+      tiles.push({
+        key: `${zoom}-${tx}-${ty}`,
+        url: `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${ty}.png`,
+        left: (tx - xExact) * TILE_SIZE,
+        top: (ty - yExact) * TILE_SIZE,
+      });
+    }
+  }
+
+  if (failed) return null;
+
+  return (
+    <div className="map-tint absolute inset-0 overflow-hidden" aria-hidden>
+      {tiles.map((tile) => (
+        <img
+          key={tile.key}
+          src={tile.url}
+          alt=""
+          width={TILE_SIZE}
+          height={TILE_SIZE}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setFailed(true)}
+          className="pointer-events-none absolute select-none"
+          style={{
+            width: TILE_SIZE,
+            height: TILE_SIZE,
+            left: `calc(50% + ${tile.left}px)`,
+            top: `calc(50% + ${tile.top}px)`,
+          }}
+        />
+      ))}
+      <span className="absolute bottom-1 right-1.5 rounded bg-background/70 px-1 text-[8.5px] font-medium text-muted-foreground">
+        © OpenStreetMap contributors
+      </span>
+    </div>
+  );
+}
+
 
 function LiveLocationMap({ location }: { location: LocationInfo }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const level = MAP_ZOOM_LEVELS[zoom];
 
-  // Google Maps embed uses the same zoom tiers as the existing map controls.
+  // Tile zoom mirrors the existing zoom tiers (Street / Block / Area / City).
   const googleZoom = [18, 16, 14, 12][zoom] ?? 16;
-  const mapUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}&output=embed`;
+
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / MAP_HEIGHT;
@@ -1090,13 +1158,9 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
       <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
-        <iframe
-          key={mapUrl}
-          src={mapUrl}
-          title="Your live location"
-          loading="lazy"
-          className="map-tint h-full w-full border-0"
-        />
+        <OsmTileMap lat={location.lat} lng={location.lng} zoom={googleZoom} />
+
+
 
         {/* Accuracy radius + pulsing position marker */}
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
@@ -2145,6 +2209,8 @@ function MinimalEmergencyScreen({
   onClose: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(true);
+
   const [servicesOpen, setServicesOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [closeConfirm, setCloseConfirm] = useState(false);
@@ -2212,12 +2278,18 @@ function MinimalEmergencyScreen({
               <p className="mt-1 text-[12px] text-white/45">{area}</p>
             </div>
             {locationReady ? (
-              <button type="button" onClick={() => setMoreOpen(true)} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-3 text-[12px] font-semibold text-white/75 transition hover:bg-white/[0.08]">View map</button>
+              <button type="button" onClick={() => setMapOpen((open) => !open)} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-3 text-[12px] font-semibold text-white/75 transition hover:bg-white/[0.08]">{mapOpen ? "Hide map" : "View map"}</button>
             ) : (
               <button type="button" onClick={onEnableLocation} className="min-h-10 rounded-xl border border-amber-300/30 bg-amber-300/[0.04] px-3 text-[12px] font-semibold text-amber-200 transition hover:bg-amber-300/10">Enable Location</button>
             )}
           </div>
+          {locationReady && location && mapOpen && (
+            <div className="mt-4">
+              <LiveLocationMap location={location} />
+            </div>
+          )}
         </section>
+
 
         <button type="button" onClick={() => setMoreOpen(true)} className="group flex min-h-14 w-full items-center justify-between border-b border-white/[0.08] text-left">
           <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">More</span>
