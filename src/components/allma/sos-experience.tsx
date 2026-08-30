@@ -1137,7 +1137,7 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
 
   // Tile zoom mirrors the existing zoom tiers (Street / Block / Area / City).
   const googleZoom = [18, 16, 14, 12][zoom] ?? 16;
-
+  const mapUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}&output=embed&basemap=satellite`;
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / MAP_HEIGHT;
@@ -1158,9 +1158,13 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
       <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
-        <OsmTileMap lat={location.lat} lng={location.lng} zoom={googleZoom} />
-
-
+        <iframe
+          key={mapUrl}
+          src={mapUrl}
+          title="Your live location"
+          loading="lazy"
+          className="map-tint h-full w-full border-0"
+        />
 
         {/* Accuracy radius + pulsing position marker */}
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
@@ -1206,7 +1210,7 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
 
         <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground backdrop-blur-md">
           <LocateFixed className="h-3 w-3 text-success" />
-          {level.label} · ±{Math.round(location.accuracy)} m
+          Satellite · {level.label} · ±{Math.round(location.accuracy)} m
         </div>
       </div>
 

@@ -46,7 +46,11 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
     const map = new (window as any).google.maps.Map(containerRef.current, {
       center: { lat: center.lat, lng: center.lng },
       zoom: 12,
-      mapTypeControl: false,
+      mapTypeId: "satellite",
+      mapTypeControl: true,
+      mapTypeControlOptions: {
+        style: (window as any).google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+      },
       streetViewControl: false,
       fullscreenControl: false,
       zoomControl: true,
@@ -57,9 +61,28 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
       map,
       position: { lat: userLocation.lat, lng: userLocation.lng },
       title: "Your location",
+      icon: {
+        path: (window as any).google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: "#22c55e",
+        fillOpacity: 1,
+        strokeColor: "#ffffff",
+        strokeWeight: 2,
+      },
     });
 
-    places.slice(0, 18).forEach((place) => {
+    new (window as any).google.maps.Circle({
+      map,
+      center: { lat: userLocation.lat, lng: userLocation.lng },
+      radius: 2000,
+      fillColor: "#22c55e",
+      fillOpacity: 0.08,
+      strokeColor: "#22c55e",
+      strokeOpacity: 0.5,
+      strokeWeight: 1,
+    });
+
+    places.slice(0, 30).forEach((place) => {
       new (window as any).google.maps.Marker({
         map,
         position: { lat: place.latitude, lng: place.longitude },
