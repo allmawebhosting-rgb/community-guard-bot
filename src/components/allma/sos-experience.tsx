@@ -1135,9 +1135,9 @@ function LiveLocationMap({ location }: { location: LocationInfo }) {
   const [copied, setCopied] = useState(false);
   const level = MAP_ZOOM_LEVELS[zoom];
 
-  // Google Maps embed uses the same zoom tiers as the existing map controls.
+  // Tile zoom mirrors the existing zoom tiers (Street / Block / Area / City).
   const googleZoom = [18, 16, 14, 12][zoom] ?? 16;
-  const mapUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}&output=embed`;
+
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / MAP_HEIGHT;
