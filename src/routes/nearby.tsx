@@ -101,11 +101,13 @@ function NearbyScreen() {
     enabled: Boolean(location),
     queryFn: async () => {
       const data = await getNearbyPlaces({
-        latitude: location!.lat,
-        longitude: location!.lng,
-        radiusMeters: 2500,
-        limit: 12,
-        types: ["hospital", "police", "fire_station", "clinic"],
+        data: {
+          latitude: location!.lat,
+          longitude: location!.lng,
+          radiusMeters: 2500,
+          limit: 12,
+          types: ["hospital", "police", "fire_station", "clinic"],
+        },
       });
       return (data ?? []) as NearbyPlace[];
     },
@@ -116,10 +118,12 @@ function NearbyScreen() {
     enabled: Boolean(location),
     queryFn: async () => {
       const data = await getNearbyMembers({
-        latitude: location!.lat,
-        longitude: location!.lng,
-        radiusMeters: 2000,
-        limit: 10,
+        data: {
+          latitude: location!.lat,
+          longitude: location!.lng,
+          radiusMeters: 2000,
+          limit: 10,
+        },
       });
       return (data ?? []) as NearbyMember[];
     },
@@ -156,6 +160,31 @@ function NearbyScreen() {
   }
 
   const hasLocation = Boolean(location) && !locationError;
+
+  const cards = useMemo(() => {
+    if (hasLocation) {
+      return livePlaces.map((place) => ({
+        id: place.id,
+        name: place.name,
+        type: place.type,
+        address: place.address,
+        phone: place.phone,
+        open_now: place.open_now,
+        distance_m: place.distance_m,
+        source: place.source as string,
+      }));
+    }
+    return (filtered ?? []).map((facility) => ({
+      id: facility.id,
+      name: facility.name,
+      type: facility.facility_type,
+      address: facility.address ?? facility.district,
+      phone: facility.phone,
+      open_now: null as boolean | null,
+      distance_m: 0,
+      source: "seeded" as string,
+    }));
+  }, [hasLocation, livePlaces, filtered]);
 
   return (
     <AppShell title="Nearby help">
@@ -309,37 +338,33 @@ function NearbyScreen() {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {(hasLocation ? livePlaces : filtered).map((facility) => (
+            {cards.map((facility) => (
               <article
                 key={facility.id}
                 className="group flex flex-col rounded-[1.4rem] border border-border/60 bg-card/80 p-5 shadow-soft backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift"
               >
                 <div className="flex items-start gap-3">
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-2xl transition-transform group-hover:scale-110" aria-hidden>
-                    {"source" in facility && facility.source === "google" ? "📍" : ICONS[facility.type ?? facility.facility_type] ?? "📍"}
+                    {facility.source === "google" ? "📍" : ICONS[facility.type] ?? "📍"}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14.5px] font-bold leading-tight">{facility.name}</p>
                     <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                      {(facility.address ?? ("district" in facility ? facility.district : undefined)) || (TYPE_LABELS[facility.type ?? facility.facility_type] ?? facility.type ?? facility.facility_type)}
+                      {facility.address || (TYPE_LABELS[facility.type] ?? facility.type)}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-3 flex items-center gap-3 text-[10.5px] text-muted-foreground/80">
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {TYPE_LABELS[facility.type ?? facility.facility_type] ?? facility.type ?? facility.facility_type}
+                    <MapPin className="h-3 w-3" /> {TYPE_LABELS[facility.type] ?? facility.type}
                   </span>
-                  {
-                    ("source" in facility && facility.source === "google") || ("open_now" in facility && facility.open_now !== null)
-                      ? (() => {
-                          const openNow = "open_now" in facility ? facility.open_now : null;
-                          if (openNow === null) return null;
-                          return <span className="flex items-center gap-1 text-gold font-semibold"><Clock className="h-3 w-3" /> {openNow ? "Open now" : "Closed"}</span>;
-                        })()
-                      : null
-                  }
-                  {"distance_m" in facility && (
+                  {facility.open_now !== null && (
+                    <span className="flex items-center gap-1 text-gold font-semibold">
+                      <Clock className="h-3 w-3" /> {facility.open_now ? "Open now" : "Closed"}
+                    </span>
+                  )}
+                  {facility.distance_m > 0 && (
                     <span className="ml-auto text-[10.5px] font-semibold text-primary">{formatDistance(facility.distance_m)}</span>
                   )}
                 </div>
@@ -353,7 +378,7 @@ function NearbyScreen() {
                     <Phone className="h-3.5 w-3.5" /> Call {facility.phone}
                   </a>
                 )}
-                {"distance_m" in facility && facility.distance_m > 0 && !facility.phone && (
+                {facility.distance_m > 0 && !facility.phone && (
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(facility.name)}`}
                     target="_blank"

@@ -123,7 +123,7 @@ function ProfileScreen() {
         .select("discoverable_nearby")
         .eq("id", user.id)
         .maybeSingle()
-        .then(({ data }) => {
+        .then(({ data }: { data: { discoverable_nearby?: boolean | null } | null }) => {
           if (!cancelled) setNearbySharingEnabled(Boolean(data?.discoverable_nearby));
         }),
     ]);
