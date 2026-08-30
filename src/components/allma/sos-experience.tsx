@@ -2209,6 +2209,8 @@ function MinimalEmergencyScreen({
   onClose: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(true);
+
   const [servicesOpen, setServicesOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [closeConfirm, setCloseConfirm] = useState(false);
