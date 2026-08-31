@@ -1276,28 +1276,10 @@ export function SOSExperience({
     }
     setLocation(shareLocation ? loc : null);
 
-    if (user && activityId && loc && shareLocation) {
-      const { error } = await supabase
-        .from("safety_activity")
-        .update({
-          location_text: `${loc.address}, ${loc.district}`.replace(/, $/, ""),
-          latitude: loc.lat,
-          longitude: loc.lng,
-          details: {
-            channel: "sos",
-            emergency_type: type,
-            accuracy_m: loc.accuracy,
-            location_consent: shareLocation,
-            responder_notification_consent: notifyResponders,
-            coordination_mode: "consent_based",
-            activation_mode: smartCheckId ? "smart_detection" : "manual",
-            ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
-          } as never,
-        })
-        .eq("id", activityId);
-      if (error) console.error("Failed to update SOS location", error);
-      if (error) toast.error("SOS is active, but your location could not be shared.");
-    }
+    // The location is persisted to the emergency session by the effect above,
+    // which runs whichever of the session row / GPS fix lands last and keeps
+    // writing live updates for the people being called.
+
 
     if (user) {
       void supabase
