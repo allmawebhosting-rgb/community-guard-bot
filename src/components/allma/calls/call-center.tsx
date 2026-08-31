@@ -523,34 +523,43 @@ export function CallCenter() {
             </p>
 
             {emergency && phase !== "ended" && (
-              <div className="mt-4 w-full max-w-xs rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-left">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
-                  Emergency
-                </p>
-                <p className="mt-1 text-[12px] font-semibold capitalize text-foreground">
-                  {emergency.emergency_type.replace(/_/g, " ")} · {emergency.severity}
-                </p>
-                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {emergency.location_shared ? emergency.area : "Location not shared with you"}
-                </p>
-                {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
+              <div className="mt-4 w-full max-w-sm space-y-3 text-left">
+                <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
+                    Emergency
                   </p>
-                )}
-                {emergency.location_shared && emergency.latitude !== null && emergency.longitude !== null && (
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${emergency.latitude},${emergency.longitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline"
-                  >
-                    View shared location
-                  </a>
-                )}
+                  <p className="mt-1 text-[12px] font-semibold capitalize text-foreground">
+                    {emergency.emergency_type.replace(/_/g, " ")} · {emergency.severity}
+                  </p>
+                  <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {emergency.location_shared ? emergency.area : "Location not shared with you"}
+                  </p>
+                  {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
+                    </p>
+                  )}
+                </div>
+
+                {emergency.location_shared &&
+                  emergency.latitude !== null &&
+                  emergency.longitude !== null && (
+                    <LiveLocationMap
+                      location={{
+                        lat: emergency.latitude,
+                        lng: emergency.longitude,
+                        accuracy: emergency.accuracy_m ?? null,
+                        address: emergency.area,
+                      }}
+                      badge="Live · shared"
+                      directions
+                      directionsLabel="Directions"
+                    />
+                  )}
               </div>
             )}
+
 
             {phase === "active" && quality !== "connecting" && (
               <p className="mt-3 font-mono text-3xl font-semibold tabular-nums">
