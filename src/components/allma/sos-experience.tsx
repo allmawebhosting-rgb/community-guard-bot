@@ -42,6 +42,7 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
 import { AllmaVoice } from "@/components/allma/sos/allma-voice";
+import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 import { notifySosActivity } from "@/lib/push.functions";
