@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyIncomingCall } from "@/lib/push.functions";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
+import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { acceptEmergencyCallInvitation, getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
 import { startSosEmergencyCall } from "@/lib/sos-calling";
 import {
