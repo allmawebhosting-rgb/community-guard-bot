@@ -1156,7 +1156,6 @@ export function SOSExperience({
       Math.abs(last.lat - location.lat) > 0.00025 || Math.abs(last.lng - location.lng) > 0.00025;
     const isFirst = last.at === 0;
     if (!isFirst && !moved && now - last.at < 10_000) return;
-    if (!isFirst && now - last.at < 10_000 && !moved) return;
     locationSync.current = { ...last, at: now, lat: location.lat, lng: location.lng };
 
     void (async () => {
