@@ -42,6 +42,7 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
 import { AllmaVoice } from "@/components/allma/sos/allma-voice";
+import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 import { notifySosActivity } from "@/lib/push.functions";
@@ -1062,206 +1063,8 @@ function FacilitySection({
   );
 }
 
-// ─── Live location map ────────────────────────────────────────────────────────
+// ─── Live location map lives in ./live-location-map (shared with the call screen) ──
 
-const MAP_ZOOM_LEVELS = [
-  { label: "Street", span: 250 },
-  { label: "Block", span: 700 },
-  { label: "Area", span: 2000 },
-  { label: "City", span: 6000 },
-] as const;
-
-const MAP_HEIGHT = 208;
-const TILE_SIZE = 256;
-
-function lngToTileX(lng: number, z: number) {
-  return ((lng + 180) / 360) * 2 ** z;
-}
-
-function latToTileY(lat: number, z: number) {
-  const rad = (lat * Math.PI) / 180;
-  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z;
-}
-
-/** Keyless OpenStreetMap raster tile map centred on the given coordinates. */
-function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }) {
-  const [failed, setFailed] = useState(false);
-
-  const xExact = lngToTileX(lng, zoom);
-  const yExact = latToTileY(lat, zoom);
-  const max = 2 ** zoom;
-  const cx = Math.floor(xExact);
-  const cy = Math.floor(yExact);
-
-  const tiles: { key: string; url: string; left: number; top: number }[] = [];
-  for (let dx = -2; dx <= 2; dx += 1) {
-    for (let dy = -1; dy <= 1; dy += 1) {
-      const tx = cx + dx;
-      const ty = cy + dy;
-      if (ty < 0 || ty >= max) continue;
-      const wrappedX = ((tx % max) + max) % max;
-      tiles.push({
-        key: `${zoom}-${tx}-${ty}`,
-        url: `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${ty}.png`,
-        left: (tx - xExact) * TILE_SIZE,
-        top: (ty - yExact) * TILE_SIZE,
-      });
-    }
-  }
-
-  if (failed) return null;
-
-  return (
-    <div className="map-tint absolute inset-0 overflow-hidden" aria-hidden>
-      {tiles.map((tile) => (
-        <img
-          key={tile.key}
-          src={tile.url}
-          alt=""
-          width={TILE_SIZE}
-          height={TILE_SIZE}
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          onError={() => setFailed(true)}
-          className="pointer-events-none absolute select-none"
-          style={{
-            width: TILE_SIZE,
-            height: TILE_SIZE,
-            left: `calc(50% + ${tile.left}px)`,
-            top: `calc(50% + ${tile.top}px)`,
-          }}
-        />
-      ))}
-      <span className="absolute bottom-1 right-1.5 rounded bg-background/70 px-1 text-[8.5px] font-medium text-muted-foreground">
-        © OpenStreetMap contributors
-      </span>
-    </div>
-  );
-}
-
-
-function LiveLocationMap({ location }: { location: LocationInfo }) {
-  const [zoom, setZoom] = useState(1);
-  const [copied, setCopied] = useState(false);
-  const level = MAP_ZOOM_LEVELS[zoom];
-
-  // Tile zoom mirrors the existing zoom tiers (Street / Block / Area / City).
-  const googleZoom = [18, 16, 14, 12][zoom] ?? 16;
-  const mapUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}&output=embed&basemap=satellite`;
-
-  // Accuracy circle drawn to the same scale as the tiles.
-  const metresPerPixel = level.span / MAP_HEIGHT;
-  const accuracyPx = Math.max(18, Math.min(MAP_HEIGHT * 0.9, (location.accuracy / metresPerPixel) * 2));
-
-  const coords = `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
-
-  const copyCoords = async () => {
-    try {
-      await navigator.clipboard.writeText(coords);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-    }
-  };
-
-  return (
-    <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
-      <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
-        <iframe
-          key={mapUrl}
-          src={mapUrl}
-          title="Your live location"
-          loading="lazy"
-          className="map-tint h-full w-full border-0"
-        />
-
-        {/* Accuracy radius + pulsing position marker */}
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <span
-            className="absolute rounded-full border border-destructive/40 bg-destructive/10"
-            style={{ height: accuracyPx, width: accuracyPx }}
-          />
-          <span className="absolute h-12 w-12 animate-ping rounded-full bg-destructive/20 [animation-duration:1.6s]" />
-          <span className="sos-glow-sm h-3.5 w-3.5 rounded-full border-2 border-background bg-destructive" />
-        </div>
-
-        {/* Scale + zoom controls */}
-        <div className="absolute right-2.5 top-2.5 flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/80 backdrop-blur-md">
-          <button
-            type="button"
-            aria-label="Zoom in"
-            onClick={() => setZoom((z) => Math.max(0, z - 1))}
-            disabled={zoom === 0}
-            className="grid h-9 w-9 place-items-center bg-background/90 text-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-          <span className="h-px bg-border" />
-          <button
-            type="button"
-            aria-label="Zoom out"
-            onClick={() => setZoom((z) => Math.min(MAP_ZOOM_LEVELS.length - 1, z + 1))}
-            disabled={zoom === MAP_ZOOM_LEVELS.length - 1}
-            className="grid h-9 w-9 place-items-center bg-background/90 text-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <span className="h-px bg-border" />
-          <button
-            type="button"
-            aria-label="Recenter on me"
-            onClick={() => setZoom(1)}
-            className="grid h-9 w-9 place-items-center bg-background/90 text-destructive transition hover:bg-accent"
-          >
-            <Crosshair className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground backdrop-blur-md">
-          <LocateFixed className="h-3 w-3 text-success" />
-          Satellite · {level.label} · ±{Math.round(location.accuracy)} m
-        </div>
-      </div>
-
-      <div className="flex items-start gap-2 border-t border-border/60 px-4 py-3">
-        <Navigation2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-semibold text-foreground">
-            {location.address}
-            {location.district ? `, ${location.district}` : ""}
-          </p>
-          <p className="mt-0.5 font-mono text-[10.5px] text-muted-foreground">{coords}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 border-t border-border/60 p-2.5">
-        <a
-          href={`https://www.google.com/maps?q=${location.lat},${location.lng}&z=${googleZoom}`}
-          target="_blank"
-          rel="noreferrer"
-          className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
-        >
-          <ExternalLink className="h-3.5 w-3.5" /> Open in Google Maps
-        </a>
-        <button
-          type="button"
-          onClick={copyCoords}
-          className={cn(
-            "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[11.5px] font-semibold transition",
-            copied
-              ? "border-success/30 bg-success/15 text-success"
-              : "border-border/60 bg-secondary/40 text-foreground hover:bg-accent",
-          )}
-        >
-          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          {copied ? "Copied" : "Copy GPS"}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function StatusTile({
   icon: Icon,
@@ -1334,6 +1137,57 @@ export function SOSExperience({
   // Guards the single emergency-session insert: without it, the auth-hydration
   // backfill below could race the activation path and create two sessions.
   const activityRecording = useRef(false);
+  // Throttles live-location writes and remembers the last saved fix.
+  const locationSync = useRef<{ at: number; lat: number; lng: number; failed: boolean }>({
+    at: 0,
+    lat: 0,
+    lng: 0,
+    failed: false,
+  });
+
+  // Persist the position onto the emergency session so the people being called
+  // (and responders) actually receive it. Runs whenever the session id or the
+  // GPS fix changes, so it no longer matters which arrives first.
+  useEffect(() => {
+    if (!user || !sosActivityId || !location || !shareLocation) return;
+    const now = Date.now();
+    const last = locationSync.current;
+    const moved =
+      Math.abs(last.lat - location.lat) > 0.00025 || Math.abs(last.lng - location.lng) > 0.00025;
+    const isFirst = last.at === 0;
+    if (!isFirst && !moved && now - last.at < 10_000) return;
+    locationSync.current = { ...last, at: now, lat: location.lat, lng: location.lng };
+
+    void (async () => {
+      const { error } = await supabase
+        .from("safety_activity")
+        .update({
+          location_text: `${location.address}, ${location.district}`.replace(/(^, )|(, $)/g, ""),
+          latitude: location.lat,
+          longitude: location.lng,
+          details: {
+            channel: "sos",
+            emergency_type: emergencyType,
+            accuracy_m: location.accuracy,
+            location_consent: true,
+            responder_notification_consent: notifyResponders,
+            coordination_mode: "consent_based",
+            activation_mode: smartCheckId ? "smart_detection" : "manual",
+            location_updated_at: new Date().toISOString(),
+            ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
+          } as never,
+        })
+        .eq("id", sosActivityId);
+      if (error) {
+        console.error("Failed to share SOS location", error);
+        if (!locationSync.current.failed) {
+          locationSync.current = { ...locationSync.current, failed: true };
+          toast.error("SOS is active, but your location could not be shared.");
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, sosActivityId, shareLocation, location?.lat, location?.lng, location?.accuracy]);
 
   useEffect(() => {
     if (phase !== "help" || !location || !("geolocation" in navigator)) return;
@@ -1473,28 +1327,10 @@ export function SOSExperience({
     }
     setLocation(shareLocation ? loc : null);
 
-    if (user && activityId && loc && shareLocation) {
-      const { error } = await supabase
-        .from("safety_activity")
-        .update({
-          location_text: `${loc.address}, ${loc.district}`.replace(/, $/, ""),
-          latitude: loc.lat,
-          longitude: loc.lng,
-          details: {
-            channel: "sos",
-            emergency_type: type,
-            accuracy_m: loc.accuracy,
-            location_consent: shareLocation,
-            responder_notification_consent: notifyResponders,
-            coordination_mode: "consent_based",
-            activation_mode: smartCheckId ? "smart_detection" : "manual",
-            ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
-          } as never,
-        })
-        .eq("id", activityId);
-      if (error) console.error("Failed to update SOS location", error);
-      if (error) toast.error("SOS is active, but your location could not be shared.");
-    }
+    // The location is persisted to the emergency session by the effect above,
+    // which runs whichever of the session row / GPS fix lands last and keeps
+    // writing live updates for the people being called.
+
 
     if (user) {
       void supabase
@@ -2352,7 +2188,7 @@ function MinimalEmergencyScreen({
         </section>
 
 
-        {locationReady && (
+        {locationReady && location && (
           <section aria-labelledby="nearby-help-heading" className="border-b border-white/[0.08] py-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
