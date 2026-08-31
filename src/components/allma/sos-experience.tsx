@@ -2352,7 +2352,7 @@ function MinimalEmergencyScreen({
         </section>
 
 
-        {locationReady && (
+        {locationReady && location && (
           <section aria-labelledby="nearby-help-heading" className="border-b border-white/[0.08] py-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
