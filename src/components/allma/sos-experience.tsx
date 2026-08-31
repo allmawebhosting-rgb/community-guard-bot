@@ -1137,6 +1137,58 @@ export function SOSExperience({
   // Guards the single emergency-session insert: without it, the auth-hydration
   // backfill below could race the activation path and create two sessions.
   const activityRecording = useRef(false);
+  // Throttles live-location writes and remembers the last saved fix.
+  const locationSync = useRef<{ at: number; lat: number; lng: number; failed: boolean }>({
+    at: 0,
+    lat: 0,
+    lng: 0,
+    failed: false,
+  });
+
+  // Persist the position onto the emergency session so the people being called
+  // (and responders) actually receive it. Runs whenever the session id or the
+  // GPS fix changes, so it no longer matters which arrives first.
+  useEffect(() => {
+    if (!user || !sosActivityId || !location || !shareLocation) return;
+    const now = Date.now();
+    const last = locationSync.current;
+    const moved =
+      Math.abs(last.lat - location.lat) > 0.00025 || Math.abs(last.lng - location.lng) > 0.00025;
+    const isFirst = last.at === 0;
+    if (!isFirst && !moved && now - last.at < 10_000) return;
+    if (!isFirst && now - last.at < 10_000 && !moved) return;
+    locationSync.current = { ...last, at: now, lat: location.lat, lng: location.lng };
+
+    void (async () => {
+      const { error } = await supabase
+        .from("safety_activity")
+        .update({
+          location_text: `${location.address}, ${location.district}`.replace(/(^, )|(, $)/g, ""),
+          latitude: location.lat,
+          longitude: location.lng,
+          details: {
+            channel: "sos",
+            emergency_type: emergencyType,
+            accuracy_m: location.accuracy,
+            location_consent: true,
+            responder_notification_consent: notifyResponders,
+            coordination_mode: "consent_based",
+            activation_mode: smartCheckId ? "smart_detection" : "manual",
+            location_updated_at: new Date().toISOString(),
+            ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
+          } as never,
+        })
+        .eq("id", sosActivityId);
+      if (error) {
+        console.error("Failed to share SOS location", error);
+        if (!locationSync.current.failed) {
+          locationSync.current = { ...locationSync.current, failed: true };
+          toast.error("SOS is active, but your location could not be shared.");
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, sosActivityId, shareLocation, location?.lat, location?.lng, location?.accuracy]);
 
   useEffect(() => {
     if (phase !== "help" || !location || !("geolocation" in navigator)) return;
