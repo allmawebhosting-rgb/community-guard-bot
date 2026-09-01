@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { NearbyPlace } from "@/lib/places.types";
+import { getGoogleMapsBrowserKey, loadGoogleMaps } from "@/lib/google-maps-loader";
 
 type NearbyMapProps = {
   center: { lat: number; lng: number };
@@ -7,38 +8,26 @@ type NearbyMapProps = {
   places: NearbyPlace[];
 };
 
-const SCRIPT_ID = "allma-google-maps-script";
-
 export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [ready, setReady] = useState<boolean>(Boolean((window as any)?.google?.maps));
-  const browserKey = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY as string | undefined;
+  const [ready, setReady] = useState<boolean>(Boolean((globalThis as any)?.google?.maps));
+  const browserKey = getGoogleMapsBrowserKey();
 
   useEffect(() => {
-    if ((window as any)?.google?.maps) {
-      setReady(true);
-      return;
-    }
-
-    if (!browserKey) {
-      setReady(false);
-      return;
-    }
-
-    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener("load", () => setReady(Boolean((window as any)?.google?.maps)), { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(browserKey)}&loading=async`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => setReady(Boolean((window as any)?.google?.maps));
-    document.head.appendChild(script);
+    if (!browserKey) return;
+    let cancelled = false;
+    loadGoogleMaps()
+      .then(() => {
+        if (!cancelled) setReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setReady(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [browserKey]);
+
 
   useEffect(() => {
     if (!ready || !containerRef.current || !(window as any)?.google?.maps) return;
