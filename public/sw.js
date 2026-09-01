@@ -30,7 +30,7 @@ self.addEventListener("push", (event) => {
       renotify: true,
       requireInteraction: true,
       vibrate: [200, 100, 200, 100, 200],
-      data: { callId, invitationId, type: payload.type || "incoming_call" },
+      data: { callId, invitationId, activityId: payload.activityId || "", type: payload.type || "incoming_call" },
       actions: [
         { action: isSosActivity ? "open" : "answer", title: isSosActivity ? "Open" : "Answer" },
         { action: "decline", title: "Dismiss" },
@@ -44,6 +44,7 @@ self.addEventListener("notificationclick", (event) => {
   const data = event.notification.data || {};
   const callId = data.callId || "";
   const invitationId = data.invitationId || "";
+  const activityId = data.activityId || "";
 
   if (event.action === "decline") {
     // Declining happens in the app; without a window we simply dismiss.
@@ -51,7 +52,7 @@ self.addEventListener("notificationclick", (event) => {
   }
 
   const target = data.type === "sos_activity"
-    ? "/alerts"
+    ? (activityId ? `/calls?room=${encodeURIComponent(activityId)}` : "/calls")
     : invitationId
     ? `/calls?invitation=${encodeURIComponent(invitationId)}${callId ? `&call=${encodeURIComponent(callId)}` : ""}`
     : callId
