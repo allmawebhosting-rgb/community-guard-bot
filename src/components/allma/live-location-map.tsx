@@ -99,6 +99,53 @@ export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom:
   );
 }
 
+/** Google Maps canvas centred on the given coordinates (non-interactive, own controls). */
+export function GoogleLocationCanvas({
+  lat,
+  lng,
+  zoom,
+  onFail,
+}: {
+  lat: number;
+  lng: number;
+  zoom: number;
+  onFail: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadGoogleMaps()
+      .then((maps) => {
+        if (cancelled || !containerRef.current) return;
+        mapRef.current = new maps.Map(containerRef.current, {
+          center: { lat, lng },
+          zoom,
+          disableDefaultUI: true,
+          gestureHandling: "none",
+          keyboardShortcuts: false,
+          clickableIcons: false,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) onFail();
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.setCenter({ lat, lng });
+    mapRef.current.setZoom(zoom);
+  }, [lat, lng, zoom]);
+
+  return <div ref={containerRef} className="absolute inset-0" aria-hidden />;
+}
+
 export function LiveLocationMap({
   location,
   badge = "Live",
