@@ -36,7 +36,6 @@ export const MAP_ZOOM_LEVELS = [
   { label: "City", span: 6000 },
 ] as const;
 
-const MAP_HEIGHT = 208;
 const TILE_SIZE = 256;
 
 function lngToTileX(lng: number, z: number) {
@@ -51,6 +50,23 @@ function latToTileY(lat: number, z: number) {
 /** Keyless OpenStreetMap raster tile map centred on the given coordinates. */
 export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }) {
   const [failed, setFailed] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 640, height: 208 });
+
+  useEffect(() => {
+    const node = wrapperRef.current;
+    if (!node) return;
+    const measure = () => {
+      const rect = node.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setSize({ width: rect.width, height: rect.height });
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const xExact = lngToTileX(lng, zoom);
   const yExact = latToTileY(lat, zoom);
@@ -58,9 +74,13 @@ export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom:
   const cx = Math.floor(xExact);
   const cy = Math.floor(yExact);
 
+  // Cover the measured container exactly — no visible repeated or missing tiles.
+  const colRadius = Math.ceil(size.width / 2 / TILE_SIZE) + 1;
+  const rowRadius = Math.ceil(size.height / 2 / TILE_SIZE) + 1;
+
   const tiles: { key: string; url: string; left: number; top: number }[] = [];
-  for (let dx = -2; dx <= 2; dx += 1) {
-    for (let dy = -1; dy <= 1; dy += 1) {
+  for (let dx = -colRadius; dx <= colRadius; dx += 1) {
+    for (let dy = -rowRadius; dy <= rowRadius; dy += 1) {
       const tx = cx + dx;
       const ty = cy + dy;
       if (ty < 0 || ty >= max) continue;
@@ -74,10 +94,10 @@ export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom:
     }
   }
 
-  if (failed) return null;
+  if (failed) return <div ref={wrapperRef} className="absolute inset-0" aria-hidden />;
 
   return (
-    <div className="map-tint absolute inset-0 overflow-hidden" aria-hidden>
+    <div ref={wrapperRef} className="map-tint absolute inset-0 overflow-hidden" aria-hidden>
       {tiles.map((tile) => (
         <img
           key={tile.key}
