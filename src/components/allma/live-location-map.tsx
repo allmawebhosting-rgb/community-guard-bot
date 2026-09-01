@@ -177,7 +177,9 @@ export function LiveLocationMap({
   const accuracy = typeof location.accuracy === "number" ? location.accuracy : null;
 
   const tileZoom = [18, 16, 14, 12][zoom] ?? 16;
-  const useGoogle = Boolean(getGoogleMapsBrowserKey()) && !googleFailed;
+  const useGoogle =
+    Boolean(getGoogleMapsBrowserKey()) && !googleFailed && !googleMapsAuthFailed();
+
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / MAP_HEIGHT;
