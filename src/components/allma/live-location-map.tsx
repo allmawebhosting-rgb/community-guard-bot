@@ -36,7 +36,6 @@ export const MAP_ZOOM_LEVELS = [
   { label: "City", span: 6000 },
 ] as const;
 
-const MAP_HEIGHT = 208;
 const TILE_SIZE = 256;
 
 function lngToTileX(lng: number, z: number) {
@@ -51,6 +50,23 @@ function latToTileY(lat: number, z: number) {
 /** Keyless OpenStreetMap raster tile map centred on the given coordinates. */
 export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }) {
   const [failed, setFailed] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 640, height: 208 });
+
+  useEffect(() => {
+    const node = wrapperRef.current;
+    if (!node) return;
+    const measure = () => {
+      const rect = node.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setSize({ width: rect.width, height: rect.height });
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const xExact = lngToTileX(lng, zoom);
   const yExact = latToTileY(lat, zoom);
@@ -58,9 +74,13 @@ export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom:
   const cx = Math.floor(xExact);
   const cy = Math.floor(yExact);
 
+  // Cover the measured container exactly — no visible repeated or missing tiles.
+  const colRadius = Math.ceil(size.width / 2 / TILE_SIZE) + 1;
+  const rowRadius = Math.ceil(size.height / 2 / TILE_SIZE) + 1;
+
   const tiles: { key: string; url: string; left: number; top: number }[] = [];
-  for (let dx = -2; dx <= 2; dx += 1) {
-    for (let dy = -1; dy <= 1; dy += 1) {
+  for (let dx = -colRadius; dx <= colRadius; dx += 1) {
+    for (let dy = -rowRadius; dy <= rowRadius; dy += 1) {
       const tx = cx + dx;
       const ty = cy + dy;
       if (ty < 0 || ty >= max) continue;
@@ -74,10 +94,10 @@ export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom:
     }
   }
 
-  if (failed) return null;
+  if (failed) return <div ref={wrapperRef} className="absolute inset-0" aria-hidden />;
 
   return (
-    <div className="map-tint absolute inset-0 overflow-hidden" aria-hidden>
+    <div ref={wrapperRef} className="map-tint absolute inset-0 overflow-hidden" aria-hidden>
       {tiles.map((tile) => (
         <img
           key={tile.key}
@@ -184,6 +204,7 @@ export function LiveLocationMap({
   badge = "Live",
   directionsLabel = "Open in Google Maps",
   directions = false,
+  heightClassName = "h-52 lg:h-[19rem]",
 }: {
   location: LiveLocationPoint;
   /** Small label shown in the map corner. */
@@ -191,10 +212,14 @@ export function LiveLocationMap({
   directionsLabel?: string;
   /** Use a navigation (directions) link instead of a plain map pin link. */
   directions?: boolean;
+  /** Height utilities for the map canvas (responsive by default). */
+  heightClassName?: string;
 }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [googleFailed, setGoogleFailed] = useState(false);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [canvasHeight, setCanvasHeight] = useState(208);
   const level = MAP_ZOOM_LEVELS[zoom];
   const accuracy = typeof location.accuracy === "number" ? location.accuracy : null;
 
@@ -202,13 +227,25 @@ export function LiveLocationMap({
   const useGoogle =
     Boolean(getGoogleMapsBrowserKey()) && !googleFailed && !googleMapsAuthFailed();
 
+  useEffect(() => {
+    const node = canvasRef.current;
+    if (!node) return;
+    const measure = () => {
+      const next = node.getBoundingClientRect().height;
+      if (next > 0) setCanvasHeight(next);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   // Accuracy circle drawn to the same scale as the tiles.
-  const metresPerPixel = level.span / MAP_HEIGHT;
+  const metresPerPixel = level.span / canvasHeight;
   const accuracyPx =
     accuracy === null
       ? 0
-      : Math.max(18, Math.min(MAP_HEIGHT * 0.9, (accuracy / metresPerPixel) * 2));
+      : Math.max(18, Math.min(canvasHeight * 0.9, (accuracy / metresPerPixel) * 2));
 
   const coords = `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
 
@@ -228,7 +265,7 @@ export function LiveLocationMap({
 
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
-      <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
+      <div ref={canvasRef} className={cn("relative bg-muted", heightClassName)}>
         {useGoogle ? (
           <GoogleLocationCanvas
             lat={location.lat}
