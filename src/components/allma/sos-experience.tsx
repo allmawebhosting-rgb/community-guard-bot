@@ -2098,13 +2098,13 @@ function MinimalEmergencyScreen({
               <p className="mt-1 text-[12px] text-white/45">{area}</p>
             </div>
             {locationReady ? (
-              <button type="button" onClick={() => setMapOpen((open) => !open)} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-3 text-[12px] font-semibold text-white/75 transition hover:bg-white/[0.08]">{mapOpen ? "Hide map" : "View map"}</button>
+              <button type="button" onClick={() => setMapOpen((open) => !open)} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-3 text-[12px] font-semibold text-white/75 transition hover:bg-white/[0.08] lg:hidden">{mapOpen ? "Hide map" : "View map"}</button>
             ) : (
               <button type="button" onClick={onEnableLocation} className="min-h-10 rounded-xl border border-amber-300/30 bg-amber-300/[0.04] px-3 text-[12px] font-semibold text-amber-200 transition hover:bg-amber-300/10">Enable Location</button>
             )}
           </div>
-          {locationReady && location && mapOpen && (
-            <div className="mt-4">
+          {locationReady && location && (
+            <div className={cn("mt-4", mapOpen ? "block" : "hidden lg:block")}>
               <LiveLocationMap location={location} />
             </div>
           )}
