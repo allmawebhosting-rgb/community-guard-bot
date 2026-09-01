@@ -10,7 +10,13 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getGoogleMapsBrowserKey, loadGoogleMaps } from "@/lib/google-maps-loader";
+import {
+  getGoogleMapsBrowserKey,
+  googleMapsAuthFailed,
+  loadGoogleMaps,
+  onGoogleMapsAuthFailure,
+} from "@/lib/google-maps-loader";
+
 
 
 // ─── Live location map (shared by the SOS screen and the emergency call screen) ──
