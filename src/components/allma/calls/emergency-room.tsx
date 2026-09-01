@@ -167,7 +167,7 @@ export function EmergencyRoom({
           </div>
         ) : (
           messages.map((message) => {
-            if (message.event_type !== "message") {
+            if (message.event_type !== "user_message") {
               return (
                 <p
                   key={message.id}
