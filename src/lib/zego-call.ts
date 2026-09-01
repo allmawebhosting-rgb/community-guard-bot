@@ -156,10 +156,10 @@ async function getZegoToken(callId: string): Promise<ZegoTokenResponse> {
 
 async function loadZegoSdk(): Promise<ZegoSdk> {
   try {
-    // Static specifier so the bundler includes the SDK in the client build.
-    const mod = (await import("zego-express-engine-webrtc")) as unknown as
-      | ZegoSdk
-      | { default: ZegoSdk };
+    const importModule = new Function("modulePath", "return import(modulePath)") as (
+      modulePath: string,
+    ) => Promise<ZegoSdk | { default: ZegoSdk }>;
+    const mod = await importModule("zego-express-engine-webrtc");
     const sdk = (mod as { default?: ZegoSdk }).default ?? (mod as ZegoSdk);
     if (!sdk?.ZegoExpressEngine) throw new Error("missing engine");
     return sdk;

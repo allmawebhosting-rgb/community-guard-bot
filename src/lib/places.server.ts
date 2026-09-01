@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const GOOGLE_API_URL = "https://maps.googleapis.com";
-const GOOGLE_MAPS_KEY = process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"] || process.env["GOOGLE_MAPS_API_KEY"];
+const GOOGLE_API_URL = "https://connector-gateway.lovable.dev/google_maps/places/v1";
+const LOVABLE_API_KEY = process.env["LOVABLE_API_KEY"];
+const GOOGLE_MAPS_KEY = process.env["GOOGLE_MAPS_API_KEY"] || process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
 const MAX_RADIUS_M = 10_000;
 const MAX_RESULTS = 20;
 
@@ -89,29 +90,44 @@ async function loadSeededFacilities(latitude: number, longitude: number, radiusM
 }
 
 async function loadGooglePlaces(latitude: number, longitude: number, radiusMeters: number, types: string[]) {
-  if (!GOOGLE_MAPS_KEY) return [] as NearbyPlaceResult[];
+  if (!LOVABLE_API_KEY || !GOOGLE_MAPS_KEY) return [] as NearbyPlaceResult[];
 
   const normalizedTypes = [...new Set(types)].slice(0, 5);
-  const typeQuery = normalizedTypes.join("|");
-  const response = await fetch(
-    `${GOOGLE_API_URL}/v1/places:searchNearby?key=${encodeURIComponent(GOOGLE_MAPS_KEY)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        locationRestriction: {
-          circle: {
-            center: { latitude, longitude },
-            radius: Math.min(Math.max(radiusMeters, 200), MAX_RADIUS_M),
-          },
-        },
-        includedTypes: typeQuery ? normalizedTypes : ["hospital", "police", "fire_station", "clinic"],
-        maxResultCount: Math.min(Math.max(20, 10), MAX_RESULTS),
-        rankPreference: "DISTANCE",
-        fieldMask: "displayName,formattedAddress,location,nationalPhoneNumber,currentOpeningHours.openNow,primaryType",
-      }),
+  const includedTypes = normalizedTypes.length ? normalizedTypes : ["hospital", "police", "fire_station", "clinic"];
+  const response = await fetch(`${GOOGLE_API_URL}/places:searchNearby`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "X-Connection-Api-Key": GOOGLE_MAPS_KEY,
+      "X-Goog-FieldMask": "displayName,formattedAddress,location,nationalPhoneNumber,currentOpeningHours.openNow,primaryType",
     },
-  );
+    body: JSON.stringify({
+      locationRestriction: {
+        circle: {
+          center: { latitude, longitude },
+          radius: Math.min(Math.max(radiusMeters, 200), MAX_RADIUS_M),
+        },
+      },
+      includedTypes,
+      maxResultCount: Math.min(Math.max(20, 10), MAX_RESULTS),
+      rankPreference: "DISTANCE",
+    }),
+  });
+
+  if (response.status === 403) {
+    const body = await response.text().catch(() => "");
+    if (body.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
+      console.warn("Google Places lookup blocked: API key HTTP referrer is not allowed.");
+      return [] as NearbyPlaceResult[];
+    }
+    if (body.includes("API_KEY_SERVICE_BLOCKED")) {
+      console.warn("Google Places lookup blocked: Google Maps service is not enabled for this API key.");
+      return [] as NearbyPlaceResult[];
+    }
+    console.warn("Google Places lookup blocked by Google Maps API configuration.", body);
+    return [] as NearbyPlaceResult[];
+  }
 
   if (!response.ok) {
     console.warn("Google Places lookup failed", await response.text().catch(() => ""));

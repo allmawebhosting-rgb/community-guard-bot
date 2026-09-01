@@ -47,6 +47,8 @@ import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 import { notifySosActivity } from "@/lib/push.functions";
 import { primeMicrophone } from "@/lib/zego-call";
+import { getNearbyPlaces } from "@/lib/places.functions";
+import type { NearbyPlace } from "@/lib/places.types";
 import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -74,6 +76,49 @@ type Facility = {
   lat?: number;
   lng?: number;
 };
+
+function formatFacilityDistance(meters: number) {
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
+}
+
+function nearbyPlaceToFacility(place: NearbyPlace): Facility {
+  const value = place.type.toLowerCase();
+  const type: Facility["type"] = value.includes("police") ? "police" : "hospital";
+
+  return {
+    name: place.name,
+    type,
+    distance: formatFacilityDistance(place.distance_m),
+    phone: place.phone ?? "",
+    address: place.address ?? "Nearby location",
+    lat: place.latitude,
+    lng: place.longitude,
+  };
+}
+
+async function loadNearbyFacilities(lat: number, lng: number) {
+  const results = await getNearbyPlaces({
+    data: {
+      latitude: lat,
+      longitude: lng,
+      radiusMeters: 8000,
+      limit: 8,
+      types: ["hospital", "police", "fire_station", "clinic"],
+    },
+  });
+
+  const next = results ?? [];
+  const hospitals = next
+    .filter((place) => !place.type.toLowerCase().includes("police"))
+    .map(nearbyPlaceToFacility)
+    .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+  const police = next
+    .filter((place) => place.type.toLowerCase().includes("police"))
+    .map(nearbyPlaceToFacility)
+    .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+
+  return { hospitals, police };
+}
 
 type ResponderStatus = "offered" | "accepted" | "declined" | "en_route" | "arrived" | "cancelled";
 type Responder = {
@@ -320,64 +365,6 @@ const RESPONSE_PLANS: Record<string, ResponseTarget[]> = {
   ],
 };
 
-const DEMO_HOSPITALS: Omit<Facility, "distance">[] = [
-  {
-    name: "Mulago National Referral Hospital",
-    type: "hospital",
-    phone: "+256 414 541 188",
-    address: "Mulago Hill Road, Kampala",
-  },
-  {
-    name: "International Hospital Kampala",
-    type: "hospital",
-    phone: "+256 312 200 400",
-    address: "Namuwongo, Kampala",
-  },
-  {
-    name: "Nsambya Hospital",
-    type: "hospital",
-    phone: "+256 414 268 614",
-    address: "Nsambya, Kampala",
-  },
-  {
-    name: "Case Clinic Kampala",
-    type: "hospital",
-    phone: "+256 312 200 150",
-    address: "Mackinnon Road, Kampala",
-  },
-];
-
-const DEMO_OFFICERS: Omit<Facility, "distance">[] = [
-  {
-    name: "Inspector Sarah N. — Available",
-    type: "police",
-    phone: "+256 774 620 951",
-    address: "Central Police Station, Kampala",
-  },
-  {
-    name: "Sergeant David K. — Patrolling",
-    type: "police",
-    phone: "+256 774 620 951",
-    address: "East Division, Kampala",
-  },
-  {
-    name: "Corporal Grace A. — Available",
-    type: "police",
-    phone: "+256 774 620 951",
-    address: "North Patrol Unit, Kampala",
-  },
-];
-
-const DEMO_COORDS: Record<string, [number, number]> = {
-  "Mulago National Referral Hospital": [0.3374, 32.576],
-  "International Hospital Kampala": [0.3004, 32.6137],
-  "Nsambya Hospital": [0.2999, 32.5908],
-  "Case Clinic Kampala": [0.319, 32.5861],
-  "Inspector Sarah N. — Available": [0.3144, 32.5797],
-  "Sergeant David K. — Patrolling": [0.3211, 32.591],
-  "Corporal Grace A. — Available": [0.3402, 32.5662],
-};
-
 const HELP_INFO: Record<
   string,
   { steps: string[]; primaryNumbers: (typeof EMERGENCY_NUMBERS)[number][]; showHospitals: boolean }
@@ -468,60 +455,11 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function withDistance(items: Omit<Facility, "distance">[], lat: number, lng: number): Facility[] {
-  return items
-    .map((f) => {
-      const coords = DEMO_COORDS[f.name];
-      const km = coords ? haversineKm(lat, lng, coords[0], coords[1]) : null;
-      const distance =
-        km != null ? (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`) : "Nearby";
-      return { ...f, distance };
-    })
-    .sort((a, b) => {
-      const parse = (d: string) =>
-        parseFloat(d.replace(/[^\d.]/g, "")) * (d.includes("km") ? 1000 : 1);
-      return parse(a.distance) - parse(b.distance);
-    });
-}
-
 function buildDirectionsUrl(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
 ) {
   return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=driving`;
-}
-
-async function fetchOverpass(
-  lat: number,
-  lng: number,
-  amenity: "hospital" | "police",
-): Promise<Facility[]> {
-  const r = 8000;
-  const query = `[out:json][timeout:5];(node[amenity=${amenity}](around:${r},${lat},${lng});way[amenity=${amenity}](around:${r},${lat},${lng}););out center 4;`;
-  const res = await fetch(
-    `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
-  );
-  const data = await res.json();
-  const items: Facility[] = (data.elements || []).map((el: Record<string, unknown>) => {
-    const tags = (el.tags || {}) as Record<string, string>;
-    const elLat =
-      typeof el.lat === "number" ? el.lat : ((el.center as Record<string, number>)?.lat ?? lat);
-    const elLng =
-      typeof el.lon === "number" ? el.lon : ((el.center as Record<string, number>)?.lon ?? lng);
-    const km = haversineKm(lat, lng, elLat, elLng);
-    return {
-      name: tags.name || (amenity === "hospital" ? "Hospital" : "Police Station"),
-      type: amenity,
-      phone: tags.phone || tags["contact:phone"] || (amenity === "hospital" ? "911" : "999"),
-      address: tags["addr:street"]
-        ? `${tags["addr:housenumber"] || ""} ${tags["addr:street"]}`.trim()
-        : "Nearby",
-      distance: km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`,
-      lat: elLat,
-      lng: elLng,
-    };
-  });
-  return items.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
 }
 
 function getLocation(): Promise<LocationInfo> {
@@ -1023,40 +961,31 @@ function FacilityRow({ facility }: { facility: Facility }) {
         >
           {facility.distance}
         </span>
-        <a
-          href={`tel:${facility.phone.replace(/\s/g, "")}`}
-          className="flex min-h-8 items-center gap-1 rounded-lg border border-border/70 bg-secondary px-2.5 py-1 text-[10px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
-        >
-          <Phone className="h-2.5 w-2.5" /> Call
-        </a>
+        {facility.phone ? (
+          <a
+            href={`tel:${facility.phone.replace(/\s/g, "")}`}
+            className="flex min-h-8 items-center gap-1 rounded-lg border border-border/70 bg-secondary px-2.5 py-1 text-[10px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
+          >
+            <Phone className="h-2.5 w-2.5" /> Call
+          </a>
+        ) : (
+          <span className="rounded-lg border border-border/60 bg-secondary/50 px-2.5 py-1 text-[9px] font-semibold text-muted-foreground">
+            No phone
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-function FacilitySection({
-  title,
-  facilities,
-  demo,
-}: {
-  title: string;
-  facilities: Facility[];
-  demo?: boolean;
-}) {
+function FacilitySection({ title, facilities }: { title: string; facilities: Facility[] }) {
   if (!facilities.length) return null;
   return (
     <div>
-      <SectionLabel>
-        {title}
-        {demo && (
-          <span className="ml-1.5 font-normal normal-case tracking-normal text-muted-foreground">
-            (demo)
-          </span>
-        )}
-      </SectionLabel>
+      <SectionLabel>{title}</SectionLabel>
       <div className="space-y-2">
         {facilities.map((f, i) => (
-          <FacilityRow key={i} facility={f} />
+          <FacilityRow key={`${f.name}-${f.address}-${i}`} facility={f} />
         ))}
       </div>
     </div>
@@ -1347,21 +1276,12 @@ export function SOSExperience({
       : Promise.resolve([] as ResponderOffer[]);
 
     if (loc && shareLocation) {
-      const [realHospitals, realPolice, offers] = await Promise.all([
-        fetchOverpass(loc.lat, loc.lng, "hospital").catch(() => [] as Facility[]),
-        fetchOverpass(loc.lat, loc.lng, "police").catch(() => [] as Facility[]),
+      const [nearby, offers] = await Promise.all([
+        loadNearbyFacilities(loc.lat, loc.lng),
         offersPromise,
       ]);
-      setHospitals(
-        realHospitals.length >= 2
-          ? realHospitals.slice(0, 4)
-          : [],
-      );
-      setOfficers(
-        realPolice.length >= 1
-          ? realPolice.slice(0, 3)
-          : withDistance(DEMO_OFFICERS, loc.lat, loc.lng),
-      );
+      setHospitals(nearby.hospitals.slice(0, 4));
+      setOfficers(nearby.police.slice(0, 3));
       setResponderOffers(offers);
     } else {
       const offers = await offersPromise;
@@ -2086,11 +2006,8 @@ function MinimalEmergencyScreen({
     let isActive = true;
     setNearbyHelpLoading(true);
 
-    void Promise.all([
-      fetchOverpass(location.lat, location.lng, "hospital").catch(() => [] as Facility[]),
-      fetchOverpass(location.lat, location.lng, "police").catch(() => [] as Facility[]),
-    ])
-      .then(([hospitals, police]) => {
+    void loadNearbyFacilities(location.lat, location.lng)
+      .then(({ hospitals, police }) => {
         if (!isActive) return;
         const ambulanceOptions = hospitals.slice(0, 2).map((item, index) => ({
           ...item,
@@ -2228,19 +2145,28 @@ function MinimalEmergencyScreen({
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <a
-                        href={buildDirectionsUrl(
-                          { lat: location.lat, lng: location.lng },
-                          { lat: facility.lat ?? location.lat, lng: facility.lng ?? location.lng },
-                        )}
-                        target="_blank"
-                        rel="noreferrer"
+                        href={
+                          location
+                            ? buildDirectionsUrl(
+                                { lat: location.lat, lng: location.lng },
+                                { lat: facility.lat ?? location.lat, lng: facility.lng ?? location.lng },
+                              )
+                            : "#"
+                        }
+                        target={location ? "_blank" : undefined}
+                        rel={location ? "noreferrer" : undefined}
                         className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[11px] font-bold text-white transition hover:bg-white/[0.08]"
                       >
                         <Navigation2 className="h-3.5 w-3.5" /> Directions
                       </a>
                       <a
-                        href={`tel:${facility.phone.replace(/[^\d+]/g, "")}`}
+                        href={facility.phone ? `tel:${facility.phone.replace(/[^\d+]/g, "")}` : undefined}
                         className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[11px] font-bold text-white transition hover:bg-white/[0.08]"
+                        onClick={(event) => {
+                          if (!facility.phone) {
+                            event.preventDefault();
+                          }
+                        }}
                       >
                         <Phone className="h-3.5 w-3.5" /> Call
                       </a>
@@ -3303,13 +3229,13 @@ function HelpScreen({
 
   const FacilitiesSection = showPoliceFirst ? (
     <>
-      <FacilitySection title="Officers on duty" demo facilities={officers} />
+      <FacilitySection title="Nearest police" facilities={officers} />
       {info.showHospitals && <FacilitySection title="Nearest hospitals" facilities={hospitals} />}
     </>
   ) : (
     <>
       {info.showHospitals && <FacilitySection title="Nearest hospitals" facilities={hospitals} />}
-      <FacilitySection title="Officers on duty" demo facilities={officers} />
+      <FacilitySection title="Nearest police" facilities={officers} />
     </>
   );
 
