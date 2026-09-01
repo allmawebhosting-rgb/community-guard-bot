@@ -137,14 +137,17 @@ export function GoogleLocationCanvas({
           clickableIcons: false,
         });
         mapRef.current = map;
-        // If the key is rejected for this domain the map never renders tiles.
-        let tilesLoaded = false;
-        maps.event.addListenerOnce(map, "tilesloaded", () => {
-          tilesLoaded = true;
-        });
+        // If the key is rejected for this domain Google renders its own error panel.
         window.setTimeout(() => {
-          if (!cancelled && !tilesLoaded) onFail();
-        }, 4500);
+          if (cancelled) return;
+          const node = containerRef.current;
+          if (!node) return;
+          const errored =
+            node.querySelector(".gm-err-container") !== null ||
+            /didn't load Google Maps correctly/i.test(node.textContent ?? "");
+          if (errored) onFail();
+        }, 3000);
+
       })
       .catch(() => {
         if (!cancelled) onFail();
