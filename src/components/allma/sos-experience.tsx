@@ -42,6 +42,7 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
 import { AllmaVoice } from "@/components/allma/sos/allma-voice";
+import { SosRoomStrip } from "@/components/allma/sos/sos-room-strip";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
@@ -2061,6 +2062,7 @@ function MinimalEmergencyScreen({
 
       <div className="relative mx-auto w-full max-w-xl px-5 pb-10 sm:px-7">
         <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
+        <SosRoomStrip activityId={activityId} />
         <AllmaVoice activityId={activityId} compact />
 
         <section aria-labelledby="actions-heading" className="border-b border-white/[0.08] py-6">
@@ -3303,6 +3305,7 @@ function HelpScreen({
       <div className="shrink-0 border-b border-border/60 px-3 py-3 sm:px-5 lg:px-6">
         <div className="mx-auto w-full max-w-4xl">
           <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} />
+          <SosRoomStrip activityId={activityId} />
         </div>
       </div>
 
