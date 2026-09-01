@@ -204,6 +204,7 @@ export function LiveLocationMap({
   badge = "Live",
   directionsLabel = "Open in Google Maps",
   directions = false,
+  heightClassName = "h-52 lg:h-[19rem]",
 }: {
   location: LiveLocationPoint;
   /** Small label shown in the map corner. */
@@ -211,10 +212,14 @@ export function LiveLocationMap({
   directionsLabel?: string;
   /** Use a navigation (directions) link instead of a plain map pin link. */
   directions?: boolean;
+  /** Height utilities for the map canvas (responsive by default). */
+  heightClassName?: string;
 }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [googleFailed, setGoogleFailed] = useState(false);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [canvasHeight, setCanvasHeight] = useState(208);
   const level = MAP_ZOOM_LEVELS[zoom];
   const accuracy = typeof location.accuracy === "number" ? location.accuracy : null;
 
@@ -222,13 +227,25 @@ export function LiveLocationMap({
   const useGoogle =
     Boolean(getGoogleMapsBrowserKey()) && !googleFailed && !googleMapsAuthFailed();
 
+  useEffect(() => {
+    const node = canvasRef.current;
+    if (!node) return;
+    const measure = () => {
+      const next = node.getBoundingClientRect().height;
+      if (next > 0) setCanvasHeight(next);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   // Accuracy circle drawn to the same scale as the tiles.
-  const metresPerPixel = level.span / MAP_HEIGHT;
+  const metresPerPixel = level.span / canvasHeight;
   const accuracyPx =
     accuracy === null
       ? 0
-      : Math.max(18, Math.min(MAP_HEIGHT * 0.9, (accuracy / metresPerPixel) * 2));
+      : Math.max(18, Math.min(canvasHeight * 0.9, (accuracy / metresPerPixel) * 2));
 
   const coords = `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
 
@@ -248,7 +265,7 @@ export function LiveLocationMap({
 
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
-      <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
+      <div ref={canvasRef} className={cn("relative bg-muted", heightClassName)}>
         {useGoogle ? (
           <GoogleLocationCanvas
             lat={location.lat}
