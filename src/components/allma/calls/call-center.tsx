@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   MapPin,
+  MessageSquare,
   Mic,
   MicOff,
   Phone,
@@ -44,6 +46,7 @@ const qualityCopy: Record<ConnectionQuality, string> = {
 };
 
 export function CallCenter() {
+  const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [peer, setPeer] = useState<CallPeer | null>(null);
@@ -55,6 +58,7 @@ export function CallCenter() {
   const [speaker, setSpeaker] = useState(true);
   const [endedNote, setEndedNote] = useState<string | null>(null);
   const [emergency, setEmergency] = useState<EmergencyCallContext | null>(null);
+  const [sosRoomId, setSosRoomId] = useState<string | null>(null);
 
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
@@ -85,6 +89,7 @@ export function CallCenter() {
     setQuality("connecting");
     setEndedNote(note);
     setEmergency(null);
+    setSosRoomId(null);
     setPhase(note ? "ended" : "idle");
     if (note) setTimeout(() => setPhase((current) => (current === "ended" ? "idle" : current)), 2600);
   }, []);
@@ -235,7 +240,12 @@ export function CallCenter() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "emergency_calls", filter: `recipient_id=eq.${userId}` },
         (payload) => {
-          const row = payload.new as { id: string; caller_id: string; status: string };
+          const row = payload.new as {
+            id: string;
+            caller_id: string;
+            status: string;
+            sos_session_id?: string | null;
+          };
           if (callIdRef.current || row.status === "ended") return;
           const known = namesRef.current.get(row.caller_id);
           callIdRef.current = row.id;
@@ -244,7 +254,9 @@ export function CallCenter() {
           setIsCaller(false);
           setEndedNote(null);
           setEmergency(null);
+          setSosRoomId(row.sos_session_id ?? null);
           setPhase("incoming");
+
           void setCallStatus(row.id, "ringing").catch(() => undefined);
           // Only the authorised recipient can read this, and only permitted fields.
           void getEmergencyCallContext(row.id).then((context) => {
@@ -322,7 +334,7 @@ export function CallCenter() {
     void (async () => {
       const { data: row } = await supabase
         .from("emergency_calls")
-        .select("id, caller_id, status")
+        .select("id, caller_id, status, sos_session_id")
         .eq("id", id)
         .eq("recipient_id", userId)
         .in("status", ["initiating", "ringing", "connecting"])
@@ -335,6 +347,7 @@ export function CallCenter() {
       setIsCaller(false);
       setEndedNote(null);
       setEmergency(null);
+      setSosRoomId(row.sos_session_id ?? null);
       setPhase("incoming");
       void setCallStatus(row.id, "ringing").catch(() => undefined);
       void getEmergencyCallContext(row.id).then((context) => {
@@ -558,6 +571,21 @@ export function CallCenter() {
                       directionsLabel="Directions"
                     />
                   )}
+
+                {sosRoomId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const room = sosRoomId;
+                      teardown(null);
+                      void navigate({ to: "/calls", search: { room } });
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gold/45 bg-gold/10 px-4 py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-gold/20"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Open emergency chat
+                  </button>
+                )}
               </div>
             )}
 

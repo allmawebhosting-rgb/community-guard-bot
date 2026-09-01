@@ -2779,6 +2779,10 @@ export type Database = {
           call_session_id: string
         }[]
       }
+      can_access_sos_room: {
+        Args: { _sos_id: string; _user_id: string }
+        Returns: boolean
+      }
       claim_due_health_reminders: {
         Args: { p_limit?: number }
         Returns: {
@@ -2889,6 +2893,25 @@ export type Database = {
           responder_id: string
         }[]
       }
+      get_sos_room: {
+        Args: { p_sos_id: string }
+        Returns: {
+          accuracy_m: number
+          area: string
+          created_at: string
+          emergency_type: string
+          is_mine: boolean
+          latitude: number
+          location_shared: boolean
+          longitude: number
+          owner_id: string
+          participants: Json
+          sender_avatar_url: string
+          sender_name: string
+          severity: string
+          sos_activity_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2965,6 +2988,26 @@ export type Database = {
           priority: number
           safety_role: string
           share_location_on_sos: boolean
+        }[]
+      }
+      list_sos_rooms: {
+        Args: never
+        Returns: {
+          area: string
+          created_at: string
+          distance_m: number
+          emergency_type: string
+          is_mine: boolean
+          last_message_at: string
+          location_shared: boolean
+          message_count: number
+          my_call_session_id: string
+          my_invitation_status: string
+          owner_id: string
+          sender_avatar_url: string
+          sender_name: string
+          severity: string
+          sos_activity_id: string
         }[]
       }
       normalize_phone_ug: { Args: { _raw: string }; Returns: string }
