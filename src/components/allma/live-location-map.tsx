@@ -161,10 +161,12 @@ export function LiveLocationMap({
 }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
+  const [googleFailed, setGoogleFailed] = useState(false);
   const level = MAP_ZOOM_LEVELS[zoom];
   const accuracy = typeof location.accuracy === "number" ? location.accuracy : null;
 
   const tileZoom = [18, 16, 14, 12][zoom] ?? 16;
+  const useGoogle = Boolean(getGoogleMapsBrowserKey()) && !googleFailed;
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / MAP_HEIGHT;
@@ -192,7 +194,17 @@ export function LiveLocationMap({
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
       <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
-        <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
+        {useGoogle ? (
+          <GoogleLocationCanvas
+            lat={location.lat}
+            lng={location.lng}
+            zoom={tileZoom}
+            onFail={() => setGoogleFailed(true)}
+          />
+        ) : (
+          <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
+        )}
+
 
         {/* Accuracy radius + pulsing position marker */}
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
