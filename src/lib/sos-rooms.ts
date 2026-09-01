@@ -125,7 +125,7 @@ export async function sendSosRoomMessage(sosActivityId: string, body: string) {
   const { error } = await supabase.from("emergency_chat_events").insert({
     sos_session_id: sosActivityId,
     author_id: userId,
-    event_type: "message",
+    event_type: "user_message",
     body: trimmed.slice(0, 2000),
   });
   if (error) throw new Error(friendly(error.message));
