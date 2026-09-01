@@ -128,7 +128,7 @@ export function GoogleLocationCanvas({
     loadGoogleMaps()
       .then((maps) => {
         if (cancelled || !containerRef.current) return;
-        mapRef.current = new maps.Map(containerRef.current, {
+        const map = new maps.Map(containerRef.current, {
           center: { lat, lng },
           zoom,
           disableDefaultUI: true,
@@ -136,10 +136,20 @@ export function GoogleLocationCanvas({
           keyboardShortcuts: false,
           clickableIcons: false,
         });
+        mapRef.current = map;
+        // If the key is rejected for this domain the map never renders tiles.
+        let tilesLoaded = false;
+        maps.event.addListenerOnce(map, "tilesloaded", () => {
+          tilesLoaded = true;
+        });
+        window.setTimeout(() => {
+          if (!cancelled && !tilesLoaded) onFail();
+        }, 4500);
       })
       .catch(() => {
         if (!cancelled) onFail();
       });
+
     return () => {
       cancelled = true;
       unsubscribe();
