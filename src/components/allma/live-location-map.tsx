@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -10,6 +10,14 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  getGoogleMapsBrowserKey,
+  googleMapsAuthFailed,
+  loadGoogleMaps,
+  onGoogleMapsAuthFailure,
+} from "@/lib/google-maps-loader";
+
+
 
 // ─── Live location map (shared by the SOS screen and the emergency call screen) ──
 
@@ -97,6 +105,80 @@ export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom:
   );
 }
 
+/** Google Maps canvas centred on the given coordinates (non-interactive, own controls). */
+export function GoogleLocationCanvas({
+  lat,
+  lng,
+  zoom,
+  onFail,
+}: {
+  lat: number;
+  lng: number;
+  zoom: number;
+  onFail: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unsubscribe = onGoogleMapsAuthFailure(() => {
+      if (!cancelled) onFail();
+    });
+    loadGoogleMaps()
+      .then((maps) => {
+        if (cancelled || !containerRef.current) return;
+        const map = new maps.Map(containerRef.current, {
+          center: { lat, lng },
+          zoom,
+          disableDefaultUI: true,
+          gestureHandling: "none",
+          keyboardShortcuts: false,
+          clickableIcons: false,
+        });
+        mapRef.current = map;
+        // If the key is rejected for this domain Google swaps the canvas for its own
+        // error panel — poll for it and fall back to open tiles when it appears.
+        let checks = 0;
+        const timer = window.setInterval(() => {
+          checks += 1;
+          const node = containerRef.current;
+          if (cancelled || checks > 12 || !node) {
+            window.clearInterval(timer);
+            return;
+          }
+          const errored =
+            node.querySelector(".gm-err-container") !== null ||
+            /load Google Maps correctly/i.test(node.textContent ?? "");
+          if (errored) {
+            window.clearInterval(timer);
+            onFail();
+          }
+        }, 1000);
+
+
+      })
+      .catch(() => {
+        if (!cancelled) onFail();
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.setCenter({ lat, lng });
+    mapRef.current.setZoom(zoom);
+  }, [lat, lng, zoom]);
+
+  return <div ref={containerRef} className="absolute inset-0" aria-hidden />;
+}
+
 export function LiveLocationMap({
   location,
   badge = "Live",
@@ -112,10 +194,14 @@ export function LiveLocationMap({
 }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
+  const [googleFailed, setGoogleFailed] = useState(false);
   const level = MAP_ZOOM_LEVELS[zoom];
   const accuracy = typeof location.accuracy === "number" ? location.accuracy : null;
 
   const tileZoom = [18, 16, 14, 12][zoom] ?? 16;
+  const useGoogle =
+    Boolean(getGoogleMapsBrowserKey()) && !googleFailed && !googleMapsAuthFailed();
+
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / MAP_HEIGHT;
@@ -143,7 +229,17 @@ export function LiveLocationMap({
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
       <div className="relative bg-muted" style={{ height: MAP_HEIGHT }}>
-        <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
+        {useGoogle ? (
+          <GoogleLocationCanvas
+            lat={location.lat}
+            lng={location.lng}
+            zoom={tileZoom}
+            onFail={() => setGoogleFailed(true)}
+          />
+        ) : (
+          <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
+        )}
+
 
         {/* Accuracy radius + pulsing position marker */}
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
