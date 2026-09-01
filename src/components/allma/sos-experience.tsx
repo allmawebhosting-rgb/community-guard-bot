@@ -2082,7 +2082,9 @@ function MinimalEmergencyScreen({
             </button>
           </div>
         </section>
+        </div>
 
+        <div className="min-w-0">
         <section aria-labelledby="location-heading" className="border-b border-white/[0.08] py-6">
           <div className="flex items-center justify-between">
             <div>
