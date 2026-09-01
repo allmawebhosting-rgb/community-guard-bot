@@ -2046,7 +2046,7 @@ function MinimalEmergencyScreen({
       exit={{ opacity: 0 }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_50%_-20%,rgba(185,42,54,0.22),transparent_68%)]" />
-      <header className="relative mx-auto flex w-full max-w-xl items-center justify-between border-b border-white/[0.08] px-5 py-5 sm:px-7">
+      <header className="relative mx-auto flex w-full max-w-xl items-center justify-between border-b border-white/[0.08] px-5 py-5 sm:px-7 lg:max-w-6xl lg:px-10">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <span className="h-2 w-2 animate-pulse rounded-full bg-red-400 shadow-[0_0_0_4px_rgba(248,113,113,0.12)]" />
@@ -2060,10 +2060,12 @@ function MinimalEmergencyScreen({
         </button>
       </header>
 
-      <div className="relative mx-auto w-full max-w-xl px-5 pb-10 sm:px-7">
+      <div className="relative mx-auto w-full max-w-xl px-5 pb-10 sm:px-7 lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:px-10 lg:pb-14">
+        <div className="min-w-0">
         <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
         <SosRoomStrip activityId={activityId} />
         <AllmaVoice activityId={activityId} compact />
+
 
         <section aria-labelledby="actions-heading" className="border-b border-white/[0.08] py-6">
           <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Immediate actions</p>
