@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -10,6 +10,8 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getGoogleMapsBrowserKey, loadGoogleMaps } from "@/lib/google-maps-loader";
+
 
 // ─── Live location map (shared by the SOS screen and the emergency call screen) ──
 
