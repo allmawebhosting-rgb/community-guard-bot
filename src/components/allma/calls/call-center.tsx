@@ -502,108 +502,116 @@ export function CallCenter() {
             )}
           />
 
-          <div className="relative flex flex-1 flex-col items-center justify-center px-6 text-center">
-            <p
-              className={cn(
-                "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em]",
-                isEmergencyCall ? "text-destructive" : "text-muted-foreground",
-              )}
-            >
-              {isEmergencyCall && <TriangleAlert className="h-3.5 w-3.5" />}
-              {isEmergencyCall
-                ? "Allma emergency call"
-                : phase === "incoming"
-                  ? "Allma call"
-                  : "Allma voice call"}
-            </p>
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-5 lg:justify-center lg:px-10">
+            <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center lg:max-w-5xl lg:flex-row lg:items-center lg:gap-14 lg:text-left">
+              <div className="flex w-full flex-col items-center lg:flex-1 lg:items-start">
+                <p
+                  className={cn(
+                    "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em]",
+                    isEmergencyCall ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {isEmergencyCall && <TriangleAlert className="h-3.5 w-3.5" />}
+                  {isEmergencyCall
+                    ? "Allma emergency call"
+                    : phase === "incoming"
+                      ? "Allma call"
+                      : "Allma voice call"}
+                </p>
 
-            <motion.div
-              className="mt-8"
-              animate={phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.04, 1] } : {}}
-              transition={{ repeat: Infinity, duration: 1.8 }}
-            >
-              <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={112} />
-            </motion.div>
+                <motion.div
+                  className="mt-5 lg:mt-8"
+                  animate={
+                    phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.04, 1] } : {}
+                  }
+                  transition={{ repeat: Infinity, duration: 1.8 }}
+                >
+                  <Avatar
+                    name={peer?.name ?? "Allma member"}
+                    url={peer?.avatarUrl ?? null}
+                    size={96}
+                  />
+                </motion.div>
 
-            <h2 className="mt-6 text-2xl font-bold tracking-tight">
-              {isEmergencyCall && phase === "incoming"
-                ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
-                : (peer?.name ?? "Allma member")}
-            </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              {emergency && phase === "incoming"
-                ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
-                : statusLine}
-            </p>
+                <h2 className="mt-4 text-xl font-bold tracking-tight lg:mt-6 lg:text-3xl">
+                  {isEmergencyCall && phase === "incoming"
+                    ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
+                    : (peer?.name ?? "Allma member")}
+                </h2>
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  {emergency && phase === "incoming"
+                    ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
+                    : statusLine}
+                </p>
 
-            {emergency && phase !== "ended" && (
-              <div className="mt-4 w-full max-w-sm space-y-3 text-left">
-                <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
-                    Emergency
+                {phase === "active" && quality !== "connecting" && (
+                  <p className="mt-3 font-mono text-3xl font-semibold tabular-nums">
+                    {formatDuration(seconds)}
                   </p>
-                  <p className="mt-1 text-[12px] font-semibold capitalize text-foreground">
-                    {emergency.emergency_type.replace(/_/g, " ")} · {emergency.severity}
-                  </p>
-                  <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {emergency.location_shared ? emergency.area : "Location not shared with you"}
-                  </p>
-                  {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
+                )}
+
+                <p className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground lg:mt-6">
+                  <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                  In-app call · phone numbers stay private
+                </p>
+              </div>
+
+              {emergency && phase !== "ended" && (
+                <div className="mt-5 w-full space-y-3 text-left lg:mt-0 lg:flex-1">
+                  <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
+                      Emergency
                     </p>
+                    <p className="mt-1 text-[12px] font-semibold capitalize text-foreground">
+                      {emergency.emergency_type.replace(/_/g, " ")} · {emergency.severity}
+                    </p>
+                    <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {emergency.location_shared ? emergency.area : "Location not shared with you"}
+                    </p>
+                    {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
+                      </p>
+                    )}
+                  </div>
+
+                  {emergency.location_shared &&
+                    emergency.latitude !== null &&
+                    emergency.longitude !== null && (
+                      <LiveLocationMap
+                        location={{
+                          lat: emergency.latitude,
+                          lng: emergency.longitude,
+                          accuracy: emergency.accuracy_m ?? null,
+                          address: emergency.area,
+                        }}
+                        badge="Live · shared"
+                        directions
+                        directionsLabel="Directions"
+                      />
+                    )}
+
+                  {sosRoomId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const room = sosRoomId;
+                        teardown(null);
+                        void navigate({ to: "/calls", search: { room } });
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gold/45 bg-gold/10 px-4 py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-gold/20"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Open emergency chat
+                    </button>
                   )}
                 </div>
-
-                {emergency.location_shared &&
-                  emergency.latitude !== null &&
-                  emergency.longitude !== null && (
-                    <LiveLocationMap
-                      location={{
-                        lat: emergency.latitude,
-                        lng: emergency.longitude,
-                        accuracy: emergency.accuracy_m ?? null,
-                        address: emergency.area,
-                      }}
-                      badge="Live · shared"
-                      directions
-                      directionsLabel="Directions"
-                    />
-                  )}
-
-                {sosRoomId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const room = sosRoomId;
-                      teardown(null);
-                      void navigate({ to: "/calls", search: { room } });
-                    }}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gold/45 bg-gold/10 px-4 py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-gold/20"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    Open emergency chat
-                  </button>
-                )}
-              </div>
-            )}
-
-
-            {phase === "active" && quality !== "connecting" && (
-              <p className="mt-3 font-mono text-3xl font-semibold tabular-nums">
-                {formatDuration(seconds)}
-              </p>
-            )}
-
-            <p className="mt-8 inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-success" />
-              In-app call · phone numbers stay private
-            </p>
-
+              )}
+            </div>
           </div>
 
-          <div className="relative px-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
+          <div className="relative shrink-0 border-t border-border/50 bg-background/85 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl">
             {phase === "incoming" ? (
               <div className="mx-auto flex max-w-sm items-center justify-between gap-8">
                 <CallAction label="Decline" tone="destructive" onClick={() => void decline()}>
@@ -614,7 +622,7 @@ export function CallCenter() {
                 </CallAction>
               </div>
             ) : phase === "ended" ? null : (
-              <div className="mx-auto flex max-w-sm flex-col items-center gap-7">
+              <div className="mx-auto flex max-w-sm flex-col items-center gap-5">
                 <div className="flex items-center gap-10">
                   <CallAction
                     label={muted ? "Unmute" : "Mute"}
