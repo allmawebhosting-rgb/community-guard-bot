@@ -47,3 +47,24 @@ export function loadGoogleMaps(): Promise<any> {
 
   return loadPromise;
 }
+
+// Google reports referrer/key rejections through this global rather than script onerror.
+let authFailed = false;
+const authFailureListeners = new Set<() => void>();
+
+export function googleMapsAuthFailed() {
+  return authFailed;
+}
+
+export function onGoogleMapsAuthFailure(listener: () => void) {
+  if (authFailed) listener();
+  authFailureListeners.add(listener);
+  return () => authFailureListeners.delete(listener);
+}
+
+if (typeof window !== "undefined") {
+  (window as any).gm_authFailure = () => {
+    authFailed = true;
+    authFailureListeners.forEach((listener) => listener());
+  };
+}
