@@ -2184,10 +2184,11 @@ function MinimalEmergencyScreen({
           </section>
         )}
 
-        <button type="button" onClick={() => setMoreOpen(true)} className="group flex min-h-14 w-full items-center justify-between border-b border-white/[0.08] text-left">
-          <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">More</span>
-          <ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
-        </button>
+          <button type="button" onClick={() => setMoreOpen(true)} className="group flex min-h-14 w-full items-center justify-between border-b border-white/[0.08] text-left">
+            <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">More</span>
+            <ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+          </button>
+        </div>
       </div>
 
       {(moreOpen || servicesOpen || updateOpen) && (
