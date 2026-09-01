@@ -116,6 +116,9 @@ export function GoogleLocationCanvas({
 
   useEffect(() => {
     let cancelled = false;
+    const unsubscribe = onGoogleMapsAuthFailure(() => {
+      if (!cancelled) onFail();
+    });
     loadGoogleMaps()
       .then((maps) => {
         if (cancelled || !containerRef.current) return;
@@ -133,9 +136,11 @@ export function GoogleLocationCanvas({
       });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   useEffect(() => {
     if (!mapRef.current) return;
