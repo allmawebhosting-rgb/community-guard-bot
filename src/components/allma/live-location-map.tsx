@@ -137,16 +137,25 @@ export function GoogleLocationCanvas({
           clickableIcons: false,
         });
         mapRef.current = map;
-        // If the key is rejected for this domain Google renders its own error panel.
-        window.setTimeout(() => {
-          if (cancelled) return;
+        // If the key is rejected for this domain Google swaps the canvas for its own
+        // error panel — poll for it and fall back to open tiles when it appears.
+        let checks = 0;
+        const timer = window.setInterval(() => {
+          checks += 1;
           const node = containerRef.current;
-          if (!node) return;
+          if (cancelled || checks > 12 || !node) {
+            window.clearInterval(timer);
+            return;
+          }
           const errored =
             node.querySelector(".gm-err-container") !== null ||
-            /didn't load Google Maps correctly/i.test(node.textContent ?? "");
-          if (errored) onFail();
-        }, 3000);
+            /load Google Maps correctly/i.test(node.textContent ?? "");
+          if (errored) {
+            window.clearInterval(timer);
+            onFail();
+          }
+        }, 1000);
+
 
       })
       .catch(() => {
