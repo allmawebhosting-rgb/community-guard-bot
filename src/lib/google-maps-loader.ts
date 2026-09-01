@@ -1,13 +1,13 @@
 const SCRIPT_ID = "allma-google-maps-script";
 
-let loadPromise: Promise<typeof google.maps> | null = null;
+let loadPromise: Promise<any> | null = null;
 
 export function getGoogleMapsBrowserKey(): string | undefined {
   return import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY as string | undefined;
 }
 
 /** Loads the Google Maps JavaScript API once and resolves with google.maps. */
-export function loadGoogleMaps(): Promise<typeof google.maps> {
+export function loadGoogleMaps(): Promise<any> {
   if (typeof window === "undefined") return Promise.reject(new Error("No window"));
   const anyWindow = window as any;
   if (anyWindow.google?.maps) return Promise.resolve(anyWindow.google.maps);
