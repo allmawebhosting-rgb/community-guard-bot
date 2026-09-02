@@ -2046,21 +2046,23 @@ function MinimalEmergencyScreen({
       exit={{ opacity: 0 }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_50%_-20%,rgba(185,42,54,0.22),transparent_68%)]" />
-      <header className="relative mx-auto flex w-full max-w-xl items-center justify-between border-b border-white/[0.08] px-5 py-5 sm:px-7 lg:max-w-6xl lg:px-10">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-red-400 shadow-[0_0_0_4px_rgba(248,113,113,0.12)]" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-300">SOS ACTIVE <span className="text-white/40">• LIVE</span></p>
+      <header className="sticky top-0 z-10 border-b border-white/[0.08] bg-[#0d0f10]/92 backdrop-blur-md lg:static lg:bg-transparent lg:backdrop-blur-none">
+        <div className="relative mx-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-7 sm:py-5 lg:max-w-6xl lg:px-10">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-400 shadow-[0_0_0_4px_rgba(248,113,113,0.12)]" />
+              <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.2em] text-red-300 sm:text-[11px]">SOS ACTIVE <span className="text-white/40">• LIVE</span></p>
+            </div>
+            <p className="mt-1.5 truncate text-[11.5px] font-medium tracking-[0.02em] text-white/45 sm:mt-3 sm:text-[12px]">{emergencyId ?? "Emergency session"}</p>
+            <p className="mt-0.5 truncate text-[11.5px] text-white/65 sm:text-[12px]">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
           </div>
-          <p className="mt-3 truncate text-[12px] font-medium tracking-[0.02em] text-white/45">{emergencyId ?? "Emergency session"}</p>
-          <p className="mt-0.5 truncate text-[12px] text-white/65">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
+          <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-white/[0.03] px-4 text-[12px] font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/[0.08]">
+            Close
+          </button>
         </div>
-        <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-4 text-[12px] font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/[0.08]">
-          Close
-        </button>
       </header>
 
-      <div className="relative mx-auto w-full max-w-xl px-5 pb-10 sm:px-7 lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:px-10 lg:pb-14">
+      <div className="relative mx-auto w-full max-w-xl overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-7 sm:pb-10 lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:px-10 lg:pb-14">
         <div className="min-w-0">
         <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
         <SosRoomStrip activityId={activityId} />
