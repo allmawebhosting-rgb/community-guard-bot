@@ -26,11 +26,14 @@ export function EmergencyRoom({
   currentUserId,
   onClose,
   compact = false,
+  showLocation = true,
 }: {
   sosActivityId: string;
   currentUserId: string | null;
   onClose?: () => void;
   compact?: boolean;
+  /** Hide the location map when the surrounding screen already shows one. */
+  showLocation?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
