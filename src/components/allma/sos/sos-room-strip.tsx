@@ -38,6 +38,7 @@ export function SosRoomStrip({ activityId }: { activityId: string | null }) {
           currentUserId={userId}
           onClose={() => setOpen(false)}
           compact
+          showLocation={false}
         />
       </div>
     );

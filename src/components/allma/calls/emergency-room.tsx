@@ -26,11 +26,14 @@ export function EmergencyRoom({
   currentUserId,
   onClose,
   compact = false,
+  showLocation = true,
 }: {
   sosActivityId: string;
   currentUserId: string | null;
   onClose?: () => void;
   compact?: boolean;
+  /** Hide the location map when the surrounding screen already shows one. */
+  showLocation?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
@@ -123,25 +126,27 @@ export function EmergencyRoom({
         ) : null}
       </header>
 
-      {room?.location_shared && room.latitude != null && room.longitude != null ? (
-        <div className="border-b border-border/60 px-4 py-3">
-          <LiveLocationMap
-            location={{
-              lat: room.latitude,
-              lng: room.longitude,
-              accuracy: room.accuracy_m,
-              address: room.area,
-            }}
-            badge={room.is_mine ? "Your position" : "Live position"}
-            directions
-            directionsLabel="Get directions"
-          />
-        </div>
-      ) : (
-        <p className="border-b border-border/60 px-4 py-2.5 text-[11px] text-muted-foreground">
-          Location has not been shared for this emergency.
-        </p>
-      )}
+      {showLocation ? (
+        room?.location_shared && room.latitude != null && room.longitude != null ? (
+          <div className="border-b border-border/60 px-4 py-3">
+            <LiveLocationMap
+              location={{
+                lat: room.latitude,
+                lng: room.longitude,
+                accuracy: room.accuracy_m,
+                address: room.area,
+              }}
+              badge={room.is_mine ? "Your position" : "Live position"}
+              directions
+              directionsLabel="Get directions"
+            />
+          </div>
+        ) : (
+          <p className="border-b border-border/60 px-4 py-2.5 text-[11px] text-muted-foreground">
+            Location has not been shared for this emergency.
+          </p>
+        )
+      ) : null}
 
       {!compact && room && room.participants.length > 0 ? (
         <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2.5">
