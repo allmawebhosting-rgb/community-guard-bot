@@ -1981,7 +1981,7 @@ function MinimalEmergencyScreen({
   onClose: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const [mapOpen, setMapOpen] = useState(true);
+  const [mapOpen, setMapOpen] = useState(false);
   const [nearbyHelp, setNearbyHelp] = useState<Facility[]>([]);
   const [nearbyHelpLoading, setNearbyHelpLoading] = useState(false);
 
@@ -2069,7 +2069,7 @@ function MinimalEmergencyScreen({
         <AllmaVoice activityId={activityId} compact />
 
 
-        <section aria-labelledby="actions-heading" className="border-b border-white/[0.08] py-6">
+        <section aria-labelledby="actions-heading" className="border-b border-white/[0.08] py-4 sm:py-6">
           <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Immediate actions</p>
           <div className="mt-4 grid gap-2.5">
             <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-2xl bg-[#f5f5f2] px-4 text-left text-[14px] font-bold text-[#101214] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:bg-white active:scale-[0.99]">
@@ -2089,11 +2089,11 @@ function MinimalEmergencyScreen({
         </div>
 
         <div className="min-w-0">
-        <section aria-labelledby="location-heading" className="border-b border-white/[0.08] py-6">
+        <section aria-labelledby="location-heading" className="border-b border-white/[0.08] py-4 sm:py-6">
           <div className="flex items-center justify-between">
             <div>
               <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Location</p>
-              <p className="mt-3 flex items-center gap-2 text-[14px] font-semibold text-white">
+              <p className="mt-2 sm:mt-3 flex items-center gap-2 text-[14px] font-semibold text-white">
                 <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-emerald-300 shadow-[0_0_0_4px_rgba(110,231,183,0.1)]" : "bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.1)]")} />
                 {locationReady ? "Shared" : "Unavailable"}
               </p>
@@ -2114,7 +2114,7 @@ function MinimalEmergencyScreen({
 
 
         {locationReady && location && (
-          <section aria-labelledby="nearby-help-heading" className="border-b border-white/[0.08] py-6">
+          <section aria-labelledby="nearby-help-heading" className="border-b border-white/[0.08] py-4 sm:py-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p id="nearby-help-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Nearby help</p>
