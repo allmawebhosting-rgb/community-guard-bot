@@ -10,6 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HELP_KIND_COLOR, helpKind, type HelpPlace } from "@/components/allma/nearby-help-list";
 import {
   getGoogleMapsBrowserKey,
   googleMapsAuthFailed,
