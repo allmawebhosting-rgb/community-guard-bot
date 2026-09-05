@@ -44,6 +44,7 @@ import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-e
 import { AllmaVoice } from "@/components/allma/sos/allma-voice";
 import { SosRoomStrip } from "@/components/allma/sos/sos-room-strip";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
+import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 import { notifySosActivity } from "@/lib/push.functions";
@@ -1981,9 +1982,9 @@ function MinimalEmergencyScreen({
   onClose: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [nearbyHelp, setNearbyHelp] = useState<Facility[]>([]);
+  const [nearbyHelp, setNearbyHelp] = useState<HelpPlace[]>([]);
   const [nearbyHelpLoading, setNearbyHelpLoading] = useState(false);
+  const [selectedHelpId, setSelectedHelpId] = useState<string | null>(null);
 
   const [servicesOpen, setServicesOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -2007,24 +2008,29 @@ function MinimalEmergencyScreen({
     let isActive = true;
     setNearbyHelpLoading(true);
 
-    void loadNearbyFacilities(location.lat, location.lng)
-      .then(({ hospitals, police }) => {
+    void getNearbyPlaces({
+      data: {
+        latitude: location.lat,
+        longitude: location.lng,
+        radiusMeters: 8000,
+        limit: 8,
+        types: ["hospital", "police", "fire_station", "doctor"],
+      },
+    })
+      .then((results) => {
         if (!isActive) return;
-        const ambulanceOptions = hospitals.slice(0, 2).map((item, index) => ({
-          ...item,
-          type: "ambulance" as const,
-          name: index === 0 ? "Nearest ambulance / ER" : "Ambulance coordination",
-          phone: "911",
-          address: item.address || "Nearest response point",
-          lat: item.lat ?? location.lat,
-          lng: item.lng ?? location.lng,
-        }));
-
-        setNearbyHelp([
-          ...hospitals.slice(0, 3),
-          ...police.slice(0, 3),
-          ...ambulanceOptions,
-        ].slice(0, 6));
+        setNearbyHelp(
+          (results ?? []).map((place) => ({
+            id: place.id,
+            name: place.name,
+            type: place.type,
+            address: place.address,
+            phone: place.phone,
+            distance_m: place.distance_m,
+            latitude: place.latitude,
+            longitude: place.longitude,
+          })),
+        );
       })
       .catch(() => {
         if (isActive) setNearbyHelp([]);
@@ -2037,6 +2043,7 @@ function MinimalEmergencyScreen({
       isActive = false;
     };
   }, [locationReady, location]);
+
 
   return (
     <motion.main
@@ -2090,105 +2097,47 @@ function MinimalEmergencyScreen({
 
         <div className="min-w-0">
         <section aria-labelledby="location-heading" className="border-b border-white/[0.08] py-4 sm:py-6">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Location</p>
               <p className="mt-2 sm:mt-3 flex items-center gap-2 text-[14px] font-semibold text-white">
                 <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-emerald-300 shadow-[0_0_0_4px_rgba(110,231,183,0.1)]" : "bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.1)]")} />
                 {locationReady ? "Shared" : "Unavailable"}
               </p>
-              <p className="mt-1 text-[12px] text-white/45">{area}</p>
+              <p className="mt-1 truncate text-[12px] text-white/45">{area}</p>
             </div>
-            {locationReady ? (
-              <button type="button" onClick={() => setMapOpen((open) => !open)} className="min-h-10 rounded-xl border border-white/15 bg-white/[0.03] px-3 text-[12px] font-semibold text-white/75 transition hover:bg-white/[0.08] lg:hidden">{mapOpen ? "Hide map" : "View map"}</button>
-            ) : (
-              <button type="button" onClick={onEnableLocation} className="min-h-10 rounded-xl border border-amber-300/30 bg-amber-300/[0.04] px-3 text-[12px] font-semibold text-amber-200 transition hover:bg-amber-300/10">Enable Location</button>
+            {!locationReady && (
+              <button type="button" onClick={onEnableLocation} className="min-h-10 shrink-0 rounded-xl border border-amber-300/30 bg-amber-300/[0.04] px-3 text-[12px] font-semibold text-amber-200 transition hover:bg-amber-300/10">Enable Location</button>
             )}
           </div>
           {locationReady && location && (
-            <div className={cn("mt-4", mapOpen ? "block" : "hidden lg:block")}>
-              <LiveLocationMap location={location} />
+            <div className="mt-4">
+              <LiveLocationMap
+                location={location}
+                places={nearbyHelp}
+                selectedPlaceId={selectedHelpId}
+                onSelectPlace={setSelectedHelpId}
+              />
             </div>
           )}
         </section>
 
-
         {locationReady && location && (
-          <section aria-labelledby="nearby-help-heading" className="border-b border-white/[0.08] py-4 sm:py-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p id="nearby-help-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Nearby help</p>
-                <p className="mt-2 text-[13px] font-semibold text-white">Hospitals, police and ambulance options near you</p>
-              </div>
-              {nearbyHelp.length > 0 && (
-                <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
-                  {nearbyHelp.length} ready
-                </span>
-              )}
-            </div>
-
-            {nearbyHelpLoading ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-[12px] text-white/60">
-                Finding nearby emergency services…
-              </div>
-            ) : nearbyHelp.length ? (
-              <div className="space-y-2.5">
-                {nearbyHelp.map((facility) => (
-                  <div key={`${facility.type}-${facility.name}-${facility.address}`} className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-3">
-                    <div className="flex items-start gap-3">
-                      <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", facility.type === "hospital" ? "bg-emerald-400/10 text-emerald-300" : facility.type === "ambulance" ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300")}>
-                        {facility.type === "hospital" ? <Building2 className="h-4 w-4" /> : facility.type === "ambulance" ? <Heart className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-[13px] font-semibold text-white">{facility.name}</p>
-                          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]", facility.type === "hospital" ? "bg-emerald-400/10 text-emerald-300" : facility.type === "ambulance" ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300")}>{facility.type === "ambulance" ? "Ambulance" : facility.type === "police" ? "Police" : "Hospital"}</span>
-                        </div>
-                        <p className="mt-1 flex items-center gap-1 text-[11px] text-white/55">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{facility.address}</span>
-                        </p>
-                        <p className="mt-1 text-[11px] font-semibold text-white/75">{facility.distance}</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <a
-                        href={
-                          location
-                            ? buildDirectionsUrl(
-                                { lat: location.lat, lng: location.lng },
-                                { lat: facility.lat ?? location.lat, lng: facility.lng ?? location.lng },
-                              )
-                            : "#"
-                        }
-                        target={location ? "_blank" : undefined}
-                        rel={location ? "noreferrer" : undefined}
-                        className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[11px] font-bold text-white transition hover:bg-white/[0.08]"
-                      >
-                        <Navigation2 className="h-3.5 w-3.5" /> Directions
-                      </a>
-                      <a
-                        href={facility.phone ? `tel:${facility.phone.replace(/[^\d+]/g, "")}` : undefined}
-                        className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[11px] font-bold text-white transition hover:bg-white/[0.08]"
-                        onClick={(event) => {
-                          if (!facility.phone) {
-                            event.preventDefault();
-                          }
-                        }}
-                      >
-                        <Phone className="h-3.5 w-3.5" /> Call
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-[12px] text-white/60">
-                We could not find nearby emergency services yet. Use the emergency phone numbers below instead.
-              </div>
-            )}
+          <section aria-label="Nearby help" className="border-b border-white/[0.08] py-4 sm:py-6">
+            <NearbyHelpList
+              places={nearbyHelp}
+              loading={nearbyHelpLoading}
+              origin={{ lat: location.lat, lng: location.lng }}
+              selectedId={selectedHelpId}
+              onSelect={setSelectedHelpId}
+              tone="dark"
+              title="Help near you"
+              subtitle="Police, clinics and hospitals closest to you"
+              emptyLabel="No nearby police, clinics or hospitals were found yet. Use the emergency numbers instead."
+            />
           </section>
         )}
+
 
           <button type="button" onClick={() => setMoreOpen(true)} className="group flex min-h-14 w-full items-center justify-between border-b border-white/[0.08] text-left">
             <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">More</span>

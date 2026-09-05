@@ -10,6 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HELP_KIND_COLOR, helpKind, type HelpPlace } from "@/components/allma/nearby-help-list";
 import {
   getGoogleMapsBrowserKey,
   googleMapsAuthFailed,
@@ -130,15 +131,26 @@ export function GoogleLocationCanvas({
   lat,
   lng,
   zoom,
+  places = [],
+  selectedPlaceId = null,
+  onSelectPlace,
   onFail,
 }: {
   lat: number;
   lng: number;
   zoom: number;
+  places?: HelpPlace[];
+  selectedPlaceId?: string | null;
+  onSelectPlace?: (id: string) => void;
   onFail: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
+  const mapsRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const [mapReady, setMapReady] = useState(false);
+  const selectRef = useRef(onSelectPlace);
+  selectRef.current = onSelectPlace;
 
   useEffect(() => {
     let cancelled = false;
@@ -157,6 +169,8 @@ export function GoogleLocationCanvas({
           clickableIcons: false,
         });
         mapRef.current = map;
+        mapsRef.current = maps;
+        setMapReady(true);
         // If the key is rejected for this domain Google swaps the canvas for its own
         // error panel — poll for it and fall back to open tiles when it appears.
         let checks = 0;
@@ -196,8 +210,39 @@ export function GoogleLocationCanvas({
     mapRef.current.setZoom(zoom);
   }, [lat, lng, zoom]);
 
-  return <div ref={containerRef} className="absolute inset-0" aria-hidden />;
+  // Nearby help markers (police, clinics, hospitals) drawn on the same canvas.
+  useEffect(() => {
+    const maps = mapsRef.current;
+    const map = mapRef.current;
+    if (!mapReady || !maps || !map) return;
+    markersRef.current.forEach((marker) => marker.setMap(null));
+    markersRef.current = places.map((place) => {
+      const color = HELP_KIND_COLOR[helpKind(place.type)];
+      const marker = new maps.Marker({
+        map,
+        position: { lat: place.latitude, lng: place.longitude },
+        title: place.name,
+        icon: {
+          path: maps.SymbolPath.CIRCLE,
+          scale: selectedPlaceId === place.id ? 9 : 6.5,
+          fillColor: color,
+          fillOpacity: 1,
+          strokeColor: "#0d0f10",
+          strokeWeight: selectedPlaceId === place.id ? 3 : 1.5,
+        },
+      });
+      marker.addListener("click", () => selectRef.current?.(place.id));
+      return marker;
+    });
+    return () => {
+      markersRef.current.forEach((marker) => marker.setMap(null));
+      markersRef.current = [];
+    };
+  }, [mapReady, places, selectedPlaceId]);
+
+  return <div ref={containerRef} className="absolute inset-0" />;
 }
+
 
 export function LiveLocationMap({
   location,
@@ -205,6 +250,9 @@ export function LiveLocationMap({
   directionsLabel = "Open in Google Maps",
   directions = false,
   heightClassName = "h-52 lg:h-[19rem]",
+  places = [],
+  selectedPlaceId = null,
+  onSelectPlace,
 }: {
   location: LiveLocationPoint;
   /** Small label shown in the map corner. */
@@ -214,12 +262,17 @@ export function LiveLocationMap({
   directions?: boolean;
   /** Height utilities for the map canvas (responsive by default). */
   heightClassName?: string;
+  /** Nearby help places (police, clinics, hospitals) shown as coloured pins. */
+  places?: HelpPlace[];
+  selectedPlaceId?: string | null;
+  onSelectPlace?: (id: string) => void;
 }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [googleFailed, setGoogleFailed] = useState(false);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasHeight, setCanvasHeight] = useState(208);
+  const [canvasWidth, setCanvasWidth] = useState(640);
   const level = MAP_ZOOM_LEVELS[zoom];
   const accuracy = typeof location.accuracy === "number" ? location.accuracy : null;
 
@@ -231,8 +284,9 @@ export function LiveLocationMap({
     const node = canvasRef.current;
     if (!node) return;
     const measure = () => {
-      const next = node.getBoundingClientRect().height;
-      if (next > 0) setCanvasHeight(next);
+      const rect = node.getBoundingClientRect();
+      if (rect.height > 0) setCanvasHeight(rect.height);
+      if (rect.width > 0) setCanvasWidth(rect.width);
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -263,6 +317,22 @@ export function LiveLocationMap({
     ? `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`
     : `https://www.google.com/maps?q=${location.lat},${location.lng}&z=${tileZoom}`;
 
+  // Open-tile fallback pins, projected to the same scale as the tiles.
+  const fallbackPins = useGoogle
+    ? []
+    : places
+        .map((place) => {
+          const dx =
+            (lngToTileX(place.longitude, tileZoom) - lngToTileX(location.lng, tileZoom)) * TILE_SIZE;
+          const dy =
+            (latToTileY(place.latitude, tileZoom) - latToTileY(location.lat, tileZoom)) * TILE_SIZE;
+          return { place, dx, dy };
+        })
+        .filter(
+          ({ dx, dy }) =>
+            Math.abs(dx) < canvasWidth / 2 - 8 && Math.abs(dy) < canvasHeight / 2 - 8,
+        );
+
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
       <div ref={canvasRef} className={cn("relative bg-muted", heightClassName)}>
@@ -271,11 +341,38 @@ export function LiveLocationMap({
             lat={location.lat}
             lng={location.lng}
             zoom={tileZoom}
+            places={places}
+            selectedPlaceId={selectedPlaceId}
+            onSelectPlace={onSelectPlace}
             onFail={() => setGoogleFailed(true)}
           />
         ) : (
-          <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
+          <>
+            <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
+            {fallbackPins.map(({ place, dx, dy }) => {
+              const color = HELP_KIND_COLOR[helpKind(place.type)];
+              const active = selectedPlaceId === place.id;
+              return (
+                <button
+                  key={place.id}
+                  type="button"
+                  title={place.name}
+                  aria-label={place.name}
+                  onClick={() => onSelectPlace?.(place.id)}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background transition"
+                  style={{
+                    left: `calc(50% + ${dx}px)`,
+                    top: `calc(50% + ${dy}px)`,
+                    height: active ? 18 : 13,
+                    width: active ? 18 : 13,
+                    backgroundColor: color,
+                  }}
+                />
+              );
+            })}
+          </>
         )}
+
 
 
         {/* Accuracy radius + pulsing position marker */}
