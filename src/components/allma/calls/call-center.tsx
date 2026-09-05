@@ -61,6 +61,66 @@ export function CallCenter() {
   const [endedNote, setEndedNote] = useState<string | null>(null);
   const [emergency, setEmergency] = useState<EmergencyCallContext | null>(null);
   const [sosRoomId, setSosRoomId] = useState<string | null>(null);
+  const [helpPlaces, setHelpPlaces] = useState<HelpPlace[]>([]);
+  const [helpLoading, setHelpLoading] = useState(false);
+  const [selectedHelpId, setSelectedHelpId] = useState<string | null>(null);
+
+  // Where the caller is, when they chose to share it with this receiver.
+  const callerPoint =
+    emergency?.location_shared && emergency.latitude !== null && emergency.longitude !== null
+      ? { lat: emergency.latitude, lng: emergency.longitude }
+      : null;
+  // Coarse key so small GPS drift does not re-run the Places lookup.
+  const callerAreaKey = callerPoint
+    ? `${callerPoint.lat.toFixed(3)},${callerPoint.lng.toFixed(3)}`
+    : null;
+
+  useEffect(() => {
+    if (!callerAreaKey) {
+      setHelpPlaces([]);
+      setHelpLoading(false);
+      setSelectedHelpId(null);
+      return;
+    }
+    const [lat, lng] = callerAreaKey.split(",").map(Number);
+    let active = true;
+    setHelpLoading(true);
+    void getNearbyPlaces({
+      data: {
+        latitude: lat,
+        longitude: lng,
+        radiusMeters: 8000,
+        limit: 8,
+        types: ["hospital", "police", "fire_station", "doctor"],
+      },
+    })
+      .then((results) => {
+        if (!active) return;
+        setHelpPlaces(
+          (results ?? []).map((place) => ({
+            id: place.id,
+            name: place.name,
+            type: place.type,
+            address: place.address,
+            phone: place.phone,
+            distance_m: place.distance_m,
+            latitude: place.latitude,
+            longitude: place.longitude,
+          })),
+        );
+      })
+      .catch(() => {
+        if (active) setHelpPlaces([]);
+      })
+      .finally(() => {
+        if (active) setHelpLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [callerAreaKey]);
+
+
 
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
