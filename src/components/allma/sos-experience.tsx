@@ -1981,9 +1981,9 @@ function MinimalEmergencyScreen({
   onClose: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [nearbyHelp, setNearbyHelp] = useState<Facility[]>([]);
+  const [nearbyHelp, setNearbyHelp] = useState<HelpPlace[]>([]);
   const [nearbyHelpLoading, setNearbyHelpLoading] = useState(false);
+  const [selectedHelpId, setSelectedHelpId] = useState<string | null>(null);
 
   const [servicesOpen, setServicesOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -2007,24 +2007,29 @@ function MinimalEmergencyScreen({
     let isActive = true;
     setNearbyHelpLoading(true);
 
-    void loadNearbyFacilities(location.lat, location.lng)
-      .then(({ hospitals, police }) => {
+    void getNearbyPlaces({
+      data: {
+        latitude: location.lat,
+        longitude: location.lng,
+        radiusMeters: 8000,
+        limit: 8,
+        types: ["hospital", "police", "fire_station", "doctor"],
+      },
+    })
+      .then((results) => {
         if (!isActive) return;
-        const ambulanceOptions = hospitals.slice(0, 2).map((item, index) => ({
-          ...item,
-          type: "ambulance" as const,
-          name: index === 0 ? "Nearest ambulance / ER" : "Ambulance coordination",
-          phone: "911",
-          address: item.address || "Nearest response point",
-          lat: item.lat ?? location.lat,
-          lng: item.lng ?? location.lng,
-        }));
-
-        setNearbyHelp([
-          ...hospitals.slice(0, 3),
-          ...police.slice(0, 3),
-          ...ambulanceOptions,
-        ].slice(0, 6));
+        setNearbyHelp(
+          (results ?? []).map((place) => ({
+            id: place.id,
+            name: place.name,
+            type: place.type,
+            address: place.address,
+            phone: place.phone,
+            distance_m: place.distance_m,
+            latitude: place.latitude,
+            longitude: place.longitude,
+          })),
+        );
       })
       .catch(() => {
         if (isActive) setNearbyHelp([]);
@@ -2037,6 +2042,7 @@ function MinimalEmergencyScreen({
       isActive = false;
     };
   }, [locationReady, location]);
+
 
   return (
     <motion.main
