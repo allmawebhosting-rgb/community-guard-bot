@@ -130,15 +130,26 @@ export function GoogleLocationCanvas({
   lat,
   lng,
   zoom,
+  places = [],
+  selectedPlaceId = null,
+  onSelectPlace,
   onFail,
 }: {
   lat: number;
   lng: number;
   zoom: number;
+  places?: HelpPlace[];
+  selectedPlaceId?: string | null;
+  onSelectPlace?: (id: string) => void;
   onFail: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
+  const mapsRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const [mapReady, setMapReady] = useState(false);
+  const selectRef = useRef(onSelectPlace);
+  selectRef.current = onSelectPlace;
 
   useEffect(() => {
     let cancelled = false;
@@ -157,6 +168,8 @@ export function GoogleLocationCanvas({
           clickableIcons: false,
         });
         mapRef.current = map;
+        mapsRef.current = maps;
+        setMapReady(true);
         // If the key is rejected for this domain Google swaps the canvas for its own
         // error panel — poll for it and fall back to open tiles when it appears.
         let checks = 0;
@@ -196,8 +209,39 @@ export function GoogleLocationCanvas({
     mapRef.current.setZoom(zoom);
   }, [lat, lng, zoom]);
 
-  return <div ref={containerRef} className="absolute inset-0" aria-hidden />;
+  // Nearby help markers (police, clinics, hospitals) drawn on the same canvas.
+  useEffect(() => {
+    const maps = mapsRef.current;
+    const map = mapRef.current;
+    if (!mapReady || !maps || !map) return;
+    markersRef.current.forEach((marker) => marker.setMap(null));
+    markersRef.current = places.map((place) => {
+      const color = HELP_KIND_COLOR[helpKind(place.type)];
+      const marker = new maps.Marker({
+        map,
+        position: { lat: place.latitude, lng: place.longitude },
+        title: place.name,
+        icon: {
+          path: maps.SymbolPath.CIRCLE,
+          scale: selectedPlaceId === place.id ? 9 : 6.5,
+          fillColor: color,
+          fillOpacity: 1,
+          strokeColor: "#0d0f10",
+          strokeWeight: selectedPlaceId === place.id ? 3 : 1.5,
+        },
+      });
+      marker.addListener("click", () => selectRef.current?.(place.id));
+      return marker;
+    });
+    return () => {
+      markersRef.current.forEach((marker) => marker.setMap(null));
+      markersRef.current = [];
+    };
+  }, [mapReady, places, selectedPlaceId]);
+
+  return <div ref={containerRef} className="absolute inset-0" />;
 }
+
 
 export function LiveLocationMap({
   location,
