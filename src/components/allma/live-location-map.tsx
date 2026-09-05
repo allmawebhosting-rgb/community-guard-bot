@@ -250,6 +250,9 @@ export function LiveLocationMap({
   directionsLabel = "Open in Google Maps",
   directions = false,
   heightClassName = "h-52 lg:h-[19rem]",
+  places = [],
+  selectedPlaceId = null,
+  onSelectPlace,
 }: {
   location: LiveLocationPoint;
   /** Small label shown in the map corner. */
@@ -259,12 +262,17 @@ export function LiveLocationMap({
   directions?: boolean;
   /** Height utilities for the map canvas (responsive by default). */
   heightClassName?: string;
+  /** Nearby help places (police, clinics, hospitals) shown as coloured pins. */
+  places?: HelpPlace[];
+  selectedPlaceId?: string | null;
+  onSelectPlace?: (id: string) => void;
 }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [googleFailed, setGoogleFailed] = useState(false);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasHeight, setCanvasHeight] = useState(208);
+  const [canvasWidth, setCanvasWidth] = useState(640);
   const level = MAP_ZOOM_LEVELS[zoom];
   const accuracy = typeof location.accuracy === "number" ? location.accuracy : null;
 
@@ -276,8 +284,9 @@ export function LiveLocationMap({
     const node = canvasRef.current;
     if (!node) return;
     const measure = () => {
-      const next = node.getBoundingClientRect().height;
-      if (next > 0) setCanvasHeight(next);
+      const rect = node.getBoundingClientRect();
+      if (rect.height > 0) setCanvasHeight(rect.height);
+      if (rect.width > 0) setCanvasWidth(rect.width);
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -308,6 +317,22 @@ export function LiveLocationMap({
     ? `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`
     : `https://www.google.com/maps?q=${location.lat},${location.lng}&z=${tileZoom}`;
 
+  // Open-tile fallback pins, projected to the same scale as the tiles.
+  const fallbackPins = useGoogle
+    ? []
+    : places
+        .map((place) => {
+          const dx =
+            (lngToTileX(place.longitude, tileZoom) - lngToTileX(location.lng, tileZoom)) * TILE_SIZE;
+          const dy =
+            (latToTileY(place.latitude, tileZoom) - latToTileY(location.lat, tileZoom)) * TILE_SIZE;
+          return { place, dx, dy };
+        })
+        .filter(
+          ({ dx, dy }) =>
+            Math.abs(dx) < canvasWidth / 2 - 8 && Math.abs(dy) < canvasHeight / 2 - 8,
+        );
+
   return (
     <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
       <div ref={canvasRef} className={cn("relative bg-muted", heightClassName)}>
@@ -316,11 +341,38 @@ export function LiveLocationMap({
             lat={location.lat}
             lng={location.lng}
             zoom={tileZoom}
+            places={places}
+            selectedPlaceId={selectedPlaceId}
+            onSelectPlace={onSelectPlace}
             onFail={() => setGoogleFailed(true)}
           />
         ) : (
-          <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
+          <>
+            <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
+            {fallbackPins.map(({ place, dx, dy }) => {
+              const color = HELP_KIND_COLOR[helpKind(place.type)];
+              const active = selectedPlaceId === place.id;
+              return (
+                <button
+                  key={place.id}
+                  type="button"
+                  title={place.name}
+                  aria-label={place.name}
+                  onClick={() => onSelectPlace?.(place.id)}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background transition"
+                  style={{
+                    left: `calc(50% + ${dx}px)`,
+                    top: `calc(50% + ${dy}px)`,
+                    height: active ? 18 : 13,
+                    width: active ? 18 : 13,
+                    backgroundColor: color,
+                  }}
+                />
+              );
+            })}
+          </>
         )}
+
 
 
         {/* Accuracy radius + pulsing position marker */}
