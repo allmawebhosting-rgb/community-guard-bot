@@ -44,6 +44,7 @@ import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-e
 import { AllmaVoice } from "@/components/allma/sos/allma-voice";
 import { SosRoomStrip } from "@/components/allma/sos/sos-room-strip";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
+import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 import { notifySosActivity } from "@/lib/push.functions";
