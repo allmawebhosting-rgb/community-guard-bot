@@ -502,9 +502,9 @@ export function CallCenter() {
             )}
           />
 
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-5 lg:justify-center lg:px-10">
-            <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center lg:max-w-5xl lg:flex-row lg:items-center lg:gap-14 lg:text-left">
-              <div className="flex w-full flex-col items-center lg:flex-1 lg:items-start">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 lg:px-10">
+            <div className="mx-auto flex w-full max-w-md flex-col lg:max-w-5xl lg:flex-row lg:items-start lg:gap-12">
+              <div className="flex w-full flex-col items-center text-center lg:sticky lg:top-4 lg:flex-1 lg:items-start lg:text-left">
                 <p
                   className={cn(
                     "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em]",
@@ -557,40 +557,57 @@ export function CallCenter() {
               </div>
 
               {emergency && phase !== "ended" && (
-                <div className="mt-5 w-full space-y-3 text-left lg:mt-0 lg:flex-1">
-                  <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
+                <div className="mt-6 w-full space-y-4 text-left lg:mt-0 lg:flex-1">
+                  <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
                       Emergency
                     </p>
-                    <p className="mt-1 text-[12px] font-semibold capitalize text-foreground">
+                    <p className="mt-1.5 text-[13px] font-semibold capitalize text-foreground">
                       {emergency.emergency_type.replace(/_/g, " ")} · {emergency.severity}
                     </p>
-                    <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {emergency.location_shared ? emergency.area : "Location not shared with you"}
+                    <p className="mt-2 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        {emergency.location_shared ? emergency.area : "Location not shared with you"}
+                      </span>
                     </p>
                     {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
-                      <p className="mt-1 text-[10px] text-muted-foreground">
+                      <p className="mt-1 text-[10.5px] text-muted-foreground">
                         GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
                       </p>
                     )}
                   </div>
 
-                  {emergency.location_shared &&
-                    emergency.latitude !== null &&
-                    emergency.longitude !== null && (
-                      <LiveLocationMap
-                        location={{
-                          lat: emergency.latitude,
-                          lng: emergency.longitude,
-                          accuracy: emergency.accuracy_m ?? null,
-                          address: emergency.area,
-                        }}
-                        badge="Live · shared"
-                        directions
-                        directionsLabel="Directions"
-                      />
-                    )}
+                  {callerPoint && (
+                    <LiveLocationMap
+                      location={{
+                        lat: callerPoint.lat,
+                        lng: callerPoint.lng,
+                        accuracy: emergency.accuracy_m ?? null,
+                        address: emergency.area,
+                      }}
+                      badge="Live · shared"
+                      directions
+                      directionsLabel="Directions to caller"
+                      places={helpPlaces}
+                      selectedPlaceId={selectedHelpId}
+                      onSelectPlace={setSelectedHelpId}
+                    />
+                  )}
+
+                  {callerPoint && (
+                    <NearbyHelpList
+                      places={helpPlaces}
+                      loading={helpLoading}
+                      origin={callerPoint}
+                      selectedId={selectedHelpId}
+                      onSelect={setSelectedHelpId}
+                      tone="surface"
+                      title="Help near the caller"
+                      subtitle="Police, clinics and hospitals closest to where they are"
+                      emptyLabel="No police, clinics or hospitals were found near the caller yet."
+                    />
+                  )}
 
                   {sosRoomId && (
                     <button
@@ -600,7 +617,7 @@ export function CallCenter() {
                         teardown(null);
                         void navigate({ to: "/calls", search: { room } });
                       }}
-                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gold/45 bg-gold/10 px-4 py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-gold/20"
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gold/45 bg-gold/10 px-4 py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-gold/20"
                     >
                       <MessageSquare className="h-4 w-4" />
                       Open emergency chat
@@ -610,6 +627,7 @@ export function CallCenter() {
               )}
             </div>
           </div>
+
 
           <div className="relative shrink-0 border-t border-border/50 bg-background/85 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl">
             {phase === "incoming" ? (
