@@ -2039,64 +2039,64 @@ function MinimalEmergencyScreen({
 
   return (
     <motion.main
-      className="signal-screen signal-minimal relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#0d0f10] text-white"
+      className="signal-screen signal-minimal relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-background text-foreground"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_50%_-20%,rgba(185,42,54,0.22),transparent_68%)]" />
-      <header className="sticky top-0 z-10 border-b border-white/[0.08] bg-[#0d0f10]/92 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur-md lg:static lg:bg-transparent lg:shadow-none lg:backdrop-blur-none">
-        <div className="relative mx-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-7 sm:py-5 lg:max-w-[1500px] lg:px-10 lg:py-7">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-destructive/10 to-transparent" />
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/92 shadow-sm backdrop-blur-xl">
+        <div className="relative mx-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:max-w-[1480px] lg:px-8 lg:py-5 xl:px-10">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-400 shadow-[0_0_0_4px_rgba(248,113,113,0.12)]" />
-              <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.2em] text-red-300 sm:text-[11px]">SOS ACTIVE <span className="text-white/40">• LIVE</span></p>
+              <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" /></span>
+              <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.18em] text-destructive sm:text-[11px]">SOS ACTIVE <span className="text-muted-foreground">· LIVE</span></p>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:mt-3">
-              <p className="truncate text-[11.5px] font-medium tracking-[0.02em] text-white/45 sm:text-[12px]">{emergencyId ?? "Emergency session"}</p>
-              <span className="hidden h-1 w-1 rounded-full bg-white/25 sm:block" />
-              <p className="truncate text-[11.5px] text-white/65 sm:text-[12px]">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
+              <p className="truncate font-mono text-[11px] font-semibold text-muted-foreground sm:text-[12px]">{emergencyId ?? "Emergency session"}</p>
+              <span className="hidden h-1 w-1 rounded-full bg-border sm:block" />
+              <p className="truncate text-[11.5px] font-semibold text-foreground/80 sm:text-[12px]">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
             </div>
           </div>
-          <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-white/[0.03] px-4 text-[12px] font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70">
+          <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-10 shrink-0 rounded-xl border border-border/70 bg-card px-4 text-[12px] font-bold text-foreground transition hover:border-destructive/40 hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60">
             Close
           </button>
         </div>
       </header>
 
-      <div className="relative mx-auto grid w-full max-w-xl grid-cols-1 overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-7 sm:pb-10 lg:max-w-[1500px] lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:items-start lg:gap-x-8 lg:px-10 lg:pb-14 xl:gap-x-10">
+      <div className="relative mx-auto grid w-full max-w-xl grid-cols-1 overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:max-w-[1480px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-6 lg:px-8 lg:py-6 lg:pb-12 xl:gap-8 xl:px-10">
         <div className="contents">
-          <div className="order-1 min-w-0 lg:col-start-1 lg:row-start-1 lg:rounded-3xl lg:border lg:border-white/[0.08] lg:bg-white/[0.025] lg:p-6 lg:shadow-[0_20px_60px_rgba(0,0,0,0.12)] xl:p-7">
+          <div className="order-1 min-w-0 lg:col-start-1 lg:row-start-1 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft xl:p-7">
             <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
           </div>
 
-          <section aria-labelledby="actions-heading" className="order-2 min-w-0 border-b border-white/[0.08] py-5 sm:py-6 lg:col-start-1 lg:row-start-2 lg:mt-5 lg:rounded-3xl lg:border lg:border-white/[0.08] lg:bg-white/[0.025] lg:p-6 lg:shadow-[0_20px_60px_rgba(0,0,0,0.1)]">
-          <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Immediate actions</p>
+          <section aria-labelledby="actions-heading" className="order-2 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:col-start-1 lg:row-start-2 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
+          <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Immediate actions</p>
           <div className="mt-4 grid gap-2.5">
-            <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-2xl bg-[#f5f5f2] px-4 text-left text-[14px] font-bold text-[#101214] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:bg-white active:scale-[0.99]">
-              <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#101214]/[0.08]"><Phone className="h-4 w-4" /></span>Call Emergency Services</span><ChevronRight className="h-4 w-4 opacity-45 transition-transform group-hover:translate-x-0.5" />
+            <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-destructive px-4 text-left text-[14px] font-bold text-destructive-foreground shadow-lg shadow-destructive/15 transition hover:bg-destructive/90 active:scale-[0.99]">
+              <span className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-destructive-foreground/15"><Phone className="h-4 w-4" /></span>Call Emergency Services</span><ChevronRight className="h-4 w-4 opacity-70 transition-transform group-hover:translate-x-0.5" />
             </button>
-            <button type="button" onClick={() => document.getElementById("emergency-chat")?.scrollIntoView({ behavior: "smooth", block: "center" })} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
-              <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Send className="h-4 w-4 text-white/70" /></span>Send Update</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+            <button type="button" onClick={() => document.getElementById("emergency-chat")?.scrollIntoView({ behavior: "smooth", block: "center" })} className="group flex min-h-14 items-center justify-between rounded-xl border border-border/70 bg-muted/35 px-4 text-left text-[14px] font-semibold text-foreground transition hover:border-primary/35 hover:bg-accent active:scale-[0.99]">
+              <span className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-card shadow-sm"><Send className="h-4 w-4 text-muted-foreground" /></span>Send Update</span><ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
             </button>
-            <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
-              <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Shield className="h-4 w-4 text-white/70" /></span>File an incident report</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+            <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-xl border border-border/70 bg-muted/35 px-4 text-left text-[14px] font-semibold text-foreground transition hover:border-primary/35 hover:bg-accent active:scale-[0.99]">
+              <span className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-card shadow-sm"><Shield className="h-4 w-4 text-muted-foreground" /></span>File an incident report</span><ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
             </button>
-            <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-12 text-[12px] font-semibold tracking-[0.01em] text-red-300/85 transition hover:text-red-200">
+            <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-12 text-[12px] font-semibold text-destructive transition hover:text-destructive/80">
               Stop SOS
             </button>
           </div>
           </section>
 
-          <section aria-labelledby="location-heading" className="order-3 min-w-0 border-b border-white/[0.08] py-5 sm:py-6 lg:col-start-2 lg:row-start-1 lg:rounded-3xl lg:border lg:border-white/[0.08] lg:bg-white/[0.025] lg:p-6 lg:shadow-[0_20px_60px_rgba(0,0,0,0.1)]">
+          <section aria-labelledby="location-heading" className="order-3 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Location</p>
-              <p className="mt-2 sm:mt-3 flex items-center gap-2 text-[14px] font-semibold text-white">
-                <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-emerald-300 shadow-[0_0_0_4px_rgba(110,231,183,0.1)]" : "bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.1)]")} />
+              <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
+              <p className="mt-2 flex items-center gap-2 text-[14px] font-bold text-foreground sm:mt-3">
+                <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-success shadow-[0_0_0_4px_color-mix(in_oklab,var(--success)_12%,transparent)]" : "bg-gold")} />
                 {locationReady ? "Shared" : "Unavailable"}
               </p>
-              <p className="mt-1 truncate text-[12px] text-white/45">{area}</p>
+              <p className="mt-1 truncate text-[12px] text-muted-foreground">{area}</p>
             </div>
             {!locationReady && (
               <button type="button" onClick={onEnableLocation} className="min-h-10 shrink-0 rounded-xl border border-amber-300/30 bg-amber-300/[0.04] px-3 text-[12px] font-semibold text-amber-200 transition hover:bg-amber-300/10">Enable Location</button>
@@ -2109,12 +2109,13 @@ function MinimalEmergencyScreen({
                 places={nearbyHelp}
                 selectedPlaceId={selectedHelpId}
                 onSelectPlace={setSelectedHelpId}
+                heightClassName="h-64 sm:h-72 lg:h-[24rem]"
               />
             </div>
           )}
           </section>
 
-          <section aria-label="Nearby help" className="order-4 min-w-0 border-b border-white/[0.08] py-5 sm:py-6 lg:col-start-2 lg:row-start-2 lg:mt-5 lg:rounded-3xl lg:border lg:border-white/[0.08] lg:bg-white/[0.025] lg:p-6 lg:shadow-[0_20px_60px_rgba(0,0,0,0.1)]">
+          <section aria-label="Nearby help" className="order-4 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:col-start-2 lg:row-start-3 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
             {locationReady ? (
               <NearbyHelpList
                 places={nearbyHelp}
@@ -2122,7 +2123,7 @@ function MinimalEmergencyScreen({
                 origin={location ? { lat: location.lat, lng: location.lng } : null}
                 selectedId={selectedHelpId}
                 onSelect={setSelectedHelpId}
-                tone="dark"
+                tone="surface"
                 title="Help near you"
                 subtitle="Police, clinics and hospitals closest to you"
                 emptyLabel="No nearby police, clinics or hospitals were found yet. Use the emergency numbers instead."
@@ -2134,11 +2135,11 @@ function MinimalEmergencyScreen({
             )}
           </section>
 
-          <div id="emergency-chat" className="order-5 min-w-0 lg:col-start-1 lg:row-start-3">
+          <div id="emergency-chat" className="order-5 min-w-0 lg:col-start-1 lg:row-start-3 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:px-3 lg:shadow-soft">
             <SosRoomStrip activityId={activityId} inline />
           </div>
 
-          <div className="order-6 min-w-0 lg:col-start-1 lg:row-start-4">
+          <div className="order-6 min-w-0 lg:col-start-1 lg:row-start-4 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:px-5 lg:shadow-soft">
             <AllmaVoice activityId={activityId} compact />
           </div>
         </div>

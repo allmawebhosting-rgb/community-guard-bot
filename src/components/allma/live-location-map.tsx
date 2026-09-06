@@ -334,7 +334,7 @@ export function LiveLocationMap({
         );
 
   return (
-    <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/60">
+    <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/70 transition-shadow duration-300 hover:shadow-lift">
       <div ref={canvasRef} className={cn("relative bg-muted", heightClassName)}>
         {useGoogle ? (
           <GoogleLocationCanvas
@@ -419,7 +419,7 @@ export function LiveLocationMap({
           </button>
         </div>
 
-        <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground backdrop-blur-md">
+        <div className="pointer-events-none absolute left-2.5 top-2.5 flex max-w-[calc(100%-4.5rem)] items-center gap-1.5 rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground shadow-sm backdrop-blur-md">
           <LocateFixed className="h-3 w-3 text-success" />
           {badge} · {level.label}
           {accuracy !== null ? ` · ±${Math.round(accuracy)} m` : ""}
@@ -427,10 +427,10 @@ export function LiveLocationMap({
       </div>
 
       {(location.address || location.district) && (
-        <div className="flex items-start gap-2 border-t border-border/60 px-4 py-3">
+        <div className="flex items-start gap-2 border-t border-border/60 bg-card px-4 py-3">
           <Navigation2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[12.5px] font-semibold text-foreground">
+            <p className="line-clamp-2 text-[12.5px] font-semibold leading-relaxed text-foreground">
               {location.address}
               {location.address && location.district ? ", " : ""}
               {location.district}
@@ -440,7 +440,7 @@ export function LiveLocationMap({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 border-t border-border/60 p-2.5">
+      <div className="grid grid-cols-2 gap-2 border-t border-border/60 bg-card p-2.5">
         <a
           href={externalUrl}
           target="_blank"
