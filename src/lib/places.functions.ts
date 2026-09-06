@@ -8,7 +8,7 @@ const nearbyPlacesInput = z.object({
   longitude: z.number().min(-180).max(180),
   radiusMeters: z.number().int().min(200).max(10000).default(2500),
   limit: z.number().int().min(1).max(20).default(10),
-  types: z.array(z.string()).max(5).default(["hospital", "police", "fire_station", "clinic"]),
+  types: z.array(z.string()).max(5).default(["hospital", "police", "fire_station", "doctor", "pharmacy"]),
 });
 
 export const getNearbyPlaces = createServerFn({ method: "POST" })

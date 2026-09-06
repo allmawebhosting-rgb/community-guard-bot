@@ -105,7 +105,7 @@ async function loadNearbyFacilities(lat: number, lng: number) {
       longitude: lng,
       radiusMeters: 8000,
       limit: 8,
-      types: ["hospital", "police", "fire_station", "clinic"],
+      types: ["hospital", "police", "fire_station", "doctor", "pharmacy"],
     },
   });
 
@@ -2014,7 +2014,7 @@ function MinimalEmergencyScreen({
         longitude: location.lng,
         radiusMeters: 8000,
         limit: 8,
-        types: ["hospital", "police", "fire_station", "doctor"],
+        types: ["hospital", "police", "fire_station", "doctor", "pharmacy"],
       },
     })
       .then((results) => {

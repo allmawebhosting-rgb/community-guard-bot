@@ -2,10 +2,48 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const GOOGLE_API_URL = "https://connector-gateway.lovable.dev/google_maps/places/v1";
-const LOVABLE_API_KEY = process.env["LOVABLE_API_KEY"];
-const GOOGLE_MAPS_KEY = process.env["GOOGLE_MAPS_API_KEY"] || process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
 const MAX_RADIUS_M = 10_000;
 const MAX_RESULTS = 20;
+
+/** Categories Google Places (New) accepts for a nearby search of help facilities. */
+const SUPPORTED_PLACE_TYPES = new Set([
+  "hospital",
+  "police",
+  "fire_station",
+  "doctor",
+  "pharmacy",
+  "dental_clinic",
+  "medical_lab",
+]);
+
+/** Loose names used across the app mapped onto categories Google understands. */
+const PLACE_TYPE_ALIASES: Record<string, string> = {
+  clinic: "doctor",
+  clinics: "doctor",
+  health: "doctor",
+  health_centre: "doctor",
+  health_center: "doctor",
+  medical: "doctor",
+  medical_center: "doctor",
+  fire: "fire_station",
+  fire_brigade: "fire_station",
+  police_station: "police",
+  ambulance: "hospital",
+  drugstore: "pharmacy",
+};
+
+export const DEFAULT_PLACE_TYPES = ["hospital", "police", "fire_station", "doctor", "pharmacy"];
+
+/** Translate/drop unsupported categories so one bad value can't fail the whole search. */
+function normalizeGoogleTypes(types: string[]) {
+  const mapped = types
+    .map((value) => value.trim().toLowerCase())
+    .map((value) => PLACE_TYPE_ALIASES[value] ?? value)
+    .filter((value) => SUPPORTED_PLACE_TYPES.has(value));
+  const unique = [...new Set(mapped)];
+  return (unique.length ? unique : DEFAULT_PLACE_TYPES).slice(0, 5);
+}
+
 
 const NearbyPlaceSchema = z.object({
   id: z.string(),
@@ -90,17 +128,27 @@ async function loadSeededFacilities(latitude: number, longitude: number, radiusM
 }
 
 async function loadGooglePlaces(latitude: number, longitude: number, radiusMeters: number, types: string[]) {
-  if (!LOVABLE_API_KEY || !GOOGLE_MAPS_KEY) return [] as NearbyPlaceResult[];
+  // Read credentials at call time — env injection happens per request, not at module load.
+  const lovableApiKey = process.env["LOVABLE_API_KEY"];
+  const googleMapsKey =
+    process.env["GOOGLE_MAPS_API_KEY"] ||
+    process.env["GOOGLE_MAPS_API_KEY_1"] ||
+    process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
 
-  const normalizedTypes = [...new Set(types)].slice(0, 5);
-  const includedTypes = normalizedTypes.length ? normalizedTypes : ["hospital", "police", "fire_station", "clinic"];
+  if (!lovableApiKey || !googleMapsKey) {
+    console.warn("Google Places lookup skipped: Google Maps credentials are not available on the server.");
+    return [] as NearbyPlaceResult[];
+  }
+
+  const includedTypes = normalizeGoogleTypes(types);
   const response = await fetch(`${GOOGLE_API_URL}/places:searchNearby`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": GOOGLE_MAPS_KEY,
-      "X-Goog-FieldMask": "displayName,formattedAddress,location,nationalPhoneNumber,currentOpeningHours.openNow,primaryType",
+      Authorization: `Bearer ${lovableApiKey}`,
+      "X-Connection-Api-Key": googleMapsKey,
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType",
     },
     body: JSON.stringify({
       locationRestriction: {
@@ -110,7 +158,7 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
         },
       },
       includedTypes,
-      maxResultCount: Math.min(Math.max(20, 10), MAX_RESULTS),
+      maxResultCount: MAX_RESULTS,
       rankPreference: "DISTANCE",
     }),
   });
@@ -130,9 +178,11 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
   }
 
   if (!response.ok) {
-    console.warn("Google Places lookup failed", await response.text().catch(() => ""));
+    const body = await response.text().catch(() => "");
+    console.warn(`Google Places lookup failed [${response.status}] types=${includedTypes.join(",")}: ${body}`);
     return [] as NearbyPlaceResult[];
   }
+
 
   const result = (await response.json()) as {
     places?: Array<{
@@ -176,7 +226,7 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
   const longitude = Number(input.longitude);
   const radiusMeters = Math.min(Number(input.radiusMeters ?? 2500), MAX_RADIUS_M);
   const limit = Math.min(Number(input.limit ?? 10), MAX_RESULTS);
-  const types = Array.isArray(input.types) && input.types.length ? input.types : ["hospital", "police", "fire_station", "clinic"];
+  const types = Array.isArray(input.types) && input.types.length ? input.types : ["hospital", "police", "fire_station", "doctor", "pharmacy"];
 
   const cacheKeyValue = cacheKey(latitude, longitude, radiusMeters, types);
   const cached = placeCache.get(cacheKeyValue);
