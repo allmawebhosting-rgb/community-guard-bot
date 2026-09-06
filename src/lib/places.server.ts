@@ -2,10 +2,48 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const GOOGLE_API_URL = "https://connector-gateway.lovable.dev/google_maps/places/v1";
-const LOVABLE_API_KEY = process.env["LOVABLE_API_KEY"];
-const GOOGLE_MAPS_KEY = process.env["GOOGLE_MAPS_API_KEY"] || process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
 const MAX_RADIUS_M = 10_000;
 const MAX_RESULTS = 20;
+
+/** Categories Google Places (New) accepts for a nearby search of help facilities. */
+const SUPPORTED_PLACE_TYPES = new Set([
+  "hospital",
+  "police",
+  "fire_station",
+  "doctor",
+  "pharmacy",
+  "dental_clinic",
+  "medical_lab",
+]);
+
+/** Loose names used across the app mapped onto categories Google understands. */
+const PLACE_TYPE_ALIASES: Record<string, string> = {
+  clinic: "doctor",
+  clinics: "doctor",
+  health: "doctor",
+  health_centre: "doctor",
+  health_center: "doctor",
+  medical: "doctor",
+  medical_center: "doctor",
+  fire: "fire_station",
+  fire_brigade: "fire_station",
+  police_station: "police",
+  ambulance: "hospital",
+  drugstore: "pharmacy",
+};
+
+export const DEFAULT_PLACE_TYPES = ["hospital", "police", "fire_station", "doctor", "pharmacy"];
+
+/** Translate/drop unsupported categories so one bad value can't fail the whole search. */
+function normalizeGoogleTypes(types: string[]) {
+  const mapped = types
+    .map((value) => value.trim().toLowerCase())
+    .map((value) => PLACE_TYPE_ALIASES[value] ?? value)
+    .filter((value) => SUPPORTED_PLACE_TYPES.has(value));
+  const unique = [...new Set(mapped)];
+  return (unique.length ? unique : DEFAULT_PLACE_TYPES).slice(0, 5);
+}
+
 
 const NearbyPlaceSchema = z.object({
   id: z.string(),
