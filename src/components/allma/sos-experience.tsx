@@ -1981,22 +1981,14 @@ function MinimalEmergencyScreen({
   onReport: () => void;
   onClose: () => void;
 }) {
-  const [moreOpen, setMoreOpen] = useState(false);
   const [nearbyHelp, setNearbyHelp] = useState<HelpPlace[]>([]);
   const [nearbyHelpLoading, setNearbyHelpLoading] = useState(false);
   const [selectedHelpId, setSelectedHelpId] = useState<string | null>(null);
 
   const [servicesOpen, setServicesOpen] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
   const [closeConfirm, setCloseConfirm] = useState(false);
-  const [update, setUpdate] = useState("");
   const area = location?.district || location?.suburb || "Location pending";
   const locationReady = locationState === "found" || locationState === "approximate";
-  const closePanels = () => {
-    setMoreOpen(false);
-    setServicesOpen(false);
-    setUpdateOpen(false);
-  };
 
   useEffect(() => {
     if (!location || !locationReady) {
@@ -2053,36 +2045,38 @@ function MinimalEmergencyScreen({
       exit={{ opacity: 0 }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_50%_-20%,rgba(185,42,54,0.22),transparent_68%)]" />
-      <header className="sticky top-0 z-10 border-b border-white/[0.08] bg-[#0d0f10]/92 backdrop-blur-md lg:static lg:bg-transparent lg:backdrop-blur-none">
-        <div className="relative mx-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-7 sm:py-5 lg:max-w-6xl lg:px-10">
+      <header className="sticky top-0 z-10 border-b border-white/[0.08] bg-[#0d0f10]/92 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur-md lg:static lg:bg-transparent lg:shadow-none lg:backdrop-blur-none">
+        <div className="relative mx-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-7 sm:py-5 lg:max-w-[1500px] lg:px-10 lg:py-7">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-400 shadow-[0_0_0_4px_rgba(248,113,113,0.12)]" />
               <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.2em] text-red-300 sm:text-[11px]">SOS ACTIVE <span className="text-white/40">• LIVE</span></p>
             </div>
-            <p className="mt-1.5 truncate text-[11.5px] font-medium tracking-[0.02em] text-white/45 sm:mt-3 sm:text-[12px]">{emergencyId ?? "Emergency session"}</p>
-            <p className="mt-0.5 truncate text-[11.5px] text-white/65 sm:text-[12px]">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:mt-3">
+              <p className="truncate text-[11.5px] font-medium tracking-[0.02em] text-white/45 sm:text-[12px]">{emergencyId ?? "Emergency session"}</p>
+              <span className="hidden h-1 w-1 rounded-full bg-white/25 sm:block" />
+              <p className="truncate text-[11.5px] text-white/65 sm:text-[12px]">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
+            </div>
           </div>
-          <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-white/[0.03] px-4 text-[12px] font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/[0.08]">
+          <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-white/[0.03] px-4 text-[12px] font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70">
             Close
           </button>
         </div>
       </header>
 
-      <div className="relative mx-auto w-full max-w-xl overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-7 sm:pb-10 lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:px-10 lg:pb-14">
-        <div className="min-w-0">
-        <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
-        <SosRoomStrip activityId={activityId} />
-        <AllmaVoice activityId={activityId} compact />
+      <div className="relative mx-auto grid w-full max-w-xl grid-cols-1 overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-7 sm:pb-10 lg:max-w-[1500px] lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:items-start lg:gap-x-8 lg:px-10 lg:pb-14 xl:gap-x-10">
+        <div className="contents">
+          <div className="order-1 min-w-0 lg:col-start-1 lg:row-start-1 lg:rounded-3xl lg:border lg:border-white/[0.08] lg:bg-white/[0.025] lg:p-6 lg:shadow-[0_20px_60px_rgba(0,0,0,0.12)] xl:p-7">
+            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
+          </div>
 
-
-        <section aria-labelledby="actions-heading" className="border-b border-white/[0.08] py-4 sm:py-6">
+          <section aria-labelledby="actions-heading" className="order-2 min-w-0 border-b border-white/[0.08] py-5 sm:py-6 lg:col-start-1 lg:row-start-2 lg:mt-5 lg:rounded-3xl lg:border lg:border-white/[0.08] lg:bg-white/[0.025] lg:p-6 lg:shadow-[0_20px_60px_rgba(0,0,0,0.1)]">
           <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Immediate actions</p>
           <div className="mt-4 grid gap-2.5">
             <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-2xl bg-[#f5f5f2] px-4 text-left text-[14px] font-bold text-[#101214] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:bg-white active:scale-[0.99]">
               <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#101214]/[0.08]"><Phone className="h-4 w-4" /></span>Call Emergency Services</span><ChevronRight className="h-4 w-4 opacity-45 transition-transform group-hover:translate-x-0.5" />
             </button>
-            <button type="button" onClick={() => setUpdateOpen(true)} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
+            <button type="button" onClick={() => document.getElementById("emergency-chat")?.scrollIntoView({ behavior: "smooth", block: "center" })} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
               <span className="flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.07]"><Send className="h-4 w-4 text-white/70" /></span>Send Update</span><ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
             </button>
             <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-2xl border border-white/[0.12] bg-white/[0.035] px-4 text-left text-[14px] font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]">
@@ -2092,11 +2086,9 @@ function MinimalEmergencyScreen({
               Stop SOS
             </button>
           </div>
-        </section>
-        </div>
+          </section>
 
-        <div className="min-w-0">
-        <section aria-labelledby="location-heading" className="border-b border-white/[0.08] py-4 sm:py-6">
+          <section aria-labelledby="location-heading" className="order-3 min-w-0 border-b border-white/[0.08] py-5 sm:py-6 lg:col-start-2 lg:row-start-1 lg:rounded-3xl lg:border lg:border-white/[0.08] lg:bg-white/[0.025] lg:p-6 lg:shadow-[0_20px_60px_rgba(0,0,0,0.1)]">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">Location</p>
@@ -2120,40 +2112,44 @@ function MinimalEmergencyScreen({
               />
             </div>
           )}
-        </section>
-
-        {locationReady && location && (
-          <section aria-label="Nearby help" className="border-b border-white/[0.08] py-4 sm:py-6">
-            <NearbyHelpList
-              places={nearbyHelp}
-              loading={nearbyHelpLoading}
-              origin={{ lat: location.lat, lng: location.lng }}
-              selectedId={selectedHelpId}
-              onSelect={setSelectedHelpId}
-              tone="dark"
-              title="Help near you"
-              subtitle="Police, clinics and hospitals closest to you"
-              emptyLabel="No nearby police, clinics or hospitals were found yet. Use the emergency numbers instead."
-            />
           </section>
-        )}
 
+          <section aria-label="Nearby help" className="order-4 min-w-0 border-b border-white/[0.08] py-5 sm:py-6 lg:col-start-2 lg:row-start-2 lg:mt-5 lg:rounded-3xl lg:border lg:border-white/[0.08] lg:bg-white/[0.025] lg:p-6 lg:shadow-[0_20px_60px_rgba(0,0,0,0.1)]">
+            {locationReady ? (
+              <NearbyHelpList
+                places={nearbyHelp}
+                loading={nearbyHelpLoading}
+                origin={location ? { lat: location.lat, lng: location.lng } : null}
+                selectedId={selectedHelpId}
+                onSelect={setSelectedHelpId}
+                tone="dark"
+                title="Help near you"
+                subtitle="Police, clinics and hospitals closest to you"
+                emptyLabel="No nearby police, clinics or hospitals were found yet. Use the emergency numbers instead."
+              />
+            ) : (
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-[12px] leading-relaxed text-amber-100/75">
+                Nearby police, clinics and hospitals need location permission. Enable location above to search for real places.
+              </div>
+            )}
+          </section>
 
-          <button type="button" onClick={() => setMoreOpen(true)} className="group flex min-h-14 w-full items-center justify-between border-b border-white/[0.08] text-left">
-            <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">More</span>
-            <ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
-          </button>
+          <div id="emergency-chat" className="order-5 min-w-0 lg:col-start-1 lg:row-start-3">
+            <SosRoomStrip activityId={activityId} inline />
+          </div>
+
+          <div className="order-6 min-w-0 lg:col-start-1 lg:row-start-4">
+            <AllmaVoice activityId={activityId} compact />
+          </div>
         </div>
       </div>
 
-      {(moreOpen || servicesOpen || updateOpen) && (
-        <div className="fixed inset-0 z-20 flex items-end bg-black/70 p-3 backdrop-blur-[2px]" onClick={closePanels}>
+      {servicesOpen && (
+        <div className="fixed inset-0 z-20 flex items-end bg-black/70 p-3 backdrop-blur-[2px]" onClick={() => setServicesOpen(false)}>
           <div className="mx-auto w-full max-w-xl rounded-[1.75rem] border border-white/[0.12] bg-[#191c1f] p-5 shadow-[0_-16px_60px_rgba(0,0,0,0.38)]" onClick={(event) => event.stopPropagation()}>
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-white/20" />
-            <div className="mb-5 flex items-center justify-between"><p className="text-sm font-semibold text-white">{servicesOpen ? "Emergency Services" : updateOpen ? "Send Update" : "More"}</p><button type="button" onClick={closePanels} aria-label="Close panel" className="grid h-9 w-9 place-items-center rounded-lg text-white/60 transition hover:bg-white/10"><X className="h-5 w-5" /></button></div>
+            <div className="mb-5 flex items-center justify-between"><p className="text-sm font-semibold text-white">Emergency Services</p><button type="button" onClick={() => setServicesOpen(false)} aria-label="Close panel" className="grid h-9 w-9 place-items-center rounded-lg text-white/60 transition hover:bg-white/10"><X className="h-5 w-5" /></button></div>
             {servicesOpen && <div className="grid gap-2">{EMERGENCY_NUMBERS.map((service) => <a key={service.label} href={`tel:${service.number}`} className="flex min-h-12 items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[13px] text-white transition hover:bg-white/[0.07]"><span>{service.label}</span><span className="font-bold text-white/70">{service.number}</span></a>)}</div>}
-            {updateOpen && <div><textarea value={update} onChange={(event) => setUpdate(event.target.value)} rows={3} placeholder="Tell responders what has changed" className="w-full resize-none rounded-xl border border-white/15 bg-black/20 p-3 text-[13px] text-white outline-none placeholder:text-white/35 focus:border-white/30" /><button type="button" onClick={() => { setUpdate(""); setUpdateOpen(false); }} disabled={!update.trim()} className="mt-3 min-h-12 w-full rounded-xl bg-[#f5f5f2] text-[13px] font-bold text-[#101214] transition hover:bg-white disabled:opacity-40">Send update</button></div>}
-            {moreOpen && <div className="grid divide-y divide-white/10">{["✦  Allma AI · Need help?", "Activity ›", "Nearby help ›", "Location details ›"].map((item) => <button type="button" key={item} onClick={closePanels} className="min-h-14 text-left text-[13px] text-white/80 transition hover:text-white">{item}</button>)}</div>}
           </div>
         </div>
       )}

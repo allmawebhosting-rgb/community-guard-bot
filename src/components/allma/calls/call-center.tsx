@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useNavigate } from "@tanstack/react-router";
 import {
   MapPin,
-  MessageSquare,
   Mic,
   MicOff,
   Phone,
@@ -20,6 +18,7 @@ import { notifyIncomingCall } from "@/lib/push.functions";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
+import { EmergencyRoom } from "@/components/allma/calls/emergency-room";
 import { getNearbyPlaces } from "@/lib/places.functions";
 import { acceptEmergencyCallInvitation, getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
 import { startSosEmergencyCall } from "@/lib/sos-calling";
@@ -48,7 +47,6 @@ const qualityCopy: Record<ConnectionQuality, string> = {
 };
 
 export function CallCenter() {
-  const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [peer, setPeer] = useState<CallPeer | null>(null);
@@ -553,23 +551,23 @@ export function CallCenter() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex flex-col bg-background/95 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
+          className="fixed inset-0 z-[80] flex flex-col bg-[#101316]/[0.98] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
           role="dialog"
           aria-label="Allma voice call"
         >
           <div
             className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b to-transparent",
+              "pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b to-transparent",
               isEmergencyCall ? "from-destructive/20" : "from-primary/12",
             )}
           />
 
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 lg:px-10">
-            <div className="mx-auto flex w-full max-w-md flex-col lg:max-w-5xl lg:flex-row lg:items-start lg:gap-12">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-36 pt-5 sm:px-6 lg:px-8 lg:pb-8">
+            <div className="mx-auto flex w-full max-w-md flex-col lg:max-w-6xl lg:flex-row lg:items-start lg:gap-8 xl:gap-12">
               <div className="flex w-full flex-col items-center text-center lg:sticky lg:top-4 lg:flex-1 lg:items-start lg:text-left">
                 <p
                   className={cn(
-                    "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.3em]",
+                    "inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.24em]",
                     isEmergencyCall ? "text-destructive" : "text-muted-foreground",
                   )}
                 >
@@ -582,7 +580,7 @@ export function CallCenter() {
                 </p>
 
                 <motion.div
-                  className="mt-5 lg:mt-8"
+                  className="mt-6 rounded-full p-1.5 ring-1 ring-white/[0.12] ring-offset-4 ring-offset-[#101316] lg:mt-9"
                   animate={
                     phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.04, 1] } : {}
                   }
@@ -595,12 +593,12 @@ export function CallCenter() {
                   />
                 </motion.div>
 
-                <h2 className="mt-4 text-xl font-bold tracking-tight lg:mt-6 lg:text-3xl">
+                <h2 className="mt-5 max-w-md text-xl font-bold tracking-tight lg:mt-7 lg:text-4xl lg:leading-tight">
                   {isEmergencyCall && phase === "incoming"
                     ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
                     : (peer?.name ?? "Allma member")}
                 </h2>
-                <p className="mt-1.5 text-sm text-muted-foreground">
+                <p className="mt-2 text-sm text-muted-foreground lg:text-base">
                   {emergency && phase === "incoming"
                     ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
                     : statusLine}
@@ -612,15 +610,15 @@ export function CallCenter() {
                   </p>
                 )}
 
-                <p className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground lg:mt-6">
+                <p className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.035] px-3 py-1.5 text-[11px] font-semibold text-muted-foreground lg:mt-7">
                   <ShieldCheck className="h-3.5 w-3.5 text-success" />
                   In-app call · phone numbers stay private
                 </p>
               </div>
 
               {emergency && phase !== "ended" && (
-                <div className="mt-6 w-full space-y-4 text-left lg:mt-0 lg:flex-1">
-                  <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
+                <div className="mt-7 w-full space-y-4 text-left lg:mt-0 lg:flex-1">
+                  <div className="rounded-3xl border border-destructive/25 bg-white/[0.035] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
                       Emergency
                     </p>
@@ -641,6 +639,7 @@ export function CallCenter() {
                   </div>
 
                   {callerPoint && (
+                    <div className="overflow-hidden rounded-3xl border border-white/[0.1] bg-white/[0.025] p-1.5 shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
                     <LiveLocationMap
                       location={{
                         lat: callerPoint.lat,
@@ -655,6 +654,7 @@ export function CallCenter() {
                       selectedPlaceId={selectedHelpId}
                       onSelectPlace={setSelectedHelpId}
                     />
+                    </div>
                   )}
 
                   {callerPoint && (
@@ -672,18 +672,9 @@ export function CallCenter() {
                   )}
 
                   {sosRoomId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const room = sosRoomId;
-                        teardown(null);
-                        void navigate({ to: "/calls", search: { room } });
-                      }}
-                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gold/45 bg-gold/10 px-4 py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-gold/20"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      Open emergency chat
-                    </button>
+                    <div aria-label="Shared emergency chat">
+                      <EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} />
+                    </div>
                   )}
                 </div>
               )}
@@ -691,7 +682,7 @@ export function CallCenter() {
           </div>
 
 
-          <div className="relative shrink-0 border-t border-border/50 bg-background/85 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl">
+          <div className="fixed inset-x-0 bottom-0 z-10 shrink-0 border-t border-white/[0.1] bg-[#101316]/[0.96] px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-18px_50px_rgba(0,0,0,0.24)] backdrop-blur-xl lg:relative lg:inset-auto lg:bg-white/[0.025] lg:shadow-none">
             {phase === "incoming" ? (
               <div className="mx-auto flex max-w-sm items-center justify-between gap-8">
                 <CallAction label="Decline" tone="destructive" onClick={() => void decline()}>
