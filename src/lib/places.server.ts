@@ -128,17 +128,27 @@ async function loadSeededFacilities(latitude: number, longitude: number, radiusM
 }
 
 async function loadGooglePlaces(latitude: number, longitude: number, radiusMeters: number, types: string[]) {
-  if (!LOVABLE_API_KEY || !GOOGLE_MAPS_KEY) return [] as NearbyPlaceResult[];
+  // Read credentials at call time — env injection happens per request, not at module load.
+  const lovableApiKey = process.env["LOVABLE_API_KEY"];
+  const googleMapsKey =
+    process.env["GOOGLE_MAPS_API_KEY"] ||
+    process.env["GOOGLE_MAPS_API_KEY_1"] ||
+    process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
 
-  const normalizedTypes = [...new Set(types)].slice(0, 5);
-  const includedTypes = normalizedTypes.length ? normalizedTypes : ["hospital", "police", "fire_station", "clinic"];
+  if (!lovableApiKey || !googleMapsKey) {
+    console.warn("Google Places lookup skipped: Google Maps credentials are not available on the server.");
+    return [] as NearbyPlaceResult[];
+  }
+
+  const includedTypes = normalizeGoogleTypes(types);
   const response = await fetch(`${GOOGLE_API_URL}/places:searchNearby`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": GOOGLE_MAPS_KEY,
-      "X-Goog-FieldMask": "displayName,formattedAddress,location,nationalPhoneNumber,currentOpeningHours.openNow,primaryType",
+      Authorization: `Bearer ${lovableApiKey}`,
+      "X-Connection-Api-Key": googleMapsKey,
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType",
     },
     body: JSON.stringify({
       locationRestriction: {
@@ -148,7 +158,7 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
         },
       },
       includedTypes,
-      maxResultCount: Math.min(Math.max(20, 10), MAX_RESULTS),
+      maxResultCount: MAX_RESULTS,
       rankPreference: "DISTANCE",
     }),
   });
@@ -168,9 +178,11 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
   }
 
   if (!response.ok) {
-    console.warn("Google Places lookup failed", await response.text().catch(() => ""));
+    const body = await response.text().catch(() => "");
+    console.warn(`Google Places lookup failed [${response.status}] types=${includedTypes.join(",")}: ${body}`);
     return [] as NearbyPlaceResult[];
   }
+
 
   const result = (await response.json()) as {
     places?: Array<{
