@@ -551,27 +551,27 @@ export function CallCenter() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex flex-col bg-[#101316]/[0.98] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
+          className="fixed inset-0 z-[80] flex flex-col overflow-hidden bg-background/98 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground backdrop-blur-xl"
           role="dialog"
           aria-label="Allma voice call"
         >
           <div
             className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b to-transparent",
+              "pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-b to-transparent",
               isEmergencyCall ? "from-destructive/20" : "from-primary/12",
             )}
           />
 
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-36 pt-5 sm:px-6 lg:px-8 lg:pb-8">
-            <div className="mx-auto flex w-full max-w-md flex-col lg:max-w-6xl lg:flex-row lg:items-start lg:gap-8 xl:gap-12">
-              <div className="flex w-full flex-col items-center text-center lg:sticky lg:top-4 lg:flex-1 lg:items-start lg:text-left">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-40 pt-3 sm:px-6 sm:pt-6 lg:px-8 lg:pb-6">
+            <div className="mx-auto grid w-full max-w-md overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-lift sm:rounded-3xl lg:max-w-[1400px] lg:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)]">
+              <div className="flex w-full flex-col items-center border-b border-border/60 px-5 py-6 text-center sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:min-h-[calc(100vh-7rem)] lg:items-start lg:justify-center lg:border-b-0 lg:border-r lg:px-10 lg:py-10 lg:text-left">
                 <p
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.24em]",
+                    "inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] shadow-sm",
                     isEmergencyCall ? "text-destructive" : "text-muted-foreground",
                   )}
                 >
-                  {isEmergencyCall && <TriangleAlert className="h-3.5 w-3.5" />}
+                  {isEmergencyCall && <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" /></span>}
                   {isEmergencyCall
                     ? "Allma emergency call"
                     : phase === "incoming"
@@ -580,7 +580,7 @@ export function CallCenter() {
                 </p>
 
                 <motion.div
-                  className="mt-6 rounded-full p-1.5 ring-1 ring-white/[0.12] ring-offset-4 ring-offset-[#101316] lg:mt-9"
+                  className="mt-5 rounded-full bg-card p-1.5 ring-1 ring-destructive/30 ring-offset-4 ring-offset-background shadow-lg shadow-destructive/15 sm:mt-7"
                   animate={
                     phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.04, 1] } : {}
                   }
@@ -593,12 +593,12 @@ export function CallCenter() {
                   />
                 </motion.div>
 
-                <h2 className="mt-5 max-w-md text-xl font-bold tracking-tight lg:mt-7 lg:text-4xl lg:leading-tight">
+                <h2 className="mt-5 max-w-md font-display text-2xl font-black leading-tight sm:text-3xl lg:mt-7 lg:text-4xl">
                   {isEmergencyCall && phase === "incoming"
                     ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
                     : (peer?.name ?? "Allma member")}
                 </h2>
-                <p className="mt-2 text-sm text-muted-foreground lg:text-base">
+                <p className="mt-2 text-sm font-medium text-muted-foreground lg:text-base">
                   {emergency && phase === "incoming"
                     ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
                     : statusLine}
@@ -610,36 +610,37 @@ export function CallCenter() {
                   </p>
                 )}
 
-                <p className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.035] px-3 py-1.5 text-[11px] font-semibold text-muted-foreground lg:mt-7">
+                <p className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/50 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground lg:mt-7">
                   <ShieldCheck className="h-3.5 w-3.5 text-success" />
                   In-app call · phone numbers stay private
                 </p>
               </div>
 
               {emergency && phase !== "ended" && (
-                <div className="mt-7 w-full space-y-4 text-left lg:mt-0 lg:flex-1">
-                  <div className="rounded-3xl border border-destructive/25 bg-white/[0.035] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">
-                      Emergency
+                <div className="w-full min-w-0 space-y-5 p-4 text-left sm:p-6 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:p-8">
+                  <div className="rounded-2xl border border-destructive/25 bg-destructive/[0.045] p-4 shadow-soft sm:p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">Emergency information</p>
+                      <span className="rounded-full border border-destructive/20 bg-destructive/10 px-2.5 py-1 text-[10px] font-bold uppercase text-destructive">{emergency.severity}</span>
+                    </div>
+                    <p className="mt-2 text-base font-bold capitalize text-foreground">
+                      {emergency.emergency_type.replace(/_/g, " ")}
                     </p>
-                    <p className="mt-1.5 text-[13px] font-semibold capitalize text-foreground">
-                      {emergency.emergency_type.replace(/_/g, " ")} · {emergency.severity}
-                    </p>
-                    <p className="mt-2 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                    <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
                       <MapPin className="h-3.5 w-3.5 shrink-0" />
                       <span className="min-w-0 flex-1">
                         {emergency.location_shared ? emergency.area : "Location not shared with you"}
                       </span>
                     </p>
                     {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
-                      <p className="mt-1 text-[10.5px] text-muted-foreground">
+                      <p className="mt-2 border-t border-border/50 pt-2 text-[11px] font-medium text-muted-foreground">
                         GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
                       </p>
                     )}
                   </div>
 
                   {callerPoint && (
-                    <div className="overflow-hidden rounded-3xl border border-white/[0.1] bg-white/[0.025] p-1.5 shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
+                    <section aria-label="Caller location" className="overflow-hidden rounded-2xl border border-border/60 bg-card p-1.5 shadow-soft">
                     <LiveLocationMap
                       location={{
                         lat: callerPoint.lat,
@@ -654,7 +655,7 @@ export function CallCenter() {
                       selectedPlaceId={selectedHelpId}
                       onSelectPlace={setSelectedHelpId}
                     />
-                    </div>
+                    </section>
                   )}
 
                   {callerPoint && (
@@ -672,7 +673,7 @@ export function CallCenter() {
                   )}
 
                   {sosRoomId && (
-                    <div aria-label="Shared emergency chat">
+                    <div className="rounded-2xl border border-border/60 bg-muted/25 px-3 py-1 shadow-soft" aria-label="Shared emergency chat">
                       <EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} />
                     </div>
                   )}
@@ -682,9 +683,9 @@ export function CallCenter() {
           </div>
 
 
-          <div className="fixed inset-x-0 bottom-0 z-10 shrink-0 border-t border-white/[0.1] bg-[#101316]/[0.96] px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-18px_50px_rgba(0,0,0,0.24)] backdrop-blur-xl lg:relative lg:inset-auto lg:bg-white/[0.025] lg:shadow-none">
+          <div className="fixed inset-x-0 bottom-0 z-10 shrink-0 border-t border-border/60 bg-background/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-18px_50px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-xl lg:relative lg:inset-auto lg:bg-card/95 lg:py-4 lg:shadow-none">
             {phase === "incoming" ? (
-              <div className="mx-auto flex max-w-sm items-center justify-between gap-8">
+              <div className="mx-auto grid w-full max-w-md grid-cols-2 gap-5 sm:gap-8">
                 <CallAction label="Decline" tone="destructive" onClick={() => void decline()}>
                   <PhoneOff className="h-7 w-7" />
                 </CallAction>
@@ -738,15 +739,15 @@ function CallAction({
   onClick: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex min-w-0 flex-col items-center gap-1.5">
       <button
         type="button"
         onClick={onClick}
         aria-label={label}
         className={cn(
-          "grid h-[68px] w-[68px] place-items-center rounded-full transition-transform active:scale-95",
-          tone === "success" && "bg-success text-background shadow-lg shadow-success/30",
-          tone === "destructive" && "bg-destructive text-background shadow-lg shadow-destructive/30",
+          "grid h-16 w-16 place-items-center rounded-full ring-offset-2 ring-offset-background transition duration-200 hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 active:scale-95 sm:h-[68px] sm:w-[68px]",
+          tone === "success" && "bg-success text-success-foreground shadow-lg shadow-success/30 focus-visible:ring-success",
+          tone === "destructive" && "border border-destructive/40 bg-muted text-destructive shadow-md focus-visible:ring-destructive",
           tone === "muted" &&
             (active
               ? "bg-foreground text-background"

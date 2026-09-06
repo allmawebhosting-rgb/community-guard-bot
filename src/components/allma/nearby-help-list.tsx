@@ -107,9 +107,9 @@ export function NearbyHelpList({
 
   return (
     <div>
-      <div className="flex items-end justify-between gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
         <div className="min-w-0">
-          <p className={cn("text-[10px] font-bold uppercase tracking-[0.24em]", headingClass)}>
+            className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", headingClass)}
             {title}
           </p>
           {subtitle && (
@@ -135,7 +135,7 @@ export function NearbyHelpList({
       ) : places.length === 0 ? (
         <div className={cn("mt-3 rounded-2xl border p-4 text-[12px]", noticeClass)}>{emptyLabel}</div>
       ) : (
-        <ul className="mt-3 space-y-2.5">
+        <ul className="mt-4 max-h-[34rem] space-y-2.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]">
           {places.map((place) => {
             const kind = helpKind(place.type);
             const Icon = KIND_ICON[kind];
@@ -147,7 +147,7 @@ export function NearbyHelpList({
                 id={`help-place-${place.id}`}
                 onClick={() => onSelect?.(place.id)}
                 className={cn(
-                  "rounded-2xl border p-3 transition",
+                  "rounded-xl border p-3.5 transition duration-200 hover:-translate-y-px hover:shadow-sm",
                   shell,
                   selected && selectedShell,
                   onSelect && "cursor-pointer",
@@ -164,8 +164,8 @@ export function NearbyHelpList({
                     <Icon className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className={cn("truncate text-[13px] font-semibold", nameClass)}>{place.name}</p>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                      <p className={cn("min-w-0 break-words text-[13px] font-bold leading-snug", nameClass)}>{place.name}</p>
                       <span
                         className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
                         style={{
@@ -179,7 +179,7 @@ export function NearbyHelpList({
                     {place.address && (
                       <p className={cn("mt-1 flex items-center gap-1 text-[11px]", metaClass)}>
                         <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{place.address}</span>
+                        <span className="line-clamp-2">{place.address}</span>
                       </p>
                     )}
                     <p className={cn("mt-1 text-[11px] font-semibold", strongMeta)}>

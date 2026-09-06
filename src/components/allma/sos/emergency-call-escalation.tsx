@@ -127,34 +127,36 @@ export function EmergencyCallEscalation({
             : "Preparing";
 
     return (
-      <section aria-labelledby="response-heading" className="border-y border-white/10 py-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">Response</p>
-            <h2 id="response-heading" className="mt-2 text-xl font-semibold text-white">
+      <section aria-labelledby="response-heading" className="border-b border-border/60 pb-5 pt-1">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Response</p>
+            <h2 id="response-heading" className="mt-2 font-display text-xl font-bold leading-tight text-foreground">
               {answered ? `${current?.target.full_name ?? "Responder"} is responding` : state?.priority ? `Priority ${state.priority} contacts` : "Safety Network retrying"}
             </h2>
+            <p className="mt-1 text-[11px] font-semibold text-muted-foreground">{activeRows.length}/{rows.length} contacts in this priority</p>
           </div>
-          <span className={cn("shrink-0 text-[11px] font-bold uppercase tracking-[0.14em]", answered ? "text-emerald-300" : "text-white/65")}>
+          <span className={cn("shrink-0 rounded-full border border-border/60 bg-muted/50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", answered ? "text-success" : "text-muted-foreground")}>
             {currentLabel}
           </span>
         </div>
-        <div className="mt-5 flex items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-bold text-white">
+        <div className="mt-5 flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 p-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-card text-sm font-bold text-foreground shadow-sm ring-1 ring-border/60">
             {current?.target.full_name.slice(0, 1).toUpperCase() ?? "—"}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[14px] font-semibold text-white">{current?.target.full_name ?? "Safety Network"}</p>
-            <p className="mt-0.5 text-[12px] text-white/50">{answered ? "Voice connection established" : current?.target.safety_role ?? "Friend"}</p>
+            <p className="truncate text-[14px] font-semibold text-foreground">{current?.target.full_name ?? "Safety Network"}</p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">{answered ? "Voice connection established" : current?.target.safety_role ?? "Friend"}</p>
           </div>
         </div>
-        <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
-          {activeRows.slice(0, 4).map(({ target, attempt }) => {
+        <div className="mt-4 space-y-2">
+          {rows.map(({ target, attempt }) => {
             const derived = attempt ? attemptState(attempt.status) : null;
             return (
-              <div key={target.member_id} className="flex items-center justify-between gap-3 text-[12px]">
-                <span className="truncate text-white/75">{target.full_name}</span>
-                <span className={cn("shrink-0 font-semibold", derived === "answered" ? "text-emerald-300" : derived === "calling" ? "text-white" : "text-white/40")}>
+              <div key={target.member_id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border/50 px-3 py-2.5 text-[12px]">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">{target.full_name.slice(0, 1).toUpperCase()}</span>
+                <span className="min-w-0"><span className="block truncate font-semibold text-foreground">{target.full_name}</span><span className="block truncate text-[10px] text-muted-foreground">{target.safety_role ?? "Friend"} · Priority {target.priority}</span></span>
+                <span className={cn("shrink-0 font-semibold", derived === "answered" ? "text-success" : derived === "calling" ? "text-foreground" : "text-muted-foreground")}>
                   {derived === "answered" ? "Connected" : derived === "calling" ? "Calling" : derived === "alerted" ? "Notified" : "Waiting"}
                 </span>
               </div>
