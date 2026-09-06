@@ -91,7 +91,7 @@ export function CallCenter() {
         longitude: lng,
         radiusMeters: 8000,
         limit: 8,
-        types: ["hospital", "police", "fire_station", "doctor"],
+        types: ["hospital", "police", "fire_station", "doctor", "pharmacy"],
       },
     })
       .then((results) => {

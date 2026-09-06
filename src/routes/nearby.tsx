@@ -106,7 +106,7 @@ function NearbyScreen() {
           longitude: location!.lng,
           radiusMeters: 2500,
           limit: 12,
-          types: ["hospital", "police", "fire_station", "clinic"],
+          types: ["hospital", "police", "fire_station", "doctor", "pharmacy"],
         },
       });
       return (data ?? []) as NearbyPlace[];

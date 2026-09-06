@@ -226,7 +226,7 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
   const longitude = Number(input.longitude);
   const radiusMeters = Math.min(Number(input.radiusMeters ?? 2500), MAX_RADIUS_M);
   const limit = Math.min(Number(input.limit ?? 10), MAX_RESULTS);
-  const types = Array.isArray(input.types) && input.types.length ? input.types : ["hospital", "police", "fire_station", "clinic"];
+  const types = Array.isArray(input.types) && input.types.length ? input.types : ["hospital", "police", "fire_station", "doctor", "pharmacy"];
 
   const cacheKeyValue = cacheKey(latitude, longitude, radiusMeters, types);
   const cached = placeCache.get(cacheKeyValue);
