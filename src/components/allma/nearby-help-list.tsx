@@ -109,7 +109,7 @@ export function NearbyHelpList({
     <div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
         <div className="min-w-0">
-            className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", headingClass)}
+          <p className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", headingClass)}>
             {title}
           </p>
           {subtitle && (
