@@ -9,7 +9,14 @@ import { relativeTime, sosRoomMessagesQueryOptions } from "@/lib/sos-rooms";
  * Sender-side strip on the SOS screen: shows the real messages your responders
  * sent about this emergency and opens the same shared room to reply.
  */
-export function SosRoomStrip({ activityId }: { activityId: string | null }) {
+export function SosRoomStrip({
+  activityId,
+  inline = false,
+}: {
+  activityId: string | null;
+  /** Presentation only: drop outer margins when embedded inside a styled card. */
+  inline?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const messagesQuery = useQuery(sosRoomMessagesQueryOptions(activityId));
