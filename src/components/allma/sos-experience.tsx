@@ -2123,7 +2123,7 @@ function MinimalEmergencyScreen({
                 origin={location ? { lat: location.lat, lng: location.lng } : null}
                 selectedId={selectedHelpId}
                 onSelect={setSelectedHelpId}
-                tone="surface"
+                tone="dark"
                 title="Help near you"
                 subtitle="Police, clinics and hospitals closest to you"
                 emptyLabel="No nearby police, clinics or hospitals were found yet. Use the emergency numbers instead."
