@@ -89,20 +89,20 @@ export function NearbyHelpList({
   const dark = tone === "dark";
 
   const shell = dark
-    ? "border-white/[0.08] bg-white/[0.025]"
+    ? "border-border/70 bg-card"
     : "border-border/60 bg-secondary/30";
   const selectedShell = dark
-    ? "border-white/25 bg-white/[0.07]"
+    ? "border-primary/50 bg-card"
     : "border-primary/45 bg-accent";
-  const nameClass = dark ? "text-white" : "text-foreground";
-  const metaClass = dark ? "text-white/55" : "text-muted-foreground";
-  const strongMeta = dark ? "text-white/80" : "text-foreground/80";
+  const nameClass = "text-foreground";
+  const metaClass = "text-muted-foreground";
+  const strongMeta = "text-foreground";
   const actionClass = dark
-    ? "border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.08]"
+    ? "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
     : "border-border/70 bg-secondary text-foreground hover:bg-accent";
-  const headingClass = dark ? "text-white/40" : "text-muted-foreground";
+  const headingClass = "text-muted-foreground";
   const noticeClass = dark
-    ? "border-white/10 bg-white/[0.02] text-white/60"
+    ? "border-border/70 bg-card text-muted-foreground"
     : "border-border/60 bg-secondary/30 text-muted-foreground";
 
   return (
@@ -120,7 +120,7 @@ export function NearbyHelpList({
           <span
             className={cn(
               "shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em]",
-              dark ? "border-white/10 bg-white/[0.03] text-white/50" : "border-border/60 text-muted-foreground",
+              dark ? "border-border/70 bg-card text-muted-foreground" : "border-border/60 text-muted-foreground",
             )}
           >
             {places.length} found
@@ -147,7 +147,7 @@ export function NearbyHelpList({
                 id={`help-place-${place.id}`}
                 onClick={() => onSelect?.(place.id)}
                 className={cn(
-                  "rounded-xl border p-3.5 transition duration-200 hover:-translate-y-px hover:shadow-sm",
+                  "rounded-xl border p-3.5 shadow-sm",
                   shell,
                   selected && selectedShell,
                   onSelect && "cursor-pointer",
@@ -196,7 +196,7 @@ export function NearbyHelpList({
                     rel="noreferrer"
                     onClick={(event) => event.stopPropagation()}
                     className={cn(
-                      "flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-bold transition",
+                      "flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-bold transition-colors",
                       actionClass,
                     )}
                   >
@@ -207,7 +207,7 @@ export function NearbyHelpList({
                       href={`tel:${tel}`}
                       onClick={(event) => event.stopPropagation()}
                       className={cn(
-                        "flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-bold transition",
+                        "flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-bold transition-colors",
                         actionClass,
                       )}
                     >

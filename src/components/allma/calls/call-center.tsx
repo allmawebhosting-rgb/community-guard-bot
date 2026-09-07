@@ -665,7 +665,7 @@ export function CallCenter() {
                       origin={callerPoint}
                       selectedId={selectedHelpId}
                       onSelect={setSelectedHelpId}
-                      tone="surface"
+                      tone="dark"
                       title="Help near the caller"
                       subtitle="Police, clinics and hospitals closest to where they are"
                       emptyLabel="No police, clinics or hospitals were found near the caller yet."
