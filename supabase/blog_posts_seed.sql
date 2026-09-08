@@ -222,7 +222,7 @@ Use plain emergency language, make location consent visible and provide a clear 
 ## A short checklist
 - Use plain emergency language.
 - Make location consent visible.
-- Provide a clear reply or call action.$$ , 5, '2026-09-08');
+- Provide a clear reply or call action.$$ , 5, '2026-09-08')
 
 on conflict (slug) do update set
   keyword = excluded.keyword,

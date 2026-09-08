@@ -37,13 +37,13 @@ export function SosRoomStrip({
   const incoming = messages.filter((message) => message.author_id !== userId);
   const latest = incoming[incoming.length - 1] ?? null;
 
-  if (open) {
+  if (open || inline) {
     return (
       <div className={inline ? "" : "py-3"}>
         <EmergencyRoom
           sosActivityId={activityId}
           currentUserId={userId}
-          onClose={() => setOpen(false)}
+          onClose={inline ? undefined : () => setOpen(false)}
           compact
           showLocation={false}
         />

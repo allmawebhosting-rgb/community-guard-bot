@@ -149,7 +149,12 @@ export function EmergencyCallEscalation({
             <p className="mt-0.5 text-[12px] text-muted-foreground">{answered ? "Voice connection established" : current?.target.safety_role ?? "Friend"}</p>
           </div>
         </div>
-        <div className="mt-4 space-y-2">
+        <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
+          {!loading && rows.length === 0 && (
+            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-relaxed text-white/60">
+              No Safety Network members are available for this emergency.
+            </p>
+          )}
           {rows.map(({ target, attempt }) => {
             const derived = attempt ? attemptState(attempt.status) : null;
             return (

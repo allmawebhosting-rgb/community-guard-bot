@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
+  BookOpen,
   ChevronRight,
   FileText,
   Home,
@@ -34,7 +35,7 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-type TabPath = "/chat" | "/alerts" | "/reports" | "/profile" | "/calls" | "/lost-found";
+type TabPath = "/chat" | "/alerts" | "/reports" | "/profile" | "/calls" | "/lost-found" | "/blog";
 
 const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Home", to: "/chat", icon: Home },
@@ -43,6 +44,7 @@ const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Profile", to: "/profile", icon: UserRound },
   { label: "Emergency calls", to: "/calls", icon: PhoneCall },
   { label: "Lost & Found", to: "/lost-found", icon: PackageSearch },
+  { label: "Safety Journal", to: "/blog", icon: BookOpen },
 ];
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────── */
@@ -458,6 +460,22 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                     <MapPin className="h-4 w-4 text-primary" />
                   </span>
                   <span className="flex-1 text-[13px] font-medium">Nearby help</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                </Link>
+                <Link
+                  to="/blog"
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors hover:bg-accent",
+                    pathname === "/blog" || pathname.startsWith("/blog/")
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground",
+                  )}
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/12">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                  </span>
+                  <span className="flex-1 text-[13px] font-medium">Safety Journal</span>
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
                 </Link>
                 <Link
