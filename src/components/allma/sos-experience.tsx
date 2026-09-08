@@ -11,7 +11,6 @@ import {
   Loader2,
   ChevronRight,
   X,
-  Send,
   ArrowLeft,
   CheckCircle2,
   Navigation2,
@@ -41,8 +40,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
-import { AllmaVoice } from "@/components/allma/sos/allma-voice";
-import { SosRoomStrip } from "@/components/allma/sos/sos-room-strip";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
 import { cn } from "@/lib/utils";
@@ -2076,9 +2073,6 @@ function MinimalEmergencyScreen({
             <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-destructive px-4 text-left text-[14px] font-bold text-destructive-foreground shadow-lg shadow-destructive/15 transition hover:bg-destructive/90 active:scale-[0.99]">
               <span className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-destructive-foreground/15"><Phone className="h-4 w-4" /></span>Call Emergency Services</span><ChevronRight className="h-4 w-4 opacity-70 transition-transform group-hover:translate-x-0.5" />
             </button>
-            <button type="button" onClick={() => document.getElementById("emergency-chat")?.scrollIntoView({ behavior: "smooth", block: "center" })} className="group flex min-h-14 items-center justify-between rounded-xl border border-border/70 bg-muted/35 px-4 text-left text-[14px] font-semibold text-foreground transition hover:border-primary/35 hover:bg-accent active:scale-[0.99]">
-              <span className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-card shadow-sm"><Send className="h-4 w-4 text-muted-foreground" /></span>Send Update</span><ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-            </button>
             <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-xl border border-border/70 bg-muted/35 px-4 text-left text-[14px] font-semibold text-foreground transition hover:border-primary/35 hover:bg-accent active:scale-[0.99]">
               <span className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-card shadow-sm"><Shield className="h-4 w-4 text-muted-foreground" /></span>File an incident report</span><ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
             </button>
@@ -2135,13 +2129,6 @@ function MinimalEmergencyScreen({
             )}
           </section>
 
-          <div id="emergency-chat" className="signal-help-card order-5 min-w-0 lg:col-start-1 lg:row-start-3 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:px-5 lg:shadow-soft">
-            <SosRoomStrip activityId={activityId} inline />
-          </div>
-
-          <div className="signal-help-card order-6 min-w-0 lg:col-start-1 lg:row-start-4 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:px-5 lg:shadow-soft">
-            <AllmaVoice activityId={activityId} compact />
-          </div>
         </div>
       </div>
 
