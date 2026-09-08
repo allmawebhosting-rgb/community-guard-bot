@@ -2064,7 +2064,7 @@ function MinimalEmergencyScreen({
         </div>
       </header>
 
-      <div className="relative mx-auto grid w-full max-w-xl grid-cols-1 overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:max-w-[1480px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-6 lg:px-8 lg:py-6 lg:pb-12 xl:gap-8 xl:px-10">
+      <div className="relative mx-auto grid w-full max-w-xl min-w-0 grid-cols-1 overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:max-w-[1480px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-6 lg:px-8 lg:py-6 lg:pb-12 xl:gap-8 xl:px-10">
         <div className="contents">
           <div className="order-1 min-w-0 lg:col-start-1 lg:row-start-1 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft xl:p-7">
             <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
