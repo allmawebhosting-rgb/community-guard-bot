@@ -863,6 +863,12 @@
 
 .signal-slate .signal-help-grid {
   background: var(--signal-canvas) !important;
+  display: grid;
+  gap: 1rem;
+}
+
+.signal-slate .signal-help-grid > .contents {
+  display: contents;
 }
 
 .signal-slate .signal-help-card > section,
@@ -871,10 +877,25 @@
 }
 
 @media (max-width: 1023px) {
+  .signal-slate .signal-help-grid {
+    display: block;
+    gap: 0;
+  }
+
+  .signal-slate .signal-help-grid > .contents {
+    display: block;
+  }
+
+  .signal-slate .signal-help-grid > .contents > * {
+    display: block;
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+
   .signal-slate .signal-help-card {
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
+    border-radius: 1rem !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 30px -24px rgb(24 33 43 / 0.45) !important;
   }
 }
 
