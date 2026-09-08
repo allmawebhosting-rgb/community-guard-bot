@@ -2039,7 +2039,7 @@ function MinimalEmergencyScreen({
 
   return (
     <motion.main
-      className="signal-screen signal-minimal relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-background text-foreground"
+      className="signal-screen signal-help signal-minimal relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-background text-foreground"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
