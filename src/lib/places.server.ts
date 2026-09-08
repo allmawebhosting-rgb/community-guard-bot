@@ -273,9 +273,15 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
       : Promise.resolve([] as NearbyPlaceResult[]),
   ]);
 
-  const combined = dedupePlaces([...googlePlaces, ...seeded, ...policeStations])
-    .sort((a, b) => a.distance_m - b.distance_m)
-    .slice(0, limit);
+  const sorted = dedupePlaces([...googlePlaces, ...seeded, ...policeStations]).sort(
+    (a, b) => a.distance_m - b.distance_m,
+  );
+  const policeResult = normalizeGoogleTypes(types).includes("police")
+    ? sorted.find((place) => place.type.toLowerCase().includes("police"))
+    : undefined;
+  const combined = policeResult
+    ? [policeResult, ...sorted.filter((place) => place.id !== policeResult.id)].slice(0, limit)
+    : sorted.slice(0, limit);
 
   placeCache.set(cacheKeyValue, {
     expiresAt: Date.now() + 180_000,
