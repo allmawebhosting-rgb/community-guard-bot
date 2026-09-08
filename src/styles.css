@@ -660,36 +660,36 @@
 }
 
 /* Help is rendered on the same node as signal-slate, so use compound selectors. */
-.signal-slate.signal-help .bg-card,
-.signal-slate.signal-help .bg-secondary\/40,
-.signal-slate.signal-help .bg-secondary\/25,
-.signal-slate.signal-help .bg-muted\/30,
-.signal-slate.signal-help .bg-muted\/35 {
+.signal-slate .signal-help .bg-card,
+.signal-slate .signal-help .bg-secondary\/40,
+.signal-slate .signal-help .bg-secondary\/25,
+.signal-slate .signal-help .bg-muted\/30,
+.signal-slate .signal-help .bg-muted\/35 {
   background: var(--signal-panel) !important;
   border-color: var(--signal-border) !important;
   color: var(--signal-ink) !important;
 }
 
-.signal-slate.signal-help .text-foreground,
-.signal-slate.signal-help .text-foreground\/80 {
+.signal-slate .signal-help .text-foreground,
+.signal-slate .signal-help .text-foreground\/80 {
   color: var(--signal-ink) !important;
 }
 
-.signal-slate.signal-help .text-muted-foreground {
+.signal-slate .signal-help .text-muted-foreground {
   color: var(--signal-muted) !important;
 }
 
-.signal-slate.signal-help .border-border\/60,
-.signal-slate.signal-help .border-border\/70,
-.signal-slate.signal-help .border-border\/50 {
+.signal-slate .signal-help .border-border\/60,
+.signal-slate .signal-help .border-border\/70,
+.signal-slate .signal-help .border-border\/50 {
   border-color: var(--signal-border) !important;
 }
 
-.signal-slate.signal-help .text-destructive {
+.signal-slate .signal-help .text-destructive {
   color: var(--signal-critical) !important;
 }
 
-.signal-slate.signal-help .bg-destructive {
+.signal-slate .signal-help .bg-destructive {
   background: var(--signal-critical) !important;
 }
 
