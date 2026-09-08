@@ -780,6 +780,96 @@
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 60px -34px rgb(0 0 0 / 0.95) !important;
 }
 
+/* The SOS flow is intentionally light: urgency comes from the red action
+   colour, while the working surface stays calm and highly legible. */
+.signal-slate {
+  --signal-canvas: #f6f7f9;
+  --signal-panel: #ffffff;
+  --signal-panel-raised: #eef1f4;
+  --signal-ink: #18212b;
+  --signal-muted: #5c6875;
+  --signal-border: rgb(24 33 43 / 0.14);
+  --signal-border-strong: rgb(24 33 43 / 0.22);
+  --signal-critical: #c62832;
+  --signal-attention: #9a6b00;
+  background: var(--signal-canvas) !important;
+  color: var(--signal-ink) !important;
+}
+
+.signal-slate .signal-screen,
+.signal-slate .signal-minimal,
+.signal-slate .signal-help,
+.signal-slate .signal-report,
+.signal-slate .signal-submitted {
+  background: var(--signal-canvas) !important;
+  color: var(--signal-ink) !important;
+}
+
+.signal-slate .signal-minimal > header,
+.signal-slate .signal-idle > div:first-child,
+.signal-slate .signal-idle > div:nth-child(2) > div:last-child {
+  background: rgb(255 255 255 / 0.94) !important;
+  border-color: var(--signal-border) !important;
+  box-shadow: 0 10px 30px -24px rgb(24 33 43 / 0.35) !important;
+}
+
+.signal-slate .signal-minimal .bg-card,
+.signal-slate .signal-minimal .bg-secondary\/40,
+.signal-slate .signal-minimal .bg-secondary\/25,
+.signal-slate .signal-minimal .bg-muted\/30,
+.signal-slate .signal-minimal .bg-muted\/35,
+.signal-slate .signal-minimal .bg-background\/70,
+.signal-slate .signal-minimal .premium-surface {
+  background: var(--signal-panel) !important;
+  border-color: var(--signal-border) !important;
+  color: var(--signal-ink) !important;
+  box-shadow: 0 8px 24px -22px rgb(24 33 43 / 0.4) !important;
+}
+
+.signal-slate .signal-minimal .text-foreground,
+.signal-slate .signal-minimal .text-foreground\/80 {
+  color: var(--signal-ink) !important;
+}
+
+.signal-slate .signal-minimal .text-muted-foreground {
+  color: var(--signal-muted) !important;
+}
+
+.signal-slate .signal-minimal .text-amber-200,
+.signal-slate .signal-minimal .text-amber-100\/75 {
+  color: #765300 !important;
+}
+
+.signal-slate .signal-minimal .text-destructive,
+.signal-slate .signal-help .text-destructive {
+  color: var(--signal-critical) !important;
+}
+
+.signal-slate .signal-minimal .bg-destructive {
+  background: var(--signal-critical) !important;
+}
+
+.signal-slate .signal-minimal .border-border\/60,
+.signal-slate .signal-minimal .border-border\/70,
+.signal-slate .signal-minimal .border-border\/50 {
+  border-color: var(--signal-border) !important;
+}
+
+.signal-slate .signal-minimal button,
+.signal-slate .signal-minimal a,
+.signal-slate .signal-minimal p,
+.signal-slate .signal-minimal span {
+  overflow-wrap: anywhere;
+}
+
+.signal-slate .signal-report > div,
+.signal-slate .signal-submitted > div {
+  background: #ffffff !important;
+  color: var(--signal-ink) !important;
+  border-color: var(--signal-border-strong) !important;
+  box-shadow: 0 22px 50px -34px rgb(24 33 43 / 0.35) !important;
+}
+
 @media (max-width: 767px) {
   .signal-slate .signal-idle > div:nth-child(2) {
     display: flex;
