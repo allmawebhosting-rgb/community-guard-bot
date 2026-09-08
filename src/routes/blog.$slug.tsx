@@ -7,7 +7,7 @@ import {
   ArticleTableOfContents,
   AuthorCard,
   ComparisonTable,
-  DesktopTableOfContents,
+  ArticleRail,
   FeatureShowcase,
   FeatureSplit,
   InsightCallout,
@@ -59,20 +59,20 @@ function BlogArticle() {
           <Link to="/" className="font-display text-sm font-black tracking-[0.1em]">ALLMA <span className="text-[#c63d3f]">/</span> SAFETY AI</Link>
         </div>
       </header>
-      <section className="mx-auto max-w-7xl px-5 pb-10 pt-14 sm:px-8 sm:pb-14 sm:pt-20">
+      <section className="mx-auto min-w-0 max-w-7xl px-4 pb-10 pt-12 sm:px-8 sm:pb-14 sm:pt-20">
         <div className="max-w-4xl">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#c63d3f]">{post.category} · Uganda safety intelligence</p>
-          <h1 className="mt-5 max-w-5xl font-display text-5xl font-black leading-[0.94] tracking-[-0.055em] sm:text-7xl">{post.title}</h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-[#5d6057] sm:text-xl">{post.excerpt}</p>
+          <h1 className="mt-5 max-w-5xl break-words font-display text-[clamp(2.5rem,8vw,5.5rem)] font-black leading-[0.94] tracking-[-0.055em]">{post.title}</h1>
+          <p className="mt-7 max-w-2xl text-base leading-7 text-[#5d6057] sm:text-xl sm:leading-8">{post.excerpt}</p>
           <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-[#77796e]"><span className="inline-flex items-center gap-2 font-bold text-[#171817]"><ShieldCheck className="h-4 w-4 text-[#c63d3f]" />{post.author}</span><span>{post.publishedAt}</span><span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{post.readMinutes} min read</span></div>
         </div>
-        <figure className="mt-12 overflow-hidden bg-[#ded8cf] sm:mt-16"><img src={post.featuredImage} alt={post.featuredImageAlt ?? post.title} fetchPriority="high" className="aspect-[2/1] max-h-[560px] w-full object-cover" /><figcaption className="px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-[#77796e]">A practical perspective from the Allma Safety AI journal.</figcaption></figure>
+        <figure className="mt-10 overflow-hidden bg-[#ded8cf] sm:mt-16"><img src={post.featuredImage} alt={post.featuredImageAlt ?? post.title} fetchPriority="high" className="aspect-[1.35/1] max-h-[560px] w-full object-cover sm:aspect-[2/1]" /><figcaption className="px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-[#77796e]">A practical perspective from the Allma Safety AI journal.</figcaption></figure>
       </section>
-      <div className="mx-auto max-w-7xl px-5 sm:px-8"><ArticleTableOfContents sections={post.sections} /></div>
-      <div className="mx-auto grid max-w-7xl gap-12 px-5 pb-20 pt-8 sm:px-8 lg:grid-cols-[minmax(0,760px)_220px] lg:justify-between lg:gap-16">
-        <article>
+      <div className="mx-auto min-w-0 max-w-7xl px-4 sm:px-8"><ArticleTableOfContents sections={post.sections} /></div>
+      <div className="mx-auto grid min-w-0 max-w-7xl gap-10 px-4 pb-20 pt-8 sm:px-8 lg:grid-cols-[minmax(0,760px)_250px] lg:justify-between lg:gap-20">
+        <article className="min-w-0">
           <div className="mb-9 max-w-[760px]"><ShareBar /></div>
-          <div className="max-w-[760px]">
+          <div className="min-w-0 max-w-[760px]">
             {post.sections.map((section, index) => (
               <section key={section.heading} id={`section-${index}`} className={`scroll-mt-24 pb-14 ${index > 0 ? "border-t border-[#171817]/10 pt-12" : ""}`}>
                 <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#c63d3f]">{String(index + 1).padStart(2, "0")}</p>
@@ -89,7 +89,7 @@ function BlogArticle() {
           <ArticleCTA post={post} />
           <div className="space-y-8"><div className="border-l-2 border-[#c63d3f] bg-[#fffdf9] px-6 py-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c63d3f]">Important note</p><p className="mt-2 text-sm leading-7 text-[#5d6057]">{post.disclaimer ?? "This guide is general information and does not replace official emergency services, professional medical advice, or direct confirmation from a service provider."}</p></div><AuthorCard post={post} /></div>
         </article>
-        <DesktopTableOfContents sections={post.sections} />
+        <ArticleRail sections={post.sections} feature={showcase} />
       </div>
 
       <section className="border-t border-[#171817]/10 bg-white">

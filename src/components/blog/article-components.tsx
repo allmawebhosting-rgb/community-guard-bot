@@ -49,6 +49,32 @@ export function DesktopTableOfContents({ sections }: { sections: BlogSection[] }
   return <aside className="sticky top-24 hidden self-start lg:block"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#77796e]">On this page</p><nav className="mt-5 border-l border-[#171817]/10">{sections.map((section, index) => <a key={section.heading} href={`#section-${index}`} className={`block border-l-2 py-2 pl-4 text-sm leading-5 transition ${active === index ? "-ml-px border-[#c63d3f] font-bold text-[#171817]" : "border-transparent text-[#77796e] hover:text-[#171817]"}`}>{String(index + 1).padStart(2, "0")} {section.heading}</a>)}</nav></aside>;
 }
 
+export function ArticleRail({ sections, feature }: { sections: BlogSection[]; feature: FeatureLink }) {
+  return <aside className="hidden min-w-0 space-y-8 lg:block">
+    <DesktopTableOfContents sections={sections} />
+    <div className="border-t border-[#171817]/10 pt-7">
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#77796e]">Inside Allma</p>
+      <div className="mt-4 overflow-hidden border border-[#171817]/10 bg-white">
+        <img src={feature.image} alt={`${feature.name} feature overview`} loading="lazy" className="aspect-[1.5/1] w-full object-cover" />
+        <div className="p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#c63d3f]">{feature.category}</p>
+          <h3 className="mt-2 font-display text-xl font-black tracking-[-0.03em] text-[#171817]">{feature.name}</h3>
+          <p className="mt-2 text-sm leading-6 text-[#5d6057]">{feature.description}</p>
+          <a href={feature.href} className="mt-4 inline-flex min-h-10 items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#c63d3f]">Explore feature <ArrowUpRight className="h-3.5 w-3.5" /></a>
+        </div>
+      </div>
+    </div>
+    <div className="border-t border-[#171817]/10 pt-7">
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#77796e]">Start here</p>
+      <nav className="mt-4 grid gap-2 text-sm font-bold text-[#3e403b]">
+        <a href="/sos" className="flex items-center justify-between border-b border-[#171817]/10 py-2 hover:text-[#c63d3f]">Emergency SOS <ArrowUpRight className="h-3.5 w-3.5" /></a>
+        <a href="/nearby" className="flex items-center justify-between border-b border-[#171817]/10 py-2 hover:text-[#c63d3f]">Nearby help <ArrowUpRight className="h-3.5 w-3.5" /></a>
+        <a href="/profile" className="flex items-center justify-between border-b border-[#171817]/10 py-2 hover:text-[#c63d3f]">Safety contacts <ArrowUpRight className="h-3.5 w-3.5" /></a>
+      </nav>
+    </div>
+  </aside>;
+}
+
 export function FeatureShowcase({ feature }: { feature: FeatureLink }) {
   return <section className="my-16 overflow-hidden border-y border-[#171817]/10 bg-[#171817] text-white"><div className="grid lg:grid-cols-[0.9fr_1.1fr]"><figure className="order-first min-h-[300px] bg-[#252624] lg:order-last"><img src={feature.image} alt={`${feature.name} feature illustration`} loading="lazy" className="h-full min-h-[300px] w-full object-cover opacity-90" /></figure><div className="flex flex-col justify-center p-7 sm:p-12"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e2b84c]">Allma feature · {feature.category}</p><h3 className="mt-4 font-display text-4xl font-black tracking-[-0.05em] sm:text-5xl">{feature.name}</h3><p className="mt-5 max-w-lg text-base leading-8 text-white/70">{feature.description}</p><ul className="mt-8 grid gap-3 text-sm text-white/80 sm:grid-cols-2">{feature.benefits.map((benefit) => <li key={benefit} className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#e2b84c]" />{benefit}</li>)}</ul><a href={feature.href} className="mt-9 inline-flex min-h-11 w-fit items-center gap-2 border-b border-[#e2b84c] pb-1 text-xs font-black uppercase tracking-[0.16em] text-white">Explore {feature.name}<ArrowUpRight className="h-4 w-4" /></a></div></div></section>;
 }
