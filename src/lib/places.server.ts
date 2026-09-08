@@ -95,6 +95,29 @@ function dedupePlaces(items: NearbyPlaceResult[]) {
   return [...seen.values()];
 }
 
+function placeCategory(type: string) {
+  const value = type.toLowerCase();
+  if (value.includes("police")) return "police";
+  if (value.includes("fire")) return "fire";
+  if (value.includes("hospital")) return "hospital";
+  if (value.includes("clinic") || value.includes("doctor") || value.includes("pharmac") || value.includes("health")) return "clinic";
+  return "other";
+}
+
+function diversifyPlaces(places: NearbyPlaceResult[], limit: number) {
+  const selected: NearbyPlaceResult[] = [];
+  const selectedCategories = new Set<string>();
+  for (const place of places) {
+    const category = placeCategory(place.type);
+    if (!selectedCategories.has(category)) {
+      selected.push(place);
+      selectedCategories.add(category);
+    }
+    if (selected.length === limit) return selected;
+  }
+  return [...selected, ...places.filter((place) => !selected.some((item) => item.id === place.id))].slice(0, limit);
+}
+
 async function loadSeededFacilities(latitude: number, longitude: number, radiusMeters: number) {
   const { data, error } = await supabaseAdmin
     .from("facilities")
@@ -276,12 +299,7 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
   const sorted = dedupePlaces([...googlePlaces, ...seeded, ...policeStations]).sort(
     (a, b) => a.distance_m - b.distance_m,
   );
-  const policeResult = normalizeGoogleTypes(types).includes("police")
-    ? sorted.find((place) => place.type.toLowerCase().includes("police"))
-    : undefined;
-  const combined = policeResult
-    ? [policeResult, ...sorted.filter((place) => place.id !== policeResult.id)].slice(0, limit)
-    : sorted.slice(0, limit);
+  const combined = diversifyPlaces(sorted, limit);
 
   placeCache.set(cacheKeyValue, {
     expiresAt: Date.now() + 180_000,
