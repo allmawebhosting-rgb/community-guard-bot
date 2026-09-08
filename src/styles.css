@@ -855,6 +855,25 @@
   border-color: var(--signal-border) !important;
 }
 
+.signal-slate .signal-help-card {
+  background: #ffffff !important;
+  border-color: rgb(24 33 43 / 0.14) !important;
+  box-shadow: 0 12px 30px -24px rgb(24 33 43 / 0.45) !important;
+}
+
+.signal-slate .signal-help-card > section,
+.signal-slate .signal-help-card > div {
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  .signal-slate .signal-help-card {
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
 .signal-slate .signal-minimal button,
 .signal-slate .signal-minimal a,
 .signal-slate .signal-minimal p,

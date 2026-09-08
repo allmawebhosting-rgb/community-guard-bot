@@ -2064,13 +2064,13 @@ function MinimalEmergencyScreen({
         </div>
       </header>
 
-      <div className="relative mx-auto grid w-full max-w-xl min-w-0 grid-cols-1 overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:max-w-[1480px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-6 lg:px-8 lg:py-6 lg:pb-12 xl:gap-8 xl:px-10">
+      <div className="signal-help-grid relative mx-auto grid w-full max-w-xl min-w-0 grid-cols-1 overflow-x-hidden px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:max-w-[1480px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-5 lg:px-8 lg:py-6 lg:pb-12 xl:gap-7 xl:px-10">
         <div className="contents">
-          <div className="order-1 min-w-0 lg:col-start-1 lg:row-start-1 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft xl:p-7">
+          <div className="signal-help-card order-1 min-w-0 lg:col-start-1 lg:row-start-1 lg:min-h-[255px] lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft xl:p-7">
             <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
           </div>
 
-          <section aria-labelledby="actions-heading" className="order-2 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:col-start-1 lg:row-start-2 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
+          <section aria-labelledby="actions-heading" className="signal-help-card order-2 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:col-start-1 lg:row-start-2 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
           <p id="actions-heading" className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Immediate actions</p>
           <div className="mt-4 grid gap-2.5">
             <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-destructive px-4 text-left text-[14px] font-bold text-destructive-foreground shadow-lg shadow-destructive/15 transition hover:bg-destructive/90 active:scale-[0.99]">
@@ -2088,7 +2088,7 @@ function MinimalEmergencyScreen({
           </div>
           </section>
 
-          <section aria-labelledby="location-heading" className="order-3 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
+          <section aria-labelledby="location-heading" className="signal-help-card order-3 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
@@ -2115,7 +2115,7 @@ function MinimalEmergencyScreen({
           )}
           </section>
 
-          <section aria-label="Nearby help" className="order-4 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:col-start-2 lg:row-start-3 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
+          <section aria-label="Nearby help" className="signal-help-card order-4 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:col-start-2 lg:row-start-3 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
             {locationReady ? (
               <NearbyHelpList
                 places={nearbyHelp}
@@ -2135,11 +2135,11 @@ function MinimalEmergencyScreen({
             )}
           </section>
 
-          <div id="emergency-chat" className="order-5 min-w-0 lg:col-start-1 lg:row-start-3 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:px-3 lg:shadow-soft">
+          <div id="emergency-chat" className="signal-help-card order-5 min-w-0 lg:col-start-1 lg:row-start-3 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:px-5 lg:shadow-soft">
             <SosRoomStrip activityId={activityId} inline />
           </div>
 
-          <div className="order-6 min-w-0 lg:col-start-1 lg:row-start-4 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:px-5 lg:shadow-soft">
+          <div className="signal-help-card order-6 min-w-0 lg:col-start-1 lg:row-start-4 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:px-5 lg:shadow-soft">
             <AllmaVoice activityId={activityId} compact />
           </div>
         </div>
