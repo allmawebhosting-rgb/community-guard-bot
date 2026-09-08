@@ -2146,27 +2146,27 @@ function MinimalEmergencyScreen({
       </div>
 
       {servicesOpen && (
-        <div className="fixed inset-0 z-20 flex items-end bg-black/70 p-3 backdrop-blur-[2px]" onClick={() => setServicesOpen(false)}>
-          <div className="mx-auto w-full max-w-xl rounded-[1.75rem] border border-white/[0.12] bg-[#191c1f] p-5 shadow-[0_-16px_60px_rgba(0,0,0,0.38)]" onClick={(event) => event.stopPropagation()}>
-            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-white/20" />
-            <div className="mb-5 flex items-center justify-between"><p className="text-sm font-semibold text-white">Emergency Services</p><button type="button" onClick={() => setServicesOpen(false)} aria-label="Close panel" className="grid h-9 w-9 place-items-center rounded-lg text-white/60 transition hover:bg-white/10"><X className="h-5 w-5" /></button></div>
-            {servicesOpen && <div className="grid gap-2">{EMERGENCY_NUMBERS.map((service) => <a key={service.label} href={`tel:${service.number}`} className="flex min-h-12 items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[13px] text-white transition hover:bg-white/[0.07]"><span>{service.label}</span><span className="font-bold text-white/70">{service.number}</span></a>)}</div>}
+        <div className="fixed inset-0 z-20 flex items-end bg-[#18212b]/20 p-3 backdrop-blur-[2px]" onClick={() => setServicesOpen(false)}>
+          <div className="mx-auto w-full max-w-xl rounded-3xl border border-border bg-card p-5 text-foreground shadow-[0_-16px_60px_rgba(24,33,43,0.2)]" onClick={(event) => event.stopPropagation()}>
+            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-border" />
+            <div className="mb-5 flex items-center justify-between"><p className="text-sm font-semibold">Emergency Services</p><button type="button" onClick={() => setServicesOpen(false)} aria-label="Close panel" className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted"><X className="h-5 w-5" /></button></div>
+            {servicesOpen && <div className="grid gap-2">{EMERGENCY_NUMBERS.map((service) => <a key={service.label} href={`tel:${service.number}`} className="flex min-h-12 items-center justify-between rounded-xl border border-border bg-muted/40 px-3 text-[13px] text-foreground transition hover:bg-accent"><span>{service.label}</span><span className="font-bold text-muted-foreground">{service.number}</span></a>)}</div>}
           </div>
         </div>
       )}
       {closeConfirm && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#191c1f] p-5 shadow-2xl">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-300">End SOS</p>
-            <h2 className="mt-2 text-xl font-bold text-white">Are you sure you are safe?</h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-white/60">
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-[#18212b]/20 p-5 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 text-foreground shadow-2xl">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-destructive">End SOS</p>
+            <h2 className="mt-2 text-xl font-bold">Are you sure you are safe?</h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
               Ending SOS stops this emergency session and its active response path.
             </p>
             <div className="mt-5 grid gap-2">
-              <button type="button" onClick={() => setCloseConfirm(false)} className="min-h-12 rounded-xl border border-white/15 text-[13px] font-bold text-white transition hover:bg-white/10">
+              <button type="button" onClick={() => setCloseConfirm(false)} className="min-h-12 rounded-xl border border-border text-[13px] font-bold text-foreground transition hover:bg-muted">
                 No, keep SOS active
               </button>
-              <button type="button" onClick={onClose} className="min-h-12 rounded-xl bg-red-500 text-[13px] font-black text-white transition hover:bg-red-400">
+              <button type="button" onClick={onClose} className="min-h-12 rounded-xl bg-destructive text-[13px] font-black text-destructive-foreground transition hover:bg-destructive/90">
                 Yes, end SOS
               </button>
             </div>
