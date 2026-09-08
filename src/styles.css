@@ -874,6 +874,60 @@
   }
 }
 
+/* The first child is the decorative wash, not a content panel. Keep it out of
+   the card grid so it cannot create the dark strip below the header. */
+.signal-slate .signal-help > div:first-child {
+  background: transparent !important;
+}
+
+@media (min-width: 1024px) {
+  .signal-slate .signal-help-grid {
+    grid-template-areas:
+      "response location"
+      "actions location"
+      "chat nearby"
+      "voice nearby";
+    grid-template-rows: auto auto auto auto;
+    align-items: stretch;
+  }
+
+  .signal-slate .signal-help-grid > .contents > :nth-child(1) {
+    grid-area: response;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .signal-slate .signal-help-grid > .contents > :nth-child(2) {
+    grid-area: actions;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .signal-slate .signal-help-grid > .contents > :nth-child(3) {
+    grid-area: location;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .signal-slate .signal-help-grid > .contents > :nth-child(4) {
+    grid-area: nearby;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .signal-slate .signal-help-grid > .contents > :nth-child(5) {
+    grid-area: chat;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .signal-slate .signal-help-grid > .contents > :nth-child(6) {
+    grid-area: voice;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+}
+
 .signal-slate .signal-minimal button,
 .signal-slate .signal-minimal a,
 .signal-slate .signal-minimal p,
