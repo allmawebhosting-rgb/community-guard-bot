@@ -127,6 +127,37 @@ async function loadSeededFacilities(latitude: number, longitude: number, radiusM
     .filter((item) => Number.isFinite(item.distance_m));
 }
 
+async function loadPoliceStations(latitude: number, longitude: number, radiusMeters: number) {
+  const { data, error } = await supabaseAdmin
+    .from("police_stations")
+    .select("id, name, district, parish, phone, latitude, longitude")
+    .not("latitude", "is", null)
+    .not("longitude", "is", null);
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? [])
+    .map((item) => ({
+      id: `police_station:${item.id}`,
+      name: String(item.name ?? "Police station"),
+      type: "police",
+      address: item.parish ? `${item.parish}, ${item.district}` : item.district ?? null,
+      phone: item.phone ?? null,
+      open_now: null,
+      distance_m: haversineMeters(latitude, longitude, Number(item.latitude), Number(item.longitude)),
+      latitude: Number(item.latitude),
+      longitude: Number(item.longitude),
+      source: "seeded" as const,
+    }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.latitude) &&
+        Number.isFinite(item.longitude) &&
+        Number.isFinite(item.distance_m) &&
+        item.distance_m <= radiusMeters,
+    );
+}
+
 async function loadGooglePlaces(latitude: number, longitude: number, radiusMeters: number, types: string[]) {
   // Read credentials at call time — env injection happens per request, not at module load.
   const lovableApiKey = process.env["LOVABLE_API_KEY"];
@@ -234,12 +265,15 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
     return cached.data.slice(0, limit);
   }
 
-  const [googlePlaces, seeded] = await Promise.all([
+  const [googlePlaces, seeded, policeStations] = await Promise.all([
     loadGooglePlaces(latitude, longitude, radiusMeters, types),
     loadSeededFacilities(latitude, longitude, radiusMeters),
+    normalizeGoogleTypes(types).includes("police")
+      ? loadPoliceStations(latitude, longitude, radiusMeters)
+      : Promise.resolve([] as NearbyPlaceResult[]),
   ]);
 
-  const combined = dedupePlaces([...googlePlaces, ...seeded])
+  const combined = dedupePlaces([...googlePlaces, ...seeded, ...policeStations])
     .sort((a, b) => a.distance_m - b.distance_m)
     .slice(0, limit);
 
