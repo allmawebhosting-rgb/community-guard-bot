@@ -861,6 +861,10 @@
   box-shadow: 0 12px 30px -24px rgb(24 33 43 / 0.45) !important;
 }
 
+.signal-slate .signal-help-grid {
+  background: var(--signal-canvas) !important;
+}
+
 .signal-slate .signal-help-card > section,
 .signal-slate .signal-help-card > div {
   min-width: 0;
@@ -887,7 +891,7 @@
       "actions location"
       "chat nearby"
       "voice nearby";
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: minmax(max-content, auto) minmax(max-content, auto) minmax(max-content, auto) minmax(max-content, auto);
     align-items: stretch;
   }
 
@@ -895,6 +899,8 @@
     grid-area: response;
     grid-column: auto !important;
     grid-row: auto !important;
+    min-height: max-content !important;
+    overflow: visible !important;
   }
 
   .signal-slate .signal-help-grid > .contents > :nth-child(2) {
