@@ -74,10 +74,11 @@ function BlogArticle() {
           <div className="mb-9 max-w-[760px]"><ShareBar /></div>
           <div className="max-w-[760px]">
             {post.sections.map((section, index) => (
-              <section key={section.heading} id={`section-${index}`} className="scroll-mt-24 pb-12">
+              <section key={section.heading} id={`section-${index}`} className={`scroll-mt-24 pb-14 ${index > 0 ? "border-t border-[#171817]/10 pt-12" : ""}`}>
+                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#c63d3f]">{String(index + 1).padStart(2, "0")}</p>
                 <h2 className="font-display text-3xl font-black leading-tight tracking-[-0.04em] sm:text-4xl">{section.heading}</h2>
-                <div className="mt-6 space-y-5 text-[16px] leading-8 text-[#4f524b]">{section.paragraphs.map((paragraph) => <p key={paragraph}>{linkConcepts(paragraph)}</p>)}</div>
-                {section.bullets && <ul className="mt-7 space-y-3 border-l-2 border-[#e2b84c] pl-5 text-sm font-bold leading-7 text-[#2b2d2a]">{section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>}
+                <div className="mt-6 space-y-6 text-[16px] leading-8 text-[#4f524b]">{section.paragraphs.map((paragraph) => <p key={paragraph}>{linkConcepts(paragraph)}</p>)}</div>
+                {section.bullets && <ul className="mt-8 space-y-3 border-l-2 border-[#e2b84c] pl-5 text-sm font-bold leading-7 text-[#2b2d2a]">{section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>}
                 {index === 0 && <InsightCallout label="Key takeaway">During an emergency, clarity matters more than complexity.</InsightCallout>}
                 {index === 1 && <ComparisonTable rows={[["SOS activation", "Provides a clear way to begin a configured response flow"], ["Safety Network", "Organises trusted people who may need relevant information"], ["Nearby help", "Supports local orientation when a person needs a place to start"]]} />}
                 {index === 2 && <FeatureShowcase feature={showcase} />}
