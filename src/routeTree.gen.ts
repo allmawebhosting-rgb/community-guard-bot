@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BlogRouteImport } from './routes/blog'
 import { Route as LostFoundRouteImport } from './routes/lost-found'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NearbyRouteImport } from './routes/nearby'
@@ -31,6 +32,8 @@ import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiHealthRemindersDeliverRouteImport } from './routes/api/health-reminders-deliver'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiZegoTokenRouteImport } from './routes/api/zego-token'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
@@ -70,6 +73,11 @@ const AlertsRoute = AlertsRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogRoute = BlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LostFoundRoute = LostFoundRouteImport.update({
@@ -165,6 +173,16 @@ const ApiZegoTokenRoute = ApiZegoTokenRouteImport.update({
   id: '/api/zego-token',
   path: '/api/zego-token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BlogRoute,
+} as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => BlogRoute,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
@@ -293,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/blog': typeof BlogRouteWithChildren
   '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
@@ -311,6 +330,8 @@ export interface FileRoutesByFullPath {
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
+  '/blog/$slug': typeof BlogSlugRoute
+  '/blog/': typeof BlogIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -354,6 +375,8 @@ export interface FileRoutesByTo {
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
+  '/blog/$slug': typeof BlogSlugRoute
+  '/blog': typeof BlogIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -382,6 +405,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/blog': typeof BlogRouteWithChildren
   '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
@@ -400,6 +424,8 @@ export interface FileRoutesById {
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
+  '/blog/$slug': typeof BlogSlugRoute
+  '/blog/': typeof BlogIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -428,6 +454,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/auth'
+    | '/blog'
     | '/lost-found'
     | '/mcp'
     | '/nearby'
@@ -446,6 +473,8 @@ export interface FileRouteTypes {
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
     | '/api/zego-token'
+    | '/blog/$slug'
+    | '/blog/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -489,6 +518,8 @@ export interface FileRouteTypes {
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
     | '/api/zego-token'
+    | '/blog/$slug'
+    | '/blog'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -516,6 +547,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/alerts'
     | '/auth'
+    | '/blog'
     | '/lost-found'
     | '/mcp'
     | '/nearby'
@@ -534,6 +566,8 @@ export interface FileRouteTypes {
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
     | '/api/zego-token'
+    | '/blog/$slug'
+    | '/blog/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/chat/$threadId'
@@ -562,6 +596,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AlertsRoute: typeof AlertsRoute
   AuthRoute: typeof AuthRoute
+  BlogRoute: typeof BlogRouteWithChildren
   LostFoundRoute: typeof LostFoundRoute
   McpRoute: typeof McpRoute
   NearbyRoute: typeof NearbyRoute
@@ -605,6 +640,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog': {
+      id: '/blog'
+      path: '/blog'
+      fullPath: '/blog'
+      preLoaderRoute: typeof BlogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lost-found': {
@@ -732,6 +774,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/zego-token'
       preLoaderRoute: typeof ApiZegoTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/blog/': {
+      id: '/blog/'
+      path: '/'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof BlogRoute
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof BlogRoute
     }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
@@ -953,11 +1009,24 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface BlogRouteChildren {
+  BlogSlugRoute: typeof BlogSlugRoute
+  BlogIndexRoute: typeof BlogIndexRoute
+}
+
+const BlogRouteChildren: BlogRouteChildren = {
+  BlogSlugRoute: BlogSlugRoute,
+  BlogIndexRoute: BlogIndexRoute,
+}
+
+const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AlertsRoute: AlertsRoute,
   AuthRoute: AuthRoute,
+  BlogRoute: BlogRouteWithChildren,
   LostFoundRoute: LostFoundRoute,
   McpRoute: McpRoute,
   NearbyRoute: NearbyRoute,
