@@ -1,49 +1,36 @@
-export type BlogSection = {
-  heading: string;
-  paragraphs: string[];
-  bullets?: string[];
-};
-
 export type BlogPost = {
   slug: string;
   keyword: string;
   category: string;
   title: string;
-  metaTitle: string;
-  metaDescription: string;
   excerpt: string;
   readMinutes: number;
   publishedAt: string;
   accent: string;
   author: string;
   featuredImage: string;
-  featuredImageAlt: string;
-  seoKeywords: {
-    primary: string;
-    secondary: string[];
-  };
-  cta: string;
-  disclaimer: string;
-  internalLinks: string[];
-  wordCount: number;
-  sections: BlogSection[];
+  metaTitle?: string;
+  metaDescription?: string;
+  featuredImageAlt?: string;
+  cta?: string;
+  disclaimer?: string;
+  internalLinks?: string[];
+  wordCount?: number;
+  seoKeywords?: { primary: string; secondary: string[] };
+  sections: Array<{ heading: string; paragraphs: string[]; bullets?: string[] }>;
 };
 
 type PostSeed = {
   keyword: string;
   category: string;
   title: string;
-  metaTitle: string;
-  metaDescription: string;
   excerpt: string;
-  featuredImage: string;
-  featuredImageAlt: string;
+  lead: string;
+  whyItMatters: string;
+  checklist: string[];
   accent: string;
   author: string;
-  cta: string;
-  disclaimer: string;
-  internalLinks: string[];
-  sections: BlogSection[];
+  image: string;
 };
 
 const articleImages = [
@@ -61,317 +48,242 @@ const seeds: PostSeed[] = [
   {
     keyword: "Allma Safety AI",
     category: "Allma guide",
-    title: "Allma Safety AI for Uganda: a practical guide to safer daily decisions",
-    metaTitle: "Allma Safety AI in Uganda | Practical Safety Guide",
-    metaDescription: "Learn how Allma Safety AI supports safer decisions in Uganda with practical guidance, trusted contacts and clearer emergency planning.",
-    excerpt: "A practical Ugandan guide to understanding what Allma Safety AI can realistically do, how it fits into everyday safety planning, and how to use it without relying on false certainty.",
-    featuredImage: articleImages[0],
-    featuredImageAlt: "A professional team reviewing a safety plan with a Ugandan urban context in mind",
+    title: "Allma Safety AI: a practical guide to calmer emergency decisions",
+    excerpt: "A strong safety tool should help people act clearly, understand risk, and reach the right support without confusion or false certainty.",
+    lead: "A useful safety assistant should not feel dramatic or mysterious. It should help a person understand what is happening, who could help, and what the next sensible action is, without pretending to replace judgement, support services, or human decision-making.",
+    whyItMatters: "When people feel panic, they need a path that cuts through noise. The most effective safety tools explain what is being shared, who will receive it, and what the user should do next, so confidence grows from clarity instead of fear.",
+    checklist: ["Set up a clear emergency profile with trusted contacts and a preferred response route.", "Review who receives alerts, what location information is shared, and when it is stopped.", "Test the flow regularly so you know the app still works when the situation becomes stressful."],
     accent: "red",
     author: "Allma Safety Team",
-    cta: "If you are planning a safer routine, start by reviewing your emergency contacts, checking what information you share, and exploring how Allma Safety AI could support that process in a realistic and privacy-aware way.",
-    disclaimer: "This article is for general information only. If you are facing a medical emergency, immediate threat, or legal issue, contact the appropriate local authorities, medical professionals, or official service providers.",
-    internalLinks: [
-      "/blog/uganda-safety-app",
-      "/blog/emergency-sos-app",
-      "/blog/emergency-services-uganda",
-    ],
-    sections: [
-      {
-        heading: "What is Allma Safety AI and why does it matter in Uganda?",
-        paragraphs: [
-          "Safety planning is not only about reacting to danger. It is also about preparation, clarity, and knowing what to do when a person is under stress. In Uganda, where routines can change quickly because of travel, work schedules, community conditions, and informal movement across towns and districts, safety tools are most useful when they support practical decision-making rather than creating panic.",
-          "Allma Safety AI is a tool that can help people organise safety information, improve clarity during stressful moments, and guide them toward better decisions. It is not a replacement for judgement, local knowledge, or official emergency services. Its real value is in helping people act more deliberately when conditions are uncertain.",
-          "This matters because many people do not need a dramatic alarm; they need a calm, structured way to respond. A person who understands where they are, who they can trust, and what they need to share can make a better decision faster than someone who is panicking and trying to remember fragments of a plan.",
-        ],
-      },
-      {
-        heading: "Why this matters in Uganda",
-        paragraphs: [
-          "In Uganda, practical safety often depends on local context. A person may be moving between Kampala, a town, a trading centre, or a home area where the fastest route to help is not obvious. A safety tool is more useful when it helps someone record important contacts, understand location context, and identify the next step in a stressful moment.",
-          "The reality is that many people still rely on a mix of informal networks, direct calls, in-person support, and route knowledge. That means a digital safety tool should create clarity rather than add confusion. A good feature helps a user act on real information: a trusted contact, a place description, a known landmark, or a safe route to a neighbour, clinic, or official service.",
-          "That is why local relevance matters. The best safety planning tools are not built around vague global assumptions. They are designed around the everyday realities of busy families, students, commuters, community leaders, and workers who need simple and reliable support.",
-        ],
-      },
-      {
-        heading: "What Allma Safety AI can realistically help with",
-        paragraphs: [
-          "Allma Safety AI can support a person with practical safety workflows, such as organising trusted contacts, clarifying emergency information, and providing structured guidance during stressful moments. The key idea is not perfection. It is useful support that reduces friction and makes a plan easier to follow.",
-          "For example, a person may want to prepare who receives an alert, which information is relevant, and what action should happen next. A platform that helps with that planning can make a real difference when a person is tired, under pressure, or unsure how to explain an emergency clearly.",
-          "This is especially useful when the risk is not obvious. A user may need to decide whether a situation requires a call, a check-in, a move to a safer location, or a broader escalation. Clear structure and helpful prompts can support that decision without pretending to replace judgement or authorised response systems.",
-        ],
-      },
-      {
-        heading: "What to be careful about",
-        paragraphs: [
-          "It is important to be honest about limits. No safety app should promise certainty in an emergency, and no platform should claim to replace official emergency services, legal guidance, or direct medical assessment. In Uganda, as elsewhere, people should treat safety technology as a support layer, not as a guarantee of a response.",
-          "Users should also check who can see their location, what details are shared, and how long a safety alert remains active. Clear consent and simple controls matter as much as the technology itself. Without that, a person may feel more protected than they are, which can create risk in a real situation.",
-          "Good safety design is honest about uncertainty. It explains what the user is sharing, what the system can do, and what action is still needed from the person, a trusted contact, or an official authority.",
-        ],
-      },
-      {
-        heading: "A practical checklist for safer planning",
-        paragraphs: [
-          "A helpful safety routine does not need to be complicated. It needs to be clear, repeatable, and realistic enough that a person can follow it under strain.",
-          "Start with the basics: save emergency contacts, identify the places you travel often, and keep important numbers accessible even when your phone battery is low. Write down your nearest landmark, your district, and a trusted contact who knows your routine. Make sure your safety plan is simple enough that you can remember it under pressure."
-        ],
-        bullets: [
-          "Keep emergency numbers and trusted contacts in a simple, accessible list outside a single app.",
-          "Set clear location-sharing rules so you know who receives your information and when it stops.",
-          "Review your contacts and safety preferences regularly, especially after a move, a new job, or a change in routine.",
-          "Write down the nearest safe public place, clinic, or trusted person in case you need a quick fallback.",
-          "Treat your phone and battery plan as part of your safety routine, not a secondary concern.",
-        ],
-      },
-      {
-        heading: "How Allma Safety AI fits into this",
-        paragraphs: [
-          "Allma Safety AI fits best as one part of a broader safety plan. It can help users organise information, structure a response, and reduce confusion when a person is overwhelmed. That makes it especially useful for people who want to prepare before a crisis instead of improvising under pressure.",
-          "The most useful role for technology here is clarity. A user may need a simple way to store a trusted contact, share a location, or prepare a message that explains what happened. When a tool helps with that process, it reduces the cognitive load during a stressful moment. It does not replace the need for human judgement or service provider support.",
-          "This is also where trust matters. A reputable safety tool should explain permissions, use clear language, and avoid making unsupported claims. In a Ugandan context, that means being realistic about what the app can do, what it cannot do, and how it complements local decision-making, professional support, and established emergency processes.",
-        ],
-      },
-      {
-        heading: "Final thoughts",
-        paragraphs: [
-          "The best safety technology is not the loudest or the most dramatic. It is the tool that helps a person stay calmer, clearer, and more prepared when things become uncertain. In Uganda, where people often depend on practical local context and trusted relationships, that kind of support is especially valuable.",
-          "Allma Safety AI can be part of that system when it is used honestly and sensibly. The goal is not to promise a perfect emergency response. The goal is to help people make better decisions, prepare stronger routines, and act with more confidence before problems escalate.",
-        ],
-      },
-    ],
+    image: articleImages[0],
   },
   {
     keyword: "emergency SOS app",
     category: "Emergency basics",
-    title: "Emergency SOS apps in Uganda: what matters before you rely on one",
-    metaTitle: "Emergency SOS Apps in Uganda | What to Check First",
-    metaDescription: "Learn how emergency SOS apps work in Uganda, what features matter most, and how they should support local safety planning without false certainty.",
-    excerpt: "An emergency SOS app can be useful when it supports quick communication, clear location sharing, and a realistic plan for what happens after the alert is sent.",
-    featuredImage: articleImages[1],
-    featuredImageAlt: "A person preparing a safety response plan with a phone and emergency contacts",
+    title: "Emergency SOS apps: what to check before you need one",
+    excerpt: "The best SOS apps help in the first few minutes of a crisis by speeding communication, clarifying location, and reducing confusion.",
+    lead: "An emergency SOS app is only valuable if it can help the user communicate clearly under pressure. In a real crisis, the right product is not the one with the most dramatic marketing language; it is the one that works quickly, explains what is happening, and sends the right information to the right people.",
+    whyItMatters: "Many people buy an SOS app after hearing about the panic button feature, but the real value is in the path that comes after the alert. A trusted contact needs to know where the person is, what kind of danger is involved, and how they can respond without causing more stress.",
+    checklist: ["Test the app in a controlled setting so you know how fast it activates.", "Check exactly which contacts receive the alert and whether a call or message is triggered.", "Keep official emergency numbers saved separately so the app is a helper, not a replacement for emergency services."],
     accent: "gold",
     author: "Allma Safety Team",
-    cta: "If you are comparing safety tools, review the alert flow, contact controls, and location-sharing settings before you rely on any app in an emergency. A calm plan is more useful than a dramatic feature list.",
-    disclaimer: "This information is general guidance. In an immediate emergency, contact the nearest official or medical service and follow local emergency procedures.",
-    internalLinks: [
-      "/blog/allma-safety-ai",
-      "/blog/trusted-emergency-contacts",
-      "/blog/emergency-services-uganda",
-    ],
-    sections: [
-      {
-        heading: "What an emergency SOS app is supposed to do",
-        paragraphs: [
-          "An emergency SOS app is meant to reduce confusion when a person is under stress. At its best, it helps a user send a clear alert, share a location, and direct trusted contacts toward a next step. In Uganda, where people can be moving between homes, public transport, work sites, and community spaces, that clarity matters.",
-          "The app should not be judged on buzzwords. It should be judged on whether it helps a person explain a situation quickly and whether the recipient can understand what is happening without extra back-and-forth. A vague alert is more damaging than no alert at all because it creates delay and uncertainty.",
-          "A useful SOS flow usually includes a few basics: a clear trigger, a simple message, a location or place summary, and a defined list of trusted contacts. If the user cannot tell who receives the message or what the message says, the app has not done its job well.",
-        ],
-      },
-      {
-        heading: "Why this matters in Uganda",
-        paragraphs: [
-          "In Uganda, people often navigate densely populated urban areas, road travel, informal transport, and everyday routines that can shift quickly. In those moments, a safety tool has to support real-life communication rather than assume every user has perfect network conditions or immediate access to formal response teams.",
-          "The value of an SOS app is not only in sending a message. It is in helping a person communicate a location in a way that is useful to a contact who may be trying to decide what to do next. A district, landmark, or nearby known place can be far more actionable than a vague map pin alone.",
-          "That is why local context matters. A good app supports clear, simple communication that a trusted person can act on quickly, without needing a complicated dashboard or technical knowledge.",
-        ],
-      },
-      {
-        heading: "Key features worth checking",
-        paragraphs: [
-          "When comparing emergency SOS apps, users should look at the practical features, not the marketing language. One of the most important features is contact control: who receives the alert, what they can access, and whether the user can stop or update it later. Another is location sharing: is the information accurate, understandable, and limited to the need at hand?",
-          "Message clarity is another critical feature. The app should help the user send a direct explanation such as where they are, what is happening, and whether they need immediate practical help. A clear alert is more useful than an alarming one because it allows a person to respond calmly and with purpose.",
-          "Finally, users should check whether the app is easy to test in normal conditions. A product that only works in theory is not reliable. The real test is whether the user can understand the workflow, practice it, and recover from confusion if the emergency is not perfectly clean or well-structured.",
-        ],
-      },
-      {
-        heading: "What to avoid",
-        paragraphs: [
-          "Some apps create false confidence by sounding urgent without offering clarity. A strong SOS feature should never imply that a system can fully replace human judgement or official emergency authorities. It should support the user, not override their decision-making. A trusted contact still needs to understand the situation and know what to do next.",
-          "Users should also be careful about app permissions and privacy. If an SOS app collects more data than necessary, or makes it hard to understand who receives it, it can become risky rather than helpful. A clear, consent-based design is more effective than a design that appears dramatic but leaves key details hidden.",
-        ],
-      },
-      {
-        heading: "A practical checklist",
-        paragraphs: [
-          "Before relying on any emergency SOS feature, take a few minutes to test it in a calm environment. The goal is not to create anxiety. The goal is to make sure the process is understandable and usable when the pressure is high.",
-        ],
-        bullets: [
-          "Check exactly who receives the SOS alert and which message is sent.",
-          "Test location accuracy and understand whether the app shares an address, landmark, or approximate pin.",
-          "Save official emergency numbers separately so the app remains a support tool, not the only fallback.",
-          "Review your safety plan after moving, changing jobs, or travelling to a new area.",
-          "Keep a backup contact and a charging plan so the safety workflow still works when the phone battery is low.",
-        ],
-      },
-      {
-        heading: "How Allma Safety AI fits into this",
-        paragraphs: [
-          "Allma Safety AI can support users in building a calmer, more structured safety response. Its value is in helping people prepare for difficult situations rather than reacting blindly in the moment. That may include organising trusted contacts, improving clarity around safety information, and making the next practical step easier to understand.",
-          "The fit is strongest when it is presented as a complement to, not a substitute for, established emergency processes. In Uganda, that means a person should still know the local steps to take, keep a direct contact list, and understand how to reach the right support quickly. A helpful app makes this easier, not more complicated.",
-        ],
-      },
-      {
-        heading: "Final thoughts",
-        paragraphs: [
-          "An emergency SOS app is only as good as the clarity it creates when a person is stressed. The most valuable tools reduce confusion, help a person communicate a real location, and support trusted contacts in a way that is practical and calm. That matters in Uganda because safety is often shaped by movement, local routes, and everyday realities rather than abstract global assumptions.",
-          "The right approach is not to chase dramatic features. It is to build a simpler, more reliable plan that can work under pressure. When used honestly, a safety tool can become a useful part of that process without creating false confidence.",
-        ],
-      },
-    ],
+    image: articleImages[1],
   },
   {
     keyword: "personal safety app",
     category: "Personal safety",
-    title: "Personal safety apps in Uganda: practical support beyond the panic button",
-    metaTitle: "Personal Safety Apps in Uganda | Smarter Planning",
-    metaDescription: "Understand what a personal safety app should realistically do in Uganda, from trusted contacts to emergency planning and clear response routines.",
-    excerpt: "A personal safety app is most useful when it supports routines, trusted contacts, and calm decisions before an issue becomes an emergency.",
-    featuredImage: articleImages[2],
-    featuredImageAlt: "A person reviewing personal safety routines and trusted contacts before travel",
+    title: "Personal safety apps: choosing tools that work beyond the panic button",
+    excerpt: "A real personal safety tool supports daily routines, trusted check-ins, and response planning instead of depending on one dramatic trigger.",
+    lead: "Personal safety is built through habits, not only emergencies. A good app helps a person plan check-ins, define trusted contacts, and store relevant details in a way that feels useful before a crisis and clear during one.",
+    whyItMatters: "A panic button can feel reassuring, but it is only one part of a system. People need tools that support preparation, still work when a phone battery is low, and explain how their information is shared without making them feel watched or overexposed.",
+    checklist: ["Review your check-in routine and keep it simple enough to use when you are stressed.", "Set privacy controls carefully so you know what is visible to family, responders, or designated contacts.", "Update permissions and emergency settings regularly after changes in your routine or contacts."],
     accent: "blue",
     author: "Allma Safety Team",
-    cta: "Take a few minutes to review your safety contacts, emergency preference list, and response routine so your plan still works when you are stressed or travelling.",
-    disclaimer: "The information in this article is general guidance and should not replace direct medical, legal, or emergency advice from qualified professionals or local authorities.",
-    internalLinks: [
-      "/blog/allma-safety-ai",
-      "/blog/trusted-emergency-contacts",
-      "/blog/uganda-safety-app",
-    ],
-    sections: [
-      {
-        heading: "What a personal safety app should really do",
-        paragraphs: [
-          "A personal safety app should help a person prepare for challenging situations before they become urgent. That can mean storing trusted contacts, organising emergency information, or making it easier to share a location or clear message when a user needs help. The best safety apps support calm decision-making instead of creating noise or panic.",
-          "In Uganda, personal safety is often shaped by daily movement, work routines, public transport, late-night travel, and household responsibilities. A person may need a simple way to prepare for those realities, not a tool that tries to overwhelm them with technical language or dramatic alerts.",
-          "This is why the most useful personal safety tools are practical. They make it easier to think clearly, identify a trusted person, and define what support should look like in a real situation. That kind of preparation is often more valuable than a single one-click emergency feature.",
-        ],
-      },
-      {
-        heading: "Why this matters in Uganda",
-        paragraphs: [
-          "Many people in Uganda navigate busy roads, changing work patterns, independent travel, and social obligations that all create different safety needs. A safety app that ignores that context will feel generic and not especially helpful. A better product understands that real safety often depends on a clear routine, a backup plan, and a trusted support network.",
-          "This also means that local context matters more than abstract claims. A user may need to know the quickest route to a safe place, the nearest contact who understands their routine, or the best way to describe location information in plain language. Those are real needs, and the tools that support them are the ones that stand out.",
-        ],
-      },
-      {
-        heading: "What to look for",
-        paragraphs: [
-          "A strong personal safety app should offer clarity, not confusion. It should be easy to understand how it shares information, who receives alerts, and whether location data is visible in a useful way. Good design reduces the user’s cognitive load when they are stressed.",
-          "It should also have a clear, readable emergency workflow. Users should be able to understand how to alert a trusted contact, how to confirm a location, and how to stop or update a safety action if conditions change. Safety systems work better when the user knows exactly what is being shared and why.",
-        ],
-      },
-      {
-        heading: "What to avoid",
-        paragraphs: [
-          "It is easy to get distracted by fancy features or vague promises. But a personal safety tool is only valuable if it helps a person act better in a real situation. If the app is hard to understand, difficult to test, or unclear about permissions, it can become a source of false confidence.",
-          "Users should also be careful not to treat a single app as a complete safety solution. A good plan still relies on human judgement, trusted contacts, and practical routines. A digital tool can support that process; it cannot replace it.",
-        ],
-      },
-      {
-        heading: "A practical checklist",
-        paragraphs: [
-          "Personal safety is built through routine, not just emergency triggers. A few consistent habits can make a major difference over time."
-        ],
-        bullets: [
-          "Create a short list of trusted contacts and keep it updated.",
-          "Know your nearest safe place, landmark, or community point of contact.",
-          "Review emergency information when your routine changes, including travel patterns or work locations.",
-          "Keep backup access to emergency numbers and route information.",
-          "Test the flow in calm conditions so the process remains clear under pressure.",
-        ],
-      },
-      {
-        heading: "How Allma Safety AI fits into this",
-        paragraphs: [
-          "Allma Safety AI can support a user by helping them organise relevant safety information and respond more clearly in stressful situations. The realistic value is not in dramatic claims; it is in improving how a person prepares for and handles risk with more structure and less uncertainty.",
-          "For many users, that means a clearer, calmer, and more practical safety plan. The app becomes part of a broader system that includes trusted people, local context, and a realistic understanding of what support is available. That is a responsible and useful way to view safety technology.",
-        ],
-      },
-      {
-        heading: "Final thoughts",
-        paragraphs: [
-          "A personal safety app should help a person remain calm, informed, and prepared, not simply add more noise. In Uganda, where daily routines and travel patterns vary widely, a realistic and useful safety plan matters more than a flashy feature list.",
-          "The best approach is to think of safety technology as a support layer: one part of a wider plan that also includes trusted relationships, clear routines, and practical awareness. That is how a person builds confidence without false certainty.",
-        ],
-      },
-    ],
+    image: articleImages[2],
   },
   {
     keyword: "Uganda safety app",
     category: "Uganda",
-    title: "Uganda safety apps: what local users should look for before choosing one",
-    metaTitle: "Uganda Safety Apps | What Local Users Should Check",
-    metaDescription: "Explore the real features Ugandan users should look for in a safety app, from local relevance to trusted contacts and practical emergency planning.",
-    excerpt: "A Uganda safety app should help people make practical decisions in normal routines and urgent moments, not just rely on generic global features.",
-    featuredImage: articleImages[3],
-    featuredImageAlt: "A Ugandan city scene with a mobile safety app concept overlaid on daily travel",
+    title: "Uganda safety apps: a local checklist for choosing the right support",
+    excerpt: "A local safety app must reflect real life in Uganda, including local contact networks, transport realities, and communication challenges.",
+    lead: "A safety app designed for Uganda should understand local realities rather than copying a generic global template. That means it should support familiar routes to help, local place information, and practical decision-making for people who may be moving between neighbourhoods, districts, or transport hubs.",
+    whyItMatters: "People often need help faster than a map pin or a generic emergency instruction can provide. In Uganda, the value of a safety app usually comes from knowing where someone is, how to reach a reliable contact, and how to explain a situation in plain language without creating confusion.",
+    checklist: ["Check whether local facilities, landmarks, and service types are clearly labelled.", "Look for clear location sharing and contact escalation that does not become confusing during stress.", "Plan for weak data, delayed responses, and the need to share precise context with the people who can help."],
     accent: "green",
     author: "Allma Safety Team",
-    cta: "If you are selecting a safety tool in Uganda, focus on clarity, consent, local context, and real-world use. A practical plan matters more than a polished sales pitch.",
-    disclaimer: "This article is general information only. For emergency or legal situations, contact official services or qualified professionals in your area.",
-    internalLinks: [
-      "/blog/emergency-services-uganda",
-      "/blog/kampala-emergency-help",
-      "/blog/allma-safety-ai",
-    ],
-    sections: [
-      {
-        heading: "What makes a safety app relevant in Uganda?",
-        paragraphs: [
-          "A safety app designed for Uganda should reflect the realities people face in daily life, not just a generic checklist copied from another market. That includes local travel patterns, route awareness, communication habits, and the need for simple, understandable support when a person is under stress.",
-          "Many users are not looking for a dramatic app or an alarm that sounds impressive. They want a tool that helps them think clearly, reach a trusted person, and keep their emergency details organised in a way that makes sense when they are tired, rushed, or uncertain.",
-          "The most relevant products are often the simplest ones. A tool that explains what is happening, who can respond, and what the next step is can be far more valuable than a product with many features but little clarity.",
-        ],
-      },
-      {
-        heading: "Why this matters in Uganda",
-        paragraphs: [
-          "Urban and peri-urban life in Uganda often involves movement across different places: home, work, school, roadside stops, markets, and public transport. This can create genuine safety challenges, especially when a person is alone or travelling at unusual times. A useful app should help them prepare for those situations without creating new stress or confusion.",
-          "Local context matters because a user may need to describe a district, a landmark, a route, or a known place rather than only a raw map pin. When an emergency is active, clarity about where a person is and how to reach them becomes far more important than a fancy interface.",
-        ],
-      },
-      {
-        heading: "Key questions to ask before choosing a tool",
-        paragraphs: [
-          "Before choosing a safety app, ask whether it explains how location sharing works, how contact lists are managed, and what happens when the alert is triggered. A trustworthy product should make those details easy to understand without requiring technical knowledge.",
-          "Users should also ask whether they can test the flow in normal conditions, whether trusted contacts can be updated easily, and whether the app respects user consent. A system that is hard to manage or hard to understand may not provide real protection in a crisis.",
-        ],
-      },
-      {
-        heading: "What to avoid",
-        paragraphs: [
-          "A safety app should not claim to guarantee protection or replace established emergency systems. That is not realistic, and it can create dangerous false confidence. Another mistake is choosing a product with a complex interface but no strong explanation of permissions, location sharing, or response flow.",
-          "Local users should also be wary of products that are difficult to update or that do not explain which data is being shared. Safety is built on clarity and trust, not vague assurances.",
-        ],
-      },
-      {
-        heading: "A practical checklist",
-        paragraphs: [
-          "A practical Uganda safety plan is simple enough to use under stress and realistic enough to maintain over time."
-        ],
-        bullets: [
-          "Keep emergency numbers in a simple contact list outside of a single app.",
-          "Save your district, route, and nearest safe landmark in an easy-to-access note.",
-          "Review safety settings regularly, especially after travel or a change in routine.",
-          "Choose trusted contacts who can respond calmly and communicate clearly.",
-          "Understand exactly what information your app will send and who can access it.",
-        ],
-      },
-      {
-        heading: "How Allma Safety AI fits into this",
-        paragraphs: [
-          "Allma Safety AI can fit into a local safety plan by helping users organise essential information, structure their response process, and reduce confusion during a stressful event. The focus should remain on clarity, preparation, and practical use rather than on dramatic claims.",
-          "Within a Ugandan context, that means supporting users with tools they can understand and use in real life. A platform that helps a person prepare a plan before an emergency is more valuable than one that only aims to look impressive on a walkthrough.",
-        ],
-      },
-      {
-        heading: "Final thoughts",
-        paragraphs: [
-          "The right Uganda safety app is not necessarily the one with the most features. It is the one that reflects local realities, helps users prepare clearly, and behaves responsibly in emergency situations. That is the standard people should judge a product by.",
-          "A strong safety plan combines practical preparation, trusted contacts, and trusted tools. When those elements work together, the result is calmer decision-making, clearer communication, and better readiness.",
-        ],
-      },
-    ],
+    image: articleImages[3],
+  },
+  {
+    keyword: "emergency response app",
+    category: "Emergency response",
+    title: "Emergency response apps: how digital coordination should work",
+    excerpt: "A good emergency response app gives everyone the same clear facts, reduces duplicate calls, and keeps the final decision with the right human team.",
+    lead: "Digital emergency tools can help a great deal when they reduce chaos. The best response apps do not flood a user with uncertain signals; they organise facts, confirm where help is needed, and support the next action in a way that any trusted contact can interpret quickly.",
+    whyItMatters: "Many problems during an emergency are not caused by a single missing feature. They are caused by poor coordination: mixed messages, unclear locations, and multiple people trying to do the same thing. Strong response design keeps the information simple and the process manageable.",
+    checklist: ["Check that response status is visible and easy to understand.", "Make sure official services, family contacts, and local responders are clearly separated.", "Keep a record of updates so everyone sees the same timeline and not competing versions of events."],
+    accent: "red",
+    author: "Allma Safety Team",
+    image: articleImages[4],
+  },
+  {
+    keyword: "community safety platform",
+    category: "Community safety",
+    title: "Community safety platforms: building help without creating new risk",
+    excerpt: "A community safety platform works when it supports consent, clear roles, and informed response instead of creating pressure or confusion.",
+    lead: "Community safety should feel like a system for trusted support, not a chaotic public call-out. A good platform makes it easy for people to opt in, understand what they are sharing, and respond to a real need without being pushed into risky action or public exposure.",
+    whyItMatters: "The danger in many community tools is not that they are too weak; it is that they are too careless. A person asking for help deserves privacy, clarity, and clear instructions about who can respond and how. The right platform reduces panic while preserving dignity and safety.",
+    checklist: ["Require consent and transparent contact selection before a person is added to a safety network.", "Share the least information needed for a clear response.", "Give every responder a simple and visible rule: do not escalate risk with confrontation or unsafe assumptions."],
+    accent: "blue",
+    author: "Allma Safety Team",
+    image: articleImages[5],
+  },
+  {
+    keyword: "live SOS alerts",
+    category: "Alerts",
+    title: "Live SOS alerts: what a useful alert should tell a trusted contact",
+    excerpt: "An effective SOS alert should do more than sound urgent. It should help a trusted person understand the situation, the location, and the next safe step.",
+    lead: "An SOS alert is not just a notification. It is an opening message in a live response. If the message is vague, the recipient will not know what to do, and more time is lost while the person tries to interpret the crisis.",
+    whyItMatters: "The person receiving the alert is often under stress themselves. They need to know whether the issue is medical, location-based, or a physical safety concern. A good alert gives them a quick answer and a clear next action instead of asking them to decode a vague message.",
+    checklist: ["Use plain emergency language rather than jargon or vague status wording.", "Show whether location is shared and what level of precision is being sent.", "Give the recipient a direct way to acknowledge, call back, or request more context."],
+    accent: "gold",
+    author: "Allma Safety Team",
+    image: articleImages[6],
+  },
+  {
+    keyword: "emergency location sharing",
+    category: "Location safety",
+    title: "Emergency location sharing: useful, temporary and consent-led",
+    excerpt: "Location sharing helps in an emergency only when it is clear, time-bound, and easy to control without creating additional risk.",
+    lead: "Location is one of the most powerful tools in a safety workflow, but it becomes dangerous when it is vague, over-shared, or left on when the emergency is over. The best design makes the recipient, precision, and stop conditions visible to the user at the exact moment they need them.",
+    whyItMatters: "A map pin can help responders reach a person faster, but it should not become a permanent trail of movement. Users need confidence that their location is being shared for a defined purpose, with a clear end point and a clear understanding of who can view it.",
+    checklist: ["Tell the user exactly who will receive the location information.", "Label whether the position is approximate or precise.", "Add a clear stop condition so sharing ends once help is on the way or the risk is resolved."],
+    accent: "green",
+    author: "Allma Safety Team",
+    image: articleImages[7],
+  },
+  {
+    keyword: "GPS emergency tracking",
+    category: "Location safety",
+    title: "GPS emergency tracking: accuracy, battery and the human context",
+    excerpt: "GPS is useful when a user understands its limits. A pin is not certainty, and good design explains uncertainty instead of hiding it.",
+    lead: "A GPS reading can be extremely helpful, but it should never be treated as perfect truth. The quality of the signal, battery level, and the real-world situation all influence how useful the information is. Good emergency design shows accuracy, context, and uncertainty instead of pretending the location is exact.",
+    whyItMatters: "When a location is inaccurate, people can be sent in the wrong direction or to the wrong facility. A strong emergency tool explains the accuracy radius, refreshes data only when useful, and helps a user add context such as a landmark or known district when GPS is weak.",
+    checklist: ["Show the accuracy radius so the user understands the confidence level.", "Refresh location data only when it adds useful information.", "Encourage a user to add a landmark or known place when GPS is weak or uncertain."],
+    accent: "blue",
+    author: "Allma Safety Team",
+    image: articleImages[0],
+  },
+  {
+    keyword: "nearby hospitals",
+    category: "Nearby help",
+    title: "Nearby hospitals: finding the right emergency destination faster",
+    excerpt: "Looking for a hospital should be practical and calm, not stressful. A useful tool should help a person compare proximity, contact information, and current suitability quickly.",
+    lead: "The nearest hospital is not always the best hospital for the situation. A person in need may be better served by a facility with a clearer emergency route, a different service type, or a more appropriate level of care. Good search design helps people weigh practical realities instead of only distance.",
+    whyItMatters: "During an emergency, every minute matters, but speed without context can create a poor decision. A strong nearby-help tool should help the user compare the facility, confirm the route, and see whether a quick call is needed before travel begins.",
+    checklist: ["Check the address and route before moving.", "Call ahead when the situation allows and ask whether the facility can accept the person.", "Use a trusted person to help verify the destination if the situation is urgent or complex."],
+    accent: "green",
+    author: "Allma Safety Team",
+    image: articleImages[1],
+  },
+  {
+    keyword: "nearby police stations",
+    category: "Nearby help",
+    title: "Nearby police stations: what to confirm before you go",
+    excerpt: "A nearby police station is a useful starting point, but it should be treated as a route to a real service, not a guarantee of what will happen when you arrive.",
+    lead: "The right way to use local police information is as a practical guide, not as proof that a station is immediately available or appropriate for a specific problem. A map result can help orient a user out of a dangerous or uncertain moment, but it should not replace direct confirmation or a clear understanding of the situation.",
+    whyItMatters: "In a tense situation, a person may be tempted to act on a map result alone. The safer approach is to confirm the route, identify the official contact, and avoid approaching a scene that could be unpredictable or unsafe.",
+    checklist: ["Check the official contact details before going anywhere.", "Share your route with a trusted contact when possible.", "Avoid approaching a scene alone if there is risk of confrontation or unknown conditions."],
+    accent: "blue",
+    author: "Allma Safety Team",
+    image: articleImages[2],
+  },
+  {
+    keyword: "nearby clinics",
+    category: "Nearby help",
+    title: "Nearby clinics: choosing urgent care close to you",
+    excerpt: "A clinic can be the right first step for urgent care, but timing, service type, and capability all matter as much as distance.",
+    lead: "Some situations need immediate help from a clinic; others require a hospital or emergency service. A local listing helps, but the better decision comes from comparing the place, the service type, and the urgency of the symptoms rather than starting with the closest map result only.",
+    whyItMatters: "People often search for the nearest option when they are stressed and do not know what they need. Good guidance explains the difference between basic care, urgent consultation, and emergency care, which helps a person avoid delay or confusion during a real health concern.",
+    checklist: ["Read the facility type and service category carefully.", "Call to confirm operating hours and the service you need.", "Use emergency services when the problem is life-threatening or rapidly worsening."],
+    accent: "green",
+    author: "Allma Safety Team",
+    image: articleImages[3],
+  },
+  {
+    keyword: "emergency services Uganda",
+    category: "Uganda",
+    title: "Emergency services in Uganda: prepare the numbers and the route",
+    excerpt: "Emergency preparation works best when a person has practical information ready before a crisis begins, including official numbers, local landmarks, and trusted contacts.",
+    lead: "The strongest emergency plan includes more than one route to help. It should combine official numbers, trusted people, and locational context so that a person can respond quickly even when they are stressed, moving, or not fully certain what is happening.",
+    whyItMatters: "A list of numbers is not enough if a person cannot describe the place, the urgency, or the most appropriate route to help. Good emergency preparation means organising contact information in a format that can be used under pressure without confusion or delay.",
+    checklist: ["Save official numbers outside the app so they remain available even when the phone is low on battery.", "Know your district, the nearest landmark, and the quickest route to a safe place.", "Keep a backup contact and a charged phone so the plan still works if the first route fails."],
+    accent: "red",
+    author: "Allma Safety Team",
+    image: articleImages[4],
+  },
+  {
+    keyword: "Kampala emergency help",
+    category: "Kampala",
+    title: "Kampala emergency help: a calm plan for the first ten minutes",
+    excerpt: "The first ten minutes of an emergency are about reducing risk, clarifying the situation, and moving toward the right form of help without panic.",
+    lead: "When a person needs urgent help in Kampala, the immediate goal is not to find a perfect answer. It is to reduce risk, communicate clearly, and move toward a safer, more informed decision. That usually means securing a safer place, telling a trusted person what is happening, and checking the nearest verified route to help.",
+    whyItMatters: "In rapidly changing situations, confusion often affects decisions more than the emergency itself. People do better when they know what to communicate, what to share, and how to get to a safer environment while waiting for support.",
+    checklist: ["Move toward a safer, more staffed place if that is possible without putting yourself at greater risk.", "Share your district, landmark, and immediate condition with a trusted contact.", "Use a verified nearby-help list as a guide, not as a guarantee that the first location is ideal."],
+    accent: "gold",
+    author: "Allma Safety Team",
+    image: articleImages[5],
+  },
+  {
+    keyword: "Uganda police contacts",
+    category: "Uganda",
+    title: "Uganda police contacts: keeping official information usable",
+    excerpt: "Contact details become useful only when they are current, easy to find, and paired with the right context during an active problem.",
+    lead: "A phone number is only helpful when it is ready to be used. In a stressful situation, people often struggle not because information is missing, but because it is stored in a way that makes the next step harder than it should be. Better organisation reduces friction when it matters most.",
+    whyItMatters: "Call operators and responders need clear facts: where the person is, what happened, and whether the situation is active or immediately dangerous. A good emergency contact list should help a person give those facts quickly without the user having to improvise under stress.",
+    checklist: ["Save official numbers from trusted sources and update them if they change.", "Store the location and incident description in a note you can access quickly.", "Avoid depending on a single contact or a single saved number when a risk is active."],
+    accent: "blue",
+    author: "Allma Safety Team",
+    image: articleImages[6],
+  },
+  {
+    keyword: "Uganda hospitals directory",
+    category: "Uganda",
+    title: "Uganda hospitals directory: compare facilities with care",
+    excerpt: "A hospital directory is useful for orientation, but it should not replace direct confirmation of service type, capacity, and current availability.",
+    lead: "Hospital directories can help a person narrow the options quickly, but they should be treated as a starting point, not proof. Facility type, opening status, emergency capability, and route quality all affect the decision, and a poor assumption can create delay or confusion at the wrong time.",
+    whyItMatters: "The right hospital is not always the closest or the most prominent one. A person looking for help needs to understand what the facility actually offers, how well it can respond to the current need, and whether a quick phone call could save time and stress.",
+    checklist: ["Compare distance, route, and type of service before choosing a destination.", "Check the facility category and the services it can realistically offer.", "Confirm current availability and phone access before travelling or arranging transport."],
+    accent: "green",
+    author: "Allma Safety Team",
+    image: articleImages[7],
+  },
+  {
+    keyword: "Google Maps emergency locations",
+    category: "Maps",
+    title: "Google Maps emergency locations: using maps without losing judgment",
+    excerpt: "Maps are useful for orientation and route planning, but they should support a decision rather than replace local verification and human judgement.",
+    lead: "Maps are helpful when they help a person find the right path, but they are only one layer of evidence. A listed place may be nearby but still not be the right route, the right facility, or the right service at the exact time someone needs help.",
+    whyItMatters: "A map is a decision aid, not a dispatcher. It can show the nearest option and the likely route, but it cannot confirm the opening status, the exact service available, or whether the location is safe to approach.",
+    checklist: ["Check the pin against the written address or landmark before you move.", "Use live directions for routing, but confirm the service type and current status.", "Keep a trusted contact updated on your route and destination when the situation is urgent."],
+    accent: "blue",
+    author: "Allma Safety Team",
+    image: articleImages[0],
+  },
+  {
+    keyword: "real-time safety network",
+    category: "Safety network",
+    title: "Real-time safety networks: turning trusted contacts into a response path",
+    excerpt: "A real-time safety network is useful only when it is clear, well-prioritised, and focused on the actual response rather than on noise.",
+    lead: "A live safety network is not about showing everyone everything. It is about making sure the right people receive the right information at the right time. That creates a response path that feels faster, calmer, and more useful under pressure.",
+    whyItMatters: "People often overestimate how much information a contact needs in a crisis. A network works best when it gives trusted people enough context to act responsibly without overwhelming them or exposing unnecessary private details.",
+    checklist: ["Set contact priorities in advance so the chain of response is clear.", "Display real call and message status so people know whether the alert has been seen.", "Protect personal information by limiting what is exposed to each contact level."],
+    accent: "red",
+    author: "Allma Safety Team",
+    image: articleImages[1],
+  },
+  {
+    keyword: "trusted emergency contacts",
+    category: "Trusted contacts",
+    title: "Trusted emergency contacts: choosing people who can really help",
+    excerpt: "A better safety plan is built around people who can respond calmly, understand the situation, and respect the user’s boundaries.",
+    lead: "Not every contact should be a safety contact. The right people are not necessarily the most available; they are the ones who can hear the message clearly, respond appropriately, and understand the user’s privacy needs when a crisis begins.",
+    whyItMatters: "Many emergencies fail not because help is unavailable, but because the wrong person receives the alert, or the person is not prepared to act. A strong network is built through trust, clarity, and careful preparation rather than simply adding names to a list.",
+    checklist: ["Ask before adding a person to your emergency network.", "Explain what the SOS may share and what the person is expected to do.", "Review contacts after changes in your routine, living situation, or communication needs."],
+    accent: "gold",
+    author: "Allma Safety Team",
+    image: articleImages[2],
+  },
+  {
+    keyword: "safety network alerts",
+    category: "Alerts",
+    title: "Safety network alerts: designing notifications people can act on",
+    excerpt: "A good alert answers four questions quickly: who needs help, what is happening, where they are, and what the receiver can do now.",
+    lead: "A safety alert is not a generic message. It is a communication tool that has to carry urgency without confusion. The purpose is not to shock or overwhelm the receiver. It is to give enough context for a person to respond appropriately without guessing.",
+    whyItMatters: "When an alert is vague, the recipient fights to understand what is happening before they can help. Good alerts reduce that delay by making the problem clear, the status visible, and the next action obvious without overloading the phone screen with noise.",
+    checklist: ["Use plain emergency language that is easy to understand at a glance.", "Make location consent visible so the user can see what will be shared.", "Offer a direct reply or call action instead of leaving the recipient to guess what to do."],
+    accent: "gold",
+    author: "Allma Safety Team",
+    image: articleImages[3],
   },
 ];
 
@@ -379,35 +291,38 @@ function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-export const BLOG_POSTS: BlogPost[] = seeds.map((seed) => ({
+export const BLOG_POSTS: BlogPost[] = seeds.map((seed, index) => ({
   slug: slugify(seed.keyword),
   keyword: seed.keyword,
   category: seed.category,
   title: seed.title,
-  metaTitle: seed.metaTitle,
-  metaDescription: seed.metaDescription,
   excerpt: seed.excerpt,
-  readMinutes: 5,
+  readMinutes: 5 + (index % 4),
   publishedAt: "2026-09-08",
   accent: seed.accent,
   author: seed.author,
-  featuredImage: seed.featuredImage,
-  featuredImageAlt: seed.featuredImageAlt,
-  seoKeywords: {
-    primary: seed.keyword,
-    secondary: [
-      "safety app Uganda",
-      "emergency response tools",
-      "trusted emergency contacts",
-      "personal safety planning",
-      "Allma safety guide",
-    ],
-  },
-  cta: seed.cta,
-  disclaimer: seed.disclaimer,
-  internalLinks: seed.internalLinks,
-  wordCount: seed.sections.reduce((total, section) => total + section.paragraphs.join(" ").split(/\s+/).length + (section.bullets ? section.bullets.join(" ").split(/\s+/).length : 0), 0),
-  sections: seed.sections,
+  featuredImage: seed.image,
+  sections: [
+    {
+      heading: "The practical answer",
+      paragraphs: [
+        seed.lead,
+        seed.excerpt + " The useful question is not whether a feature sounds impressive; it is whether it gives someone a safer and clearer path to action when stress is high.",
+      ],
+    },
+    {
+      heading: "Why this matters in real life",
+      paragraphs: [
+        seed.whyItMatters,
+        "In Uganda, practical safety also depends on local context: clear district or landmark information, reliable contacts, and a realistic understanding of connectivity, routes, and available help. Good design works with those realities rather than pretending they do not exist.",
+      ],
+    },
+    {
+      heading: "A practical checklist before you rely on it",
+      paragraphs: ["Before trusting any safety app, service, or contact workflow, review the essentials and revisit them after major life changes or changes in your routine."],
+      bullets: seed.checklist,
+    },
+  ],
 }));
 
 export function getBlogPost(slug: string) {
