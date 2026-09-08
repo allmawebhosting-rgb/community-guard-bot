@@ -2103,30 +2103,15 @@ function MinimalEmergencyScreen({
                 places={nearbyHelp}
                 selectedPlaceId={selectedHelpId}
                 onSelectPlace={setSelectedHelpId}
-                heightClassName="h-64 sm:h-72 lg:h-[24rem]"
+                heightClassName="h-52 sm:h-64 lg:h-[24rem]"
               />
             </div>
           )}
-          </section>
-
-          <section aria-label="Nearby help" className="signal-help-card order-4 min-w-0 border-b border-border/60 py-5 sm:py-6 lg:col-start-2 lg:row-start-3 lg:rounded-2xl lg:border lg:border-border/60 lg:bg-card lg:p-6 lg:shadow-soft">
-            {locationReady ? (
-              <NearbyHelpList
-                places={nearbyHelp}
-                loading={nearbyHelpLoading}
-                origin={location ? { lat: location.lat, lng: location.lng } : null}
-                selectedId={selectedHelpId}
-                onSelect={setSelectedHelpId}
-                tone="dark"
-                title="Help near you"
-                subtitle="Police, clinics and hospitals closest to you"
-                emptyLabel="No nearby police, clinics or hospitals were found yet. Use the emergency numbers instead."
-              />
-            ) : (
-              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-[12px] leading-relaxed text-amber-100/75">
-                Nearby police, clinics and hospitals need location permission. Enable location above to search for real places.
-              </div>
-            )}
+          {!locationReady && (
+            <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-[12px] leading-relaxed text-amber-100/75">
+              Nearby police, clinics and hospitals need location permission. Enable location above to search for real places.
+            </div>
+          )}
           </section>
 
         </div>

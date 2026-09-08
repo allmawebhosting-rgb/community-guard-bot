@@ -880,6 +880,7 @@
   .signal-slate .signal-help-grid {
     display: block;
     gap: 0;
+    padding-bottom: 1rem;
   }
 
   .signal-slate .signal-help-grid > .contents {
@@ -889,13 +890,17 @@
   .signal-slate .signal-help-grid > .contents > * {
     display: block;
     width: 100%;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
   }
 
   .signal-slate .signal-help-card {
     border-radius: 1rem !important;
     background: #ffffff !important;
     box-shadow: 0 12px 30px -24px rgb(24 33 43 / 0.45) !important;
+  }
+
+  .signal-slate .signal-help-card [class*="h-"] {
+    max-height: none;
   }
 }
 
