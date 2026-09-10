@@ -26,12 +26,6 @@ export type BlogPost = {
   sections: BlogSection[];
 };
 
-export type BlogSection = {
-  heading: string;
-  paragraphs: string[];
-  bullets?: string[];
-};
-
 export function blogHeadingId(heading: string) {
   return heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
