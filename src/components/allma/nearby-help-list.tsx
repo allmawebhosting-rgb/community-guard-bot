@@ -90,10 +90,10 @@ export function NearbyHelpList({
 
   const shell = dark
     ? "border-border/70 bg-card"
-    : "border-border/60 bg-secondary/30";
+    : "border-border/70 bg-card";
   const selectedShell = dark
     ? "border-primary/50 bg-card"
-    : "border-primary/45 bg-accent";
+    : "border-primary/45 bg-accent/60";
   const nameClass = "text-foreground";
   const metaClass = "text-muted-foreground";
   const strongMeta = "text-foreground";
@@ -103,7 +103,7 @@ export function NearbyHelpList({
   const headingClass = "text-muted-foreground";
   const noticeClass = dark
     ? "border-border/70 bg-card text-muted-foreground"
-    : "border-border/60 bg-secondary/30 text-muted-foreground";
+    : "border-border/70 bg-muted/35 text-muted-foreground";
 
   return (
     <div>
@@ -135,7 +135,7 @@ export function NearbyHelpList({
       ) : places.length === 0 ? (
         <div className={cn("mt-3 rounded-2xl border p-4 text-[12px]", noticeClass)}>{emptyLabel}</div>
       ) : (
-        <ul className="mt-4 space-y-2.5">
+        <ul className="mt-4 grid gap-2.5 xl:grid-cols-2">
           {places.map((place) => {
             const kind = helpKind(place.type);
             const Icon = KIND_ICON[kind];
@@ -147,7 +147,7 @@ export function NearbyHelpList({
                 id={`help-place-${place.id}`}
                 onClick={() => onSelect?.(place.id)}
                 className={cn(
-                  "rounded-xl border p-3.5 shadow-sm",
+                  "rounded-lg border p-3.5 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 hover:border-foreground/20 hover:shadow-soft",
                   shell,
                   selected && selectedShell,
                   onSelect && "cursor-pointer",
@@ -155,7 +155,7 @@ export function NearbyHelpList({
               >
                 <div className="flex items-start gap-3">
                   <span
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-md"
                     style={{
                       backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
                       color: HELP_KIND_COLOR[kind],
@@ -167,7 +167,7 @@ export function NearbyHelpList({
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                       <p className={cn("min-w-0 break-words text-[13px] font-bold leading-snug", nameClass)}>{place.name}</p>
                       <span
-                        className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+                        className="shrink-0 rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
                         style={{
                           backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
                           color: HELP_KIND_COLOR[kind],
@@ -196,7 +196,7 @@ export function NearbyHelpList({
                     rel="noreferrer"
                     onClick={(event) => event.stopPropagation()}
                     className={cn(
-                      "flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-bold transition-colors",
+                      "flex min-h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-[11px] font-bold transition-colors",
                       actionClass,
                     )}
                   >
@@ -207,7 +207,7 @@ export function NearbyHelpList({
                       href={`tel:${tel}`}
                       onClick={(event) => event.stopPropagation()}
                       className={cn(
-                        "flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-bold transition-colors",
+                        "flex min-h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-[11px] font-bold transition-colors",
                         actionClass,
                       )}
                     >

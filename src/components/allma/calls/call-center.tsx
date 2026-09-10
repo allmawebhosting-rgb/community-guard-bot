@@ -557,18 +557,19 @@ export function CallCenter() {
         >
           <div
             className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-b to-transparent",
-              isEmergencyCall ? "from-destructive/20" : "from-primary/12",
+              "pointer-events-none absolute inset-x-0 top-0 h-96 hero-glow opacity-70",
+              isEmergencyCall ? "" : "opacity-40",
             )}
           />
 
           <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-40 pt-3 sm:px-6 sm:pt-6 lg:px-8 lg:pb-8">
-            <div className="mx-auto grid w-full max-w-md min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-lift sm:rounded-3xl lg:max-w-[1400px] lg:grid-cols-[minmax(300px,0.68fr)_minmax(0,1.32fr)]">
-              <div className="flex w-full min-w-0 flex-col items-center border-b border-border/60 px-5 py-6 text-center sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:h-[calc(100dvh-7rem)] lg:items-start lg:justify-center lg:self-start lg:border-b-0 lg:border-r lg:px-10 lg:py-10 lg:text-left">
+            <div className="mx-auto grid w-full max-w-md min-w-0 overflow-hidden rounded-lg border border-foreground/15 bg-card shadow-lift lg:max-w-[1400px] lg:grid-cols-[minmax(280px,0.62fr)_minmax(0,1.38fr)]">
+              <div className="relative flex w-full min-w-0 flex-col items-center overflow-hidden border-b border-border/70 bg-foreground px-5 py-6 text-center text-background sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:h-[calc(100dvh-7rem)] lg:items-start lg:justify-center lg:self-start lg:border-b-0 lg:border-r lg:border-foreground/15 lg:px-8 lg:py-10 lg:text-left">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-destructive/25 to-transparent" />
                 <p
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] shadow-sm",
-                    isEmergencyCall ? "text-destructive" : "text-muted-foreground",
+                    "relative inline-flex items-center gap-2 rounded-md border border-background/20 bg-background/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em]",
+                    isEmergencyCall ? "text-background" : "text-background/70",
                   )}
                 >
                   {isEmergencyCall && <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" /></span>}
@@ -580,7 +581,7 @@ export function CallCenter() {
                 </p>
 
                 <motion.div
-                  className="mt-5 rounded-full bg-card p-1.5 ring-1 ring-destructive/30 ring-offset-4 ring-offset-background shadow-lg shadow-destructive/15 sm:mt-7"
+                  className="relative mt-5 rounded-full bg-card p-1.5 ring-1 ring-destructive/50 ring-offset-4 ring-offset-foreground shadow-lg shadow-destructive/20 sm:mt-7"
                   animate={
                     phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.04, 1] } : {}
                   }
@@ -593,35 +594,35 @@ export function CallCenter() {
                   />
                 </motion.div>
 
-                <h2 className="mt-5 max-w-full break-words font-display text-2xl font-black leading-tight sm:text-3xl lg:mt-7 lg:text-4xl">
+                <h2 className="relative mt-5 max-w-full break-words font-display text-2xl font-black leading-tight text-background sm:text-3xl lg:mt-7 lg:text-4xl">
                   {isEmergencyCall && phase === "incoming"
                     ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
                     : (peer?.name ?? "Allma member")}
                 </h2>
-                <p className="mt-2 text-sm font-medium text-muted-foreground lg:text-base">
+                <p className="relative mt-2 text-sm font-medium text-background/65 lg:text-base">
                   {emergency && phase === "incoming"
                     ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
                     : statusLine}
                 </p>
 
                 {phase === "active" && quality !== "connecting" && (
-                  <p className="mt-3 font-mono text-3xl font-semibold tabular-nums">
+                   <p className="relative mt-3 font-mono text-3xl font-semibold tabular-nums text-background">
                     {formatDuration(seconds)}
                   </p>
                 )}
 
-                <p className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/50 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground lg:mt-7">
+                <p className="relative mt-5 inline-flex items-center gap-1.5 rounded-md border border-background/20 bg-background/10 px-3 py-1.5 text-[11px] font-semibold text-background/65 lg:mt-7">
                   <ShieldCheck className="h-3.5 w-3.5 text-success" />
                   In-app call · phone numbers stay private
                 </p>
               </div>
 
               {emergency && phase !== "ended" && (
-                <div className="w-full min-w-0 space-y-6 p-4 text-left sm:p-6 lg:p-8">
-                  <div className="rounded-2xl border border-destructive/25 bg-destructive/[0.045] p-4 shadow-soft sm:p-5">
+                <div className="w-full min-w-0 space-y-4 p-4 text-left sm:p-6 lg:p-7">
+                  <div className="rounded-lg border border-destructive/25 bg-destructive/[0.045] p-4 shadow-soft sm:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">Emergency information</p>
-                      <span className="rounded-full border border-destructive/20 bg-destructive/10 px-2.5 py-1 text-[10px] font-bold uppercase text-destructive">{emergency.severity}</span>
+                       <span className="rounded-md border border-destructive/20 bg-destructive/10 px-2.5 py-1 text-[10px] font-bold uppercase text-destructive">{emergency.severity}</span>
                     </div>
                     <p className="mt-2 text-base font-bold capitalize text-foreground">
                       {emergency.emergency_type.replace(/_/g, " ")}
@@ -640,7 +641,7 @@ export function CallCenter() {
                   </div>
 
                   {callerPoint && (
-                    <section aria-label="Caller location" className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card p-1.5 shadow-soft">
+                    <section aria-label="Caller location" className="min-w-0 overflow-hidden rounded-lg border border-border/70 bg-card p-1.5 shadow-soft">
                       <LiveLocationMap
                         location={{
                           lat: callerPoint.lat,
@@ -654,13 +655,13 @@ export function CallCenter() {
                         places={helpPlaces}
                         selectedPlaceId={selectedHelpId}
                         onSelectPlace={setSelectedHelpId}
-                        heightClassName="h-56 sm:h-72 lg:h-[24rem]"
+                        heightClassName="h-56 sm:h-72 lg:h-[25rem]"
                       />
                     </section>
                   )}
 
                   {callerPoint && (
-                    <section className="min-w-0 rounded-2xl border border-border/60 bg-card p-4 shadow-soft sm:p-5" aria-label="Help near the caller">
+                    <section className="min-w-0 rounded-lg border border-border/70 bg-card p-4 shadow-soft sm:p-5" aria-label="Help near the caller">
                       <NearbyHelpList
                         places={helpPlaces}
                         loading={helpLoading}
@@ -676,7 +677,7 @@ export function CallCenter() {
                   )}
 
                   {sosRoomId && (
-                    <section className="min-w-0 rounded-2xl border border-border/60 bg-muted/25 px-3 py-1 shadow-soft" aria-label="Shared emergency chat">
+                    <section className="min-w-0 rounded-lg border border-border/70 bg-muted/25 px-3 py-1 shadow-soft" aria-label="Shared emergency chat">
                       <EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} />
                     </section>
                   )}
@@ -686,7 +687,7 @@ export function CallCenter() {
           </div>
 
 
-          <div className="fixed inset-x-0 bottom-0 z-10 shrink-0 border-t border-border/60 bg-background/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-18px_50px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-xl lg:relative lg:inset-auto lg:bg-card/95 lg:py-4 lg:shadow-none">
+          <div className="fixed inset-x-0 bottom-0 z-10 shrink-0 border-t border-foreground/15 bg-card/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-18px_50px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-xl lg:relative lg:inset-auto lg:py-4 lg:shadow-none">
             {phase === "incoming" ? (
               <div className="mx-auto grid w-full max-w-md grid-cols-2 gap-5 sm:gap-8">
                 <CallAction label="Decline" tone="destructive" onClick={() => void decline()}>
