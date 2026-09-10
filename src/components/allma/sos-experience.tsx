@@ -1481,19 +1481,22 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
       transition={{ duration: 0.3 }}
     >
        {/* Top bar */}
-       <div className="flex items-center justify-between border-b border-border/60 bg-background/45 px-4 py-3 backdrop-blur-md sm:px-6 sm:py-3.5">
+       <div className="cmd-header flex items-center justify-between border-b border-foreground/20 px-4 py-3 text-background sm:px-6 sm:py-3.5">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="grid h-7 w-7 place-items-center rounded-full bg-destructive/18">
-            <Siren className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
+          <div className="grid h-7 w-7 place-items-center rounded-full bg-background/15">
+            <Siren className="h-3.5 w-3.5 text-background" strokeWidth={1.5} />
           </div>
-          <span className="truncate text-[13px] font-semibold text-foreground">Allma Safety AI</span>
+          <div className="min-w-0">
+            <span className="block truncate text-[13px] font-bold tracking-tight text-background">Allma Safety AI</span>
+            <span className="block text-[9.5px] font-bold uppercase tracking-[0.22em] text-background/60">Emergency console</span>
+          </div>
         </div>
          <div className="flex items-center gap-2">
            <button
              type="button"
              onClick={onExit}
              aria-label="Exit SOS and return to Allma AI"
-             className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-border/70 bg-secondary/70 px-3 py-1.5 text-[11px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+             className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-background/25 bg-background/10 px-3 py-1.5 text-[11px] font-bold text-background transition hover:bg-background/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/50"
            >
              <ArrowLeft className="h-3.5 w-3.5" /> Allma AI
            </button>
@@ -1501,9 +1504,10 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
       </div>
 
       {/* Main area — side by side on desktop */}
-       <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 items-center gap-5 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:gap-8 lg:overflow-hidden lg:px-10 lg:py-8 xl:gap-12">
+       <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 content-start items-start gap-4 overflow-y-auto px-4 py-5 sm:px-6 sm:py-7 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:items-center lg:gap-8 lg:overflow-hidden lg:px-10 lg:py-8 xl:gap-12">
         {/* Left: button */}
-         <div className="flex flex-col items-center rounded-[2rem] border border-destructive/15 bg-background/25 px-4 py-7 text-center shadow-soft backdrop-blur-sm sm:px-8 sm:py-9 lg:-translate-y-1 lg:px-10 lg:py-10">
+         <div className="cmd-panel cmd-rise flex flex-col items-center px-4 py-7 text-center sm:px-8 sm:py-9 lg:px-10 lg:py-10">
+
           <motion.p
             className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-destructive/60"
             initial={{ opacity: 0, y: -8 }}
@@ -1573,40 +1577,38 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
 
         {/* Right: info panel — stacked below the button on mobile */}
         <motion.div
-           className="w-full space-y-3 rounded-[2rem] border border-border/60 bg-secondary/25 p-4 shadow-soft backdrop-blur-sm sm:p-5 lg:p-6"
+           className="cmd-panel cmd-rail w-full space-y-2 p-4 pl-5 sm:p-5 sm:pl-6 lg:p-6 lg:pl-7"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
         >
-           <div className="mb-4 flex items-end justify-between gap-3">
-             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-               Official emergency lines
-             </p>
-             <span className="text-[10px] text-muted-foreground">Tap to call</span>
+           <div className="mb-3.5 flex items-end justify-between gap-3">
+             <p className="cmd-label">Official emergency lines</p>
+             <span className="text-[10px] font-semibold text-muted-foreground">Tap to call</span>
            </div>
           {EMERGENCY_NUMBERS.map((e) => (
             <a
               key={e.label}
               href={`tel:${e.number}`}
-              className="flex items-center justify-between rounded-2xl border border-border/60 bg-secondary/40 px-4 py-3 transition hover:bg-accent"
+              className="flex items-center justify-between gap-3 rounded-xl border border-foreground/10 bg-card px-3.5 py-2.5 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 hover:border-destructive/35 hover:shadow-soft"
             >
-              <div>
-                <p className="text-[13px] font-semibold text-foreground">{e.label}</p>
-                <p className="text-[11px] text-muted-foreground">Tap to call</p>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-bold text-foreground">{e.label}</p>
+                <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Tap to call</p>
               </div>
               <div
-                className={cn(
-                  "flex items-center gap-1.5 rounded-xl bg-gradient-to-br px-3 py-1.5 text-[15px] font-black",
-                  e.gradient,
-                )}
-                style={{ boxShadow: `0 0 18px -4px color-mix(in oklab, ${e.glow} 55%, transparent)` }}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-destructive/25 px-3 py-1.5 text-[15px] font-black text-destructive"
+                style={{
+                  background:
+                    "linear-gradient(135deg, color-mix(in oklab, var(--destructive) 12%, transparent), color-mix(in oklab, var(--gold) 16%, transparent))",
+                }}
               >
                 <Phone className="h-3 w-3" />
                 {e.number}
               </div>
             </a>
           ))}
-          <div className="rounded-2xl border border-border/60 bg-secondary/40 px-4 py-3 text-[12px] text-muted-foreground leading-relaxed">
+          <div className="mt-3 rounded-xl border border-foreground/10 bg-muted/40 px-3.5 py-3 text-[11.5px] leading-relaxed text-muted-foreground">
             Allma AI guides you through an emergency, helps locate nearby services, and keeps you in
             control of every contact.
        </div>
@@ -1650,7 +1652,7 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
               <motion.button
                 key={et.id}
                 onClick={() => onSelect(et.id)}
-                className="group flex min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-border/60 bg-secondary/40 p-3.5 text-center backdrop-blur-md transition-all hover:border-border/60 hover:bg-accent active:scale-95 sm:gap-3 sm:p-5"
+                className="cmd-panel group flex min-w-0 flex-col items-center gap-2.5 p-3.5 text-center transition-[border-color,box-shadow,transform] duration-200 hover:border-destructive/30 hover:shadow-soft active:scale-95 sm:gap-3 sm:p-5"
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.07 + i * 0.03 }}
@@ -1732,10 +1734,8 @@ function ConsentScreen({
           </div>
         </div>
 
-        <div className="mb-5 rounded-2xl border border-border/60 bg-secondary/40 p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Suggested response path
-          </p>
+        <div className="cmd-panel cmd-rail mb-5 p-4 pl-5">
+          <p className="cmd-label mb-3">Suggested response path</p>
           <div className="space-y-3">
             {plan.map((target) => (
               <div key={target.level} className="flex items-center gap-3">
@@ -1816,8 +1816,10 @@ function ConsentOption({
       type="button"
       onClick={onChange}
       className={cn(
-        "flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition",
-        checked ? "border-success/25 bg-success/18" : "border-border/60 bg-secondary/40",
+        "flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-[border-color,background-color,box-shadow] duration-200",
+        checked
+          ? "border-success/35 bg-success/12 shadow-soft"
+          : "border-foreground/10 bg-card shadow-sm hover:border-foreground/20",
       )}
       aria-pressed={checked}
     >
