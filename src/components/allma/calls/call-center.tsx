@@ -557,15 +557,15 @@ export function CallCenter() {
         >
           <div
             className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 h-96 hero-glow opacity-70",
+              "pointer-events-none absolute inset-x-0 top-0 h-96 signal-streak opacity-80",
               isEmergencyCall ? "" : "opacity-40",
             )}
           />
 
           <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-40 pt-3 sm:px-6 sm:pt-6 lg:px-8 lg:pb-8">
-            <div className="mx-auto grid w-full max-w-md min-w-0 overflow-hidden rounded-lg border border-foreground/15 bg-card shadow-lift lg:max-w-[1400px] lg:grid-cols-[minmax(280px,0.62fr)_minmax(0,1.38fr)]">
-              <div className="relative flex w-full min-w-0 flex-col items-center overflow-hidden border-b border-border/70 bg-foreground px-5 py-6 text-center text-background sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:h-[calc(100dvh-7rem)] lg:items-start lg:justify-center lg:self-start lg:border-b-0 lg:border-r lg:border-foreground/15 lg:px-8 lg:py-10 lg:text-left">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-destructive/25 to-transparent" />
+            <div className="cmd-rise mx-auto grid w-full max-w-md min-w-0 overflow-hidden rounded-2xl border border-foreground/12 bg-card shadow-lift lg:max-w-[1400px] lg:grid-cols-[minmax(280px,0.62fr)_minmax(0,1.38fr)]">
+              <div className="cmd-header relative flex w-full min-w-0 flex-col items-center overflow-hidden border-b border-foreground/20 px-5 py-6 text-center text-background sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:h-[calc(100dvh-7rem)] lg:items-start lg:justify-center lg:self-start lg:border-b-0 lg:border-r lg:border-foreground/15 lg:px-8 lg:py-10 lg:text-left">
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/35 to-transparent" />
                 <p
                   className={cn(
                     "relative inline-flex items-center gap-2 rounded-md border border-background/20 bg-background/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em]",
@@ -618,8 +618,8 @@ export function CallCenter() {
               </div>
 
               {emergency && phase !== "ended" && (
-                <div className="w-full min-w-0 space-y-4 p-4 text-left sm:p-6 lg:p-7">
-                  <div className="rounded-lg border border-destructive/25 bg-destructive/[0.045] p-4 shadow-soft sm:p-5">
+                <div className="w-full min-w-0 space-y-4 bg-[color-mix(in_oklab,var(--muted)_28%,var(--card))] p-4 text-left sm:p-6 lg:p-7">
+                  <div className="cmd-panel-critical cmd-rise p-4 sm:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">Emergency information</p>
                        <span className="rounded-md border border-destructive/20 bg-destructive/10 px-2.5 py-1 text-[10px] font-bold uppercase text-destructive">{emergency.severity}</span>
@@ -641,7 +641,7 @@ export function CallCenter() {
                   </div>
 
                   {callerPoint && (
-                    <section aria-label="Caller location" className="min-w-0 overflow-hidden rounded-lg border border-border/70 bg-card p-1.5 shadow-soft">
+                    <section aria-label="Caller location" className="cmd-panel cmd-rise min-w-0 overflow-hidden p-1.5" style={{ animationDelay: "60ms" }}>
                       <LiveLocationMap
                         location={{
                           lat: callerPoint.lat,
@@ -661,7 +661,7 @@ export function CallCenter() {
                   )}
 
                   {callerPoint && (
-                    <section className="min-w-0 rounded-lg border border-border/70 bg-card p-4 shadow-soft sm:p-5" aria-label="Help near the caller">
+                    <section className="cmd-panel cmd-rail cmd-rise min-w-0 p-4 pl-5 sm:p-5 sm:pl-6" style={{ animationDelay: "120ms" }} aria-label="Help near the caller">
                       <NearbyHelpList
                         places={helpPlaces}
                         loading={helpLoading}
@@ -677,7 +677,7 @@ export function CallCenter() {
                   )}
 
                   {sosRoomId && (
-                    <section className="min-w-0 rounded-lg border border-border/70 bg-muted/25 px-3 py-1 shadow-soft" aria-label="Shared emergency chat">
+                    <section className="cmd-panel cmd-rise min-w-0 px-3 py-1" style={{ animationDelay: "180ms" }} aria-label="Shared emergency chat">
                       <EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} />
                     </section>
                   )}
