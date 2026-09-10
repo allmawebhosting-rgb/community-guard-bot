@@ -1,5 +1,5 @@
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Clock, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Clock, Copy, ShieldCheck } from "lucide-react";
 import { BLOG_POSTS, blogHeadingId, getBlogPost } from "@/lib/blog-posts";
 import {
   ArticleCTA,
