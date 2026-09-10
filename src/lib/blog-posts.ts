@@ -1,3 +1,9 @@
+export type BlogSection = {
+  heading: string;
+  paragraphs: string[];
+  bullets?: string[];
+};
+
 export type BlogPost = {
   slug: string;
   keyword: string;
@@ -17,7 +23,7 @@ export type BlogPost = {
   internalLinks?: string[];
   wordCount?: number;
   seoKeywords?: { primary: string; secondary: string[] };
-  sections: Array<{ heading: string; paragraphs: string[]; bullets?: string[] }>;
+  sections: BlogSection[];
 };
 
 type PostSeed = {

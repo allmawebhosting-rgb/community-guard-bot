@@ -34,6 +34,7 @@ import {
   Copy,
   ExternalLink,
   Mic,
+  Send,
   WifiOff,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
