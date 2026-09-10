@@ -47,7 +47,7 @@ function BlogIndex() {
           <h1 className="journal-display">Clear thinking for difficult moments.</h1>
           <p className="journal-deck mt-6">Original guides for parents, professionals, travellers and communities who need calm, practical answers before a crisis hits.</p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link to="/blog/$slug" params={{ slug: featured.slug }} className="journal-button">Read featured guide <ArrowRight className="h-4 w-4" /></Link>
+            <a href={`/blog/${featured.slug}`} className="journal-button">Read featured guide <ArrowRight className="h-4 w-4" /></a>
             <span className="journal-label inline-flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-[var(--journal-red)]" /> Practical, not alarmist</span>
           </div>
         </div>
@@ -57,7 +57,7 @@ function BlogIndex() {
             <div className="journal-meta mb-4"><span>{featured.category}</span><span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {featured.readMinutes} min</span></div>
             <h2 className="journal-card-title">{featured.title}</h2>
             <p className="journal-body mt-3">{featured.excerpt}</p>
-            <Link to="/blog/$slug" params={{ slug: featured.slug }} className="journal-text-link mt-5">Read the guide <ArrowUpRight className="h-3.5 w-3.5" /></Link>
+            <a href={`/blog/${featured.slug}`} className="journal-text-link mt-5">Read the guide <ArrowUpRight className="h-3.5 w-3.5" /></a>
           </div>
         </article>
       </section>
@@ -71,10 +71,10 @@ function BlogIndex() {
           <div className="mt-8 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {BLOG_POSTS.slice(1).map((post) => (
               <article key={post.slug} className="journal-story group">
-                <Link to="/blog/$slug" params={{ slug: post.slug }} className="block">
+                <a href={`/blog/${post.slug}`} className="block">
                   <div className="journal-story-image"><img src={post.featuredImage} alt={post.featuredImageAlt ?? post.title} loading="lazy" /></div>
                   <div className="mt-4"><div className="journal-meta"><span>{post.category}</span><span>{post.readMinutes} min read</span></div><h3 className="journal-story-title mt-3">{post.title}</h3><p className="journal-body mt-3 line-clamp-3">{post.excerpt}</p><span className="journal-text-link mt-4">Read article <ArrowUpRight className="h-3.5 w-3.5" /></span></div>
-                </Link>
+                </a>
               </article>
             ))}
           </div>

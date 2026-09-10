@@ -106,8 +106,8 @@ function BlogArticle() {
       </div>
 
       <nav aria-label="Article navigation" className="journal-container grid gap-4 border-t border-[var(--journal-rule)] py-8 sm:grid-cols-2">
-        {previous ? <Link to="/blog/$slug" params={{ slug: previous.slug }} className="border-l-2 border-[var(--journal-gold)] p-4"><span className="journal-label">Previous article</span><span className="mt-2 block font-display text-lg font-bold">{previous.title}</span></Link> : <span />}
-        {next ? <Link to="/blog/$slug" params={{ slug: next.slug }} className="border-l-2 border-[var(--journal-red)] p-4 sm:text-right"><span className="journal-label">Next article</span><span className="mt-2 block font-display text-lg font-bold">{next.title}</span></Link> : <span />}
+        {previous ? <a href={`/blog/${previous.slug}`} className="border-l-2 border-[var(--journal-gold)] p-4"><span className="journal-label">Previous article</span><span className="mt-2 block font-display text-lg font-bold">{previous.title}</span></a> : <span />}
+        {next ? <a href={`/blog/${next.slug}`} className="border-l-2 border-[var(--journal-red)] p-4 sm:text-right"><span className="journal-label">Next article</span><span className="mt-2 block font-display text-lg font-bold">{next.title}</span></a> : <span />}
       </nav>
 
       <section className="border-t border-[#171817]/10 bg-white">
@@ -121,7 +121,7 @@ function BlogArticle() {
 
           <div className="grid gap-5 md:grid-cols-3">
             {related.map((item) => (
-              <Link key={item.slug} to="/blog/$slug" params={{ slug: item.slug }} className="group overflow-hidden rounded-[24px] border border-[#171817]/10 bg-[#f8f5f1] transition hover:-translate-y-1 hover:border-[#b22d32]/30 hover:shadow-[0_18px_40px_-28px_rgba(17,24,39,0.35)]">
+              <a key={item.slug} href={`/blog/${item.slug}`} className="group overflow-hidden rounded-[24px] border border-[#171817]/10 bg-[#f8f5f1] transition hover:-translate-y-1 hover:border-[#b22d32]/30 hover:shadow-[0_18px_40px_-28px_rgba(17,24,39,0.35)]">
                 <img src={item.featuredImage} alt={item.featuredImageAlt ?? item.title} loading="lazy" className="h-44 w-full object-cover" />
                 <div className="p-5">
                   <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#b22d32]">{item.category} · {item.readMinutes} min read</p>
@@ -130,7 +130,7 @@ function BlogArticle() {
                     Read next <ArrowUpRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
-              </Link>
+              </a>
             ))}
           </div>
         </div>
