@@ -562,9 +562,9 @@ export function CallCenter() {
             )}
           />
 
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-40 pt-3 sm:px-6 sm:pt-6 lg:px-8 lg:pb-6">
-            <div className="mx-auto grid w-full max-w-md overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-lift sm:rounded-3xl lg:max-w-[1400px] lg:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)]">
-              <div className="flex w-full flex-col items-center border-b border-border/60 px-5 py-6 text-center sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:min-h-[calc(100vh-7rem)] lg:items-start lg:justify-center lg:border-b-0 lg:border-r lg:px-10 lg:py-10 lg:text-left">
+          <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-40 pt-3 sm:px-6 sm:pt-6 lg:px-8 lg:pb-8">
+            <div className="mx-auto grid w-full max-w-md min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-lift sm:rounded-3xl lg:max-w-[1400px] lg:grid-cols-[minmax(300px,0.68fr)_minmax(0,1.32fr)]">
+              <div className="flex w-full min-w-0 flex-col items-center border-b border-border/60 px-5 py-6 text-center sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:h-[calc(100dvh-7rem)] lg:items-start lg:justify-center lg:self-start lg:border-b-0 lg:border-r lg:px-10 lg:py-10 lg:text-left">
                 <p
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] shadow-sm",
@@ -593,7 +593,7 @@ export function CallCenter() {
                   />
                 </motion.div>
 
-                <h2 className="mt-5 max-w-md font-display text-2xl font-black leading-tight sm:text-3xl lg:mt-7 lg:text-4xl">
+                <h2 className="mt-5 max-w-full break-words font-display text-2xl font-black leading-tight sm:text-3xl lg:mt-7 lg:text-4xl">
                   {isEmergencyCall && phase === "incoming"
                     ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
                     : (peer?.name ?? "Allma member")}
@@ -617,7 +617,7 @@ export function CallCenter() {
               </div>
 
               {emergency && phase !== "ended" && (
-                <div className="w-full min-w-0 space-y-5 p-4 text-left sm:p-6 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:p-8">
+                <div className="w-full min-w-0 space-y-6 p-4 text-left sm:p-6 lg:p-8">
                   <div className="rounded-2xl border border-destructive/25 bg-destructive/[0.045] p-4 shadow-soft sm:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">Emergency information</p>
@@ -640,42 +640,45 @@ export function CallCenter() {
                   </div>
 
                   {callerPoint && (
-                    <section aria-label="Caller location" className="overflow-hidden rounded-2xl border border-border/60 bg-card p-1.5 shadow-soft">
-                    <LiveLocationMap
-                      location={{
-                        lat: callerPoint.lat,
-                        lng: callerPoint.lng,
-                        accuracy: emergency.accuracy_m ?? null,
-                        address: emergency.area,
-                      }}
-                      badge="Live · shared"
-                      directions
-                      directionsLabel="Directions to caller"
-                      places={helpPlaces}
-                      selectedPlaceId={selectedHelpId}
-                      onSelectPlace={setSelectedHelpId}
-                    />
+                    <section aria-label="Caller location" className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card p-1.5 shadow-soft">
+                      <LiveLocationMap
+                        location={{
+                          lat: callerPoint.lat,
+                          lng: callerPoint.lng,
+                          accuracy: emergency.accuracy_m ?? null,
+                          address: emergency.area,
+                        }}
+                        badge="Live · shared"
+                        directions
+                        directionsLabel="Directions to caller"
+                        places={helpPlaces}
+                        selectedPlaceId={selectedHelpId}
+                        onSelectPlace={setSelectedHelpId}
+                        heightClassName="h-56 sm:h-72 lg:h-[24rem]"
+                      />
                     </section>
                   )}
 
                   {callerPoint && (
-                    <NearbyHelpList
-                      places={helpPlaces}
-                      loading={helpLoading}
-                      origin={callerPoint}
-                      selectedId={selectedHelpId}
-                      onSelect={setSelectedHelpId}
-                      tone="dark"
-                      title="Help near the caller"
-                      subtitle="Police, clinics and hospitals closest to where they are"
-                      emptyLabel="No police, clinics or hospitals were found near the caller yet."
-                    />
+                    <section className="min-w-0 rounded-2xl border border-border/60 bg-card p-4 shadow-soft sm:p-5" aria-label="Help near the caller">
+                      <NearbyHelpList
+                        places={helpPlaces}
+                        loading={helpLoading}
+                        origin={callerPoint}
+                        selectedId={selectedHelpId}
+                        onSelect={setSelectedHelpId}
+                        tone="surface"
+                        title="Help near the caller"
+                        subtitle="Police, clinics and hospitals closest to where they are"
+                        emptyLabel="No police, clinics or hospitals were found near the caller yet."
+                      />
+                    </section>
                   )}
 
                   {sosRoomId && (
-                    <div className="rounded-2xl border border-border/60 bg-muted/25 px-3 py-1 shadow-soft" aria-label="Shared emergency chat">
+                    <section className="min-w-0 rounded-2xl border border-border/60 bg-muted/25 px-3 py-1 shadow-soft" aria-label="Shared emergency chat">
                       <EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} />
-                    </div>
+                    </section>
                   )}
                 </div>
               )}

@@ -135,7 +135,7 @@ export function NearbyHelpList({
       ) : places.length === 0 ? (
         <div className={cn("mt-3 rounded-2xl border p-4 text-[12px]", noticeClass)}>{emptyLabel}</div>
       ) : (
-        <ul className="mt-4 max-h-[34rem] space-y-2.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]">
+        <ul className="mt-4 space-y-2.5">
           {places.map((place) => {
             const kind = helpKind(place.type);
             const Icon = KIND_ICON[kind];
