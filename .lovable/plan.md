@@ -1,43 +1,37 @@
-# Premium Safety Journal redesign
+# Premium Tactical Command SOS screens
 
-## Goal
-Transform the blog index and every post into a polished Swiss-academic publication while preserving all existing article content, disclaimers, safety claims, and application features.
+Apply the selected **Tactical Command View** to both the caller’s active SOS screen and the receiver’s incoming-call screen. Keep every existing feature and emergency workflow unchanged.
 
-## Visual direction
-- Use a warm paper-and-ink foundation with restrained Uganda-inspired red and gold accents.
-- Adopt a precise editorial grid, strong sans-serif headlines, comfortable serif long-form copy, and small monospaced labels for figures and tables.
-- Keep motion subtle: reading progress, active section states, restrained reveals, and smooth scrolling with reduced-motion support.
-- Avoid oversized first-screen typography, decorative clutter, excessive pills, nested cards, and generic news-site styling.
+## Caller SOS screen
 
-## Blog index
-- Redesign the journal home into a professional magazine layout with a clear featured story, refined story grid, useful category and reading-time metadata, and consistent image treatment.
-- Improve mobile hierarchy and tap targets while retaining direct links to every existing article.
-- Add complete, route-specific search and social metadata.
+- Use a compact near-black live-status header with the real SOS identifier, emergency type, live indicator, and existing Close action.
+- Rebalance the desktop view into a stable command layout: Safety Network and immediate actions in the left rail; live location, Google map, and nearby help in the larger right area.
+- Keep phone layout as one continuous, readable column with no horizontal overflow or clipped controls.
+- Refine cards into tighter warm-ivory panels with restrained borders, Uganda-red emergency emphasis, sparing gold signal accents, and subtle gradient illumination.
+- Preserve Emergency Services, File Incident Report, Stop SOS, location permission, map pins, nearby facilities, phone numbers, Directions, and all confirmation dialogs.
 
-## Article experience
-- Rebuild the article layout around a disciplined reading measure with a sticky desktop contents rail and a compact mobile contents control.
-- Give each section a stable, human-readable URL anchor derived from its heading, plus a visible copy-link affordance on headings.
-- Preserve article progress, author details, disclaimers, feature inserts, calls to action, and related reading, while restyling them into the selected editorial system.
-- Add real previous/next article links and improve related-post navigation so readers can move deeply through the journal.
+## Receiver SOS screen
 
-## Premium tables and content blocks
-- Restyle comparison tables with captions, strong headers, refined rules, clear row hierarchy, and accessible semantics.
-- On phones, keep each row understandable without tiny text or page-wide overflow; provide a deliberate horizontal table viewport only when necessary.
-- Unify callouts, checklists, figures, feature showcases, author information, share controls, and important notes.
+- Give the caller identity/status rail a strong near-black command treatment while keeping the caller image, emergency summary, call state, timer, and privacy message visible.
+- Organize the information column in this order: emergency details, caller map, nearby help, then shared emergency chat.
+- Keep Answer/Decline fixed and reachable on phones; retain Mute, Speaker, and End controls during active calls.
+- Use a wide asymmetric desktop layout and a single scrollable mobile layout so long names, addresses, facility lists, and chat content remain accessible.
 
-## Deep linking and sharing
-- Replace unstable numbered section IDs with readable anchors such as `#why-this-matters-in-uganda`.
-- Use app-aware links for internal destinations and article-to-article navigation.
-- Make Copy Link preserve the current section URL and make WhatsApp/LinkedIn share the actual encoded article URL and title.
-- Complete article metadata with unique title, description, Open Graph, Twitter card, canonical URL, and article structured data without duplicated branding.
+## Shared map and nearby help presentation
 
-## Technical details
-- Extend the existing semantic design tokens rather than placing raw colors throughout article components.
-- Load the selected editorial fonts through the document head and expose them as theme typography tokens.
-- Refactor shared journal elements into focused reusable pieces so the index and article pages remain visually consistent.
-- Preserve the existing `/blog/:slug` public URLs and all current article data.
+- Keep Google Maps, the existing fallback, caller marker, nearby-place markers, selection behavior, and Directions unchanged.
+- Make the map the visual center of the command layout with a stable responsive height and precise frame.
+- Present nearby places as compact professional rows/cards with readable type, distance, address, phone, Call, and Directions actions.
+- Remove visual instability: no blinking list content, continuous card motion, or low-contrast text.
 
-## Verification
-- Check representative long and short articles on desktop and phone sizes.
-- Verify section links, copied URLs, share targets, previous/next links, related articles, and all feature links.
-- Confirm tables remain readable, pages have no horizontal overflow, metadata is unique, and keyboard/screen-reader navigation remains usable.
+## Motion and visual system
+
+- Use the locked Signal Ivory palette, Space Grotesk headings, and DM Sans body text.
+- Add restrained 200–300ms entrance transitions, tactile button feedback, and a pulse only for genuinely live status.
+- Respect reduced-motion settings and keep emergency information readable throughout every animation.
+
+## Technical boundaries and verification
+
+- Presentation-only changes in the existing SOS, call-centre, nearby-help, map, and shared style files.
+- No changes to SOS activation, calling, ZEGOCLOUD, responder states, location sharing, nearby-place requests, chat, auth, database, notifications, APIs, or routing.
+- Verify type safety and inspect caller and receiver layouts at phone and desktop sizes, checking that every existing control remains visible and usable.
