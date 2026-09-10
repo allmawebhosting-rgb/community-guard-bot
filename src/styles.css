@@ -1460,3 +1460,86 @@
   text-transform: uppercase;
   color: color-mix(in oklab, var(--foreground) 55%, transparent);
 }
+
+/* ── Tactical command surfaces win over the legacy signal-slate overrides ──── */
+
+.signal-slate .cmd-panel,
+.signal-slate .signal-screen .cmd-panel,
+.signal-slate .signal-idle > div:nth-child(2) > div:first-child.cmd-panel,
+.signal-slate .signal-idle > div:nth-child(2) > div:last-child.cmd-panel,
+.signal-slate .signal-type-select button.cmd-panel {
+  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent) !important;
+  border-radius: 1rem !important;
+  background: linear-gradient(
+    180deg,
+    var(--card),
+    color-mix(in oklab, var(--muted) 45%, var(--card))
+  ) !important;
+  box-shadow:
+    0 1px 0 color-mix(in oklab, white 60%, transparent) inset,
+    0 22px 48px -34px color-mix(in oklab, var(--foreground) 40%, transparent) !important;
+}
+
+.signal-slate .signal-type-select button.cmd-panel:hover,
+.signal-slate .signal-type-select button.cmd-panel:active {
+  border-color: color-mix(in oklab, var(--destructive) 34%, transparent) !important;
+  box-shadow: 0 20px 44px -30px color-mix(in oklab, var(--destructive) 40%, transparent) !important;
+}
+
+.signal-slate .cmd-panel-critical,
+.signal-slate .signal-screen .cmd-panel-critical {
+  border: 1px solid color-mix(in oklab, var(--destructive) 28%, transparent) !important;
+  border-radius: 1rem !important;
+  background:
+    radial-gradient(
+      120% 90% at 0% 0%,
+      color-mix(in oklab, var(--destructive) 11%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(180deg, var(--card), color-mix(in oklab, var(--muted) 40%, var(--card))) !important;
+  box-shadow: 0 22px 48px -34px color-mix(in oklab, var(--destructive) 45%, transparent) !important;
+}
+
+.signal-slate .cmd-header,
+.signal-slate .signal-idle > div:first-child.cmd-header,
+.signal-slate .signal-minimal > header.cmd-header {
+  background:
+    radial-gradient(
+      100% 160% at 0% 0%,
+      color-mix(in oklab, var(--destructive) 46%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      90% 140% at 100% 0%,
+      color-mix(in oklab, var(--gold) 22%, transparent),
+      transparent 60%
+    ),
+    var(--foreground) !important;
+  border-color: color-mix(in oklab, var(--foreground) 40%, transparent) !important;
+  box-shadow: 0 14px 34px -26px color-mix(in oklab, var(--foreground) 60%, transparent) !important;
+}
+
+.signal-slate .cmd-header,
+.signal-slate .cmd-header .text-foreground,
+.signal-slate .cmd-header .text-background,
+.signal-slate .signal-minimal > header.cmd-header .text-foreground {
+  color: var(--background) !important;
+}
+
+.signal-slate .cmd-header .text-muted-foreground {
+  color: color-mix(in oklab, var(--background) 68%, transparent) !important;
+}
+
+.signal-slate .cmd-rail::before {
+  content: "";
+  position: absolute;
+  inset: 1rem auto 1rem 0;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    var(--destructive),
+    color-mix(in oklab, var(--gold) 75%, transparent)
+  );
+  opacity: 0.9;
+}
