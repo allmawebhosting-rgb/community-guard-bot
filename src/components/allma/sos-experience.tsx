@@ -34,6 +34,7 @@ import {
   Copy,
   ExternalLink,
   Mic,
+  Send,
   WifiOff,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -2097,7 +2098,7 @@ function MinimalEmergencyScreen({
             )}
           </div>
           {locationReady && location && (
-            <div className="mt-4">
+            <div className="mt-4 space-y-6">
               <LiveLocationMap
                 location={location}
                 places={nearbyHelp}
@@ -2105,6 +2106,19 @@ function MinimalEmergencyScreen({
                 onSelectPlace={setSelectedHelpId}
                 heightClassName="h-52 sm:h-64 lg:h-[24rem]"
               />
+              <div className="border-t border-border/60 pt-5">
+                <NearbyHelpList
+                  places={nearbyHelp}
+                  loading={nearbyHelpLoading}
+                  origin={{ lat: location.lat, lng: location.lng }}
+                  selectedId={selectedHelpId}
+                  onSelect={setSelectedHelpId}
+                  tone="surface"
+                  title="Help near you"
+                  subtitle="Police, clinics and hospitals closest to your location"
+                  emptyLabel="No nearby police, clinics or hospitals were found yet."
+                />
+              </div>
             </div>
           )}
           {!locationReady && (
