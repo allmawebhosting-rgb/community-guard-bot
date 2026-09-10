@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Check, Copy, Linkedin, MessageCircle, Share2 } from "lucide-react";
-import type { BlogPost, BlogSection } from "@/lib/blog-posts";
+import { blogHeadingId, type BlogPost, type BlogSection } from "@/lib/blog-posts";
 
 export type FeatureLink = {
   name: string;
@@ -28,25 +28,25 @@ export function ArticleProgress() {
 export function ArticleTableOfContents({ sections }: { sections: BlogSection[] }) {
   const [active, setActive] = useState(0);
   useEffect(() => {
-    const nodes = sections.map((_, index) => document.getElementById(`section-${index}`)).filter(Boolean) as HTMLElement[];
+    const nodes = sections.map((section) => document.getElementById(blogHeadingId(section.heading))).filter(Boolean) as HTMLElement[];
     const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
-      if (entry.isIntersecting) setActive(Number(entry.target.id.replace("section-", "")));
+      if (entry.isIntersecting) setActive(nodes.indexOf(entry.target as HTMLElement));
     }), { rootMargin: "-20% 0px -65%" });
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
   }, [sections]);
-  return <details className="group border-y border-[#171817]/10 py-3 lg:hidden"><summary className="flex cursor-pointer list-none items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-[#77796e]">On this page <span className="text-[#c63d3f]">{String(active + 1).padStart(2, "0")} / {String(sections.length).padStart(2, "0")}</span></summary><nav className="mt-4 grid gap-1 pb-2">{sections.map((section, index) => <a key={section.heading} href={`#section-${index}`} className="py-1 text-sm text-[#5d6057]">{String(index + 1).padStart(2, "0")} {section.heading}</a>)}</nav></details>;
+  return <details className="journal-toc-mobile group border-y border-[var(--journal-rule)] py-3 lg:hidden"><summary className="flex cursor-pointer list-none items-center justify-between journal-label">On this page <span className="text-[var(--journal-red)]">{String(active + 1).padStart(2, "0")} / {String(sections.length).padStart(2, "0")}</span></summary><nav className="mt-4 grid gap-1 pb-2">{sections.map((section, index) => <a key={section.heading} href={`#${blogHeadingId(section.heading)}`} className="py-1 text-sm text-[var(--journal-muted)]">{String(index + 1).padStart(2, "0")} {section.heading}</a>)}</nav></details>;
 }
 
 export function DesktopTableOfContents({ sections }: { sections: BlogSection[] }) {
   const [active, setActive] = useState(0);
   useEffect(() => {
-    const nodes = sections.map((_, index) => document.getElementById(`section-${index}`)).filter(Boolean) as HTMLElement[];
-    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => entry.isIntersecting && setActive(Number(entry.target.id.replace("section-", "")))), { rootMargin: "-18% 0px -68%" });
+    const nodes = sections.map((section) => document.getElementById(blogHeadingId(section.heading))).filter(Boolean) as HTMLElement[];
+    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => entry.isIntersecting && setActive(nodes.indexOf(entry.target as HTMLElement))), { rootMargin: "-18% 0px -68%" });
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
   }, [sections]);
-  return <aside className="sticky top-24 hidden self-start lg:block"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#77796e]">On this page</p><nav className="mt-5 border-l border-[#171817]/10">{sections.map((section, index) => <a key={section.heading} href={`#section-${index}`} className={`block border-l-2 py-2 pl-4 text-sm leading-5 transition ${active === index ? "-ml-px border-[#c63d3f] font-bold text-[#171817]" : "border-transparent text-[#77796e] hover:text-[#171817]"}`}>{String(index + 1).padStart(2, "0")} {section.heading}</a>)}</nav></aside>;
+  return <aside className="sticky top-24 hidden self-start lg:block"><p className="journal-label">On this page</p><nav className="mt-5 border-l border-[var(--journal-rule)]">{sections.map((section, index) => <a key={section.heading} href={`#${blogHeadingId(section.heading)}`} className={`block border-l-2 py-2 pl-4 text-sm leading-5 transition ${active === index ? "-ml-px border-[var(--journal-red)] font-bold text-[var(--journal-ink)]" : "border-transparent text-[var(--journal-muted)] hover:text-[var(--journal-ink)]"}`}>{String(index + 1).padStart(2, "0")} {section.heading}</a>)}</nav></aside>;
 }
 
 export function ArticleRail({ sections, feature }: { sections: BlogSection[]; feature: FeatureLink }) {
@@ -84,7 +84,7 @@ export function FeatureSplit({ feature, reverse = false }: { feature: FeatureLin
 }
 
 export function ComparisonTable({ rows }: { rows: Array<[string, string]> }) {
-  return <div className="my-12 overflow-x-auto border-y border-[#171817]/10"><table className="min-w-[580px] w-full border-collapse text-left text-sm"><thead><tr className="border-b border-[#171817]/10 text-[10px] font-black uppercase tracking-[0.16em] text-[#77796e]"><th className="px-4 py-4">Capability</th><th className="px-4 py-4">Why it matters</th></tr></thead><tbody>{rows.map(([capability, reason]) => <tr key={capability} className="border-b border-[#171817]/10 last:border-0"><th className="px-4 py-4 font-bold text-[#171817]">{capability}</th><td className="px-4 py-4 leading-6 text-[#5d6057]">{reason}</td></tr>)}</tbody></table></div>;
+  return <div className="my-12 overflow-x-auto border-y border-[var(--journal-rule)]"><table className="journal-table min-w-[34rem]"><caption>At a glance · choosing the right support path</caption><thead><tr><th scope="col">Capability</th><th scope="col">Why it matters</th></tr></thead><tbody>{rows.map(([capability, reason]) => <tr key={capability}><th scope="row">{capability}</th><td>{reason}</td></tr>)}</tbody></table></div>;
 }
 
 export function InsightCallout({ label, children }: { label: string; children: string }) {
@@ -94,7 +94,9 @@ export function InsightCallout({ label, children }: { label: string; children: s
 export function ShareBar() {
   const [copied, setCopied] = useState(false);
   const copy = async () => { await navigator.clipboard?.writeText(window.location.href); setCopied(true); window.setTimeout(() => setCopied(false), 1800); };
-  return <div className="flex flex-wrap items-center gap-2 border-y border-[#171817]/10 py-5"><span className="mr-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#77796e]">Share</span><button type="button" onClick={copy} className="inline-flex min-h-10 items-center gap-2 border border-[#171817]/10 px-3 text-xs font-bold text-[#5d6057] hover:text-[#c63d3f]"><Copy className="h-3.5 w-3.5" />{copied ? "Copied" : "Copy link"}</button><a aria-label="Share on WhatsApp" href="https://wa.me/" className="inline-flex h-10 w-10 items-center justify-center border border-[#171817]/10 text-[#5d6057] hover:text-[#c63d3f]"><MessageCircle className="h-4 w-4" /></a><a aria-label="Share on LinkedIn" href="https://www.linkedin.com/sharing/share-offsite/" className="inline-flex h-10 w-10 items-center justify-center border border-[#171817]/10 text-[#5d6057] hover:text-[#c63d3f]"><Linkedin className="h-4 w-4" /></a><Share2 className="ml-auto hidden h-4 w-4 text-[#77796e] sm:block" /></div>;
+  const shareUrl = typeof window === "undefined" ? "https://allmasafetyai.online/blog" : window.location.href;
+  const title = typeof document === "undefined" ? "Safety Journal" : document.title;
+  return <div className="flex flex-wrap items-center gap-2 border-y border-[var(--journal-rule)] py-5"><span className="mr-2 journal-label">Share</span><button type="button" onClick={copy} className="inline-flex min-h-10 items-center gap-2 border border-[var(--journal-rule)] px-3 text-xs font-bold text-[var(--journal-muted)] hover:text-[var(--journal-red)]"><Copy className="h-3.5 w-3.5" />{copied ? "Copied" : "Copy link"}</button><a aria-label="Share on WhatsApp" href={`https://wa.me/?text=${encodeURIComponent(`${title} ${shareUrl}`)}`} target="_blank" rel="noreferrer" className="inline-flex h-10 w-10 items-center justify-center border border-[var(--journal-rule)] text-[var(--journal-muted)] hover:text-[var(--journal-red)]"><MessageCircle className="h-4 w-4" /></a><a aria-label="Share on LinkedIn" href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noreferrer" className="inline-flex h-10 w-10 items-center justify-center border border-[var(--journal-rule)] text-[var(--journal-muted)] hover:text-[var(--journal-red)]"><Linkedin className="h-4 w-4" /></a><Share2 className="ml-auto hidden h-4 w-4 text-[var(--journal-muted)] sm:block" /></div>;
 }
 
 export function AuthorCard({ post }: { post: BlogPost }) {
