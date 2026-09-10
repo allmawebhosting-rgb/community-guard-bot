@@ -641,7 +641,7 @@ export function CallCenter() {
                   </div>
 
                   {callerPoint && (
-                    <section aria-label="Caller location" className="min-w-0 overflow-hidden rounded-lg border border-border/70 bg-card p-1.5 shadow-soft">
+                    <section aria-label="Caller location" className="cmd-panel cmd-rise min-w-0 overflow-hidden p-1.5" style={{ animationDelay: "60ms" }}>
                       <LiveLocationMap
                         location={{
                           lat: callerPoint.lat,
@@ -661,7 +661,7 @@ export function CallCenter() {
                   )}
 
                   {callerPoint && (
-                    <section className="min-w-0 rounded-lg border border-border/70 bg-card p-4 shadow-soft sm:p-5" aria-label="Help near the caller">
+                    <section className="cmd-panel cmd-rail cmd-rise min-w-0 p-4 pl-5 sm:p-5 sm:pl-6" style={{ animationDelay: "120ms" }} aria-label="Help near the caller">
                       <NearbyHelpList
                         places={helpPlaces}
                         loading={helpLoading}
@@ -677,7 +677,7 @@ export function CallCenter() {
                   )}
 
                   {sosRoomId && (
-                    <section className="min-w-0 rounded-lg border border-border/70 bg-muted/25 px-3 py-1 shadow-soft" aria-label="Shared emergency chat">
+                    <section className="cmd-panel cmd-rise min-w-0 px-3 py-1" style={{ animationDelay: "180ms" }} aria-label="Shared emergency chat">
                       <EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} />
                     </section>
                   )}
