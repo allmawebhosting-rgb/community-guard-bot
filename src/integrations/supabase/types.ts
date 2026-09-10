@@ -268,6 +268,48 @@ export type Database = {
           },
         ]
       }
+      blog_posts: {
+        Row: {
+          body_md: string
+          category: string
+          created_at: string
+          excerpt: string
+          id: string
+          keyword: string
+          published_at: string
+          read_minutes: number
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body_md: string
+          category: string
+          created_at?: string
+          excerpt: string
+          id?: string
+          keyword: string
+          published_at?: string
+          read_minutes?: number
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body_md?: string
+          category?: string
+          created_at?: string
+          excerpt?: string
+          id?: string
+          keyword?: string
+          published_at?: string
+          read_minutes?: number
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       call_sessions: {
         Row: {
           created_at: string
