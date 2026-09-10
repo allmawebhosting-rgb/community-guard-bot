@@ -1652,7 +1652,7 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
               <motion.button
                 key={et.id}
                 onClick={() => onSelect(et.id)}
-                className="group flex min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-border/60 bg-secondary/40 p-3.5 text-center backdrop-blur-md transition-all hover:border-border/60 hover:bg-accent active:scale-95 sm:gap-3 sm:p-5"
+                className="cmd-panel group flex min-w-0 flex-col items-center gap-2.5 p-3.5 text-center transition-[border-color,box-shadow,transform] duration-200 hover:border-destructive/30 hover:shadow-soft active:scale-95 sm:gap-3 sm:p-5"
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.07 + i * 0.03 }}
@@ -1734,10 +1734,8 @@ function ConsentScreen({
           </div>
         </div>
 
-        <div className="mb-5 rounded-2xl border border-border/60 bg-secondary/40 p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Suggested response path
-          </p>
+        <div className="cmd-panel cmd-rail mb-5 p-4 pl-5">
+          <p className="cmd-label mb-3">Suggested response path</p>
           <div className="space-y-3">
             {plan.map((target) => (
               <div key={target.level} className="flex items-center gap-3">
@@ -1818,8 +1816,10 @@ function ConsentOption({
       type="button"
       onClick={onChange}
       className={cn(
-        "flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition",
-        checked ? "border-success/25 bg-success/18" : "border-border/60 bg-secondary/40",
+        "flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-[border-color,background-color,box-shadow] duration-200",
+        checked
+          ? "border-success/35 bg-success/12 shadow-soft"
+          : "border-foreground/10 bg-card shadow-sm hover:border-foreground/20",
       )}
       aria-pressed={checked}
     >
