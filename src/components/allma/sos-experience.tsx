@@ -2086,27 +2086,29 @@ function MinimalEmergencyScreen({
           <section aria-labelledby="location-heading" className="cmd-panel cmd-rail cmd-rise signal-help-card order-3 min-w-0 p-4 pl-5 sm:p-5 sm:pl-6 lg:col-start-2 lg:row-start-1 lg:row-span-2" style={{ animationDelay: "120ms" }}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p id="location-heading" className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Location</p>
-              <p className="mt-2 flex items-center gap-2 text-[14px] font-bold text-foreground sm:mt-3">
+              <p id="location-heading" className="cmd-label">Live location</p>
+              <p className="mt-2 flex items-center gap-2 font-display text-[17px] font-black tracking-tight text-foreground sm:mt-3 sm:text-[19px]">
                 <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-success shadow-[0_0_0_4px_color-mix(in_oklab,var(--success)_12%,transparent)]" : "bg-gold")} />
-                {locationReady ? "Shared" : "Unavailable"}
+                {locationReady ? "Shared with responders" : "Unavailable"}
               </p>
               <p className="mt-1 truncate text-[12px] text-muted-foreground">{area}</p>
             </div>
             {!locationReady && (
-              <button type="button" onClick={onEnableLocation} className="min-h-10 shrink-0 rounded-xl border border-amber-300/30 bg-amber-300/[0.04] px-3 text-[12px] font-semibold text-amber-200 transition hover:bg-amber-300/10">Enable Location</button>
+              <button type="button" onClick={onEnableLocation} className="min-h-10 shrink-0 rounded-xl border border-gold/45 bg-gold/15 px-3 text-[12px] font-bold text-foreground transition hover:bg-gold/25">Enable Location</button>
             )}
           </div>
           {locationReady && location && (
-            <div className="mt-4 space-y-6">
-              <LiveLocationMap
-                location={location}
-                places={nearbyHelp}
-                selectedPlaceId={selectedHelpId}
-                onSelectPlace={setSelectedHelpId}
-                heightClassName="h-56 sm:h-72 lg:h-[26rem]"
-              />
-              <div className="border-t border-border/60 pt-5">
+            <div className="mt-4 space-y-5">
+              <div className="overflow-hidden rounded-xl border border-foreground/10 shadow-soft">
+                <LiveLocationMap
+                  location={location}
+                  places={nearbyHelp}
+                  selectedPlaceId={selectedHelpId}
+                  onSelectPlace={setSelectedHelpId}
+                  heightClassName="h-56 sm:h-72 lg:h-[26rem]"
+                />
+              </div>
+              <div className="rounded-xl border border-border/60 bg-muted/25 p-3.5 sm:p-4">
                 <NearbyHelpList
                   places={nearbyHelp}
                   loading={nearbyHelpLoading}
