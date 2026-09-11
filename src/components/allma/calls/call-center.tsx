@@ -563,8 +563,8 @@ export function CallCenter() {
           />
 
           <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-40 pt-3 sm:px-6 sm:pt-6 lg:px-8 lg:pb-8">
-            <div className="cmd-rise mx-auto grid w-full max-w-md min-w-0 overflow-hidden rounded-2xl border border-foreground/12 bg-card shadow-lift lg:max-w-[1400px] lg:grid-cols-[minmax(280px,0.62fr)_minmax(0,1.38fr)]">
-              <div className="cmd-header relative flex w-full min-w-0 flex-col items-center overflow-hidden border-b border-foreground/20 px-5 py-6 text-center text-background sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:h-[calc(100dvh-7rem)] lg:items-start lg:justify-center lg:self-start lg:border-b-0 lg:border-r lg:border-foreground/15 lg:px-8 lg:py-10 lg:text-left">
+            <div className="cmd-rise mx-auto grid w-full max-w-3xl min-w-0 overflow-hidden rounded-2xl border border-foreground/12 bg-card shadow-lift md:max-w-5xl lg:max-w-[1480px] lg:grid-cols-[minmax(300px,0.62fr)_minmax(0,1.5fr)]">
+              <div className="cmd-header relative flex w-full min-w-0 flex-col items-center overflow-hidden border-b border-foreground/20 px-5 py-6 text-center text-background sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:h-[calc(100dvh-7rem)] lg:items-start lg:justify-start lg:self-start lg:border-b-0 lg:border-r lg:border-foreground/15 lg:px-8 lg:py-10 lg:text-left">
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/35 to-transparent" />
                 <p
                   className={cn(
@@ -618,7 +618,7 @@ export function CallCenter() {
               </div>
 
               {emergency && phase !== "ended" && (
-                <div className="w-full min-w-0 space-y-4 bg-[color-mix(in_oklab,var(--muted)_28%,var(--card))] p-4 text-left sm:p-6 lg:p-7">
+                <div className="w-full min-w-0 space-y-4 bg-[color-mix(in_oklab,var(--muted)_28%,var(--card))] p-4 text-left sm:p-6 lg:p-7 xl:p-8">
                   <div className="cmd-panel-critical cmd-rise p-4 sm:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">Emergency information</p>
@@ -655,7 +655,7 @@ export function CallCenter() {
                         places={helpPlaces}
                         selectedPlaceId={selectedHelpId}
                         onSelectPlace={setSelectedHelpId}
-                        heightClassName="h-56 sm:h-72 lg:h-[25rem]"
+                        heightClassName="h-60 sm:h-80 lg:h-[28rem]"
                       />
                     </section>
                   )}

@@ -2064,28 +2064,29 @@ function MinimalEmergencyScreen({
         </div>
       </header>
 
-        <div className="signal-help-grid relative mx-auto grid w-full max-w-xl min-w-0 grid-cols-1 gap-3 overflow-x-hidden px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:gap-4 sm:px-6 sm:pb-10 lg:max-w-[1480px] lg:grid-cols-[minmax(300px,0.66fr)_minmax(0,1.34fr)] lg:items-start lg:gap-5 lg:px-8 lg:py-6 lg:pb-12 xl:px-10">
-        <div className="contents">
-          <div className="cmd-panel cmd-rise signal-help-card order-1 min-w-0 p-4 sm:p-5 lg:col-start-1 lg:row-start-1 lg:min-h-[230px]">
-            <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
-          </div>
+        <div className="sos-command-grid relative mx-auto grid w-full max-w-[1480px] min-w-0 grid-cols-1 items-start gap-3 overflow-x-hidden px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:gap-4 sm:px-6 sm:pb-10 md:px-8 lg:grid-cols-[minmax(280px,0.68fr)_minmax(0,1.6fr)] lg:gap-5 lg:py-6 lg:pb-12 xl:px-10">
+          <aside className="grid min-w-0 content-start gap-4 lg:sticky lg:top-[7.5rem]">
+            <div className="cmd-panel cmd-rise min-w-0 p-4 sm:p-5">
+              <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
+            </div>
 
-          <section aria-labelledby="actions-heading" className="cmd-panel-critical cmd-rise signal-help-card order-2 min-w-0 p-4 sm:p-5 lg:col-start-1 lg:row-start-2" style={{ animationDelay: "60ms" }}>
-          <p id="actions-heading" className="cmd-label">Immediate actions</p>
-          <div className="mt-4 grid gap-2.5">
-             <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-gradient-to-r from-destructive to-[color-mix(in_oklab,var(--destructive)_78%,var(--gold))] px-4 text-left text-[14px] font-bold text-destructive-foreground shadow-lg shadow-destructive/25 transition duration-200 hover:brightness-105 active:scale-[0.99]">
-               <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive-foreground/15"><Phone className="h-4 w-4" /></span><span className="min-w-0">Call Emergency Services</span></span><ChevronRight className="h-4 w-4 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
-            </button>
-             <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-xl border border-border/70 bg-card px-4 text-left text-[14px] font-semibold text-foreground shadow-sm transition duration-200 hover:border-primary/40 hover:shadow-soft active:scale-[0.99]">
-               <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted/60 shadow-sm"><Shield className="h-4 w-4 text-muted-foreground" /></span><span className="min-w-0">File an incident report</span></span><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-            </button>
-            <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-12 rounded-xl border border-destructive/25 text-[12px] font-bold uppercase tracking-[0.14em] text-destructive transition hover:bg-destructive/[0.06]">
-              Stop SOS
-            </button>
-          </div>
-          </section>
+            <section aria-labelledby="actions-heading" className="cmd-panel-critical cmd-rise min-w-0 p-4 sm:p-5" style={{ animationDelay: "60ms" }}>
+              <p id="actions-heading" className="cmd-label">Immediate actions</p>
+              <div className="mt-4 grid gap-2.5">
+                <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-gradient-to-r from-destructive via-primary to-primary-glow px-4 text-left text-[14px] font-bold text-destructive-foreground shadow-lg shadow-destructive/25 transition duration-200 hover:brightness-105 active:scale-[0.99]">
+                  <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive-foreground/15"><Phone className="h-4 w-4" /></span><span className="min-w-0">Call Emergency Services</span></span><ChevronRight className="h-4 w-4 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
+                </button>
+                <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-xl border border-border/70 bg-card px-4 text-left text-[14px] font-semibold text-foreground shadow-sm transition duration-200 hover:border-primary/40 hover:shadow-soft active:scale-[0.99]">
+                  <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted/60 shadow-sm"><Shield className="h-4 w-4 text-muted-foreground" /></span><span className="min-w-0">File an incident report</span></span><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </button>
+                <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-12 rounded-xl border border-destructive/25 text-[12px] font-bold uppercase tracking-[0.14em] text-destructive transition hover:bg-destructive/[0.06]">
+                  Stop SOS
+                </button>
+              </div>
+            </section>
+          </aside>
 
-          <section aria-labelledby="location-heading" className="cmd-panel cmd-rail cmd-rise signal-help-card order-3 min-w-0 p-4 pl-5 sm:p-5 sm:pl-6 lg:col-start-2 lg:row-start-1 lg:row-span-2" style={{ animationDelay: "120ms" }}>
+          <section aria-labelledby="location-heading" className="cmd-panel cmd-rail cmd-rise min-w-0 p-4 pl-5 sm:p-5 sm:pl-6 lg:p-6 lg:pl-7" style={{ animationDelay: "120ms" }}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p id="location-heading" className="cmd-label">Live location</p>
@@ -2107,7 +2108,7 @@ function MinimalEmergencyScreen({
                   places={nearbyHelp}
                   selectedPlaceId={selectedHelpId}
                   onSelectPlace={setSelectedHelpId}
-                  heightClassName="h-56 sm:h-72 lg:h-[26rem]"
+                  heightClassName="h-60 sm:h-80 lg:h-[28rem]"
                 />
               </div>
               <div className="rounded-xl border border-border/60 bg-muted/25 p-3.5 sm:p-4">
@@ -2131,8 +2132,6 @@ function MinimalEmergencyScreen({
             </div>
           )}
           </section>
-
-        </div>
       </div>
 
       {servicesOpen && (

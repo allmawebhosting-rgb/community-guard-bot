@@ -106,7 +106,7 @@ export function NearbyHelpList({
     : "border-border/70 bg-muted/35 text-muted-foreground";
 
   return (
-    <div>
+    <div className="nearby-help min-w-0">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
         <div className="min-w-0">
           <p className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", headingClass)}>
@@ -135,7 +135,7 @@ export function NearbyHelpList({
       ) : places.length === 0 ? (
         <div className={cn("mt-3 rounded-2xl border p-4 text-[12px]", noticeClass)}>{emptyLabel}</div>
       ) : (
-        <ul className="mt-4 grid gap-2.5 xl:grid-cols-2">
+        <ul className="mt-4 grid min-w-0 grid-cols-1 gap-2.5 min-[1500px]:grid-cols-2">
           {places.map((place) => {
             const kind = helpKind(place.type);
             const Icon = KIND_ICON[kind];
@@ -147,7 +147,7 @@ export function NearbyHelpList({
                 id={`help-place-${place.id}`}
                 onClick={() => onSelect?.(place.id)}
                 className={cn(
-                  "rounded-lg border p-3.5 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 hover:border-foreground/20 hover:shadow-soft",
+                  "min-w-0 rounded-lg border p-3.5 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 hover:border-foreground/20 hover:shadow-soft",
                   shell,
                   selected && selectedShell,
                   onSelect && "cursor-pointer",
@@ -164,7 +164,7 @@ export function NearbyHelpList({
                     <Icon className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                       <p className={cn("min-w-0 break-words text-[13px] font-bold leading-snug", nameClass)}>{place.name}</p>
                       <span
                         className="shrink-0 rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
