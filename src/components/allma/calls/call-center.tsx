@@ -655,7 +655,7 @@ export function CallCenter() {
                         places={helpPlaces}
                         selectedPlaceId={selectedHelpId}
                         onSelectPlace={setSelectedHelpId}
-                        heightClassName="h-60 sm:h-80 lg:h-[28rem]"
+                        heightClassName="h-56 sm:h-72 lg:h-[22rem]"
                       />
                     </section>
                   )}
