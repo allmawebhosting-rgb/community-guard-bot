@@ -1982,6 +1982,7 @@ function MinimalEmergencyScreen({
   onReport: () => void;
   onClose: () => void;
 }) {
+  const navigate = useNavigate();
   const [nearbyHelp, setNearbyHelp] = useState<HelpPlace[]>([]);
   const [nearbyHelpLoading, setNearbyHelpLoading] = useState(false);
   const [selectedHelpId, setSelectedHelpId] = useState<string | null>(null);
