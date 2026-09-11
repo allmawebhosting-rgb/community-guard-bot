@@ -465,98 +465,41 @@
   animation: allma-pulse-slow 4s ease-in-out infinite;
 }
 
-/* Signal Slate command surface for the SOS workflow. */
+/* A single, predictable SOS surface. Older selector-heavy themes made the
+   emergency views fight their own component styles and occasionally disappear. */
 .signal-slate {
-  --signal-border: rgb(244 247 248 / 0.12);
-  --signal-border-strong: rgb(244 247 248 / 0.2);
-  --signal-panel-raised: #252d36;
-  background: var(--signal-canvas) !important;
-  color: var(--signal-ink) !important;
+  isolation: isolate;
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-signal-body);
 }
 
 .signal-slate .signal-screen {
-  background: var(--signal-canvas) !important;
-  color: var(--signal-ink) !important;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  color: var(--foreground);
 }
 
 .signal-slate h1,
 .signal-slate h2,
 .signal-slate h3,
 .signal-slate .font-display {
-  font-family: var(--font-signal-display) !important;
-}
-
-.signal-slate .signal-screen .premium-surface,
-.signal-slate .signal-screen .bg-card,
-.signal-slate .signal-screen .bg-secondary\/40,
-.signal-slate .signal-screen .bg-secondary\/25,
-.signal-slate .signal-screen .bg-secondary\/20 {
-  background: var(--signal-panel) !important;
-  border-color: var(--signal-border) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 18px 40px -32px rgb(0 0 0 / 0.9) !important;
-}
-
-.signal-slate .signal-screen .text-foreground {
-  color: var(--signal-ink) !important;
-}
-
-.signal-slate .signal-screen .text-muted-foreground {
-  color: var(--signal-muted) !important;
-}
-
-.signal-slate .signal-screen .border-border\/60,
-.signal-slate .signal-screen .border-border\/70,
-.signal-slate .signal-screen .border-border\/50 {
-  border-color: var(--signal-border) !important;
-}
-
-.signal-slate .signal-screen button:focus-visible,
-.signal-slate .signal-screen a:focus-visible,
-.signal-slate .signal-safety-check button:focus-visible {
-  outline: 2px solid var(--signal-attention) !important;
-  outline-offset: 3px;
-}
-
-.signal-slate .signal-idle > div:first-child {
-  background: #151a20 !important;
-  border-color: var(--signal-border) !important;
+  font-family: var(--font-signal-display);
 }
 
 .signal-slate .signal-idle > div:nth-child(2) {
-  align-items: stretch;
-}
-
-.signal-slate .signal-idle > div:nth-child(2) > div:first-child {
-  justify-content: center;
-  min-height: min(34rem, 68vh);
-  border: 1px solid rgb(230 57 70 / 0.26) !important;
-  border-radius: 18px;
-  background: var(--signal-panel) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 60px -40px rgb(0 0 0 / 0.95) !important;
-}
-
-.signal-slate .signal-idle h1 {
-  font-size: clamp(3.5rem, 11vw, 6.5rem) !important;
-  letter-spacing: 0.08em !important;
-  color: var(--signal-ink) !important;
+  align-items: center;
 }
 
 .signal-slate .signal-idle button[aria-label="Activate Emergency SOS"] {
-  filter: drop-shadow(0 18px 28px rgb(230 57 70 / 0.28));
+  filter: drop-shadow(0 18px 30px color-mix(in oklab, var(--destructive) 28%, transparent));
   transition: transform 220ms ease, filter 220ms ease;
 }
 
 .signal-slate .signal-idle button[aria-label="Activate Emergency SOS"]:hover {
-  filter: drop-shadow(0 22px 38px rgb(230 57 70 / 0.42));
+  filter: drop-shadow(0 22px 38px color-mix(in oklab, var(--destructive) 40%, transparent));
   transform: scale(1.025);
-}
-
-.signal-slate .signal-idle > div:nth-child(2) > div:last-child {
-  align-self: stretch;
-  border: 1px solid var(--signal-border) !important;
-  border-radius: 18px;
-  background: #151a20 !important;
 }
 
 .signal-slate .signal-type-select > div,
@@ -565,326 +508,22 @@
 }
 
 .signal-slate .signal-type-select button {
-  min-height: 7.5rem;
-  align-items: flex-start;
-  justify-content: center;
-  border-color: var(--signal-border) !important;
-  border-radius: 16px !important;
-  background: var(--signal-panel) !important;
-  text-align: left !important;
-  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease, box-shadow 200ms ease;
-}
-
-.signal-slate .signal-type-select button:hover,
-.signal-slate .signal-type-select button:active {
-  border-color: rgb(241 196 15 / 0.7) !important;
-  background: var(--signal-panel-raised) !important;
-  box-shadow: 0 0 0 1px rgb(241 196 15 / 0.18), 0 18px 40px -28px rgb(241 196 15 / 0.45) !important;
-}
-
-.signal-slate .signal-type-select button > div {
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.05) !important;
-}
-
-.signal-slate .signal-consent > div > button:first-child {
-  border-color: var(--signal-border-strong) !important;
-  background: transparent !important;
-}
-
-.signal-slate .signal-consent button[aria-pressed="true"] {
-  border-color: rgb(241 196 15 / 0.62) !important;
-  background: rgb(241 196 15 / 0.1) !important;
-}
-
-.signal-slate .signal-consent button[aria-pressed="true"] > div {
-  background: rgb(241 196 15 / 0.16) !important;
-  color: var(--signal-attention) !important;
-}
-
-.signal-slate .signal-consent button[aria-pressed="true"] > span:last-child {
-  border-color: var(--signal-attention) !important;
-  background: var(--signal-attention) !important;
-  color: #111418 !important;
-}
-
-.signal-slate .signal-consent button[aria-pressed="false"] {
-  background: var(--signal-panel) !important;
-}
-
-.signal-slate .signal-consent > div > button:last-of-type,
-.signal-slate .signal-consent button.bg-destructive {
-  min-height: 3.5rem;
-  border-radius: 14px !important;
-  background: var(--signal-critical) !important;
-  color: white !important;
-  box-shadow: 0 16px 32px -22px rgb(230 57 70 / 0.9);
-}
-
-.signal-slate .signal-loading {
-  background: radial-gradient(circle at 50% 40%, rgb(230 57 70 / 0.1), transparent 32%), var(--signal-canvas) !important;
-}
-
-.signal-slate .signal-loading .text-gold,
-.signal-slate .signal-loading .bg-gold {
-  color: var(--signal-attention) !important;
-}
-
-.signal-slate .signal-loading .font-display {
-  letter-spacing: 0.01em;
+  min-height: 7rem;
 }
 
 .signal-slate .signal-minimal,
 .signal-slate .signal-help,
 .signal-slate .signal-report,
 .signal-slate .signal-submitted {
-  background: var(--signal-canvas) !important;
-  color: var(--signal-ink) !important;
-}
-
-.signal-slate .signal-minimal {
   min-width: 0;
-}
-
-.signal-slate .signal-minimal > header,
-.signal-slate .signal-minimal > div {
-  min-width: 0;
-}
-
-.signal-slate .signal-minimal .text-foreground,
-.signal-slate .signal-minimal .text-foreground\/80 {
-  color: var(--signal-ink) !important;
-}
-
-.signal-slate .signal-minimal .text-muted-foreground {
-  color: var(--signal-muted) !important;
-}
-
-.signal-slate .signal-minimal .bg-muted\/35,
-.signal-slate .signal-minimal .bg-background\/70 {
-  background: var(--signal-panel) !important;
-}
-
-.signal-slate .signal-minimal .text-amber-200,
-.signal-slate .signal-minimal .text-amber-100\/75 {
-  color: #f6d889 !important;
-}
-
-/* Help is rendered on the same node as signal-slate, so use compound selectors. */
-.signal-slate .signal-help .bg-card,
-.signal-slate .signal-help .bg-secondary\/40,
-.signal-slate .signal-help .bg-secondary\/25,
-.signal-slate .signal-help .bg-muted\/30,
-.signal-slate .signal-help .bg-muted\/35 {
-  background: var(--signal-panel) !important;
-  border-color: var(--signal-border) !important;
-  color: var(--signal-ink) !important;
-}
-
-.signal-slate .signal-help .text-foreground,
-.signal-slate .signal-help .text-foreground\/80 {
-  color: var(--signal-ink) !important;
-}
-
-.signal-slate .signal-help .text-muted-foreground {
-  color: var(--signal-muted) !important;
-}
-
-.signal-slate .signal-help .border-border\/60,
-.signal-slate .signal-help .border-border\/70,
-.signal-slate .signal-help .border-border\/50 {
-  border-color: var(--signal-border) !important;
-}
-
-.signal-slate .signal-help .text-destructive {
-  color: var(--signal-critical) !important;
-}
-
-.signal-slate .signal-help .bg-destructive {
-  background: var(--signal-critical) !important;
 }
 
 .signal-slate .signal-minimal button,
 .signal-slate .signal-minimal a,
 .signal-slate .signal-minimal p,
 .signal-slate .signal-minimal span {
-  overflow-wrap: anywhere;
-}
-
-.signal-slate .signal-minimal .grid {
-  min-width: 0;
-}
-
-.signal-slate .signal-minimal > header,
-.signal-slate .signal-help > div:first-child {
-  background: #151a20 !important;
-  border-color: var(--signal-border) !important;
-  box-shadow: inset 0 -1px 0 rgb(255 255 255 / 0.03);
-}
-
-.signal-slate .signal-minimal .text-white\/40,
-.signal-slate .signal-help .text-muted-foreground {
-  color: var(--signal-muted) !important;
-}
-
-.signal-slate .signal-minimal .text-red-300,
-.signal-slate .signal-help .text-destructive,
-.signal-slate .signal-help .bg-destructive\/10 {
-  color: var(--signal-critical) !important;
-}
-
-.signal-slate .signal-help .premium-surface,
-.signal-slate .signal-help .rounded-3xl,
-.signal-slate .signal-help details,
-.signal-slate .signal-help #emergency-update {
-  border-radius: 16px !important;
-  border-color: var(--signal-border) !important;
-  background: var(--signal-panel) !important;
-}
-
-.signal-slate .signal-escalation {
-  border: 1px solid rgb(241 196 15 / 0.45) !important;
-  border-radius: 16px !important;
-  background: var(--signal-panel) !important;
-}
-
-.signal-slate .signal-escalation > div:first-child {
-  background: rgb(241 196 15 / 0.08) !important;
-  border-color: rgb(241 196 15 / 0.2) !important;
-}
-
-.signal-slate .signal-escalation .text-gold {
-  color: var(--signal-attention) !important;
-}
-
-.signal-slate .signal-escalation .border-gold\/70 {
-  border-color: rgb(241 196 15 / 0.7) !important;
-}
-
-.signal-slate .signal-report > div,
-.signal-slate .signal-submitted > div {
-  border-color: var(--signal-border-strong) !important;
-  border-radius: 16px !important;
-  background: var(--signal-panel) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 60px -42px rgb(0 0 0 / 0.9) !important;
-}
-
-.signal-slate .signal-report textarea:focus {
-  border-color: var(--signal-attention) !important;
-  box-shadow: 0 0 0 1px rgb(241 196 15 / 0.3) !important;
-}
-
-.signal-slate .signal-report button.bg-\[\#D90012\],
-.signal-slate .signal-report button.bg-destructive {
-  background: var(--signal-critical) !important;
-}
-
-.signal-slate .signal-submitted .text-\[\#FCDC04\],
-.signal-slate .signal-submitted .bg-\[\#FCDC04\] {
-  color: var(--signal-attention) !important;
-}
-
-.signal-slate .signal-safety-check {
-  border-color: var(--signal-border-strong) !important;
-  border-radius: 18px !important;
-  background: var(--signal-panel) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 60px -34px rgb(0 0 0 / 0.95) !important;
-}
-
-/* The SOS flow is intentionally light: urgency comes from the red action
-   colour, while the working surface stays calm and highly legible. */
-.signal-slate {
-  --signal-canvas: #f6f7f9;
-  --signal-panel: #ffffff;
-  --signal-panel-raised: #eef1f4;
-  --signal-ink: #18212b;
-  --signal-muted: #5c6875;
-  --signal-border: rgb(24 33 43 / 0.14);
-  --signal-border-strong: rgb(24 33 43 / 0.22);
-  --signal-critical: #c62832;
-  --signal-attention: #9a6b00;
-  background: var(--signal-canvas) !important;
-  color: var(--signal-ink) !important;
-}
-
-.signal-slate .signal-screen,
-.signal-slate .signal-minimal,
-.signal-slate .signal-help,
-.signal-slate .signal-report,
-.signal-slate .signal-submitted {
-  background: var(--signal-canvas) !important;
-  color: var(--signal-ink) !important;
-}
-
-.signal-slate .signal-minimal > header,
-.signal-slate .signal-idle > div:first-child,
-.signal-slate .signal-idle > div:nth-child(2) > div:last-child {
-  background: rgb(255 255 255 / 0.94) !important;
-  border-color: var(--signal-border) !important;
-  box-shadow: 0 10px 30px -24px rgb(24 33 43 / 0.35) !important;
-}
-
-.signal-slate .signal-minimal .bg-card,
-.signal-slate .signal-minimal .bg-secondary\/40,
-.signal-slate .signal-minimal .bg-secondary\/25,
-.signal-slate .signal-minimal .bg-muted\/30,
-.signal-slate .signal-minimal .bg-muted\/35,
-.signal-slate .signal-minimal .bg-background\/70,
-.signal-slate .signal-minimal .premium-surface {
-  background: var(--signal-panel) !important;
-  border-color: var(--signal-border) !important;
-  color: var(--signal-ink) !important;
-  box-shadow: 0 8px 24px -22px rgb(24 33 43 / 0.4) !important;
-}
-
-.signal-slate .signal-minimal .text-foreground,
-.signal-slate .signal-minimal .text-foreground\/80 {
-  color: var(--signal-ink) !important;
-}
-
-.signal-slate .signal-minimal .text-muted-foreground {
-  color: var(--signal-muted) !important;
-}
-
-.signal-slate .signal-minimal .text-amber-200,
-.signal-slate .signal-minimal .text-amber-100\/75 {
-  color: #765300 !important;
-}
-
-.signal-slate .signal-minimal .text-destructive,
-.signal-slate .signal-help .text-destructive {
-  color: var(--signal-critical) !important;
-}
-
-.signal-slate .signal-minimal .bg-destructive {
-  background: var(--signal-critical) !important;
-}
-
-.signal-slate .signal-minimal .border-border\/60,
-.signal-slate .signal-minimal .border-border\/70,
-.signal-slate .signal-minimal .border-border\/50 {
-  border-color: var(--signal-border) !important;
-}
-
-/* The first child is the decorative wash, not a content panel. Keep it out of
-   the card grid so it cannot create the dark strip below the header. */
-.signal-slate .signal-help > div:first-child {
-  background: transparent !important;
-}
-
-.signal-slate .signal-minimal button,
-.signal-slate .signal-minimal a,
-.signal-slate .signal-minimal p,
-.signal-slate .signal-minimal span {
-  overflow-wrap: anywhere;
-}
-
-.signal-slate .signal-report > div,
-.signal-slate .signal-submitted > div {
-  background: #ffffff !important;
-  color: var(--signal-ink) !important;
-  border-color: var(--signal-border-strong) !important;
-  box-shadow: 0 22px 50px -34px rgb(24 33 43 / 0.35) !important;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 @media (max-width: 767px) {
@@ -893,13 +532,8 @@
     flex-direction: column;
   }
 
-  .signal-slate .signal-idle > div:nth-child(2) > div:first-child {
-    min-height: 24rem;
-  }
-
   .signal-slate .signal-type-select button {
-    min-height: 6.75rem;
-    padding: 1rem;
+    min-height: 6.5rem;
   }
 }
 

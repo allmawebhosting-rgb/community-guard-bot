@@ -1475,7 +1475,7 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
   return (
     <motion.div
       className="signal-screen signal-idle flex min-h-0 flex-1 flex-col"
-      initial={{ opacity: 0 }}
+      initial={false}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.3 }}
@@ -1504,9 +1504,9 @@ function IdleScreen({ onActivate, onExit }: { onActivate: () => void; onExit: ()
       </div>
 
       {/* Main area — side by side on desktop */}
-       <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 content-start items-start gap-4 overflow-y-auto px-4 py-5 sm:px-6 sm:py-7 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:items-center lg:gap-8 lg:overflow-hidden lg:px-10 lg:py-8 xl:gap-12">
+       <div className="mx-auto grid min-h-0 w-full max-w-5xl flex-1 content-start items-center gap-4 overflow-y-auto px-4 py-5 sm:px-6 sm:py-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)] lg:gap-5 lg:px-8 lg:py-8">
         {/* Left: button */}
-         <div className="cmd-panel cmd-rise flex flex-col items-center px-4 py-7 text-center sm:px-8 sm:py-9 lg:px-10 lg:py-10">
+         <div className="cmd-panel cmd-rise flex flex-col items-center px-4 py-7 text-center sm:px-8 sm:py-9 lg:px-10 lg:py-9">
 
           <motion.p
             className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-destructive/60"
@@ -1624,7 +1624,7 @@ function TypeSelectScreen({ onSelect }: { onSelect: (t: string) => void }) {
   return (
     <motion.div
       className="signal-screen signal-type-select flex min-h-0 flex-1 flex-col overflow-y-auto"
-      initial={{ opacity: 0, y: 20 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.25 }}
@@ -1699,7 +1699,7 @@ function ConsentScreen({
   return (
     <motion.div
       className="signal-screen signal-consent flex min-h-0 flex-1 flex-col overflow-y-auto"
-      initial={{ opacity: 0, y: 18 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -18 }}
       transition={{ duration: 0.25 }}
@@ -2040,7 +2040,7 @@ function MinimalEmergencyScreen({
   return (
     <motion.main
       className="signal-screen signal-help signal-minimal relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-background text-foreground"
-      initial={{ opacity: 0 }}
+      initial={false}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
@@ -2064,8 +2064,8 @@ function MinimalEmergencyScreen({
         </div>
       </header>
 
-        <div className="sos-command-grid relative mx-auto grid w-full max-w-[1480px] min-w-0 grid-cols-1 items-start gap-3 overflow-x-hidden px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:gap-4 sm:px-6 sm:pb-10 md:px-8 lg:grid-cols-[minmax(280px,0.68fr)_minmax(0,1.6fr)] lg:gap-5 lg:py-6 lg:pb-12 xl:px-10">
-          <aside className="grid min-w-0 content-start gap-4 lg:sticky lg:top-[7.5rem]">
+        <div className="sos-command-grid relative mx-auto grid w-full max-w-[1440px] min-w-0 grid-cols-1 items-start gap-4 px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 md:px-8 lg:grid-cols-[minmax(310px,360px)_minmax(0,1fr)] lg:gap-6 lg:py-6 lg:pb-12 xl:px-10">
+          <aside className="grid min-w-0 content-start gap-4 lg:sticky lg:top-28">
             <div className="cmd-panel cmd-rise min-w-0 p-4 sm:p-5">
               <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
             </div>
@@ -2111,7 +2111,7 @@ function MinimalEmergencyScreen({
                   heightClassName="h-60 sm:h-80 lg:h-[28rem]"
                 />
               </div>
-              <div className="rounded-xl border border-border/60 bg-muted/25 p-3.5 sm:p-4">
+              <div className="border-t border-border/60 pt-5">
                 <NearbyHelpList
                   places={nearbyHelp}
                   loading={nearbyHelpLoading}
