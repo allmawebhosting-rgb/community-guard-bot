@@ -481,6 +481,13 @@
   color: var(--foreground);
 }
 
+/* Emergency content must never remain hidden if an entrance animation is
+   interrupted during route hydration or tab restoration. */
+.signal-slate .signal-screen [style*="opacity: 0"] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 .signal-slate h1,
 .signal-slate h2,
 .signal-slate h3,
