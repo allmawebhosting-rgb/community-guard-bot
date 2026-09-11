@@ -557,7 +557,7 @@ export function CallCenter() {
         >
           <div
             className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 h-96 signal-streak opacity-80",
+              "pointer-events-none absolute inset-x-0 top-0 h-44 signal-streak opacity-50",
               isEmergencyCall ? "" : "opacity-40",
             )}
           />
