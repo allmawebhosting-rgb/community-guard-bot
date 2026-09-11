@@ -557,7 +557,7 @@ export function CallCenter() {
         >
           <div
             className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 h-96 signal-streak opacity-80",
+              "pointer-events-none absolute inset-x-0 top-0 h-44 signal-streak opacity-50",
               isEmergencyCall ? "" : "opacity-40",
             )}
           />
@@ -655,7 +655,7 @@ export function CallCenter() {
                         places={helpPlaces}
                         selectedPlaceId={selectedHelpId}
                         onSelectPlace={setSelectedHelpId}
-                        heightClassName="h-60 sm:h-80 lg:h-[28rem]"
+                        heightClassName="h-56 sm:h-72 lg:h-[22rem]"
                       />
                     </section>
                   )}

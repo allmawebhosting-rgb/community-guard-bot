@@ -2044,7 +2044,7 @@ function MinimalEmergencyScreen({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-16 h-72 signal-streak opacity-80" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-44 signal-streak opacity-50" />
       <header className="cmd-header sticky top-0 z-10 border-b border-foreground/15 text-background shadow-lift">
         <div className="relative mx-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5 sm:px-6 sm:py-5 lg:max-w-[1480px] lg:px-8 xl:px-10">
           <div className="min-w-0">
@@ -2108,7 +2108,7 @@ function MinimalEmergencyScreen({
                   places={nearbyHelp}
                   selectedPlaceId={selectedHelpId}
                   onSelectPlace={setSelectedHelpId}
-                  heightClassName="h-60 sm:h-80 lg:h-[28rem]"
+                  heightClassName="h-56 sm:h-72 lg:h-[22rem]"
                 />
               </div>
               <div className="border-t border-border/60 pt-5">
