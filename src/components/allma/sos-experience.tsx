@@ -2037,102 +2037,251 @@ function MinimalEmergencyScreen({
   }, [locationReady, location]);
 
 
+  const sections = [
+    { id: "deck-location", label: "Location & Map" },
+    { id: "deck-help", label: "Nearby Help" },
+    { id: "deck-response", label: "Response Contacts" },
+    { id: "deck-chat", label: "Emergency Chat" },
+    { id: "deck-voice", label: "Allma Voice" },
+    { id: "deck-actions", label: "Immediate Actions" },
+  ];
+  const goTo = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const navItems = [
+    { label: "Emergency", icon: ShieldAlert, id: "deck-response", active: true },
+    { label: "Map & Location", icon: MapPin, id: "deck-location" },
+    { label: "Contacts", icon: Users, id: "deck-response" },
+    { label: "Chat", icon: Send, id: "deck-chat" },
+    { label: "Voice", icon: Mic, id: "deck-voice" },
+  ];
+
   return (
     <motion.main
-      className="signal-screen signal-help signal-minimal relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-background text-foreground"
+      className="signal-screen signal-help signal-minimal sos-deck relative flex min-h-0 flex-1 overflow-hidden text-foreground"
       initial={false}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-44 signal-streak opacity-50" />
-      <header className="cmd-header sticky top-0 z-10 border-b border-foreground/15 text-background shadow-lift">
-        <div className="relative mx-auto grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5 sm:px-6 sm:py-5 lg:max-w-[1480px] lg:px-8 xl:px-10">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
-              <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" /></span>
-              <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.18em] text-background sm:text-[11px]">SOS ACTIVE <span className="text-background/55">· LIVE RESPONSE</span></p>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:mt-3">
-               <p className="truncate font-mono text-[11px] font-semibold text-background/55 sm:text-[12px]">{emergencyId ?? "Emergency session"}</p>
-               <span className="hidden h-1 w-1 rounded-full bg-background/30 sm:block" />
-               <p className="truncate text-[11.5px] font-semibold text-background/85 sm:text-[12px]">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
+      {/* Left command sidebar */}
+      <aside className="hidden w-[228px] shrink-0 flex-col border-r border-border/60 bg-background/40 px-3 py-4 backdrop-blur-sm xl:flex">
+        <div className="flex items-center gap-2.5 px-2 pb-5">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-success/80 to-info/60 text-background">
+            <Shield className="h-4.5 w-4.5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate font-display text-[15px] font-black leading-tight">Allma</span>
+            <span className="block truncate text-[10px] font-semibold text-muted-foreground">Safety AI</span>
+          </span>
+        </div>
+        <nav className="grid gap-1.5">
+          {navItems.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => goTo(item.id)}
+              className={cn("deck-nav", item.active && "deck-nav-active")}
+            >
+              <item.icon className={cn("h-4 w-4 shrink-0", item.active ? "text-destructive" : "text-muted-foreground")} />
+              <span className="truncate">{item.label}</span>
+            </button>
+          ))}
+          <button type="button" onClick={onReport} className="deck-nav">
+            <Settings2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">Incident report</span>
+          </button>
+        </nav>
+        <div className="mt-auto px-2 pt-6">
+          <p className="font-display text-[13px] font-black leading-snug">Your safety<br />matters.</p>
+          <p className="mt-2 text-[11px] font-bold text-success">Allma Safety AI</p>
+          <p className="mt-0.5 text-[10.5px] text-muted-foreground">Smarter tools. Safer communities.</p>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <header className="sticky top-0 z-10 shrink-0 border-b border-border/60 bg-background/70 backdrop-blur-md">
+        <div className="relative grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:px-7">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-destructive/45 bg-destructive/15">
+              <span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/60" /><span className="relative inline-flex h-3 w-3 rounded-full bg-destructive" /></span>
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[12px] font-black uppercase tracking-[0.16em] text-destructive">
+                SOS Active <span className="text-muted-foreground">· LIVE</span>
+              </p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                <p className="truncate font-mono text-[11px] font-semibold text-muted-foreground">{emergencyId ?? "Emergency session"}</p>
+                <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/50 sm:block" />
+                <p className="truncate text-[11.5px] font-semibold text-foreground/85">{EMERGENCY_TYPES.find((item) => item.id === emergencyType)?.label ?? "Other Emergency"}</p>
+              </div>
             </div>
           </div>
-           <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-10 shrink-0 rounded-md border border-background/20 bg-background/10 px-4 text-[12px] font-bold text-background transition hover:border-background/40 hover:bg-background/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/60">
-            Close
+          <button type="button" onClick={() => setCloseConfirm(true)} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-4 text-[12px] font-bold text-foreground transition hover:bg-accent">
+            <X className="h-3.5 w-3.5" /> Close
           </button>
         </div>
       </header>
 
-        <div className="sos-command-grid relative mx-auto grid w-full max-w-[1440px] min-w-0 grid-cols-1 items-start gap-4 px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 md:px-8 lg:grid-cols-[minmax(310px,360px)_minmax(0,1fr)] lg:gap-6 lg:py-6 lg:pb-12 xl:px-10">
-          <aside className="grid min-w-0 content-start gap-4 lg:sticky lg:top-28">
-            <div className="cmd-panel cmd-rise min-w-0 p-4 sm:p-5">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="grid w-full min-w-0 grid-cols-1 items-start gap-4 px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-8 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:gap-5 lg:px-7 lg:py-5 2xl:grid-cols-[minmax(320px,400px)_minmax(0,1fr)_260px]">
+          {/* Response column */}
+          <aside className="grid min-w-0 content-start gap-4">
+            <div id="deck-response" className="deck-panel deck-panel-critical cmd-rise min-w-0 p-4 sm:p-5">
               <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
             </div>
 
-            <section aria-labelledby="actions-heading" className="cmd-panel-critical cmd-rise min-w-0 p-4 sm:p-5" style={{ animationDelay: "60ms" }}>
-              <p id="actions-heading" className="cmd-label">Immediate actions</p>
-              <div className="mt-4 grid gap-2.5">
-                <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-gradient-to-r from-destructive via-primary to-primary-glow px-4 text-left text-[14px] font-bold text-destructive-foreground shadow-lg shadow-destructive/25 transition duration-200 hover:brightness-105 active:scale-[0.99]">
-                  <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive-foreground/15"><Phone className="h-4 w-4" /></span><span className="min-w-0">Call Emergency Services</span></span><ChevronRight className="h-4 w-4 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
+            <button
+              id="deck-chat"
+              type="button"
+              onClick={() => activityId && navigate({ to: "/calls", search: { room: activityId } })}
+              disabled={!activityId}
+              className="deck-panel deck-panel-critical cmd-rise group flex min-w-0 items-center gap-3 p-4 text-left transition hover:brightness-110 disabled:opacity-60"
+              style={{ animationDelay: "50ms" }}
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive/25 text-destructive"><Send className="h-4 w-4" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[11px] font-black uppercase tracking-[0.16em] text-destructive">Emergency chat</span>
+                <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">Message the people alerted about this emergency.</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </button>
+
+            <div id="deck-voice" className="deck-panel cmd-rise min-w-0 p-4" style={{ animationDelay: "90ms" }}>
+              <AllmaVoice activityId={activityId} compact />
+            </div>
+
+            <section id="deck-actions" aria-labelledby="actions-heading" className="deck-panel cmd-rise min-w-0 p-4 sm:p-5" style={{ animationDelay: "130ms" }}>
+              <p id="actions-heading" className="deck-label">Immediate actions</p>
+              <div className="mt-3.5 grid gap-2.5">
+                <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-gradient-to-r from-destructive via-primary to-primary-glow px-4 text-left text-[13.5px] font-bold text-destructive-foreground shadow-lg shadow-destructive/25 transition duration-200 hover:brightness-105 active:scale-[0.99]">
+                  <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive-foreground/15"><Phone className="h-4 w-4" /></span><span className="min-w-0"><span className="block">Call Emergency Services</span><span className="block text-[10.5px] font-semibold opacity-80">Get immediate help from emergency services</span></span></span><ChevronRight className="h-4 w-4 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
                 </button>
-                <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-xl border border-border/70 bg-card px-4 text-left text-[14px] font-semibold text-foreground shadow-sm transition duration-200 hover:border-primary/40 hover:shadow-soft active:scale-[0.99]">
-                  <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted/60 shadow-sm"><Shield className="h-4 w-4 text-muted-foreground" /></span><span className="min-w-0">File an incident report</span></span><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-xl border border-border bg-card px-4 text-left text-[13.5px] font-semibold text-foreground transition duration-200 hover:border-primary/40 active:scale-[0.99]">
+                  <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted"><Shield className="h-4 w-4 text-muted-foreground" /></span><span className="min-w-0"><span className="block">File an Incident Report</span><span className="block text-[10.5px] font-medium text-muted-foreground">Report the incident for tracking</span></span></span><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </button>
-                <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-12 rounded-xl border border-destructive/25 text-[12px] font-bold uppercase tracking-[0.14em] text-destructive transition hover:bg-destructive/[0.06]">
+                <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-12 rounded-xl border border-destructive/35 text-[12px] font-bold uppercase tracking-[0.14em] text-destructive transition hover:bg-destructive/10">
                   Stop SOS
                 </button>
               </div>
             </section>
           </aside>
 
-          <section aria-labelledby="location-heading" className="cmd-panel cmd-rail cmd-rise min-w-0 p-4 pl-5 sm:p-5 sm:pl-6 lg:p-6 lg:pl-7" style={{ animationDelay: "120ms" }}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p id="location-heading" className="cmd-label">Live location</p>
-              <p className="mt-2 flex items-center gap-2 font-display text-[17px] font-black tracking-tight text-foreground sm:mt-3 sm:text-[19px]">
-                <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-success shadow-[0_0_0_4px_color-mix(in_oklab,var(--success)_12%,transparent)]" : "bg-gold")} />
-                {locationReady ? "Shared with responders" : "Unavailable"}
-              </p>
-              <p className="mt-1 truncate text-[12px] text-muted-foreground">{area}</p>
-            </div>
-            {!locationReady && (
-              <button type="button" onClick={onEnableLocation} className="min-h-10 shrink-0 rounded-xl border border-gold/45 bg-gold/15 px-3 text-[12px] font-bold text-foreground transition hover:bg-gold/25">Enable Location</button>
-            )}
-          </div>
-          {locationReady && location && (
-            <div className="mt-4 space-y-5">
-              <div className="overflow-hidden rounded-xl border border-foreground/10 shadow-soft">
-                <LiveLocationMap
-                  location={location}
-                  places={nearbyHelp}
-                  selectedPlaceId={selectedHelpId}
-                  onSelectPlace={setSelectedHelpId}
-                  heightClassName="h-56 sm:h-72 lg:h-[22rem]"
-                />
+          {/* Main location / help column */}
+          <div className="grid min-w-0 content-start gap-4">
+            <section id="deck-location" aria-labelledby="location-heading" className="deck-panel cmd-rise min-w-0 p-4 sm:p-5" style={{ animationDelay: "120ms" }}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="inline-flex items-center gap-2 rounded-full border border-success/35 bg-success/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-success">
+                  <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-success" : "bg-gold")} />
+                  {locationReady ? "Live · Shared" : "Location unavailable"}
+                  {locationReady && location?.accuracy ? ` · ±${Math.round(location.accuracy)} m` : ""}
+                </span>
+                {!locationReady && (
+                  <button type="button" onClick={onEnableLocation} className="min-h-10 shrink-0 rounded-xl border border-gold/45 bg-gold/15 px-3 text-[12px] font-bold text-foreground transition hover:bg-gold/25">Enable Location</button>
+                )}
               </div>
-              <div className="border-t border-border/60 pt-5">
+              <div className="mt-3 flex items-start gap-3">
+                <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted"><MapPin className="h-4 w-4 text-destructive" /></span>
+                <div className="min-w-0">
+                  <p id="location-heading" className="deck-label">Location</p>
+                  <p className="mt-1 truncate font-display text-[18px] font-black tracking-tight">{area}</p>
+                </div>
+              </div>
+              {locationReady && location && (
+                <div className="mt-4 overflow-hidden rounded-xl border border-border/70">
+                  <LiveLocationMap
+                    location={location}
+                    places={nearbyHelp}
+                    selectedPlaceId={selectedHelpId}
+                    onSelectPlace={setSelectedHelpId}
+                    heightClassName="h-60 sm:h-72 lg:h-[21rem] 2xl:h-[24rem]"
+                  />
+                </div>
+              )}
+              {!locationReady && (
+                <div className="mt-4 rounded-lg border border-gold/35 bg-gold/10 p-4 text-[12px] leading-relaxed text-foreground/80">
+                  Nearby police, clinics and hospitals need location permission. Enable location above to search for real places.
+                </div>
+              )}
+            </section>
+
+            {locationReady && location && (
+              <section id="deck-help" className="deck-panel cmd-rise min-w-0 p-4 sm:p-5" style={{ animationDelay: "170ms" }}>
                 <NearbyHelpList
                   places={nearbyHelp}
                   loading={nearbyHelpLoading}
                   origin={{ lat: location.lat, lng: location.lng }}
                   selectedId={selectedHelpId}
                   onSelect={setSelectedHelpId}
-                  tone="surface"
+                  tone="dark"
                   title="Help near you"
-                  subtitle="Police, clinics and hospitals closest to your location"
+                  subtitle="Police, clinics and hospitals closest to you"
                   emptyLabel="No nearby police, clinics or hospitals were found yet."
                 />
+              </section>
+            )}
+
+            <div className="deck-panel cmd-rise flex min-w-0 flex-wrap items-center gap-3 p-4" style={{ animationDelay: "210ms" }}>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-success/15 text-success"><Shield className="h-4.5 w-4.5" /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-black">Stay connected. Stay safer.</p>
+                <p className="mt-0.5 text-[11.5px] text-muted-foreground">Keep your Safety Network, contacts and settings up to date.</p>
               </div>
+              <button type="button" onClick={() => navigate({ to: "/profile" })} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-[12px] font-bold transition hover:bg-accent">
+                Open Settings <ChevronRight className="h-3.5 w-3.5" />
+              </button>
             </div>
-          )}
-          {!locationReady && (
-            <div className="mt-4 rounded-lg border border-gold/35 bg-gold/10 p-4 text-[12px] leading-relaxed text-foreground/75">
-              Nearby police, clinics and hospitals need location permission. Enable location above to search for real places.
+          </div>
+
+          {/* Right rail */}
+          <aside className="hidden min-w-0 content-start gap-4 2xl:grid">
+            <nav className="deck-panel cmd-rise min-w-0 p-3" style={{ animationDelay: "150ms" }}>
+              <p className="deck-label px-1.5 pb-2">On this page</p>
+              <div className="grid gap-1">
+                {sections.map((section, index) => (
+                  <button key={section.id} type="button" onClick={() => goTo(section.id)} className={cn("deck-nav", index === 0 && "deck-nav-active")}>
+                    <span className="font-mono text-[10px] text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="truncate">{section.label}</span>
+                  </button>
+                ))}
+              </div>
+            </nav>
+
+            <div className="deck-panel cmd-rise min-w-0 p-4" style={{ animationDelay: "190ms" }}>
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted"><Crosshair className="h-4 w-4 text-info" /></span>
+                <p className="deck-label">Location accuracy</p>
+              </div>
+              <div className="mt-3 flex items-center gap-2.5">
+                <p className="font-display text-[19px] font-black">
+                  {location?.accuracy ? `±${Math.round(location.accuracy)} m` : "Pending"}
+                </p>
+                {locationReady && (
+                  <span className="rounded-full border border-success/35 bg-success/10 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-success">Live</span>
+                )}
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                GPS accuracy is approximate. Your exact location may vary.
+              </p>
             </div>
-          )}
-          </section>
+
+            <div className="deck-panel cmd-rise min-w-0 p-4" style={{ animationDelay: "230ms" }}>
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-success/15"><Users className="h-4 w-4 text-success" /></span>
+                <p className="deck-label">Related feature</p>
+              </div>
+              <p className="mt-3 font-display text-[14px] font-black">Safety Network</p>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                Keep your trusted contacts updated so help reaches you faster.
+              </p>
+              <button type="button" onClick={() => navigate({ to: "/profile" })} className="mt-3 inline-flex items-center gap-1.5 text-[11.5px] font-bold text-success">
+                Manage contacts <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </aside>
       </div>
+      </div>
+      </div>
+
 
       {servicesOpen && (
         <div className="fixed inset-0 z-20 flex items-end bg-[#18212b]/20 p-3 backdrop-blur-[2px]" onClick={() => setServicesOpen(false)}>
