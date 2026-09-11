@@ -126,43 +126,95 @@ export function EmergencyCallEscalation({
             ? "Moving to next responder..."
             : "Preparing";
 
+    const reachedCount = rows.filter(({ attempt }) => {
+      const derived = attempt ? attemptState(attempt.status) : null;
+      return derived === "answered" || derived === "calling" || derived === "alerted";
+    }).length;
+    const progress = rows.length ? Math.round((reachedCount / rows.length) * 100) : 0;
+
     return (
-      <section aria-labelledby="response-heading" className="border-b border-border/60 pb-5 pt-1">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+      <section aria-labelledby="response-heading" className="min-w-0">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Response</p>
-            <h2 id="response-heading" className="mt-2 font-display text-xl font-bold leading-tight text-foreground">
-              {answered ? `${current?.target.full_name ?? "Responder"} is responding` : state?.priority ? `Priority ${state.priority} contacts` : "Safety Network retrying"}
+            <p className="cmd-label">Response</p>
+            <h2 id="response-heading" className="mt-2 font-display text-[17px] font-black leading-tight tracking-tight text-foreground sm:text-[19px]">
+              {answered
+                ? `${current?.target.full_name ?? "Responder"} is responding`
+                : state?.priority
+                  ? `Priority ${state.priority} contacts`
+                  : "Safety Network"}
             </h2>
-            <p className="mt-1 text-[11px] font-semibold text-muted-foreground">{activeRows.length}/{rows.length} contacts in this priority</p>
           </div>
-          <span className={cn("shrink-0 rounded-full border border-border/60 bg-muted/50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", answered ? "text-success" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "shrink-0 rounded-full border px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.14em]",
+              answered
+                ? "border-success/40 bg-success/10 text-success"
+                : "border-border/70 bg-muted/40 text-muted-foreground",
+            )}
+          >
             {currentLabel}
           </span>
         </div>
-        <div className="mt-5 flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 p-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-card text-sm font-bold text-foreground shadow-sm ring-1 ring-border/60">
-            {current?.target.full_name.slice(0, 1).toUpperCase() ?? "—"}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-[14px] font-semibold text-foreground">{current?.target.full_name ?? "Safety Network"}</p>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">{answered ? "Voice connection established" : current?.target.safety_role ?? "Friend"}</p>
+
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+            <span>{reachedCount}/{rows.length} contacts reached</span>
+            {current && !answered ? (
+              <span className="truncate pl-3 text-foreground/70">{current.target.full_name}</span>
+            ) : null}
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-destructive to-gold transition-[width] duration-500"
+              style={{ width: `${Math.max(progress, rows.length ? 6 : 0)}%` }}
+            />
           </div>
         </div>
-        <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
+
+        <div className="mt-4 space-y-1.5 border-t border-border/60 pt-3.5 lg:max-h-[19rem] lg:overflow-y-auto lg:pr-1">
+          {loading && (
+            <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-[12px] text-muted-foreground">
+              Loading your Safety Network…
+            </p>
+          )}
           {!loading && rows.length === 0 && (
-            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-relaxed text-white/60">
+            <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-[12px] leading-relaxed text-muted-foreground">
               No Safety Network members are available for this emergency.
             </p>
           )}
           {rows.map(({ target, attempt }) => {
             const derived = attempt ? attemptState(attempt.status) : null;
+            const isAnswered = derived === "answered";
+            const isCalling = derived === "calling";
             return (
-              <div key={target.member_id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border/50 px-3 py-2.5 text-[12px]">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">{target.full_name.slice(0, 1).toUpperCase()}</span>
-                <span className="min-w-0"><span className="block truncate font-semibold text-foreground">{target.full_name}</span><span className="block truncate text-[10px] text-muted-foreground">{target.safety_role ?? "Friend"} · Priority {target.priority}</span></span>
-                <span className={cn("shrink-0 font-semibold", derived === "answered" ? "text-success" : derived === "calling" ? "text-foreground" : "text-muted-foreground")}>
-                  {derived === "answered" ? "Connected" : derived === "calling" ? "Calling" : derived === "alerted" ? "Notified" : "Waiting"}
+              <div
+                key={target.member_id}
+                className={cn(
+                  "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2.5 text-[12px] transition-colors duration-200",
+                  isAnswered
+                    ? "border-success/45 bg-success/[0.07]"
+                    : isCalling
+                      ? "border-gold/55 bg-gold/[0.08]"
+                      : "border-border/50 bg-card",
+                )}
+              >
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
+                  {target.full_name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold text-foreground">{target.full_name}</span>
+                  <span className="block truncate text-[10px] text-muted-foreground">
+                    {target.safety_role ?? "Friend"} · Priority {target.priority}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 text-[10.5px] font-bold uppercase tracking-[0.1em]",
+                    isAnswered ? "text-success" : isCalling ? "text-gold" : "text-muted-foreground",
+                  )}
+                >
+                  {isAnswered ? "Connected" : isCalling ? "Calling" : derived === "alerted" ? "Notified" : "Waiting"}
                 </span>
               </div>
             );
@@ -171,6 +223,7 @@ export function EmergencyCallEscalation({
       </section>
     );
   }
+
 
   const start = () => {
     if (!controller) {
