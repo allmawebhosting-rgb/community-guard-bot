@@ -1002,9 +1002,24 @@
   animation: cmd-rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@keyframes answer-breathe {
+  0%,
+  100% {
+    box-shadow: 0 18px 40px -22px color-mix(in oklab, var(--success) 65%, transparent);
+  }
+  50% {
+    box-shadow: 0 22px 60px -18px color-mix(in oklab, var(--success) 85%, transparent);
+  }
+}
+
+@utility answer-breathe {
+  animation: answer-breathe 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cmd-rise,
-  .signal-streak {
+  .signal-streak,
+  .answer-breathe {
     animation: none;
   }
 }
