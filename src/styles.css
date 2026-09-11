@@ -345,6 +345,17 @@
       color-mix(in oklab, var(--gold) 14%, transparent),
       transparent 60%
     );
+  background-size: 140% 140%;
+  animation: signal-drift 14s ease-in-out infinite alternate;
+}
+
+@keyframes signal-drift {
+  from {
+    background-position: 0% 20%, 100% 0%;
+  }
+  to {
+    background-position: 18% 55%, 78% 28%;
+  }
 }
 
 @utility shadow-soft {
@@ -1448,9 +1459,20 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cmd-rise {
+  .cmd-rise,
+  .signal-streak {
     animation: none;
   }
+}
+
+.signal-slate .sos-command-grid {
+  background: transparent !important;
+}
+
+.signal-slate .nearby-help,
+.signal-slate .nearby-help * {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 @utility cmd-label {
