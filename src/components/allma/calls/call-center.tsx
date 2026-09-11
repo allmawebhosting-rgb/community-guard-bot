@@ -544,6 +544,9 @@ export function CallCenter() {
           ? (endedNote ?? "Call ended")
           : qualityCopy[quality];
 
+  const firstName = (peer?.name ?? "An Allma member").split(" ")[0];
+  const emergencyLabel = emergency ? emergency.emergency_type.replace(/_/g, " ") : null;
+
   return (
     <AnimatePresence>
       {visible && (
@@ -551,97 +554,161 @@ export function CallCenter() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex flex-col overflow-hidden bg-background/98 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground backdrop-blur-xl"
+          className="fixed inset-0 z-[80] flex flex-col overflow-hidden bg-background text-foreground"
           role="dialog"
           aria-label="Allma voice call"
         >
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 h-44 signal-streak opacity-50",
-              isEmergencyCall ? "" : "opacity-40",
-            )}
-          />
-
-          <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-40 pt-3 sm:px-6 sm:pt-6 lg:px-8 lg:pb-8">
-            <div className="cmd-rise mx-auto grid w-full max-w-3xl min-w-0 overflow-hidden rounded-2xl border border-foreground/12 bg-card shadow-lift md:max-w-5xl lg:max-w-[1440px] lg:grid-cols-[minmax(310px,360px)_minmax(0,1fr)]">
-              <div className="cmd-header relative flex w-full min-w-0 flex-col items-center overflow-hidden border-b border-foreground/20 px-5 py-6 text-center text-background sm:px-8 sm:py-8 lg:sticky lg:top-0 lg:h-[calc(100dvh-7rem)] lg:items-start lg:justify-start lg:self-start lg:border-b-0 lg:border-r lg:border-foreground/15 lg:px-8 lg:py-9 lg:text-left">
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/35 to-transparent" />
-                <p
-                  className={cn(
-                    "relative inline-flex items-center gap-2 rounded-md border border-background/20 bg-background/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em]",
-                    isEmergencyCall ? "text-background" : "text-background/70",
-                  )}
-                >
-                  {isEmergencyCall && <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" /></span>}
+          {/* ── Emergency status bar ─────────────────────────────────────── */}
+          <header className="relative z-10 shrink-0 border-b border-foreground/15 bg-foreground px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-background sm:px-7">
+            <div className="mx-auto grid w-full max-w-4xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-background/70">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    {(phase === "incoming" || phase === "outgoing") && (
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/60" />
+                    )}
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" />
+                  </span>
                   {isEmergencyCall
-                    ? "Allma emergency call"
-                    : phase === "incoming"
-                      ? "Allma call"
-                      : "Allma voice call"}
+                    ? phase === "incoming"
+                      ? "Incoming emergency"
+                      : "Allma emergency call"
+                    : "Allma voice call"}
+                </p>
+                <p className="mt-1 truncate font-display text-[15px] font-black tracking-tight sm:text-base">
+                  Allma Safety Network
+                </p>
+              </div>
+              {emergencyLabel && (
+                <div className="min-w-0 text-right">
+                  <p className="truncate text-[12px] font-bold capitalize">{emergencyLabel}</p>
+                  <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-background/60">
+                    {emergency?.severity}
+                  </p>
+                </div>
+              )}
+            </div>
+          </header>
+
+          <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-44 pt-5 sm:px-6 lg:pb-8">
+            <div className="mx-auto w-full max-w-4xl min-w-0 space-y-5">
+              {/* ── 1. Caller identity ─────────────────────────────────── */}
+              <section
+                className="cmd-panel cmd-rise flex min-w-0 flex-col items-center px-5 py-7 text-center sm:px-8 sm:py-9"
+                aria-label="Caller"
+              >
+                <p className="cmd-label text-destructive">
+                  {phase === "incoming"
+                    ? isEmergencyCall
+                      ? "Incoming emergency"
+                      : "Incoming call"
+                    : phase === "outgoing"
+                      ? "Calling"
+                      : phase === "ended"
+                        ? "Call ended"
+                        : "On call"}
                 </p>
 
                 <motion.div
-                  className="relative mt-5 rounded-full bg-card p-1.5 ring-1 ring-destructive/50 ring-offset-4 ring-offset-foreground shadow-lg shadow-destructive/20 sm:mt-7"
+                  className="relative mt-5 rounded-full bg-card p-1.5 ring-2 ring-destructive/35 ring-offset-4 ring-offset-card"
                   animate={
-                    phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.04, 1] } : {}
+                    phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.035, 1] } : {}
                   }
                   transition={{ repeat: Infinity, duration: 1.8 }}
                 >
-                  <Avatar
-                    name={peer?.name ?? "Allma member"}
-                    url={peer?.avatarUrl ?? null}
-                    size={96}
-                  />
+                  <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={104} />
                 </motion.div>
 
-                <h2 className="relative mt-5 max-w-full break-words font-display text-2xl font-black leading-tight text-background sm:text-3xl lg:mt-7 lg:text-4xl">
-                  {isEmergencyCall && phase === "incoming"
-                    ? `${(peer?.name ?? "An Allma member").split(" ")[0]} is in danger`
-                    : (peer?.name ?? "Allma member")}
+                <h2 className="mt-6 max-w-full break-words font-display text-[26px] font-black leading-tight tracking-tight sm:text-4xl">
+                  {peer?.name ?? "Allma member"}
                 </h2>
-                <p className="relative mt-2 text-sm font-medium text-background/65 lg:text-base">
-                  {emergency && phase === "incoming"
-                    ? `has activated SOS · ${emergency.emergency_type.replace(/_/g, " ")}`
+                <p className="mt-2 text-sm font-semibold text-muted-foreground sm:text-base">
+                  {phase === "incoming"
+                    ? isEmergencyCall
+                      ? "needs your help"
+                      : "is calling you"
                     : statusLine}
                 </p>
 
+                {emergencyLabel && (
+                  <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-destructive/25 bg-destructive/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-destructive">
+                    <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
+                    {emergencyLabel}
+                  </p>
+                )}
+
+                {emergency?.location_shared && emergency.area && (
+                  <p className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-foreground">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-destructive" aria-hidden />
+                    {emergency.area}
+                  </p>
+                )}
+
                 {phase === "active" && quality !== "connecting" && (
-                   <p className="relative mt-3 font-mono text-3xl font-semibold tabular-nums text-background">
+                  <p className="mt-4 font-mono text-3xl font-semibold tabular-nums">
                     {formatDuration(seconds)}
                   </p>
                 )}
 
-                <p className="relative mt-5 inline-flex items-center gap-1.5 rounded-md border border-background/20 bg-background/10 px-3 py-1.5 text-[11px] font-semibold text-background/65 lg:mt-7">
-                  <ShieldCheck className="h-3.5 w-3.5 text-success" />
-                  In-app call · phone numbers stay private
+                <p className="mt-5 inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5 text-success" aria-hidden />
+                  In-app emergency call · phone numbers remain private
                 </p>
-              </div>
+              </section>
 
               {emergency && phase !== "ended" && (
-                <div className="w-full min-w-0 space-y-5 bg-muted/30 p-4 text-left sm:p-6 lg:p-7 xl:p-8">
-                  <div className="cmd-panel-critical cmd-rise p-4 sm:p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-destructive">Emergency information</p>
-                       <span className="rounded-md border border-destructive/20 bg-destructive/10 px-2.5 py-1 text-[10px] font-bold uppercase text-destructive">{emergency.severity}</span>
-                    </div>
-                    <p className="mt-2 text-base font-bold capitalize text-foreground">
-                      {emergency.emergency_type.replace(/_/g, " ")}
-                    </p>
-                    <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
-                      <span className="min-w-0 flex-1">
-                        {emergency.location_shared ? emergency.area : "Location not shared with you"}
-                      </span>
-                    </p>
-                    {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
-                      <p className="mt-2 border-t border-border/50 pt-2 text-[11px] font-medium text-muted-foreground">
-                        GPS accuracy: approximately {Math.round(emergency.accuracy_m)} m
-                      </p>
-                    )}
-                  </div>
+                <>
+                  {/* ── 2. Emergency details ───────────────────────────── */}
+                  <section
+                    className="cmd-panel-critical cmd-rise min-w-0 p-4 sm:p-5"
+                    style={{ animationDelay: "60ms" }}
+                    aria-label="Emergency details"
+                  >
+                    <p className="cmd-label text-destructive">Emergency details</p>
+                    <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="min-w-0">
+                        <dt className="cmd-label">Emergency</dt>
+                        <dd className="mt-1 break-words text-[13.5px] font-bold capitalize text-foreground">
+                          {emergencyLabel}
+                        </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="cmd-label">Location</dt>
+                        <dd className="mt-1 break-words text-[13.5px] font-bold text-foreground">
+                          {emergency.location_shared ? emergency.area : "Not shared with you"}
+                        </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="cmd-label">Location status</dt>
+                        <dd className="mt-1 text-[13.5px] font-bold text-foreground">
+                          {emergency.location_shared ? "Live location available" : "Not available"}
+                        </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="cmd-label">Severity</dt>
+                        <dd className="mt-1 text-[13.5px] font-bold uppercase text-destructive">
+                          {emergency.severity}
+                        </dd>
+                      </div>
+                      {emergency.location_shared && typeof emergency.accuracy_m === "number" && (
+                        <div className="min-w-0">
+                          <dt className="cmd-label">GPS accuracy</dt>
+                          <dd className="mt-1 text-[13.5px] font-bold text-foreground">
+                            Approximately {Math.round(emergency.accuracy_m)} m
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  </section>
 
+                  {/* ── 3. Live location map ───────────────────────────── */}
                   {callerPoint && (
-                    <section aria-label="Caller location" className="cmd-panel cmd-rise min-w-0 overflow-hidden p-1.5" style={{ animationDelay: "60ms" }}>
+                    <section
+                      aria-label="Caller location"
+                      className="cmd-panel cmd-rise min-w-0 overflow-hidden p-3 sm:p-4"
+                      style={{ animationDelay: "120ms" }}
+                    >
+                      <p className="cmd-label mb-3">Live location</p>
                       <LiveLocationMap
                         location={{
                           lat: callerPoint.lat,
@@ -655,13 +722,18 @@ export function CallCenter() {
                         places={helpPlaces}
                         selectedPlaceId={selectedHelpId}
                         onSelectPlace={setSelectedHelpId}
-                        heightClassName="h-56 sm:h-72 lg:h-[22rem]"
+                        heightClassName="h-52 sm:h-64 lg:h-80"
                       />
                     </section>
                   )}
 
+                  {/* ── 4. Nearby help ─────────────────────────────────── */}
                   {callerPoint && (
-                    <section className="cmd-panel cmd-rail cmd-rise min-w-0 p-4 pl-5 sm:p-5 sm:pl-6" style={{ animationDelay: "120ms" }} aria-label="Help near the caller">
+                    <section
+                      className="cmd-panel cmd-rise min-w-0 p-4 sm:p-5"
+                      style={{ animationDelay: "180ms" }}
+                      aria-label="Help near the caller"
+                    >
                       <NearbyHelpList
                         places={helpPlaces}
                         loading={helpLoading}
@@ -670,32 +742,53 @@ export function CallCenter() {
                         onSelect={setSelectedHelpId}
                         tone="surface"
                         title="Help near the caller"
-                        subtitle="Police, clinics and hospitals closest to where they are"
+                        subtitle="Police, clinics and hospitals closest to their location"
                         emptyLabel="No police, clinics or hospitals were found near the caller yet."
                       />
                     </section>
                   )}
 
                   {sosRoomId && (
-                    <section className="cmd-panel cmd-rise min-w-0 px-3 py-1" style={{ animationDelay: "180ms" }} aria-label="Shared emergency chat">
+                    <section
+                      className="cmd-panel cmd-rise min-w-0 px-3 py-1"
+                      style={{ animationDelay: "240ms" }}
+                      aria-label="Shared emergency chat"
+                    >
                       <EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} />
                     </section>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>
 
-
-          <div className="fixed inset-x-0 bottom-0 z-10 shrink-0 border-t border-foreground/15 bg-card/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-18px_50px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-xl lg:relative lg:inset-auto lg:py-4 lg:shadow-none">
+          {/* ── Answer / Decline ─────────────────────────────────────────── */}
+          <div className="fixed inset-x-0 bottom-0 z-20 shrink-0 border-t border-foreground/12 bg-card/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-18px_50px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-xl sm:px-6 lg:relative lg:inset-auto lg:py-4 lg:shadow-none">
             {phase === "incoming" ? (
-              <div className="mx-auto grid w-full max-w-md grid-cols-2 gap-5 sm:gap-8">
-                <CallAction label="Decline" tone="destructive" onClick={() => void decline()}>
-                  <PhoneOff className="h-7 w-7" />
-                </CallAction>
-                <CallAction label="Answer" tone="success" onClick={() => void answer()}>
-                  <Phone className="h-7 w-7" />
-                </CallAction>
+              <div className="mx-auto flex w-full max-w-3xl items-stretch gap-3 sm:gap-4">
+                <button
+                  type="button"
+                  onClick={() => void decline()}
+                  className="flex min-h-[62px] shrink-0 items-center justify-center gap-2 rounded-2xl border border-destructive/30 bg-muted px-5 text-[13px] font-bold text-destructive transition duration-200 hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 active:scale-[0.98] sm:px-7"
+                >
+                  <PhoneOff className="h-5 w-5" aria-hidden />
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void answer()}
+                  className="answer-breathe flex min-h-[62px] min-w-0 flex-1 items-center justify-center gap-3 rounded-2xl bg-success px-5 text-success-foreground transition duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2 active:scale-[0.99]"
+                >
+                  <Phone className="h-6 w-6 shrink-0" aria-hidden />
+                  <span className="min-w-0 text-left">
+                    <span className="block text-[14px] font-black uppercase tracking-[0.08em]">
+                      Answer emergency call
+                    </span>
+                    <span className="block truncate text-[11.5px] font-semibold opacity-85">
+                      Connect with {peer?.name ?? firstName}
+                    </span>
+                  </span>
+                </button>
               </div>
             ) : phase === "ended" ? null : (
               <div className="mx-auto flex max-w-sm flex-col items-center gap-5">
