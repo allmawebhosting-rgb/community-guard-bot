@@ -2108,7 +2108,7 @@ function MinimalEmergencyScreen({
                   places={nearbyHelp}
                   selectedPlaceId={selectedHelpId}
                   onSelectPlace={setSelectedHelpId}
-                  heightClassName="h-60 sm:h-80 lg:h-[28rem]"
+                  heightClassName="h-56 sm:h-72 lg:h-[22rem]"
                 />
               </div>
               <div className="border-t border-border/60 pt-5">
