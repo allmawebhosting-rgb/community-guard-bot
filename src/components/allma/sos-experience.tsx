@@ -1326,9 +1326,9 @@ export function SOSExperience({
   }
 
   return (
-    <div className="signal-slate fixed inset-0 z-[100] flex h-[100dvh] w-screen max-w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className={cn("signal-slate fixed inset-0 z-[100] flex h-[100dvh] w-screen max-w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]", phase === "help" && "sos-deck")}>
       {/* Ambient brand glow — same signal-streak wash as the onboarding wizard */}
-      <div className="signal-streak pointer-events-none absolute inset-0" />
+      {phase !== "help" && <div className="signal-streak pointer-events-none absolute inset-0" />}
       {/* Subtle grid */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.05]"
