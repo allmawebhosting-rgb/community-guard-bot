@@ -1109,3 +1109,86 @@
   );
   opacity: 0.9;
 }
+
+/* ── Live SOS command deck (dark tactical surface, scoped to the active SOS) ── */
+.sos-deck {
+  --background: oklch(0.19 0.028 222);
+  --surface: oklch(0.23 0.03 222);
+  --surface-foreground: oklch(0.96 0.01 210);
+  --card: oklch(0.235 0.032 224);
+  --card-foreground: oklch(0.96 0.01 210);
+  --popover: oklch(0.235 0.032 224);
+  --popover-foreground: oklch(0.96 0.01 210);
+  --foreground: oklch(0.965 0.012 210);
+  --muted: oklch(0.285 0.03 224);
+  --muted-foreground: oklch(0.74 0.022 212);
+  --secondary: oklch(0.285 0.03 224);
+  --secondary-foreground: oklch(0.95 0.012 210);
+  --accent: oklch(0.33 0.05 205);
+  --accent-foreground: oklch(0.97 0.012 210);
+  --border: oklch(0.37 0.035 216);
+  --input: oklch(0.37 0.035 216);
+  --ring: oklch(0.66 0.16 195);
+  --primary: oklch(0.6 0.22 22);
+  --primary-foreground: oklch(0.98 0.01 20);
+  --primary-glow: oklch(0.7 0.19 42);
+  --destructive: oklch(0.62 0.22 22);
+  --destructive-foreground: oklch(0.98 0.01 20);
+  --success: oklch(0.74 0.16 165);
+  --gold: oklch(0.85 0.16 92);
+  --gold-foreground: oklch(0.2 0.03 90);
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 18px 40px -22px oklch(0 0 0 / 0.6);
+  --shadow-lift: 0 26px 60px -26px oklch(0 0 0 / 0.7);
+  background:
+    radial-gradient(120% 90% at 8% 0%, oklch(0.3 0.07 190 / 0.5), transparent 60%),
+    radial-gradient(90% 70% at 100% 0%, oklch(0.32 0.12 22 / 0.32), transparent 62%),
+    var(--background);
+}
+
+.sos-deck .deck-panel {
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--card) 96%, transparent), color-mix(in oklab, var(--background) 70%, transparent));
+  box-shadow: var(--shadow-soft);
+}
+
+.sos-deck .deck-panel-critical {
+  border-color: color-mix(in oklab, var(--destructive) 45%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--destructive) 14%, var(--card)), color-mix(in oklab, var(--background) 78%, transparent));
+}
+
+.sos-deck .deck-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 62%, transparent);
+}
+
+.sos-deck .deck-nav {
+  display: flex;
+  min-height: 2.6rem;
+  width: 100%;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  padding: 0 0.75rem;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: color-mix(in oklab, var(--foreground) 76%, transparent);
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+.sos-deck .deck-nav:hover {
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
+  color: var(--foreground);
+}
+
+.sos-deck .deck-nav-active {
+  border-color: color-mix(in oklab, var(--success) 40%, transparent);
+  background: color-mix(in oklab, var(--success) 14%, transparent);
+  color: var(--foreground);
+}
