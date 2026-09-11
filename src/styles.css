@@ -866,109 +866,10 @@
   border-color: var(--signal-border) !important;
 }
 
-.signal-slate .signal-help-card {
-  background: #ffffff !important;
-  border-color: rgb(24 33 43 / 0.14) !important;
-  box-shadow: 0 12px 30px -24px rgb(24 33 43 / 0.45) !important;
-}
-
-.signal-slate .signal-help-grid {
-  background: var(--signal-canvas) !important;
-  display: grid;
-  gap: 1rem;
-}
-
-.signal-slate .signal-help-grid > .contents {
-  display: contents;
-}
-
-.signal-slate .signal-help-card > section,
-.signal-slate .signal-help-card > div {
-  min-width: 0;
-}
-
-@media (max-width: 1023px) {
-  .signal-slate .signal-help-grid {
-    display: block;
-    gap: 0;
-    padding-bottom: 1rem;
-  }
-
-  .signal-slate .signal-help-grid > .contents {
-    display: block;
-  }
-
-  .signal-slate .signal-help-grid > .contents > * {
-    display: block;
-    width: 100%;
-    margin-bottom: 0.75rem;
-  }
-
-  .signal-slate .signal-help-card {
-    border-radius: 1rem !important;
-    background: #ffffff !important;
-    box-shadow: 0 12px 30px -24px rgb(24 33 43 / 0.45) !important;
-  }
-
-  .signal-slate .signal-help-card [class*="h-"] {
-    max-height: none;
-  }
-}
-
 /* The first child is the decorative wash, not a content panel. Keep it out of
    the card grid so it cannot create the dark strip below the header. */
 .signal-slate .signal-help > div:first-child {
   background: transparent !important;
-}
-
-@media (min-width: 1024px) {
-  .signal-slate .signal-help-grid {
-    grid-template-areas:
-      "response location"
-      "actions location"
-      "chat nearby"
-      "voice nearby";
-    grid-template-rows: minmax(max-content, auto) minmax(max-content, auto) minmax(max-content, auto) minmax(max-content, auto);
-    align-items: stretch;
-  }
-
-  .signal-slate .signal-help-grid > .contents > :nth-child(1) {
-    grid-area: response;
-    grid-column: auto !important;
-    grid-row: auto !important;
-    min-height: max-content !important;
-    overflow: visible !important;
-  }
-
-  .signal-slate .signal-help-grid > .contents > :nth-child(2) {
-    grid-area: actions;
-    grid-column: auto !important;
-    grid-row: auto !important;
-  }
-
-  .signal-slate .signal-help-grid > .contents > :nth-child(3) {
-    grid-area: location;
-    grid-column: auto !important;
-    grid-row: auto !important;
-  }
-
-  .signal-slate .signal-help-grid > .contents > :nth-child(4) {
-    grid-area: nearby;
-    grid-column: auto !important;
-    grid-row: auto !important;
-  }
-
-  .signal-slate .signal-help-grid > .contents > :nth-child(5) {
-    grid-area: chat;
-    grid-column: auto !important;
-    grid-row: auto !important;
-  }
-
-  .signal-slate .signal-help-grid > .contents > :nth-child(6) {
-    grid-area: voice;
-    grid-column: auto !important;
-    grid-row: auto !important;
-  }
 }
 
 .signal-slate .signal-minimal button,
@@ -1471,8 +1372,8 @@
 
 .signal-slate .nearby-help,
 .signal-slate .nearby-help * {
-  overflow-wrap: normal;
-  word-break: normal;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
 }
 
 @utility cmd-label {
