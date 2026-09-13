@@ -278,8 +278,7 @@ function DesktopSidebar() {
   );
 }
 
-  );
-}
+
 
 /* ─── Mobile side drawer ───────────────────────────────────────────────── */
 function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
