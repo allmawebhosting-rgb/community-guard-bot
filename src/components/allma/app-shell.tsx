@@ -263,8 +263,21 @@ function DesktopSidebar() {
             </button>
           </div>
         )}
+        <nav
+          aria-label="Legal and support"
+          className="mt-2.5 flex flex-wrap gap-x-2.5 gap-y-1 px-1 text-[10.5px] text-muted-foreground"
+        >
+          <Link to="/help" className="transition-colors hover:text-foreground">Help</Link>
+          <Link to="/safety" className="transition-colors hover:text-foreground">Safety</Link>
+          <Link to="/privacy" className="transition-colors hover:text-foreground">Privacy</Link>
+          <Link to="/terms" className="transition-colors hover:text-foreground">Terms</Link>
+          <Link to="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+        </nav>
       </div>
     </aside>
+  );
+}
+
   );
 }
 
