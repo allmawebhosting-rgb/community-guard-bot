@@ -35,12 +35,13 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
-type TabPath = "/chat" | "/alerts" | "/reports" | "/profile" | "/calls" | "/lost-found" | "/blog";
+type TabPath = "/chat" | "/alerts" | "/reports" | "/safety-network" | "/profile" | "/calls" | "/lost-found" | "/blog";
 
 const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
   { label: "Home", to: "/chat", icon: Home },
   { label: "Alerts", to: "/alerts", icon: Bell },
   { label: "Reports", to: "/reports", icon: FileText },
+  { label: "Safety Network", to: "/safety-network", icon: Users },
   { label: "Profile", to: "/profile", icon: UserRound },
   { label: "Emergency calls", to: "/calls", icon: PhoneCall },
   { label: "Lost & Found", to: "/lost-found", icon: PackageSearch },

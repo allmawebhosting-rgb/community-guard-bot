@@ -36,6 +36,7 @@ import { Route as AuthenticatedPoliceRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedResponderRouteImport } from './routes/_authenticated/responder'
+import { Route as AuthenticatedSafetyNetworkRouteImport } from './routes/_authenticated.safety-network'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiHealthRemindersDeliverRouteImport } from './routes/api/health-reminders-deliver'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
@@ -201,6 +202,12 @@ const AuthenticatedResponderRoute = AuthenticatedResponderRouteImport.update({
   path: '/responder',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSafetyNetworkRoute =
+  AuthenticatedSafetyNetworkRouteImport.update({
+    id: '/safety-network',
+    path: '/safety-network',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -382,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/responder': typeof AuthenticatedResponderRoute
+  '/safety-network': typeof AuthenticatedSafetyNetworkRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -435,6 +443,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/responder': typeof AuthenticatedResponderRoute
+  '/safety-network': typeof AuthenticatedSafetyNetworkRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -492,6 +501,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/responder': typeof AuthenticatedResponderRoute
+  '/_authenticated/safety-network': typeof AuthenticatedSafetyNetworkRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -549,6 +559,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reports'
     | '/responder'
+    | '/safety-network'
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
@@ -602,6 +613,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reports'
     | '/responder'
+    | '/safety-network'
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
@@ -658,6 +670,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/reports'
     | '/_authenticated/responder'
+    | '/_authenticated/safety-network'
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
@@ -907,6 +920,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedResponderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/safety-network': {
+      id: '/_authenticated/safety-network'
+      path: '/safety-network'
+      fullPath: '/safety-network'
+      preLoaderRoute: typeof AuthenticatedSafetyNetworkRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -1150,6 +1170,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedResponderRoute: typeof AuthenticatedResponderRoute
+  AuthenticatedSafetyNetworkRoute: typeof AuthenticatedSafetyNetworkRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
 }
@@ -1162,6 +1183,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedResponderRoute: AuthenticatedResponderRoute,
+  AuthenticatedSafetyNetworkRoute: AuthenticatedSafetyNetworkRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
 }
