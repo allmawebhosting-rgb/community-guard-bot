@@ -36,7 +36,7 @@ import { Route as AuthenticatedPoliceRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedResponderRouteImport } from './routes/_authenticated/responder'
-import { Route as AuthenticatedSafetyNetworkRouteImport } from './routes/_authenticated.safety-network'
+import { Route as AuthenticatedSafetyNetworkRouteImport } from './routes/_authenticated/safety-network'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiHealthRemindersDeliverRouteImport } from './routes/api/health-reminders-deliver'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
