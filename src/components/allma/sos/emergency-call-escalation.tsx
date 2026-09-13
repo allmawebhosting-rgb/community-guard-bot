@@ -102,6 +102,8 @@ export function EmergencyCallEscalation({
   const errored = controller ? Boolean(state?.error) : preError;
 
 
+  const tierLabel = (priority: number) => priority === 1 ? "Primary responders" : priority === 2 ? "Backup responders" : "Additional responders";
+
   const rows = targets.map((target) => ({
     target,
     attempt: [...attempts].reverse().find((row) => row.recipient_id === target.member_id),
@@ -141,7 +143,7 @@ export function EmergencyCallEscalation({
               {answered
                 ? `${current?.target.full_name ?? "Responder"} is responding`
                 : state?.priority
-                  ? `Priority ${state.priority} contacts`
+                  ? tierLabel(state.priority)
                   : "Safety Network"}
             </h2>
           </div>
@@ -205,7 +207,7 @@ export function EmergencyCallEscalation({
                 <span className="min-w-0">
                   <span className="block truncate font-semibold text-foreground">{target.full_name}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">
-                    {target.safety_role ?? "Friend"} · Priority {target.priority}
+                    {target.safety_role ?? "Friend"} · {tierLabel(target.priority)}
                   </span>
                 </span>
                 <span
@@ -321,7 +323,7 @@ export function EmergencyCallEscalation({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-black text-foreground">{target.full_name}</p>
                   <p className="mt-1 text-sm font-semibold text-foreground/70">
-                    {target.safety_role || "Safety contact"} · priority {target.priority}
+                    {target.safety_role || "Safety contact"} · {tierLabel(target.priority)}
                   </p>
                 </div>
                 <span
@@ -342,7 +344,7 @@ export function EmergencyCallEscalation({
       <div className="space-y-2 border-t-2 border-border/70 bg-secondary/20 p-5 sm:p-6">
         {running && !answered && (state?.round ?? 0) > 0 && (
           <p className="text-sm font-black text-gold">
-            Priority {state?.priority || 3} of 3 · round {state?.round}
+            {tierLabel(state?.priority || 3)} · round {state?.round}
             {state?.waitSeconds
               ? ` · next contact in ${state.waitSeconds}s`
               : state && state.currentIndex >= 0
