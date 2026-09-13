@@ -12,6 +12,12 @@ import {
   Trash2,
   UserPlus,
   X,
+  ChevronRight,
+  Clock3,
+  LockKeyhole,
+  Settings2,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,7 +45,7 @@ import {
 } from "@/lib/sos-calling-settings";
 import { AddSafetyContactDialog, Avatar } from "./add-safety-contact";
 
-export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
+export function SafetyNetworkPanel({ compact = false, workspace = false }: { compact?: boolean; workspace?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<SafetyConnection[]>([]);
   const [requests, setRequests] = useState<SafetyRequest[]>([]);
@@ -155,378 +161,155 @@ export function SafetyNetworkPanel({ compact = false }: { compact?: boolean }) {
     return counts;
   }, {});
 
+  const tierLabel = (priority: number) => priority === 1 ? "Primary responder" : priority === 2 ? "Backup responder" : "Additional responder";
+  const configuredCount = connections.filter((item) => item.notify_on_sos && item.allow_emergency_calls).length;
+  const readinessLabel = connections.length === 0
+    ? "Not ready"
+    : configuredCount === connections.length
+      ? "Ready for SOS"
+      : "Review permissions";
+
   async function setPriority(connection: SafetyConnection, priority: number) {
     const limit = priority === 1 ? 3 : priority === 2 ? 5 : Number.POSITIVE_INFINITY;
     const alreadyAssigned = Math.min(Math.max(connection.priority || 3, 1), 3) === priority;
     if (!alreadyAssigned && (priorityCounts[priority] ?? 0) >= limit) {
       toast.error(
         priority === 1
-          ? "Priority 1 can have up to 3 contacts."
-          : "Priority 2 can have up to 5 contacts.",
+          ? "Primary responders can include up to 3 people."
+          : "Backup responders can include up to 5 people.",
       );
       return;
     }
     await patch(connection, { priority });
   }
 
+  if (compact) {
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-3 gap-2">
+          <CompactMetric value={connections.length} label="Connected" />
+          <CompactMetric value={incoming.length} label="Requests" />
+          <CompactMetric value={configuredCount} label="SOS ready" />
+        </div>
+        {loading ? <Skeleton className="h-16 w-full rounded-xl" /> : connections.slice(0, 3).map((connection) => (
+          <div key={connection.id} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
+            <Avatar name={connection.full_name} url={connection.avatar_url} size={40} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-bold">{connection.full_name}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{connection.safety_role} · {tierLabel(connection.priority)}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+        ))}
+        {!loading && connections.length === 0 && <p className="rounded-xl border border-dashed border-border px-4 py-5 text-center text-[12px] text-muted-foreground">No trusted people connected yet.</p>}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      {incoming.length > 0 && (
-        <section className="rounded-2xl border border-gold/30 bg-gold/5 p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
-            {incoming.length} connection request{incoming.length > 1 ? "s" : ""}
-          </p>
-          <div className="space-y-2">
-            {incoming.map((request) => (
-              <div
-                key={request.id}
-                className="flex flex-wrap items-center gap-3 rounded-xl bg-background/60 p-3"
-              >
-                <Avatar name={request.full_name} url={request.avatar_url} size={40} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-bold">{request.full_name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Wants to join your safety network
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    size="sm"
-                    disabled={busyId === request.id}
-                    onClick={() => void respond(request.id, "accept")}
-                    className="h-9 rounded-full px-4 text-[12px] font-bold"
-                  >
-                    {busyId === request.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Check className="h-3.5 w-3.5" />
-                    )}
-                    Accept
-                  </Button>
-                  <button
-                    type="button"
-                    aria-label={`Decline ${request.full_name}`}
-                    onClick={() => void respond(request.id, "decline")}
-                    className="grid h-9 w-9 place-items-center rounded-full border border-border/60 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Block ${request.full_name}`}
-                    onClick={() => void respond(request.id, "block")}
-                    className="grid h-9 w-9 place-items-center rounded-full border border-border/60 text-muted-foreground hover:border-destructive/50 hover:text-destructive"
-                  >
-                    <ShieldBan className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+    <div className={cn("safety-network-shell", workspace && "safety-network-workspace")}>
+      <aside className="safety-network-nav" aria-label="Safety Network sections">
+        <div className="safety-network-nav-mark"><ShieldCheck className="h-5 w-5" /></div>
+        <div>
+          <p className="safety-network-kicker">Network readiness</p>
+          <h2 className="mt-1 font-display text-xl font-bold">{readinessLabel}</h2>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Only accepted people with your chosen permissions can respond through Allma.</p>
+        </div>
+        <nav className="safety-network-nav-links">
+          <a href="#trusted-people" className="is-active"><Users className="h-4 w-4" /> Trusted people</a>
+          <a href="#requests"><UserPlus className="h-4 w-4" /> Requests {incoming.length > 0 && <span>{incoming.length}</span>}</a>
+          <a href="#network-settings"><Settings2 className="h-4 w-4" /> Network settings</a>
+        </nav>
+        <div className="safety-network-privacy-note"><LockKeyhole className="h-4 w-4" /><span>Phone numbers stay private. Location is shared only during SOS when permitted.</span></div>
+      </aside>
+
+      <div className="safety-network-main">
+        <section className="safety-network-readiness" aria-label="Network readiness summary">
+          <div>
+            <p className="safety-network-kicker">Protection overview</p>
+            <h2 className="mt-2 font-display text-2xl font-bold">Your response team at a glance</h2>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Keep trusted people connected and review what each person can receive during an emergency.</p>
+          </div>
+          <Button onClick={() => setAdding(true)} className="h-11 rounded-xl bg-trusted px-5 font-bold text-trusted-foreground hover:bg-trusted/90"><Plus className="h-4 w-4" /> Add trusted person</Button>
+          <div className="safety-network-stats">
+            <ReadinessMetric value={connections.length} label="Connected people" detail="Accepted by both sides" />
+            <ReadinessMetric value={configuredCount} label="Ready for SOS calls" detail="Alerts and calls enabled" />
+            <ReadinessMetric value={incoming.length + outgoing.length} label="Pending requests" detail="Awaiting a decision" />
           </div>
         </section>
-      )}
 
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            {connections.length
-              ? `${connections.length} connected`
-              : "No safety connections yet"}
-          </p>
-          {!compact && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setAdding(true)}
-              className="h-8 rounded-full px-3 text-[11.5px] font-bold"
-            >
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add Safety Contact
-            </Button>
-          )}
-        </div>
-
-        {connections.length > 0 && (
-          <div className="mb-3 grid gap-2 sm:grid-cols-3">
-            {[1, 2, 3].map((priority) => (
-              <div key={priority} className="rounded-xl border border-border/50 bg-background/35 px-3 py-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                  Priority {priority}
-                </p>
-                <p className="mt-1 text-[12px] font-bold text-foreground">
-                  {priorityCounts[priority] ?? 0} contact{priorityCounts[priority] === 1 ? "" : "s"}
-                  {priority < 3 ? ` · max ${priority === 1 ? 3 : 5}` : ""}
-                </p>
+        <section id="requests" className="scroll-mt-24 space-y-3">
+          {incoming.length > 0 && <div className="safety-network-section-head"><div><p className="safety-network-kicker text-gold">Action needed</p><h2>Connection requests</h2></div><span className="safety-network-count">{incoming.length}</span></div>}
+          {incoming.map((request) => (
+            <article key={request.id} className="safety-request-card">
+              <Avatar name={request.full_name} url={request.avatar_url} size={52} />
+              <div className="min-w-0 flex-1"><h3 className="truncate">{request.full_name}</h3><p>Wants to join your Safety Network</p>{request.note && <p className="mt-1 italic">“{request.note}”</p>}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button disabled={busyId === request.id} onClick={() => void respond(request.id, "accept")} className="rounded-xl bg-trusted text-trusted-foreground hover:bg-trusted/90">{busyId === request.id ? <Loader2 className="animate-spin" /> : <Check />} Accept</Button>
+                <Button variant="outline" size="icon" aria-label={`Decline ${request.full_name}`} onClick={() => void respond(request.id, "decline")}><X /></Button>
+                <Button variant="ghost" size="icon" aria-label={`Block ${request.full_name}`} onClick={() => void respond(request.id, "block")} className="text-muted-foreground hover:text-destructive"><ShieldBan /></Button>
               </div>
-            ))}
+            </article>
+          ))}
+        </section>
+
+        <section id="trusted-people" className="scroll-mt-24">
+          <div className="safety-network-section-head">
+            <div><p className="safety-network-kicker">Your people</p><h2>Trusted responders</h2><p>{connections.length ? `${connections.length} connected through mutual consent` : "Build your network before an emergency happens"}</p></div>
+            <Button variant="outline" onClick={() => setAdding(true)} className="rounded-xl"><UserPlus /> Add person</Button>
           </div>
-        )}
 
-        {loading ? (
-          <div className="space-y-2">
-            {[0, 1].map((index) => (
-              <div key={index} className="flex items-center gap-3 rounded-2xl border border-border/50 p-3">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-3 w-1/3" />
-                  <Skeleton className="h-2.5 w-1/2" />
-                </div>
+          {connections.length > 0 && <div className="safety-tier-strip">{[1,2,3].map((priority) => <div key={priority}><span>{tierLabel(priority)}</span><strong>{priorityCounts[priority] ?? 0}</strong><small>{priority === 1 ? "Called first · up to 3" : priority === 2 ? "Called next · up to 5" : "Additional support"}</small></div>)}</div>}
+
+          {loading ? <div className="grid gap-3 md:grid-cols-2">{[0,1].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div> : connections.length === 0 ? (
+            <div className="safety-network-empty"><div className="safety-network-empty-icon"><Users /></div><h3>No trusted people yet</h3><p>Add someone you trust. They must accept before they become part of your emergency response team.</p><Button onClick={() => setAdding(true)} className="mt-5 rounded-xl bg-trusted text-trusted-foreground hover:bg-trusted/90"><UserPlus /> Add your first person</Button></div>
+          ) : <div className="safety-contact-grid">{connections.map((connection) => {
+            const isOpen = expanded === connection.id;
+            const enabledPermissions = [connection.notify_on_sos, connection.share_location_on_sos, connection.allow_emergency_calls].filter(Boolean).length;
+            return <article key={connection.id} className={cn("safety-contact-card", isOpen && "is-open")}>
+              <button type="button" onClick={() => setExpanded(isOpen ? null : connection.id)} className="safety-contact-summary">
+                <Avatar name={connection.full_name} url={connection.avatar_url} size={56} />
+                <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5"><h3 className="truncate">{connection.full_name}</h3>{connection.phone_verified && <BadgeCheck className="h-4 w-4 shrink-0 text-trusted" />}</div><p>{connection.safety_role}</p><div className="mt-2 flex flex-wrap gap-1.5"><span className="safety-role-badge">{tierLabel(connection.priority)}</span><span className="safety-permission-badge">{enabledPermissions}/3 permissions</span></div></div>
+                <span className="safety-edit-label">{isOpen ? "Close" : "Manage"}<ChevronRight className={cn("h-4 w-4 transition-transform", isOpen && "rotate-90")} /></span>
+              </button>
+              <div className="safety-contact-quick-actions">
+                <Button variant="outline" disabled={!connection.allow_emergency_calls} onClick={() => requestVoiceCall({ id: connection.member_id, name: connection.full_name, avatarUrl: connection.avatar_url })} className="h-9 flex-1 rounded-lg"><PhoneCall /> In-app call</Button>
+                <span className={cn("safety-ready-state", connection.notify_on_sos && connection.allow_emergency_calls ? "is-ready" : "is-review")}><span />{connection.notify_on_sos && connection.allow_emergency_calls ? "SOS ready" : "Review access"}</span>
               </div>
-            ))}
+              <AnimatePresence initial={false}>{isOpen && <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="safety-contact-editor">
+                <fieldset><legend>Response tier</legend><div className="grid gap-2 sm:grid-cols-3">{[1,2,3].map((priority) => <button key={priority} type="button" onClick={() => void setPriority(connection, priority)} className={cn("safety-tier-option", Math.min(Math.max(connection.priority || 3,1),3) === priority && "is-selected")}><strong>{tierLabel(priority)}</strong><span>{priority === 1 ? "Called first" : priority === 2 ? "Called next" : "Called after backups"}</span></button>)}</div></fieldset>
+                <fieldset><legend>Relationship</legend><div className="flex flex-wrap gap-2">{SAFETY_ROLES.map((role) => <button key={role} type="button" onClick={() => void patch(connection,{safety_role:role})} className={cn("safety-chip", connection.safety_role === role && "is-selected")}>{role}</button>)}</div></fieldset>
+                <fieldset><legend>Emergency permissions</legend><div className="space-y-2"><PermissionRow icon={Bell} label="Receive my SOS alerts" description="Notify this person when I activate SOS." checked={connection.notify_on_sos} onChange={(next) => void patch(connection,{notify_on_sos:next})} /><PermissionRow icon={MapPin} label="See my location during SOS" description="Share location only while the emergency is active." checked={connection.share_location_on_sos} onChange={(next) => void patch(connection,{share_location_on_sos:next})} /><PermissionRow icon={PhoneCall} label="Use in-app emergency calls" description="Allow protected Allma calls between both people." checked={connection.allow_emergency_calls} onChange={(next) => void patch(connection,{allow_emergency_calls:next})} /></div></fieldset>
+                <Button variant="ghost" disabled={busyId === connection.id} onClick={() => void remove(connection)} className="text-muted-foreground hover:text-destructive"><Trash2 /> Remove from Safety Network</Button>
+              </div></motion.div>}</AnimatePresence>
+            </article>})}</div>}
+
+          {outgoing.length > 0 && <div className="mt-6"><div className="safety-network-section-head"><div><p className="safety-network-kicker text-gold">Awaiting acceptance</p><h2>Sent requests</h2></div></div><div className="grid gap-3 md:grid-cols-2">{outgoing.map((request) => <article key={request.id} className="safety-pending-card"><Avatar name={request.full_name} url={request.avatar_url} size={44}/><div className="min-w-0 flex-1"><h3 className="truncate">{request.full_name}</h3><p><Clock3 className="h-3 w-3"/> Request pending</p></div><Button variant="ghost" onClick={() => void respond(request.id,"cancel")} className="text-muted-foreground hover:text-destructive">Cancel</Button></article>)}</div></div>}
+        </section>
+
+        <section id="network-settings" className="scroll-mt-24">
+          <div className="safety-network-section-head"><div><p className="safety-network-kicker">Privacy and timing</p><h2>Network settings</h2></div></div>
+          <div className="safety-settings-grid">
+            <label className="safety-setting-row"><div><strong>Let people find me by phone number</strong><span>Search results show only your name and photo.</span></div><Switch checked={discoverable} onCheckedChange={(next) => void toggleDiscoverable(next)} /></label>
+            <div className="safety-timing"><div><strong>SOS calling timing</strong><p>All people in the active response tier are called together before Allma continues to the next tier.</p></div><label><span>Response window</span><div><input type="number" min={10} max={120} value={callingSettings.responseWindowSeconds} onChange={(event) => updateCallingSetting("responseWindowSeconds",event.target.value)} /><small>seconds</small></div></label><label><span>Retry interval</span><div><input type="number" min={30} max={600} value={callingSettings.retryIntervalSeconds} onChange={(event) => updateCallingSetting("retryIntervalSeconds",event.target.value)} /><small>seconds</small></div></label></div>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {connections.map((connection) => (
-              <div
-                key={connection.id}
-                className="rounded-2xl border border-border/60 bg-background/45 transition-colors hover:border-trusted/35"
-              >
-                <button
-                  type="button"
-                  onClick={() => setExpanded(expanded === connection.id ? null : connection.id)}
-                  className="flex w-full items-center gap-3 p-3 text-left"
-                >
-                  <Avatar name={connection.full_name} url={connection.avatar_url} size={40} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-bold">{connection.full_name}</p>
-                    <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                      {connection.safety_role}
-                      {connection.phone_verified && (
-                        <>
-                          {" · "}
-                          <BadgeCheck className="h-3 w-3 text-trusted" /> Verified
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Call ${connection.full_name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!connection.allow_emergency_calls) {
-                        toast.error("In-app calls are turned off for this connection.");
-                        return;
-                      }
-                      requestVoiceCall({
-                        id: connection.member_id,
-                        name: connection.full_name,
-                        avatarUrl: connection.avatar_url,
-                      });
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter") return;
-                      event.stopPropagation();
-                      requestVoiceCall({
-                        id: connection.member_id,
-                        name: connection.full_name,
-                        avatarUrl: connection.avatar_url,
-                      });
-                    }}
-                    className="grid h-9 w-9 place-items-center rounded-full bg-success/12 text-success transition-colors hover:bg-success/20"
-                  >
-                    <PhoneCall className="h-4 w-4" />
-                  </span>
-                  <span className="text-[11px] font-semibold text-primary">
-                    {expanded === connection.id ? "Close" : "Edit"}
-                  </span>
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {expanded === connection.id && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="space-y-4 border-t border-border/50 p-4">
-                        <div>
-                          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                            SOS calling order
-                          </p>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {[1, 2, 3].map((priority) => (
-                              <button
-                                key={priority}
-                                type="button"
-                                onClick={() => void setPriority(connection, priority)}
-                                className={cn(
-                                  "rounded-lg border px-2 py-2 text-[11px] font-bold transition-colors",
-                                  Math.min(Math.max(connection.priority || 3, 1), 3) === priority
-                                    ? "border-primary/50 bg-primary/12 text-primary"
-                                    : "border-border/60 text-muted-foreground hover:bg-accent",
-                                )}
-                              >
-                                Priority {priority}
-                              </button>
-                            ))}
-                          </div>
-                          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                            All contacts in a priority group are called together. Priority 1 supports up to 3 and Priority 2 up to 5.
-                          </p>
-                        </div>
-                        <div>
-                          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                            Safety role
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {SAFETY_ROLES.map((role) => (
-                              <button
-                                key={role}
-                                type="button"
-                                onClick={() => void patch(connection, { safety_role: role })}
-                                className={cn(
-                                  "rounded-full border px-3 py-1.5 text-[11.5px] font-semibold transition-colors",
-                                  connection.safety_role === role
-                                    ? "border-primary/50 bg-primary/12 text-primary"
-                                    : "border-border/60 text-muted-foreground hover:bg-accent",
-                                )}
-                              >
-                                {role}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2.5">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                            Emergency permissions
-                          </p>
-                          <PermissionRow
-                            icon={Bell}
-                            label="Notify them when I trigger SOS"
-                            checked={connection.notify_on_sos}
-                            onChange={(next) => void patch(connection, { notify_on_sos: next })}
-                          />
-                          <PermissionRow
-                            icon={MapPin}
-                            label="Share my location during an emergency"
-                            checked={connection.share_location_on_sos}
-                            onChange={(next) => void patch(connection, { share_location_on_sos: next })}
-                          />
-                          <PermissionRow
-                            icon={PhoneCall}
-                            label="Allow emergency calls between us"
-                            checked={connection.allow_emergency_calls}
-                            onChange={(next) => void patch(connection, { allow_emergency_calls: next })}
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={busyId === connection.id}
-                          onClick={() => void remove(connection)}
-                          className="flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" /> Remove from safety network
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ))}
-
-            {outgoing.map((request) => (
-              <div
-                key={request.id}
-                className="flex items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-background/30 p-3"
-              >
-                <Avatar name={request.full_name} url={request.avatar_url} size={40} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-bold">{request.full_name}</p>
-                  <p className="text-[11px] text-gold">Request sent · awaiting acceptance</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void respond(request.id, "cancel")}
-                  className="text-[11.5px] font-semibold text-muted-foreground hover:text-destructive"
-                >
-                  Cancel
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/40 bg-primary/5 py-4 text-[13px] font-bold text-primary transition-colors hover:bg-primary/10"
-        >
-          <UserPlus className="h-4 w-4" /> Add Safety Contact
-        </button>
-      </section>
-
-      <label className="flex items-center gap-3 rounded-2xl border border-border/50 bg-background/35 p-3.5">
-        <div className="min-w-0 flex-1">
-          <p className="text-[12.5px] font-bold">Let people find me by phone number</p>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Only your name and photo are ever shown in a search result.
-          </p>
-        </div>
-        <Switch checked={discoverable} onCheckedChange={(next) => void toggleDiscoverable(next)} />
-      </label>
-
-      <section className="rounded-2xl border border-border/50 bg-background/35 p-4">
-        <p className="text-[12.5px] font-bold">SOS calling timing</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-          All contacts in the active priority group are called together. The next group starts after the response window.
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              Response window (seconds)
-            </span>
-            <input
-              type="number"
-              min={10}
-              max={120}
-              value={callingSettings.responseWindowSeconds}
-              onChange={(event) => updateCallingSetting("responseWindowSeconds", event.target.value)}
-              className="h-10 w-full rounded-xl border border-border/60 bg-background px-3 text-sm"
-            />
-          </label>
-          <label className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              Retry interval (seconds)
-            </span>
-            <input
-              type="number"
-              min={30}
-              max={600}
-              value={callingSettings.retryIntervalSeconds}
-              onChange={(event) => updateCallingSetting("retryIntervalSeconds", event.target.value)}
-              className="h-10 w-full rounded-xl border border-border/60 bg-background px-3 text-sm"
-            />
-          </label>
-        </div>
-      </section>
-
+        </section>
+      </div>
       <AddSafetyContactDialog open={adding} onOpenChange={setAdding} onRequestSent={() => void refresh()} />
     </div>
   );
 }
 
-function PermissionRow({
-  icon: Icon,
-  label,
-  checked,
-  onChange,
-}: {
-  icon: typeof Bell;
-  label: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center gap-3 rounded-xl bg-background/50 px-3 py-2.5">
-      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 text-[12px] font-medium">{label}</span>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </label>
-  );
+function PermissionRow({ icon: Icon, label, description, checked, onChange }: { icon: typeof Bell; label: string; description: string; checked: boolean; onChange: (next: boolean) => void }) {
+  return <label className="safety-permission-row"><span className="safety-permission-icon"><Icon /></span><span className="min-w-0 flex-1"><strong>{label}</strong><small>{description}</small></span><Switch checked={checked} onCheckedChange={onChange} /></label>;
+}
+
+function ReadinessMetric({ value, label, detail }: { value: number; label: string; detail: string }) {
+  return <div><strong>{value}</strong><span>{label}</span><small>{detail}</small></div>;
+}
+
+function CompactMetric({ value, label }: { value: number; label: string }) {
+  return <div className="rounded-xl bg-muted/50 p-3 text-center"><strong className="block font-display text-lg">{value}</strong><span className="text-[10px] font-bold text-muted-foreground">{label}</span></div>;
 }
 
 export { DEFAULT_PERMISSIONS };

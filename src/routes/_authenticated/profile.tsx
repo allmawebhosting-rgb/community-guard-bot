@@ -371,8 +371,15 @@ function ProfileScreen() {
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
                 Safety network
               </p>
-              <div className="mb-4 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
-                <SafetyNetworkPanel />
+              <div className="mb-4 overflow-hidden rounded-[1.4rem] border border-border/60 bg-card/70">
+                <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+                  <div>
+                    <p className="text-[13px] font-bold">Your trusted response team</p>
+                    <p className="text-[11px] text-muted-foreground">Review readiness, requests and permissions.</p>
+                  </div>
+                  <Link to="/safety-network" className="shrink-0 rounded-lg bg-trusted px-3 py-2 text-[11px] font-bold text-trusted-foreground">Open network</Link>
+                </div>
+                <div className="p-4"><SafetyNetworkPanel compact /></div>
               </div>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
                 Privacy center
