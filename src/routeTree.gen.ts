@@ -19,6 +19,7 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NearbyRouteImport } from './routes/nearby'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as SafetyRouteImport } from './routes/safety'
 import { Route as SosRouteImport } from './routes/sos'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -105,6 +106,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SafetyRoute = SafetyRouteImport.update({
+  id: '/safety',
+  path: '/safety',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SosRoute = SosRouteImport.update({
@@ -329,6 +335,7 @@ export interface FileRoutesByFullPath {
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
+  '/safety': typeof SafetyRoute
   '/sos': typeof SosRoute
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -377,6 +384,7 @@ export interface FileRoutesByTo {
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
+  '/safety': typeof SafetyRoute
   '/sos': typeof SosRoute
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -427,6 +435,7 @@ export interface FileRoutesById {
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
+  '/safety': typeof SafetyRoute
   '/sos': typeof SosRoute
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -478,6 +487,7 @@ export interface FileRouteTypes {
     | '/nearby'
     | '/onboarding'
     | '/privacy'
+    | '/safety'
     | '/sos'
     | '/terms'
     | '/.mcp/list-tools'
@@ -526,6 +536,7 @@ export interface FileRouteTypes {
     | '/nearby'
     | '/onboarding'
     | '/privacy'
+    | '/safety'
     | '/sos'
     | '/terms'
     | '/.mcp/list-tools'
@@ -575,6 +586,7 @@ export interface FileRouteTypes {
     | '/nearby'
     | '/onboarding'
     | '/privacy'
+    | '/safety'
     | '/sos'
     | '/terms'
     | '/.mcp/list-tools'
@@ -626,6 +638,7 @@ export interface RootRouteChildren {
   NearbyRoute: typeof NearbyRoute
   OnboardingRoute: typeof OnboardingRoute
   PrivacyRoute: typeof PrivacyRoute
+  SafetyRoute: typeof SafetyRoute
   SosRoute: typeof SosRoute
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
@@ -708,6 +721,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/safety': {
+      id: '/safety'
+      path: '/safety'
+      fullPath: '/safety'
+      preLoaderRoute: typeof SafetyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sos': {
@@ -1072,6 +1092,7 @@ const rootRouteChildren: RootRouteChildren = {
   NearbyRoute: NearbyRoute,
   OnboardingRoute: OnboardingRoute,
   PrivacyRoute: PrivacyRoute,
+  SafetyRoute: SafetyRoute,
   SosRoute: SosRoute,
   TermsRoute: TermsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
