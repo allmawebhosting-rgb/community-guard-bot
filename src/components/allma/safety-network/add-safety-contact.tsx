@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BadgeCheck, Loader2, Search, Send, ShieldCheck, UserPlus, UserRound } from "lucide-react";
+import { BadgeCheck, Check, Loader2, LockKeyhole, Search, Send, ShieldCheck, UserPlus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -86,20 +86,24 @@ export function AddSafetyContactDialog({
       }}
     >
       <DialogContent
-        className="premium-surface w-[calc(100vw-1.5rem)] max-w-md gap-0 rounded-3xl border-border/60 p-0 sm:w-full"
+        className="safety-add-dialog w-[calc(100vw-1.5rem)] max-w-lg gap-0 overflow-hidden rounded-2xl border-border/60 p-0 sm:w-full"
       >
-        <DialogHeader className="space-y-1.5 px-5 pb-4 pt-6 text-left">
-          <div className="mb-2 grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-trusted/25 to-primary/15">
-            <UserPlus className="h-5 w-5 text-trusted" />
+        <DialogHeader className="safety-add-header space-y-2 px-5 pb-5 pt-6 text-left sm:px-6">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-trusted text-trusted-foreground shadow-soft">
+              <UserPlus className="h-5 w-5" />
+            </div>
+            <div><p className="safety-network-kicker">Trusted person</p><DialogTitle className="font-display text-xl font-bold">Add to your Safety Network</DialogTitle></div>
           </div>
-          <DialogTitle className="font-display text-[19px] font-bold">Find someone on Allma</DialogTitle>
-          <DialogDescription className="text-[12.5px] leading-relaxed">
-            Search by their phone number. We only show their name and photo — never their number,
-            location or private details.
+          <DialogDescription className="max-w-md text-[12.5px] leading-relaxed">
+            Find their Allma account using a Uganda phone number. They must accept before any connection is created.
           </DialogDescription>
+          <div className="grid grid-cols-3 gap-1.5 pt-2" aria-label="Connection steps">
+            {["Find", "Confirm", "Invite"].map((step, index) => <span key={step} className={cn("rounded-md px-2 py-1.5 text-center text-[10px] font-bold", index === 0 || phase === "found" && index === 1 || phase === "sent" ? "bg-trusted/10 text-trusted" : "bg-muted text-muted-foreground")}>{index + 1}. {step}</span>)}
+          </div>
         </DialogHeader>
 
-        <div className="px-5 pb-6">
+        <div className="px-5 pb-6 sm:px-6">
           <div
             className={cn(
               "flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-3 transition-colors focus-within:border-primary/60",
@@ -235,7 +239,7 @@ export function AddSafetyContactDialog({
                 <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-success/15">
                   <Send className="h-5 w-5 text-success" />
                 </div>
-                <p className="text-[13.5px] font-bold">Request sent</p>
+                <p className="text-[13.5px] font-bold">Invitation request sent</p>
                 <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
                   We’ve let {match?.full_name ?? "them"} know. Once they accept, you can set their
                   safety role and emergency permissions.
@@ -250,6 +254,7 @@ export function AddSafetyContactDialog({
               </motion.div>
             )}
           </AnimatePresence>
+          <div className="mt-5 flex items-start gap-2 border-t border-border/60 pt-4 text-[10.5px] leading-relaxed text-muted-foreground"><LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-trusted" /><span>Their phone number is used only to find the account. It is never displayed in your Safety Network.</span></div>
         </div>
       </DialogContent>
     </Dialog>

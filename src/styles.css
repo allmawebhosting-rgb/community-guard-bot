@@ -1433,3 +1433,5 @@
   .safety-tier-strip { grid-template-columns: 1fr; }.safety-request-card { align-items: flex-start; flex-wrap: wrap; }.safety-request-card > div { min-width: calc(100% - 4.5rem); }.safety-contact-summary { align-items: flex-start; }.safety-edit-label { font-size: 0; }.safety-edit-label svg { font-size: initial; }.safety-contact-quick-actions { align-items: stretch; flex-direction: column; }.safety-ready-state { align-self: flex-start; }.safety-network-section-head { align-items: flex-start; }.safety-network-section-head > button { flex: 0 0 auto; }
 }
 @media (prefers-reduced-motion: reduce) { .safety-contact-card,.safety-tier-option,.safety-edit-label svg { transition: none !important; } }
+.safety-add-dialog { background: var(--card); box-shadow: var(--shadow-lift); }
+.safety-add-header { position: relative; border-bottom: 1px solid var(--border); background: linear-gradient(145deg,color-mix(in oklab,var(--trusted) 8%,var(--card)),var(--card) 62%); }

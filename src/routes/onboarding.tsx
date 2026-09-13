@@ -743,16 +743,15 @@ function CircleStep({
   return (
     <>
       <StepIntro
-        eyebrow="03 · Emergency Circle"
-        title="Choose people you trust."
-        description="These people only become part of your Emergency Circle after they accept your invitation. This is for emergency assistance — not social networking."
+        eyebrow="03 · Safety Network"
+        title="Build your trusted response team."
+        description="Choose people you trust to support you during an emergency. Every connection requires their consent."
         icon={Users}
       />
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-trusted/20 bg-trusted/5 p-4">
         <HeartHandshake className="mt-0.5 h-5 w-5 shrink-0 text-trusted" />
         <p className="text-[12px] leading-relaxed text-muted-foreground">
-          If you activate SOS, Allma may contact them through the app depending on the emergency,
-          their availability and the permissions they give.
+          If you activate SOS, Allma contacts only accepted people whose emergency-call permissions are enabled. You control location sharing for each connection.
         </p>
       </div>
       {signedIn && (
@@ -763,12 +762,12 @@ function CircleStep({
       <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
         <span>
           {members.length
-            ? `${members.length} contact${members.length > 1 ? "s" : ""} not on Allma`
-            : "Contacts not on Allma"}
+            ? `${members.length} invitation draft${members.length > 1 ? "s" : ""}`
+            : "Invite someone who is not on Allma"}
         </span>
         {members.length > 0 && (
           <span className="flex items-center gap-1 text-trusted">
-            <SlidersHorizontal className="h-3 w-3" /> Priority order
+            <SlidersHorizontal className="h-3 w-3" /> Invitation order
           </span>
         )}
       </div>
@@ -873,11 +872,10 @@ function CircleStep({
             ))}
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            You’ll send an intentional invitation through Allma. Contacts are never added
-            automatically, and they are not connected until they accept.
+            This creates an invitation draft for your setup. Contacts are never added automatically, and they are not connected until they accept a real Allma request.
           </p>
           <Button onClick={onSave} disabled={!name.trim()} className="mt-4 rounded-full">
-            Send request <ArrowRight className="ml-2 h-3.5 w-3.5" />
+            Save invitation draft <ArrowRight className="ml-2 h-3.5 w-3.5" />
           </Button>
         </div>
       ) : (
@@ -891,7 +889,7 @@ function CircleStep({
       )}
       {members.length === 0 && !adding && (
         <p className="mt-4 text-center text-[11px] text-muted-foreground">
-          You can skip this and add people later from your profile.
+          You can skip this and add people later from your Safety Network.
         </p>
       )}
       <FooterActions onBack={onBack} onNext={onNext} />
