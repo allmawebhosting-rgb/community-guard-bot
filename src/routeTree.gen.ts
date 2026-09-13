@@ -11,9 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BlogRouteImport } from './routes/blog'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as DataRequestsRouteImport } from './routes/data-requests'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as LostFoundRouteImport } from './routes/lost-found'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NearbyRouteImport } from './routes/nearby'
@@ -68,6 +73,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AlertsRoute = AlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -81,6 +91,26 @@ const AuthRoute = AuthRouteImport.update({
 const BlogRoute = BlogRouteImport.update({
   id: '/blog',
   path: '/blog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DataRequestsRoute = DataRequestsRouteImport.update({
+  id: '/data-requests',
+  path: '/data-requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LostFoundRoute = LostFoundRouteImport.update({
@@ -327,9 +357,14 @@ const AuthenticatedPoliceCasesCaseIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
+  '/data-requests': typeof DataRequestsRoute
+  '/help': typeof HelpRoute
   '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
@@ -377,8 +412,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
+  '/data-requests': typeof DataRequestsRoute
+  '/help': typeof HelpRoute
   '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
@@ -427,9 +467,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/about': typeof AboutRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
+  '/data-requests': typeof DataRequestsRoute
+  '/help': typeof HelpRoute
   '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
@@ -479,9 +524,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/alerts'
     | '/auth'
     | '/blog'
+    | '/contact'
+    | '/cookies'
+    | '/data-requests'
+    | '/help'
     | '/lost-found'
     | '/mcp'
     | '/nearby'
@@ -529,8 +579,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/alerts'
     | '/auth'
+    | '/contact'
+    | '/cookies'
+    | '/data-requests'
+    | '/help'
     | '/lost-found'
     | '/mcp'
     | '/nearby'
@@ -578,9 +633,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/about'
     | '/alerts'
     | '/auth'
     | '/blog'
+    | '/contact'
+    | '/cookies'
+    | '/data-requests'
+    | '/help'
     | '/lost-found'
     | '/mcp'
     | '/nearby'
@@ -630,9 +690,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AboutRoute: typeof AboutRoute
   AlertsRoute: typeof AlertsRoute
   AuthRoute: typeof AuthRoute
   BlogRoute: typeof BlogRouteWithChildren
+  ContactRoute: typeof ContactRoute
+  CookiesRoute: typeof CookiesRoute
+  DataRequestsRoute: typeof DataRequestsRoute
+  HelpRoute: typeof HelpRoute
   LostFoundRoute: typeof LostFoundRoute
   McpRoute: typeof McpRoute
   NearbyRoute: typeof NearbyRoute
@@ -667,6 +732,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/alerts': {
       id: '/alerts'
       path: '/alerts'
@@ -686,6 +758,34 @@ declare module '@tanstack/react-router' {
       path: '/blog'
       fullPath: '/blog'
       preLoaderRoute: typeof BlogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/data-requests': {
+      id: '/data-requests'
+      path: '/data-requests'
+      fullPath: '/data-requests'
+      preLoaderRoute: typeof DataRequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lost-found': {
@@ -1084,9 +1184,14 @@ const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AboutRoute: AboutRoute,
   AlertsRoute: AlertsRoute,
   AuthRoute: AuthRoute,
   BlogRoute: BlogRouteWithChildren,
+  ContactRoute: ContactRoute,
+  CookiesRoute: CookiesRoute,
+  DataRequestsRoute: DataRequestsRoute,
+  HelpRoute: HelpRoute,
   LostFoundRoute: LostFoundRoute,
   McpRoute: McpRoute,
   NearbyRoute: NearbyRoute,
