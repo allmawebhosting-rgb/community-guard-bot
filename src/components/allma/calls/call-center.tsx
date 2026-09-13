@@ -611,7 +611,7 @@ export function CallCenter() {
               </div>
             </header>
 
-            <main className="receiver-scroll">
+            <main className={cn("receiver-scroll", phase === "incoming" && "receiver-scroll-with-dock")}>
               <div className="mx-auto w-full max-w-[1320px] px-3 py-3 sm:px-5 sm:py-4">
                 <section className="receiver-mobile-alert lg:hidden">
                   <div className="flex min-w-0 items-center gap-3"><span className="h-7 w-7 shrink-0 rounded-full bg-destructive" /><div className="min-w-0"><p className="text-[12px] font-black uppercase">Incoming emergency</p><p className="truncate text-[10px] text-background/70">Allma Safety Network</p></div></div>
@@ -636,12 +636,9 @@ export function CallCenter() {
                         </div>
                       </div>
 
-                      <div className="receiver-call-actions">
-                        {phase === "incoming" ? <>
-                          <Button variant="outline" onClick={() => void decline()} className="receiver-decline"><span className="grid h-9 w-9 place-items-center rounded-full bg-background"><PhoneOff /></span><span className="text-left"><strong className="block">Decline</strong><small className="hidden font-normal opacity-60 sm:block">Ignore this call</small></span></Button>
-                          <Button onClick={() => void answer()} className="receiver-answer answer-breathe"><span className="grid h-9 w-9 place-items-center rounded-full bg-success-foreground text-success"><Phone /></span><span className="min-w-0 text-left"><strong className="block truncate">Answer Emergency Call</strong><small className="block truncate font-normal opacity-80">Connect with {peer?.name ?? firstName}</small></span></Button>
-                        </> : phase === "ended" ? <p className="col-span-2 py-3 text-center text-sm font-bold">{endedNote ?? "Call ended"}</p> : <div className="col-span-2 flex items-center justify-center gap-8 py-1"><CallAction label={muted ? "Unmute" : "Mute"} tone="muted" active={muted} onClick={toggleMute}>{muted ? <MicOff /> : <Mic />}</CallAction><CallAction label={speaker ? "Speaker" : "Earpiece"} tone="muted" active={speaker} onClick={toggleSpeaker}>{speaker ? <Volume2 /> : <VolumeX />}</CallAction><CallAction label="End" tone="destructive" onClick={() => void hangUp()}><PhoneOff /></CallAction></div>}
-                      </div>
+                      {phase !== "incoming" && <div className="receiver-call-actions">
+                        {phase === "ended" ? <p className="col-span-2 py-3 text-center text-sm font-bold">{endedNote ?? "Call ended"}</p> : <div className="col-span-2 flex items-center justify-center gap-8 py-1"><CallAction label={muted ? "Unmute" : "Mute"} tone="muted" active={muted} onClick={toggleMute}>{muted ? <MicOff /> : <Mic />}</CallAction><CallAction label={speaker ? "Speaker" : "Earpiece"} tone="muted" active={speaker} onClick={toggleSpeaker}>{speaker ? <Volume2 /> : <VolumeX />}</CallAction><CallAction label="End" tone="destructive" onClick={() => void hangUp()}><PhoneOff /></CallAction></div>}
+                      </div>}
                     </section>
 
                     {emergency && phase !== "ended" && <>
@@ -667,6 +664,18 @@ export function CallCenter() {
                 </div>
               </div>
             </main>
+
+            {phase === "incoming" && <motion.div
+              className="receiver-action-dock"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="receiver-action-dock-inner">
+                <Button variant="outline" onClick={() => void decline()} className="receiver-decline"><span className="grid h-9 w-9 place-items-center rounded-full bg-background"><PhoneOff /></span><span className="text-left"><strong className="block">Decline</strong><small className="hidden font-normal opacity-60 sm:block">Ignore this call</small></span></Button>
+                <Button onClick={() => void answer()} className="receiver-answer answer-breathe"><span className="receiver-answer-icon grid h-9 w-9 place-items-center rounded-full bg-success-foreground text-success"><Phone /></span><span className="min-w-0 text-left"><strong className="block truncate">Answer Emergency Call</strong><small className="block truncate font-normal opacity-80">Connect with {peer?.name ?? firstName}</small></span></Button>
+              </div>
+            </motion.div>}
           </div>
         </motion.div>
       )}
