@@ -3,9 +3,7 @@ import { ShieldAlert } from "lucide-react";
 import { BrandMark } from "@/components/allma/brand";
 import { cn } from "@/lib/utils";
 
-type FooterLink = { label: string; to: string };
-
-const GROUPS: { title: string; links: FooterLink[] }[] = [
+const GROUPS = [
   {
     title: "Product",
     links: [
@@ -34,7 +32,7 @@ const GROUPS: { title: string; links: FooterLink[] }[] = [
       { label: "Data & account deletion", to: "/data-requests" },
     ],
   },
-];
+] as const;
 
 export function SiteFooter({ className }: { className?: string }) {
   return (
