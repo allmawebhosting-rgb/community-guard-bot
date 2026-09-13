@@ -11,14 +11,22 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BlogRouteImport } from './routes/blog'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as DataRequestsRouteImport } from './routes/data-requests'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as LostFoundRouteImport } from './routes/lost-found'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NearbyRouteImport } from './routes/nearby'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as SafetyRouteImport } from './routes/safety'
 import { Route as SosRouteImport } from './routes/sos'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedCallsRouteImport } from './routes/_authenticated/calls'
@@ -65,6 +73,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AlertsRoute = AlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -78,6 +91,26 @@ const AuthRoute = AuthRouteImport.update({
 const BlogRoute = BlogRouteImport.update({
   id: '/blog',
   path: '/blog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DataRequestsRoute = DataRequestsRouteImport.update({
+  id: '/data-requests',
+  path: '/data-requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LostFoundRoute = LostFoundRouteImport.update({
@@ -100,9 +133,24 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SafetyRoute = SafetyRouteImport.update({
+  id: '/safety',
+  path: '/safety',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SosRoute = SosRouteImport.update({
   id: '/sos',
   path: '/sos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotmcpChar93ListToolsRoute =
@@ -309,14 +357,22 @@ const AuthenticatedPoliceCasesCaseIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
+  '/data-requests': typeof DataRequestsRoute
+  '/help': typeof HelpRoute
   '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
+  '/safety': typeof SafetyRoute
   '/sos': typeof SosRoute
+  '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/calls': typeof AuthenticatedCallsRoute
@@ -356,13 +412,21 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
+  '/data-requests': typeof DataRequestsRoute
+  '/help': typeof HelpRoute
   '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
+  '/safety': typeof SafetyRoute
   '/sos': typeof SosRoute
+  '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/calls': typeof AuthenticatedCallsRoute
@@ -403,14 +467,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/about': typeof AboutRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contact': typeof ContactRoute
+  '/cookies': typeof CookiesRoute
+  '/data-requests': typeof DataRequestsRoute
+  '/help': typeof HelpRoute
   '/lost-found': typeof LostFoundRoute
   '/mcp': typeof McpRoute
   '/nearby': typeof NearbyRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
+  '/safety': typeof SafetyRoute
   '/sos': typeof SosRoute
+  '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/calls': typeof AuthenticatedCallsRoute
@@ -452,14 +524,22 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/alerts'
     | '/auth'
     | '/blog'
+    | '/contact'
+    | '/cookies'
+    | '/data-requests'
+    | '/help'
     | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
+    | '/privacy'
+    | '/safety'
     | '/sos'
+    | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/calls'
@@ -499,13 +579,21 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/alerts'
     | '/auth'
+    | '/contact'
+    | '/cookies'
+    | '/data-requests'
+    | '/help'
     | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
+    | '/privacy'
+    | '/safety'
     | '/sos'
+    | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/calls'
@@ -545,14 +633,22 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/about'
     | '/alerts'
     | '/auth'
     | '/blog'
+    | '/contact'
+    | '/cookies'
+    | '/data-requests'
+    | '/help'
     | '/lost-found'
     | '/mcp'
     | '/nearby'
     | '/onboarding'
+    | '/privacy'
+    | '/safety'
     | '/sos'
+    | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/calls'
@@ -594,14 +690,22 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AboutRoute: typeof AboutRoute
   AlertsRoute: typeof AlertsRoute
   AuthRoute: typeof AuthRoute
   BlogRoute: typeof BlogRouteWithChildren
+  ContactRoute: typeof ContactRoute
+  CookiesRoute: typeof CookiesRoute
+  DataRequestsRoute: typeof DataRequestsRoute
+  HelpRoute: typeof HelpRoute
   LostFoundRoute: typeof LostFoundRoute
   McpRoute: typeof McpRoute
   NearbyRoute: typeof NearbyRoute
   OnboardingRoute: typeof OnboardingRoute
+  PrivacyRoute: typeof PrivacyRoute
+  SafetyRoute: typeof SafetyRoute
   SosRoute: typeof SosRoute
+  TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiChatRoute: typeof ApiChatRoute
@@ -628,6 +732,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/alerts': {
       id: '/alerts'
       path: '/alerts'
@@ -647,6 +758,34 @@ declare module '@tanstack/react-router' {
       path: '/blog'
       fullPath: '/blog'
       preLoaderRoute: typeof BlogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/data-requests': {
+      id: '/data-requests'
+      path: '/data-requests'
+      fullPath: '/data-requests'
+      preLoaderRoute: typeof DataRequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lost-found': {
@@ -677,11 +816,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/safety': {
+      id: '/safety'
+      path: '/safety'
+      fullPath: '/safety'
+      preLoaderRoute: typeof SafetyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sos': {
       id: '/sos'
       path: '/sos'
       fullPath: '/sos'
       preLoaderRoute: typeof SosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/list-tools': {
@@ -1024,14 +1184,22 @@ const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AboutRoute: AboutRoute,
   AlertsRoute: AlertsRoute,
   AuthRoute: AuthRoute,
   BlogRoute: BlogRouteWithChildren,
+  ContactRoute: ContactRoute,
+  CookiesRoute: CookiesRoute,
+  DataRequestsRoute: DataRequestsRoute,
+  HelpRoute: HelpRoute,
   LostFoundRoute: LostFoundRoute,
   McpRoute: McpRoute,
   NearbyRoute: NearbyRoute,
   OnboardingRoute: OnboardingRoute,
+  PrivacyRoute: PrivacyRoute,
+  SafetyRoute: SafetyRoute,
   SosRoute: SosRoute,
+  TermsRoute: TermsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
