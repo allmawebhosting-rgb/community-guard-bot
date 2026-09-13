@@ -1280,12 +1280,55 @@
 .receiver-rail-action svg, .receiver-quick svg { width: 13px; height: 13px; }
 .receiver-quick { display: flex; width: 100%; min-height: 38px; height: auto; justify-content: flex-start; gap: 10px; padding: 8px; color: var(--foreground); font-size: 10px; }
 
+.receiver-scroll-with-dock { padding-bottom: calc(108px + env(safe-area-inset-bottom)); }
+.receiver-action-dock {
+  position: fixed;
+  z-index: 30;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: color-mix(in oklab, var(--card) 91%, transparent);
+  box-shadow: 0 -18px 42px -30px color-mix(in oklab, var(--foreground) 65%, transparent);
+  backdrop-filter: blur(18px) saturate(1.15);
+}
+.receiver-action-dock-inner {
+  display: grid;
+  width: 100%;
+  max-width: 1040px;
+  margin-inline: auto;
+  grid-template-columns: minmax(118px, .68fr) minmax(0, 1.32fr);
+  gap: 10px;
+}
+.receiver-action-dock .receiver-decline,
+.receiver-action-dock .receiver-answer {
+  min-height: 64px;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, filter 180ms ease;
+}
+.receiver-action-dock .receiver-decline:hover {
+  border-color: color-mix(in oklab, var(--destructive) 55%, transparent);
+  box-shadow: 0 8px 22px -18px color-mix(in oklab, var(--destructive) 70%, transparent);
+}
+.receiver-action-dock .receiver-decline:active,
+.receiver-action-dock .receiver-answer:active { transform: scale(.975); }
+
+@keyframes receiver-phone-ring {
+  0%, 72%, 100% { transform: rotate(0deg); }
+  78% { transform: rotate(-9deg); }
+  84% { transform: rotate(9deg); }
+  90% { transform: rotate(-6deg); }
+  96% { transform: rotate(4deg); }
+}
+.receiver-answer-icon { animation: receiver-phone-ring 2.4s ease-in-out infinite; }
+
 @media (min-width: 1024px) {
   .receiver-topbar { padding-inline: 28px; }
   .receiver-workspace { grid-template-columns: minmax(0, 1fr) 268px; }
   .receiver-info-rail { display: grid; }
   .receiver-caller-main { padding: 22px 26px 14px; }
   .receiver-call-actions { padding: 0 20px 20px; }
+  .receiver-action-dock { left: 228px; padding-inline: 28px; }
 }
 
 @media (max-width: 1023px) {
