@@ -817,7 +817,8 @@ function ToolCard({
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-            The responsible station has been notified. Keep your reference number safe.
+            Saved to your reports. Keep your reference number safe — Allma does not contact police
+            or emergency services for you.
           </div>
         </div>
       ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
