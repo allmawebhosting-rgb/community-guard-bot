@@ -1,0 +1,10 @@
+import {bundle} from '@remotion/bundler';
+import {renderMedia,selectComposition,openBrowser} from '@remotion/renderer';
+import path from 'path';
+import {fileURLToPath} from 'url';
+const dir=path.dirname(fileURLToPath(import.meta.url));
+const serveUrl=await bundle({entryPoint:path.resolve(dir,'../src/index.ts'),webpackOverride:(c)=>c});
+const browser=await openBrowser('chrome',{browserExecutable:process.env.PUPPETEER_EXECUTABLE_PATH??'/bin/chromium',chromiumOptions:{args:['--no-sandbox','--disable-gpu','--disable-dev-shm-usage']},chromeMode:'chrome-for-testing'});
+const composition=await selectComposition({serveUrl,id:'allma-pitch',puppeteerInstance:browser});
+await renderMedia({composition,serveUrl,codec:'h264',audioCodec:'aac',outputLocation:'/mnt/documents/allma-safety-ai-video-presentation.mp4',puppeteerInstance:browser,concurrency:2,crf:20});
+await browser.close({silent:false});

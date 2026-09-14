@@ -1,0 +1,359 @@
+[
+  {
+    "page": 1,
+    "audio": "audio/scene-01.mp3",
+    "duration": 17.592,
+    "frames": 540,
+    "text": "Allma Safety AI is an intelligent emergency response and personal safety platform built for Uganda. One action creates a real case, shares live location with trusted people, calls them in order, and keeps everyone connected through one emergency workspace."
+  },
+  {
+    "page": 2,
+    "audio": "audio/scene-02.mp3",
+    "duration": 21.6,
+    "frames": 660,
+    "text": "This presentation walks through the complete working product: the problem, onboarding, the Safety Network, SOS, automatic safety checks, live location, calling, AI guidance, community features, police operations, privacy, technology, real end-to-end testing, and the honest roadmap."
+  },
+  {
+    "page": 3,
+    "audio": "audio/scene-03.mp3",
+    "duration": 19.776,
+    "frames": 605,
+    "text": "An emergency is fundamentally a coordination problem. Under stress, people lose time deciding who to call, explaining where they are, and repeating information. Trusted contacts may miss the first call, while responders begin without a shared picture of what happened."
+  },
+  {
+    "page": 4,
+    "audio": "audio/scene-04.mp3",
+    "duration": 20.112,
+    "frames": 615,
+    "text": "Allma creates one connected emergency chain. The person in trouble activates SOS. Their chosen Safety Network is alerted. In-app calls begin in priority order. Live location, chat, nearby help, and the same case record keep both sides coordinated."
+  },
+  {
+    "page": 5,
+    "audio": "audio/scene-05.mp3",
+    "duration": 18.6,
+    "frames": 570,
+    "text": "The flow is implemented end to end. A person creates an account, completes safety onboarding, builds a trusted network, activates SOS, shares location, starts priority calling, opens emergency chat, and tracks the case. Planned integrations are clearly marked later."
+  },
+  {
+    "page": 6,
+    "audio": "audio/scene-06.mp3",
+    "duration": 23.76,
+    "frames": 725,
+    "text": "The first screen offers help before sign-in. Anyone can ask Allma for safety guidance without learning a complicated menu. Emergency SOS, crime reporting, missing persons, nearby services, lost and found, and practical safety questions begin through one calm conversational entry point."
+  },
+  {
+    "page": 7,
+    "audio": "audio/scene-07.mp3",
+    "duration": 19.056,
+    "frames": 584,
+    "text": "Sign-in ties emergency actions to a real person. Email and password are supported, with Google as an alternative. This identity boundary prevents anonymous emergency records and gives the platform a reliable owner for reports, trusted connections, notifications, and privacy settings."
+  },
+  {
+    "page": 8,
+    "audio": "audio/scene-08.mp3",
+    "duration": 18.384,
+    "frames": 564,
+    "text": "Safety onboarding collects the details that should not be requested during an emergency. Progress is stored, so a person can return without losing work. The goal is simple: prepare identity, permissions, and trusted contacts while there is time to think clearly."
+  },
+  {
+    "page": 9,
+    "audio": "audio/scene-09.mp3",
+    "duration": 18.336,
+    "frames": 562,
+    "text": "The assistant can guide a real safety conversation. In this example, the user asks for a police station, a hospital, and advice when being followed. Allma responds with immediate safety steps, then helps move from conversation into a structured action."
+  },
+  {
+    "page": 10,
+    "audio": "audio/scene-10.mp3",
+    "duration": 18.888,
+    "frames": 579,
+    "text": "The dashboard shows practical readiness: Safety Network status, recent activity, and direct access to SOS, calls, and reports. It treats preparedness as an ongoing state, helping users notice missing contacts or unresolved actions before an emergency occurs."
+  },
+  {
+    "page": 11,
+    "audio": "audio/scene-11.mp3",
+    "duration": 20.712,
+    "frames": 633,
+    "text": "The AI was tested on a realistic incident: a phone snatched near Kampala Road. Its first response checks whether the person is safe before asking for property details. This ordering matters because guidance should protect the person before it collects the report."
+  },
+  {
+    "page": 12,
+    "audio": "audio/scene-12.mp3",
+    "duration": 19.944,
+    "frames": 610,
+    "text": "As details arrive, the assistant generates immediate actions such as blocking the SIM and mobile money, preserving the device identity, and filing a report. The case timeline updates with evidence and next steps, turning a conversation into a structured, reviewable record."
+  },
+  {
+    "page": 13,
+    "audio": "audio/scene-13.mp3",
+    "duration": 20.544,
+    "frames": 628,
+    "text": "Location intelligence can name the responsible police station and offer nearby services when reliable place results exist. It also states its limits. In this test, one typed-location lookup returned no facilities, and the document records that honestly instead of inventing a result."
+  },
+  {
+    "page": 14,
+    "audio": "audio/scene-14.mp3",
+    "duration": 21.336,
+    "frames": 652,
+    "text": "The Safety Network is the user’s personal emergency team. Real connected members are organised as primary, backup, and additional responders. Permissions determine who may receive SOS alerts, location, calls, and updates. Pending requests remain visible until the other person decides."
+  },
+  {
+    "page": 15,
+    "audio": "audio/scene-15.mp3",
+    "duration": 19.272,
+    "frames": 590,
+    "text": "On a phone, the same network puts readiness first, followed by connection requests and trusted people. Each card shows the person’s role, allowed emergency access, and management actions. The design supports preparation without hiding important consent choices."
+  },
+  {
+    "page": 16,
+    "audio": "audio/scene-16.mp3",
+    "duration": 21.216,
+    "frames": 648,
+    "text": "Before activation, the SOS console keeps one action dominant. Official Uganda emergency lines remain visible for direct use. Activating SOS creates the emergency immediately; location and analysis are allowed to complete afterward so permissions or slow networks do not block the alert."
+  },
+  {
+    "page": 17,
+    "audio": "audio/scene-17.mp3",
+    "duration": 20.592,
+    "frames": 630,
+    "text": "The phone version preserves the same priorities with large touch targets and one-handed spacing. Allma is installable as a web application, but it does not claim native mobile capabilities that are not yet built. Those limitations are stated in the product status."
+  },
+  {
+    "page": 18,
+    "audio": "audio/scene-18.mp3",
+    "duration": 20.544,
+    "frames": 628,
+    "text": "When SOS is activated, database-backed steps begin: the case is created, location is captured, the network is alerted, calls are placed in order, chat opens, and the case is tracked. Every visible status must come from a real record, never a simulated response."
+  },
+  {
+    "page": 19,
+    "audio": "audio/scene-19.mp3",
+    "duration": 23.16,
+    "frames": 707,
+    "text": "Automatic safety checks ask before acting. Multiple local signals can raise concern, but Allma does not silently claim an emergency. The user sees a clear confirmation window and can dismiss it, ask for more time, or activate SOS. Detection remains optional and privacy controlled."
+  },
+  {
+    "page": 20,
+    "audio": "audio/scene-20.mp3",
+    "duration": 18.552,
+    "frames": 569,
+    "text": "This is the safety check as the user sees it. It explains which signals contributed without pretending to know more than the device can know. A visible countdown supports escalation, while the user retains a direct way to confirm they are safe."
+  },
+  {
+    "page": 21,
+    "audio": "audio/scene-21.mp3",
+    "duration": 24.336,
+    "frames": 742,
+    "text": "The Privacy Center gathers detection settings, notification permissions, location sharing, and relay health. Automatic detection is opt-in. Sharing controls are visible and revocable. The product separates private health information from emergency and community paths rather than treating all personal data alike."
+  },
+  {
+    "page": 22,
+    "audio": "audio/scene-22.mp3",
+    "duration": 21.936,
+    "frames": 670,
+    "text": "During an active SOS, Google Maps shows the live position, accuracy radius, readable place name, and coordinates. The browser provides location with permission. If location is unavailable, SOS still continues and the interface states that limitation instead of showing false precision."
+  },
+  {
+    "page": 23,
+    "audio": "audio/scene-23.mp3",
+    "duration": 21.6,
+    "frames": 660,
+    "text": "Nearby emergency help comes from Google Places and curated service data. Hospitals, clinics, and police stations display name, category, distance, address, and an available phone number, with directions and call actions. These services support the emergency; they are not presented as dispatched responders."
+  },
+  {
+    "page": 24,
+    "audio": "audio/scene-24.mp3",
+    "duration": 17.496,
+    "frames": 537,
+    "text": "Incoming emergencies land in the responder call centre. The receiver sees who needs help, the active case, shared chat, and voice-call history. Answering accepts an in-app member-to-member call. It does not claim that police or ambulance services were contacted."
+  },
+  {
+    "page": 25,
+    "audio": "audio/scene-25.mp3",
+    "duration": 18.12,
+    "frames": 556,
+    "text": "On mobile, emergency calls are prioritised above secondary information. Answer and decline controls remain easy to reach, while maps and details follow below. The responder can understand the situation before navigating through the rest of the case workspace."
+  },
+  {
+    "page": 26,
+    "audio": "audio/scene-26.mp3",
+    "duration": 18.216,
+    "frames": 558,
+    "text": "Priority calling follows the order chosen by the user: primary responders first, then backup, then additional contacts. Each attempt has a real ring window and recorded outcome. The sequence stops when someone answers, avoiding duplicate claims that several people responded."
+  },
+  {
+    "page": 27,
+    "audio": "audio/scene-27.mp3",
+    "duration": 18.936,
+    "frames": 580,
+    "text": "Inside the emergency, Allma Voice can speak status and accept spoken input, reducing the need to type under stress. A shared emergency chat connects the caller and responder to the same case. The screenshot includes a message actually sent by the responding demo account."
+  },
+  {
+    "page": 28,
+    "audio": "audio/scene-28.mp3",
+    "duration": 20.952,
+    "frames": 641,
+    "text": "The community responder layer is partially implemented. Profiles, skills, verification state, service radius, and availability controls exist. Coverage density and operational response are not yet proven, so the deck does not claim a nationwide responder network or guaranteed arrival times."
+  },
+  {
+    "page": 29,
+    "audio": "audio/scene-29.mp3",
+    "duration": 21.336,
+    "frames": 652,
+    "text": "The police command console is protected by verified roles. It provides an operational overview of authorised records. Officer profiles, onboarding, stations, incidents, and controlled access are live. Direct integration with official national dispatch systems remains future work."
+  },
+  {
+    "page": 30,
+    "audio": "audio/scene-30.mp3",
+    "duration": 20.112,
+    "frames": 615,
+    "text": "The incident queue brings reports into one review surface. Each case carries its type, location, status history, evidence, and authorised actions. AI can assist with summaries and patterns, but people retain decisions that affect a case or a person."
+  },
+  {
+    "page": 31,
+    "audio": "audio/scene-31.mp3",
+    "duration": 18.216,
+    "frames": 558,
+    "text": "Dispatch is recorded, not implied. An assignment includes a case, an authorised officer or unit, a time, and a status. The interface only shows what exists in the backend. It never presents a decorative animation as proof that help is on the way."
+  },
+  {
+    "page": 32,
+    "audio": "audio/scene-32.mp3",
+    "duration": 19.152,
+    "frames": 587,
+    "text": "Operations views place incidents and stations on a shared map and provide analytics from real stored activity. These tools support situational awareness and case review. They do not create fabricated crime statistics, response times, or performance claims for the pitch."
+  },
+  {
+    "page": 33,
+    "audio": "audio/scene-33.mp3",
+    "duration": 20.832,
+    "frames": 637,
+    "text": "Health and safety reminders are private, optional, and separate from SOS. A scheduled service claims due reminders and records delivery state to avoid duplicates. The feature supports appointments, medication routines, and follow-ups without offering diagnosis or medical advice."
+  },
+  {
+    "page": 34,
+    "audio": "audio/scene-34.mp3",
+    "duration": 19.872,
+    "frames": 608,
+    "text": "Public Lost and Found allows anyone to browse items and submit a guided report. Sensitive identifiers are masked, and claims require proof for officer review. Public summaries reveal enough to recognise an item, not enough to manufacture ownership."
+  },
+  {
+    "page": 35,
+    "audio": "audio/scene-35.mp3",
+    "duration": 15.816,
+    "frames": 486,
+    "text": "Community alerts and the notification centre are partially live. In-app notifications and live badges exist. Broader delivery when the web app is fully closed depends on production-grade push and native mobile support, which remains part of the roadmap."
+  },
+  {
+    "page": 36,
+    "audio": "audio/scene-36.mp3",
+    "duration": 23.928,
+    "frames": 730,
+    "text": "Privacy and security are structural. Ownership policies restrict personal rows. Roles are stored separately from profiles. Sensitive functions verify identity on the server. Location and emergency information are shared only with authorised participants, and administrative access is not inferred from the browser."
+  },
+  {
+    "page": 37,
+    "audio": "audio/scene-37.mp3",
+    "duration": 25.992,
+    "frames": 792,
+    "text": "The technology combines a responsive TanStack application, Lovable Cloud data and authentication, Google Maps and Places, AI guidance, and in-app voice. Server functions protect secrets and privileged operations. The architecture supports clear boundaries between public guidance, private data, and authorised workflows."
+  },
+  {
+    "page": 38,
+    "audio": "audio/scene-38.mp3",
+    "duration": 19.608,
+    "frames": 600,
+    "text": "The complete feature map marks each capability as live, partial, or planned. That distinction is central to the product story. The platform has substantial working foundations, while official integrations, native background behaviour, and network scale are not presented as finished."
+  },
+  {
+    "page": 39,
+    "audio": "audio/scene-39.mp3",
+    "duration": 22.272,
+    "frames": 680,
+    "text": "The feature map continues across the full operating surface: live location, nearby help, shared emergency chat, reminders, lost and found, notifications, case management, privacy controls, and authorised administration. Each row names its users, practical value, and current status."
+  },
+  {
+    "page": 40,
+    "audio": "audio/scene-40.mp3",
+    "duration": 21.48,
+    "frames": 656,
+    "text": "The journeys show how features connect. A user prepares their network, activates SOS, shares location, reaches a trusted person, and continues in one case. A responder receives context, answers, chats, navigates, and records an outcome without switching between unrelated tools."
+  },
+  {
+    "page": 41,
+    "audio": "audio/scene-41.mp3",
+    "duration": 23.208,
+    "frames": 708,
+    "text": "Allma is different because it coordinates the moment rather than offering a directory of numbers. Conversation becomes structured action. Trusted people receive the same live context. AI supports clarity but does not invent certainty, and every response status is expected to map to reality."
+  },
+  {
+    "page": 42,
+    "audio": "audio/scene-42.mp3",
+    "duration": 23.064,
+    "frames": 704,
+    "text": "The product supports practical situations: walking home at night, a medical emergency at home, a road accident, an older person living alone, a missing person, stolen property, lost documents, and community safety information. Each example uses workflows that exist today."
+  },
+  {
+    "page": 43,
+    "audio": "audio/scene-43.mp3",
+    "duration": 22.32,
+    "frames": 682,
+    "text": "One emergency can now be understood from two perspectives. The caller sees activation, location, contact attempts, voice, chat, and nearby help. The responder sees who needs help, where they are, and the same communication record. Both views refer to one emergency case."
+  },
+  {
+    "page": 44,
+    "audio": "audio/scene-44.mp3",
+    "duration": 18.168,
+    "frames": 557,
+    "text": "For this demonstration, a real emergency was activated on one demo account and received by a second demo account. The next screens are captures from the running application, not mock-ups. No real member of the public or emergency service was involved."
+  },
+  {
+    "page": 45,
+    "audio": "audio/scene-45.mp3",
+    "duration": 20.016,
+    "frames": 612,
+    "text": "On the caller side, the live emergency screen shows Google Maps location, the trusted contact and response tier, the case reference, emergency chat, Allma Voice, and nearby hospitals, clinics, and police. The contact status comes from real call and activity records."
+  },
+  {
+    "page": 46,
+    "audio": "audio/scene-46.mp3",
+    "duration": 22.44,
+    "frames": 685,
+    "text": "On the responder side, the same emergency arrives with the caller’s identity, location, case context, map, and shared chat. Directions and copy-GPS actions use the caller’s coordinates. The message visible here was actually sent from the responder account into the live room."
+  },
+  {
+    "page": 47,
+    "audio": "audio/scene-47.mp3",
+    "duration": 18.384,
+    "frames": 564,
+    "text": "Both sides are designed for the phone in the user’s hand. Large targets, clear vertical order, readable maps, and no horizontal scrolling keep the essential actions available under stress. The same case remains consistent across desktop and mobile."
+  },
+  {
+    "page": 48,
+    "audio": "audio/scene-48.mp3",
+    "duration": 23.16,
+    "frames": 707,
+    "text": "The honest product status separates live capability from partial or demonstration-only areas and future work. Accounts, onboarding, Safety Networks, SOS records, live location, chat, member calling, reports, reminders, and operational workspaces exist. Scale and official adoption are not claimed."
+  },
+  {
+    "page": 49,
+    "audio": "audio/scene-49.mp3",
+    "duration": 21.888,
+    "frames": 669,
+    "text": "The roadmap focuses on official service integration, native mobile applications, resilient connectivity, responder-network growth, operational monitoring, and measured pilots. Every item on this page is future work. Progress should be judged through field evidence, not optimistic presentation language."
+  },
+  {
+    "page": 50,
+    "audio": "audio/scene-50.mp3",
+    "duration": 22.776,
+    "frames": 695,
+    "text": "Partnership could unlock value with police, ambulance services, hospitals, health programmes, universities, communities, and network providers. Allma currently claims no agency partnership or approval. The opportunity is to test governance, reliability, and outcomes with the institutions responsible for real-world response."
+  },
+  {
+    "page": 51,
+    "audio": "audio/scene-51.mp3",
+    "duration": 27.888,
+    "frames": 849,
+    "text": "In one page: Allma closes the delay between something going wrong and the right people understanding what to do. It combines a real emergency case, trusted contacts, ordered in-app calling, live location, shared communication, nearby help, and accountable status. The invitation is to pilot responsibly, measure honestly, and build dependable safety infrastructure for Uganda."
+  }
+]
