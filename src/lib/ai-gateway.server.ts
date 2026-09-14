@@ -1,4 +1,5 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createOpenAI } from "@ai-sdk/openai";
 
 const LOVABLE_AIG_RUN_ID_HEADER = "X-Lovable-AIG-Run-ID";
 
@@ -54,6 +55,32 @@ export function createLovableAiGatewayProvider(
     name: "lovable",
     baseURL: "https://ai.gateway.lovable.dev/v1",
     supportsStructuredOutputs: options?.structuredOutputs ?? false,
+    headers: {
+      "Lovable-API-Key": lovableApiKey,
+      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+    },
+    fetch: runIdFetch.fetch as typeof fetch,
+  });
+
+  return Object.assign(provider, {
+    getRunId: runIdFetch.getRunId,
+    waitForRunId: runIdFetch.waitForRunId,
+  });
+}
+
+/**
+ * OpenAI Responses API provider for the gateway. Used for `openai/*` models,
+ * which are served on /v1/responses rather than /v1/chat/completions.
+ */
+export function createLovableAiGatewayResponsesProvider(
+  lovableApiKey: string,
+  initialRunId?: string,
+) {
+  const runIdFetch = createLovableAiGatewayRunIdFetch(initialRunId);
+
+  const provider = createOpenAI({
+    baseURL: "https://ai.gateway.lovable.dev/v1",
+    apiKey: lovableApiKey,
     headers: {
       "Lovable-API-Key": lovableApiKey,
       "X-Lovable-AIG-SDK": "vercel-ai-sdk",
