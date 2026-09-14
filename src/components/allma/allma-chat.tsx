@@ -999,7 +999,10 @@ export function AllmaChat({
     transport,
     onError: (chatError) => {
       console.error(chatError);
-      toast.error("Allma could not respond just now. Please try again.");
+      // The server sends a plain-language reason (busy, credits, blocked); show it.
+      const detail = chatError instanceof Error ? chatError.message.trim() : "";
+      const human = detail && /\s/.test(detail) && detail.length < 220 && !/^\{|^[A-Za-z]+Error/.test(detail);
+      toast.error(human ? detail : "Allma could not respond just now. Please try again.");
     },
   });
 
@@ -1291,7 +1294,16 @@ export function AllmaChat({
     // from the question itself. The broad idle menu is only for an empty chat.
     if (/\?/.test(assistantText)) {
       const derived = STEP_FALLBACK_CHIPS.find(({ matches }) => matches.test(assistantText));
-      return derived?.chips ?? [];
+      if (derived) return derived.chips;
+      // Mid-flow a question must never be a dead end — always leave a way forward.
+      if (flowActive) {
+        return [
+          { label: "Yes", prompt: "Yes" },
+          { label: "No", prompt: "No" },
+          { label: "I don't know", prompt: "I don't know" },
+        ];
+      }
+      return [];
     }
     return flowActive ? [] : IDLE_CHIPS;
 

@@ -17,6 +17,7 @@ import {
   ALLMA_LOCATION_BLOCK,
   ALLMA_MEMORY_BLOCK,
   ALLMA_ONBOARDING_BLOCK,
+  ALLMA_PROCEDURES_BLOCK,
   ALLMA_REPORTING_BLOCK,
 } from "@/lib/allma-prompt";
 import { ALLMA_MARKER_CONTRACT, parseAllmaMarkers } from "@/lib/allma-markers";
@@ -24,6 +25,7 @@ import { ALLMA_MARKER_CONTRACT, parseAllmaMarkers } from "@/lib/allma-markers";
 
 import {
   createLovableAiGatewayProvider,
+  createLovableAiGatewayResponsesProvider,
   getLovableAiGatewayResponseHeaders,
   getLovableAiGatewayRunId,
   withLovableAiGatewayRunIdHeader,
@@ -116,6 +118,7 @@ export const Route = createFileRoute("/api/chat")({
 
         const initialRunId = getLovableAiGatewayRunId(request);
         const gateway = createLovableAiGatewayProvider(apiKey, initialRunId);
+        const responsesGateway = createLovableAiGatewayResponsesProvider(apiKey, initialRunId);
 
         const uiMessages = messages as UIMessage[];
         const lastUserMessage = [...uiMessages].reverse().find((m) => m.role === "user");
@@ -216,17 +219,27 @@ export const Route = createFileRoute("/api/chat")({
           .map((m) => parseAllmaMarkers(textOf(m)).flow)
           .filter((flow): flow is NonNullable<typeof flow> => Boolean(flow));
         const lastFlow = priorFlows[priorFlows.length - 1];
+        // The label is pinned to the flow that opened the conversation and the
+        // step counter is the highest ever reached, so a flow can never rename
+        // itself, restart at 1, or count backwards mid-report.
+        const firstFlow = priorFlows[0];
+        const highestStep = priorFlows.reduce((max, f) => Math.max(max, f.step || 0), 0);
         const flowState = {
-          flowLabel: lastFlow?.label ?? (null as string | null),
-          step: lastFlow?.step ?? 0,
-          totalSteps: lastFlow?.total ?? 0,
+          flowLabel: (firstFlow?.label ?? lastFlow?.label ?? null) as string | null,
+          step: highestStep,
+          totalSteps: priorFlows.reduce((max, f) => Math.max(max, f.total || 0), 0),
           askedTitles: priorFlows.map((f) => f.title.trim().toLowerCase()).filter(Boolean),
         };
 
         const flowBlock = flowState.flowLabel
           ? `\n\nACTIVE GUIDED FLOW: "${flowState.flowLabel}", currently at step ${flowState.step} of ${flowState.totalSteps || "?"}. Steps already asked: ${
               flowState.askedTitles.join(", ") || "none"
-            }. Ask the NEXT thing only — never repeat a step already asked, never announce step numbers in your text, and never ask two things in one turn.`
+            }.
+- The flow name stays exactly "${flowState.flowLabel}" until the flow ends. Never rename it, never restart it.
+- Your reply MUST begin with ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} — the step number only ever goes up by one.
+- Your reply MUST end with a ::suggest[…] line carrying the exact tappable answers to the question you just asked. A step question without ::suggest is a dead end and is never acceptable.
+- Ask the NEXT thing only — never repeat a step already asked, never announce step numbers in your text, never ask two things in one turn.
+- Every flow must reach an ending: either call create_report and give the reference number, or say plainly that nothing was filed and why. Never trail off mid-flow.`
           : "";
 
         // ---- Coordinates the user already shared (from "My current location is: lat, lng")
@@ -280,6 +293,14 @@ export const Route = createFileRoute("/api/chat")({
         const promptBlocks = [ALLMA_CORE_PROMPT];
         if (isFirstTurn) promptBlocks.push(ALLMA_ONBOARDING_BLOCK);
         if (fullMode) promptBlocks.push(ALLMA_REPORTING_BLOCK);
+        // Situation playbooks: loaded whenever a real safety situation is live.
+        const needsProcedures =
+          fullMode ||
+          Boolean(intent) ||
+          /steal|stole|stolen|thief|theft|snatch|rob|assault|beat|attack|hurt|injur|missing|lost|found|violence|abuse|rape|defile|threaten|accident|crash|knock(ed)? (me|him|her)|fire|burn|smoke|bleed|unconscious|not breathing|choking|stroke|snake bite|burn|fraud|scam|conned|mobile money|momo|suspicious|kidnap|abduct/i.test(
+            intakeText,
+          );
+        if (needsProcedures) promptBlocks.push(ALLMA_PROCEDURES_BLOCK);
         if (needsLocation) promptBlocks.push(ALLMA_LOCATION_BLOCK);
         if (fullMode || memoryBlock) promptBlocks.push(ALLMA_MEMORY_BLOCK);
         if (fullMode) promptBlocks.push(ALLMA_DETAIL_BLOCK);
@@ -298,8 +319,32 @@ export const Route = createFileRoute("/api/chat")({
                 Object.entries(all).filter(([name]) => LIGHT_TOOL_NAMES.has(name)),
               ) as T);
 
+        // `openai/*` ids are served on the gateway Responses API; everything
+        // else stays on the chat-completions provider.
+        const resolveModel = (modelId: string) =>
+          modelId.startsWith("openai/")
+            ? responsesGateway.responses(modelId)
+            : gateway(modelId);
+
+        const providerOptionsFor = (modelId: string) => {
+          if (modelId.startsWith("openai/")) {
+            return {
+              providerOptions: {
+                openai: {
+                  forceReasoning: true,
+                  reasoningEffort: "low" as const,
+                  reasoningSummary: "auto" as const,
+                  store: false,
+                  include: ["reasoning.encrypted_content"],
+                },
+              },
+            };
+          }
+          return {};
+        };
+
         const buildStream = (modelId: string) => streamText({
-          model: gateway(modelId),
+          model: resolveModel(modelId),
           system: `${systemPrompt}\n\n${ALLMA_MARKER_CONTRACT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
           }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}\n\nTURN BUDGET: exactly one reply per turn. Write your one message with its inline markers, then stop and wait for the user. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
@@ -307,9 +352,7 @@ export const Route = createFileRoute("/api/chat")({
 
           messages: modelMessages,
           stopWhen: stepCountIs(2),
-          ...(modelId.startsWith("openai/gpt-5.6")
-            ? { providerOptions: { lovable: { reasoningEffort: "none" as const } } }
-            : {}),
+          ...providerOptionsFor(modelId),
 
 
 
@@ -848,9 +891,12 @@ export const Route = createFileRoute("/api/chat")({
 
         });
 
+        // Primary: the most capable reasoning model, which follows the long
+        // safety procedure faithfully. Fallback keeps a report alive if it is
+        // rate limited mid-flow.
         const CHAT_MODELS = [
+          "openai/gpt-6-astra",
           "google/gemini-3.6-flash",
-          "google/gemini-2.5-flash",
         ];
 
 
@@ -874,6 +920,23 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const response = result.toUIMessageStreamResponse({
+          sendReasoning: false,
+          // Plain-language surface for gateway failures, instead of a silent stall.
+          onError: (error) => {
+            console.error("Chat stream error", error);
+            const raw =
+              error instanceof Error ? error.message : typeof error === "string" ? error : "";
+            if (/\b429\b|rate limit/i.test(raw)) {
+              return "Allma is handling a lot of requests right now. Please send that again in a few seconds.";
+            }
+            if (/\b402\b|credit/i.test(raw)) {
+              return "Allma's AI usage limit has been reached. The app owner needs to top up AI credits before the assistant can reply.";
+            }
+            if (/\b403\b/.test(raw)) {
+              return "Allma's AI access is currently blocked by a workspace setting. Please contact the app owner.";
+            }
+            return "Something went wrong reaching Allma. Please try that message again.";
+          },
 
           originalMessages: uiMessages,
           onFinish: async ({ responseMessage }) => {
@@ -922,7 +985,10 @@ export const Route = createFileRoute("/api/chat")({
 
         });
 
-        return withLovableAiGatewayRunIdHeader(response, gateway);
+        return withLovableAiGatewayRunIdHeader(
+          response,
+          usedModel.startsWith("openai/") ? responsesGateway : gateway,
+        );
       },
     },
   },
