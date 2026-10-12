@@ -40,6 +40,7 @@ import { Route as AuthenticatedSafetyNetworkRouteImport } from './routes/_authen
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiHealthRemindersDeliverRouteImport } from './routes/api/health-reminders-deliver'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as ApiVoiceAssistantRouteImport } from './routes/api/voice-assistant'
 import { Route as ApiZegoTokenRouteImport } from './routes/api/zego-token'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
@@ -224,6 +225,11 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVoiceAssistantRoute = ApiVoiceAssistantRouteImport.update({
+  id: '/api/voice-assistant',
+  path: '/api/voice-assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiZegoTokenRoute = ApiZegoTokenRouteImport.update({
   id: '/api/zego-token',
   path: '/api/zego-token',
@@ -393,6 +399,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/voice-assistant': typeof ApiVoiceAssistantRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/blog/': typeof BlogIndexRoute
@@ -447,6 +454,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/voice-assistant': typeof ApiVoiceAssistantRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/blog': typeof BlogIndexRoute
@@ -505,6 +513,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/voice-assistant': typeof ApiVoiceAssistantRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/blog/': typeof BlogIndexRoute
@@ -563,6 +572,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
+    | '/api/voice-assistant'
     | '/api/zego-token'
     | '/blog/$slug'
     | '/blog/'
@@ -617,6 +627,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
+    | '/api/voice-assistant'
     | '/api/zego-token'
     | '/blog/$slug'
     | '/blog'
@@ -674,6 +685,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
+    | '/api/voice-assistant'
     | '/api/zego-token'
     | '/blog/$slug'
     | '/blog/'
@@ -724,6 +736,7 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiHealthRemindersDeliverRoute: typeof ApiHealthRemindersDeliverRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
+  ApiVoiceAssistantRoute: typeof ApiVoiceAssistantRoute
   ApiZegoTokenRoute: typeof ApiZegoTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -946,6 +959,13 @@ declare module '@tanstack/react-router' {
       path: '/api/transcribe'
       fullPath: '/api/transcribe'
       preLoaderRoute: typeof ApiTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/voice-assistant': {
+      id: '/api/voice-assistant'
+      path: '/api/voice-assistant'
+      fullPath: '/api/voice-assistant'
+      preLoaderRoute: typeof ApiVoiceAssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/zego-token': {
@@ -1228,6 +1248,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiHealthRemindersDeliverRoute: ApiHealthRemindersDeliverRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
+  ApiVoiceAssistantRoute: ApiVoiceAssistantRoute,
   ApiZegoTokenRoute: ApiZegoTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
