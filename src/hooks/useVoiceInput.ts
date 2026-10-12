@@ -97,6 +97,7 @@ export function useVoiceInput({
     }
 
     const ctx = new AudioContext();
+    if (ctx.state === "suspended") await ctx.resume().catch(() => undefined);
     const source = ctx.createMediaStreamSource(stream);
     const processor = ctx.createScriptProcessor(4096, 1, 1);
     const analyser = ctx.createAnalyser();
@@ -127,6 +128,7 @@ export function useVoiceInput({
     let spoke = false;
     let loudFrames = 0;
     let lastLoud = startedAt;
+    let noise = 0.02;
     const tick = () => {
       if (recorder.current !== active) return;
       analyser.getByteTimeDomainData(buffer);
@@ -137,12 +139,14 @@ export function useVoiceInput({
       setLevel(Math.min(1, peak * 1.8));
       if (autoStop) {
         const now = performance.now();
-        if (peak > 0.08) {
+        if (!spoke) noise = noise * 0.95 + Math.min(peak, 0.2) * 0.05;
+        const threshold = Math.max(0.035, noise * 2.2);
+        if (peak > threshold) {
           loudFrames += 1;
-          if (loudFrames > 4) spoke = true;
+          if (loudFrames > 3) spoke = true;
           lastLoud = now;
         } else loudFrames = 0;
-        if (spoke && now - lastLoud > 1300) {
+        if (spoke && now - lastLoud > 1200) {
           void stopRef.current?.();
           return;
         }
