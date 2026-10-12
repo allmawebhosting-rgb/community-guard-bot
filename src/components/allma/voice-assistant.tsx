@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Volume2 } from "lucide-react";
+import { Mic, MicOff, Send, Volume2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,10 @@ export function VoiceAssistant() {
   const [active, setActive] = useState(false); // hands-free loop running
   const [thinking, setThinking] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [heard, setHeard] = useState("");
+  const [reply, setReply] = useState("");
+  const [hint, setHint] = useState("");
+  const [open, setOpen] = useState(true);
   const turnsRef = useRef<Turn[]>([]);
   const activeRef = useRef(false);
   activeRef.current = active;
@@ -68,6 +72,9 @@ export function VoiceAssistant() {
     async (text: string) => {
       const next = [...turnsRef.current, { role: "user" as const, content: text }].slice(-16);
       turnsRef.current = next;
+      setHeard(text);
+      setReply("");
+      setHint("");
       setThinking(true);
       try {
         const res = await fetch("/api/voice-assistant", {
@@ -80,10 +87,13 @@ export function VoiceAssistant() {
         const nav = data.text.match(/\[\[NAV:(\/[a-z\-]*)\]\]/);
         const reply = data.text.replace(/\[\[NAV:[^\]]*\]\]/g, "").trim();
         turnsRef.current = [...turnsRef.current, { role: "assistant", content: reply }];
+        setReply(reply);
         if (nav?.[1]) void navigate({ to: nav[1] as "/" });
         say(reply);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Allma could not answer.");
+        const m = e instanceof Error ? e.message : "Allma could not answer.";
+        setHint(m);
+        toast.error(m);
         if (activeRef.current) listenRef.current();
       } finally {
         setThinking(false);
@@ -96,6 +106,7 @@ export function VoiceAssistant() {
     autoStop: true,
     onTranscript: (t) => void ask(t),
     onError: (m) => {
+      setHint(QUIET_ERRORS.test(m) ? "I didn't catch that — please speak again, a little closer." : m);
       if (!QUIET_ERRORS.test(m)) toast.error(m);
       if (/Microphone/i.test(m)) setActive(false);
       else if (activeRef.current) setTimeout(() => listenRef.current(), 300);
@@ -138,6 +149,16 @@ export function VoiceAssistant() {
     setPref("on");
     setActive(true);
     activeRef.current = true;
+    setOpen(true);
+    setHint("");
+    // Unlock speech output inside the tap so later replies can be heard on phones.
+    try {
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      window.speechSynthesis?.speak(u);
+    } catch {
+      /* ignore */
+    }
     // Start the microphone right inside the tap — phones block it otherwise.
     if (!turnsRef.current.length) {
       turnsRef.current = [{ role: "assistant", content: GREETING }];
@@ -193,27 +214,71 @@ export function VoiceAssistant() {
           ? "Allma is speaking — tap to pause"
           : "Allma voice on — tap to pause";
 
+  const bars = Array.from({ length: 14 });
+  if (!open) {
+    return (
+      <button
+        type="button"
+        data-allma-voice-dot
+        aria-label={label}
+        onClick={() => setOpen(true)}
+        className="fixed bottom-4 right-4 z-[60] grid size-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl"
+      >
+        <Mic className={cn("size-5", active && voice.recording && "animate-pulse")} />
+      </button>
+    );
+  }
+  const status = !active ? "Paused" : voice.recording ? "Listening…" : voice.transcribing ? "Understanding…" : thinking ? "Thinking…" : speaking ? "Speaking…" : "Ready";
   return (
-    <button
-      type="button"
+    <div
       data-allma-voice-dot
-      aria-label={label}
-      title={label}
-      onClick={() => (active ? stopLoop() : startLoop())}
-      className="fixed bottom-3 right-3 z-[60] grid size-6 place-items-center rounded-full"
+      role="region"
+      aria-label="Allma voice assistant"
+      className="fixed inset-x-3 bottom-4 z-[60] mx-auto max-w-sm rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-2xl sm:inset-x-auto sm:right-4"
     >
-      <span className="sr-only" aria-live="polite">{label}</span>
-      <span
-        className={cn(
-          "block size-2.5 rounded-full transition-all duration-300",
-          !active && "bg-muted-foreground/40",
-          active && voice.recording && "bg-primary",
-          active && busy && "animate-pulse bg-accent",
-          active && speaking && "bg-primary animate-pulse",
-          active && !voice.recording && !busy && !speaking && "bg-primary/50",
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className={cn("size-2.5 rounded-full", active ? "bg-success animate-pulse" : "bg-muted-foreground/50")} />
+          <p className="text-sm font-semibold">Allma Voice</p>
+          <span className="text-xs text-muted-foreground" aria-live="polite">{status}</span>
+        </div>
+        <button type="button" aria-label="Minimise voice assistant" onClick={() => setOpen(false)} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="mt-3 flex h-8 items-end justify-center gap-1" aria-hidden="true">
+        {bars.map((_, i) => (
+          <span
+            key={i}
+            className={cn("w-1.5 rounded-full transition-all duration-100", voice.recording ? "bg-primary" : busy || speaking ? "bg-accent animate-pulse" : "bg-muted")}
+            style={{ height: `${voice.recording ? 4 + voice.level * 28 * (0.5 + ((i * 7) % 5) / 8) : 6}px` }}
+          />
+        ))}
+      </div>
+      {heard && <p className="mt-3 text-xs text-muted-foreground">You: <span className="text-foreground">{heard}</span></p>}
+      {reply && <p className="mt-2 rounded-xl bg-muted/50 p-2.5 text-sm leading-relaxed">{reply}</p>}
+      {hint && <p className="mt-2 text-xs text-destructive">{hint}</p>}
+      {!heard && !reply && !hint && (
+        <p className="mt-3 text-xs text-muted-foreground">{active ? "Speak now — I'll answer when you stop talking." : "Tap Start and ask anything about your safety."}</p>
+      )}
+      <div className="mt-3 flex gap-2">
+        {active ? (
+          <>
+            {voice.recording && (
+              <Button size="sm" className="flex-1" onClick={() => void voice.stop()}>
+                <Send className="size-4" /> Done speaking
+              </Button>
+            )}
+            <Button size="sm" variant="outline" className={cn(!voice.recording && "flex-1")} onClick={stopLoop}>
+              <MicOff className="size-4" /> Pause
+            </Button>
+          </>
+        ) : (
+          <Button size="sm" className="flex-1" onClick={startLoop}>
+            <Mic className="size-4" /> Start voice
+          </Button>
         )}
-        style={active && voice.recording ? { boxShadow: `0 0 0 ${2 + voice.level * 8}px color-mix(in oklab, var(--primary) 25%, transparent)` } : undefined}
-      />
-    </button>
+      </div>
+    </div>
   );
 }
