@@ -144,7 +144,32 @@ export function VoiceAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paused]);
 
-  const startLoop = () => {
+  const runIntro = () => {
+    setIntro(true);
+    setShown(0);
+    const lines = [
+      "Hello, I'm Allma, your AI safety companion for Uganda. Here is what I can do for you.",
+      ...QUICK_ACTIONS.map((a) => `${a.label}. ${a.description}.`),
+      "Just tell me what you need.",
+    ];
+    let i = 0;
+    const next = () => {
+      if (!activeRef.current) return;
+      if (i >= lines.length) {
+        setIntro(false);
+        setSpeaking(false);
+        listenRef.current();
+        return;
+      }
+      const idx = i++;
+      if (idx >= 1 && idx <= QUICK_ACTIONS.length) setShown(idx);
+      setSpeaking(true);
+      speak(lines[idx], next);
+    };
+    next();
+  };
+
+  const startLoop = (withIntro = false) => {
     localStorage.setItem(PREF_KEY, "on");
     setPref("on");
     setActive(true);
@@ -157,6 +182,16 @@ export function VoiceAssistant() {
       window.speechSynthesis?.speak(u);
     } catch {
       /* ignore */
+    }
+    if (withIntro) {
+      // Ask for the microphone inside the tap, then talk through the intro.
+      void navigator.mediaDevices
+        ?.getUserMedia({ audio: true })
+        .then((s) => s.getTracks().forEach((t) => t.stop()))
+        .catch(() => {});
+      turnsRef.current = [{ role: "assistant", content: GREETING }];
+      runIntro();
+      return;
     }
     // Start the microphone right inside the tap — phones block it otherwise.
     if (!turnsRef.current.length) {
