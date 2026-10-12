@@ -47,7 +47,6 @@ export function VoiceAssistant() {
   const [heard, setHeard] = useState("");
   const [reply, setReply] = useState("");
   const [hint, setHint] = useState("");
-  const [open, setOpen] = useState(true);
   const turnsRef = useRef<Turn[]>([]);
   const activeRef = useRef(false);
   activeRef.current = active;
@@ -145,24 +144,11 @@ export function VoiceAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paused]);
 
-  // Phones only allow the microphone/audio after a tap, so resume the
-  // hands-free loop on the first tap anywhere when voice was left on.
-  useEffect(() => {
-    if (pref !== "on" || active || paused) return;
-    const resume = (e: PointerEvent) => {
-      if ((e.target as HTMLElement | null)?.closest?.("[data-allma-voice-dot]")) return;
-      startLoopRef.current();
-    };
-    window.addEventListener("pointerdown", resume, { once: true });
-    return () => window.removeEventListener("pointerdown", resume);
-  }, [pref, active, paused]);
-
   const startLoop = () => {
     localStorage.setItem(PREF_KEY, "on");
     setPref("on");
     setActive(true);
     activeRef.current = true;
-    setOpen(true);
     setHint("");
     // Unlock speech output inside the tap so later replies can be heard on phones.
     try {
