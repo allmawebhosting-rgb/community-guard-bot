@@ -52,6 +52,7 @@ export function VoiceAssistant() {
   const activeRef = useRef(false);
   activeRef.current = active;
   const listenRef = useRef<() => void>(() => {});
+  const stopLoopRef = useRef<(exit?: boolean) => void>(() => {});
 
   const paused = path.startsWith("/sos") || path.startsWith("/police");
 
@@ -85,10 +86,22 @@ export function VoiceAssistant() {
         if (!res.ok) throw new Error((await res.text()) || "Allma could not answer.");
         const data = (await res.json()) as { text: string };
         const nav = data.text.match(/\[\[NAV:(\/[a-z\-]*)\]\]/);
-        const reply = data.text.replace(/\[\[NAV:[^\]]*\]\]/g, "").trim();
+        const action = data.text.match(/\[\[ACTION:([a-z]+)\]\]/)?.[1];
+        const reply = data.text.replace(/\[\[(NAV|ACTION):[^\]]*\]\]/g, "").trim();
         turnsRef.current = [...turnsRef.current, { role: "assistant", content: reply }];
         setReply(reply);
         if (nav?.[1]) void navigate({ to: nav[1] as "/" });
+        if (action === "back") window.history.back();
+        if (action === "sos") {
+          stopLoopRef.current();
+          void navigate({ to: "/sos", search: { instant: 1 } as never });
+          return;
+        }
+        if (action === "exit") {
+          speak(reply || "Okay, closing voice mode.", () => {});
+          stopLoopRef.current(true);
+          return;
+        }
         say(reply);
       } catch (e) {
         const m = e instanceof Error ? e.message : "Allma could not answer.";
@@ -170,13 +183,19 @@ export function VoiceAssistant() {
   const startLoopRef = useRef(startLoop);
   startLoopRef.current = startLoop;
 
-  const stopLoop = () => {
+  const stopLoop = (exitMode = false) => {
+    if (exitMode) {
+      localStorage.setItem(PREF_KEY, "off");
+      setPref("off");
+    }
     setActive(false);
     activeRef.current = false;
     voice.cancel();
     window.speechSynthesis?.cancel();
     setSpeaking(false);
   };
+
+  stopLoopRef.current = stopLoop;
 
   const decline = () => {
     localStorage.setItem(PREF_KEY, "off");
@@ -185,17 +204,18 @@ export function VoiceAssistant() {
 
   if (pref === "unknown" || paused) return null;
 
+  // First visit: choose a mode.
   if (pref === null) {
     return (
-      <div role="dialog" aria-label="Use voice assistant" className="fixed inset-x-3 bottom-4 z-[60] mx-auto max-w-md rounded-2xl border border-border bg-card p-4 shadow-2xl sm:inset-x-auto sm:right-4">
+      <div role="dialog" aria-label="Choose how to use Allma" className="fixed inset-x-3 bottom-4 z-[60] mx-auto max-w-md rounded-2xl border border-border bg-card p-4 shadow-2xl sm:inset-x-auto sm:right-4">
         <div className="flex items-start gap-3">
           <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"><Volume2 className="size-5" /></div>
           <div className="min-w-0">
-            <p className="font-semibold">Would you like to use voice?</p>
-            <p className="mt-1 text-sm text-muted-foreground">Just talk — Allma listens, understands when you stop speaking, and helps hands-free.</p>
+            <p className="font-semibold">How would you like to use Allma?</p>
+            <p className="mt-1 text-sm text-muted-foreground">Voice mode takes over the screen — just talk and Allma opens pages, answers and acts for you. You can switch any time.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button size="sm" onClick={startLoop}>Yes, use voice</Button>
-              <Button size="sm" variant="ghost" onClick={decline}>Not now</Button>
+              <Button size="sm" onClick={startLoop}><Mic className="size-4" /> Voice mode</Button>
+              <Button size="sm" variant="outline" onClick={decline}>Standard mode</Button>
             </div>
           </div>
         </div>
@@ -203,81 +223,75 @@ export function VoiceAssistant() {
     );
   }
 
-  const busy = voice.transcribing || thinking;
-  const label = !active
-    ? "Allma voice is paused — tap to start listening"
-    : voice.recording
-      ? "Allma is listening — tap to pause"
-      : busy
-        ? "Allma is working"
-        : speaking
-          ? "Allma is speaking — tap to pause"
-          : "Allma voice on — tap to pause";
-
-  const bars = Array.from({ length: 14 });
-  if (!open) {
+  // Standard mode: only a launcher button.
+  if (pref === "off" || !active) {
     return (
       <button
         type="button"
         data-allma-voice-dot
-        aria-label={label}
-        onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-[60] grid size-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl"
+        aria-label="Start Allma voice mode"
+        onClick={startLoop}
+        className="fixed bottom-20 right-4 z-[60] grid size-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 md:bottom-6"
       >
-        <Mic className={cn("size-5", active && voice.recording && "animate-pulse")} />
+        <Mic className="size-5" />
       </button>
     );
   }
-  const status = !active ? "Paused" : voice.recording ? "Listening…" : voice.transcribing ? "Understanding…" : thinking ? "Thinking…" : speaking ? "Speaking…" : "Ready";
+
+  // Voice mode: full-screen takeover.
+  const busy = voice.transcribing || thinking;
+  const status = voice.recording
+    ? voice.level > 0.08 ? "Listening…" : "Speak now"
+    : voice.transcribing ? "Understanding…" : thinking ? "Thinking…" : speaking ? "Speaking…" : "Ready";
+  const scale = 1 + (voice.recording ? voice.level * 0.6 : speaking ? 0.12 : 0);
   return (
     <div
       data-allma-voice-dot
-      role="region"
-      aria-label="Allma voice assistant"
-      className="fixed inset-x-3 bottom-4 z-[60] mx-auto max-w-sm rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-2xl sm:inset-x-auto sm:right-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Allma voice mode"
+      className="fixed inset-0 z-[70] flex flex-col bg-background/95 text-foreground backdrop-blur-xl animate-in fade-in duration-300"
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2">
-          <span className={cn("size-2.5 rounded-full", active ? "bg-success animate-pulse" : "bg-muted-foreground/50")} />
+          <span className="size-2.5 animate-pulse rounded-full bg-success" />
           <p className="text-sm font-semibold">Allma Voice</p>
-          <span className="text-xs text-muted-foreground" aria-live="polite">{status}</span>
         </div>
-        <button type="button" aria-label="Minimise voice assistant" onClick={() => setOpen(false)} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
-          <X className="size-4" />
-        </button>
+        <Button size="sm" variant="ghost" onClick={() => stopLoop(true)}>
+          <X className="size-4" /> Exit voice mode
+        </Button>
       </div>
-      <div className="mt-3 flex h-8 items-end justify-center gap-1" aria-hidden="true">
-        {bars.map((_, i) => (
+
+      <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
+        <div className="relative grid size-56 place-items-center">
+          <span className={cn("absolute inset-0 rounded-full bg-primary/20 blur-2xl", (busy || speaking) && "animate-pulse")} />
           <span
-            key={i}
-            className={cn("w-1.5 rounded-full transition-all duration-100", voice.recording ? "bg-primary" : busy || speaking ? "bg-accent animate-pulse" : "bg-muted")}
-            style={{ height: `${voice.recording ? 4 + voice.level * 28 * (0.5 + ((i * 7) % 5) / 8) : 6}px` }}
+            className="absolute inset-6 rounded-full bg-gradient-to-br from-primary via-accent to-destructive opacity-80 transition-transform duration-150"
+            style={{ transform: `scale(${scale})` }}
           />
-        ))}
+          <span className={cn("absolute inset-12 rounded-full bg-background/40", busy && "animate-ping")} />
+          <Mic className="relative size-10 text-primary-foreground" />
+        </div>
+        <p className="text-2xl font-semibold" aria-live="polite">{status}</p>
+        <div className="max-w-xl space-y-3">
+          {heard && <p className="text-base text-muted-foreground">"{heard}"</p>}
+          {reply && <p className="text-lg leading-relaxed">{reply}</p>}
+          {hint && <p className="text-sm text-destructive">{hint}</p>}
+          {!heard && !reply && !hint && (
+            <p className="text-muted-foreground">Try: "Find the nearest hospital", "Open my safety network", "My phone was stolen", or "Start SOS".</p>
+          )}
+        </div>
       </div>
-      {heard && <p className="mt-3 text-xs text-muted-foreground">You: <span className="text-foreground">{heard}</span></p>}
-      {reply && <p className="mt-2 rounded-xl bg-muted/50 p-2.5 text-sm leading-relaxed">{reply}</p>}
-      {hint && <p className="mt-2 text-xs text-destructive">{hint}</p>}
-      {!heard && !reply && !hint && (
-        <p className="mt-3 text-xs text-muted-foreground">{active ? "Speak now — I'll answer when you stop talking." : "Tap Start and ask anything about your safety."}</p>
-      )}
-      <div className="mt-3 flex gap-2">
-        {active ? (
-          <>
-            {voice.recording && (
-              <Button size="sm" className="flex-1" onClick={() => void voice.stop()}>
-                <Send className="size-4" /> Done speaking
-              </Button>
-            )}
-            <Button size="sm" variant="outline" className={cn(!voice.recording && "flex-1")} onClick={stopLoop}>
-              <MicOff className="size-4" /> Pause
-            </Button>
-          </>
+
+      <div className="flex justify-center gap-3 p-6 pb-10">
+        {voice.recording ? (
+          <Button size="lg" onClick={() => void voice.stop()}><Send className="size-4" /> Done speaking</Button>
         ) : (
-          <Button size="sm" className="flex-1" onClick={startLoop}>
-            <Mic className="size-4" /> Start voice
+          <Button size="lg" variant="outline" disabled={busy} onClick={() => { window.speechSynthesis?.cancel(); setSpeaking(false); void voice.start(); }}>
+            <Mic className="size-4" /> Tap to speak
           </Button>
         )}
+        <Button size="lg" variant="ghost" onClick={() => stopLoop(false)}><MicOff className="size-4" /> Minimise</Button>
       </div>
     </div>
   );
