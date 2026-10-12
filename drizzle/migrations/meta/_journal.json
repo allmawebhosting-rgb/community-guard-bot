@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791788858646,
+      "tag": "0000_restrict_lost_found_photo_reads",
+      "breakpoints": true
+    }
+  ]
+}
