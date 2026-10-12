@@ -210,6 +210,37 @@ function OnboardingPage() {
     return () => clearTimeout(timer);
   }, [draft, hydrated, userId]);
 
+  // Mirror changes Allma Voice saved to the account onto this screen.
+  useEffect(() => {
+    if (!userId) return;
+    const sync = async () => {
+      const [{ data: profile }, { data: contacts }] = await Promise.all([
+        supabase.from("profiles").select("full_name, phone, onboarding_step, location_mode, onboarding_completed").eq("id", userId).maybeSingle(),
+        supabase.from("emergency_contacts").select("name, relationship").eq("user_id", userId).order("created_at", { ascending: true }),
+      ]);
+      if (!profile) return;
+      if (profile.onboarding_completed) localStorage.setItem("allma-onboarding-complete", "true");
+      setDraft((d) => ({
+        ...d,
+        step: Number(profile.onboarding_step ?? d.step) as Step,
+        name: profile.full_name ?? d.name,
+        phone: profile.phone ?? d.phone,
+        locationMode: (profile.location_mode as OnboardingDraft["locationMode"]) ?? d.locationMode,
+        members: (contacts ?? []).map((c, i) => ({
+          id: i + 1,
+          name: c.name,
+          relationship: c.relationship ?? "Family",
+          method: "Allma username" as const,
+          status: "pending" as const,
+        })),
+      }));
+    };
+    const handler = () => void sync();
+    window.addEventListener("allma:onboarding-sync", handler);
+    return () => window.removeEventListener("allma:onboarding-sync", handler);
+  }, [userId]);
+
+
   async function syncMembers(members: CircleMember[]) {
     if (!userId) return;
     await supabase.from("emergency_contacts").delete().eq("user_id", userId);

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Mascot, MascotAvatar } from "@/components/allma/mascot";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchOnboardingState } from "@/lib/onboarding";
 
 const PREF_KEY = "allma.voice.pref"; // "on" | "off"
 const GREETING = "Hello, I'm Allma, your safety assistant. I'm listening — just speak whenever you need me.";
@@ -87,26 +89,36 @@ export function VoiceAssistant() {
       setHint("");
       setThinking(true);
       try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
         const res = await fetch("/api/voice-assistant", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ messages: next, path }),
         });
         if (!res.ok) throw new Error((await res.text()) || "Allma could not answer.");
-        const data = (await res.json()) as { text: string };
-        const nav = data.text.match(/\[\[NAV:(\/[a-z\-]*)\]\]/);
-        const action = data.text.match(/\[\[ACTION:([a-z]+)\]\]/)?.[1];
+        const data = (await res.json()) as {
+          text: string;
+          actions?: { type: string; to?: string }[];
+          onboardingChanged?: boolean;
+        };
         const reply = data.text.replace(/\[\[(NAV|ACTION):[^\]]*\]\]/g, "").trim();
         turnsRef.current = [...turnsRef.current, { role: "assistant", content: reply }];
         setReply(reply);
-        if (nav?.[1]) void navigate({ to: nav[1] as "/" });
-        if (action === "back") window.history.back();
-        if (action === "sos") {
-          stopLoopRef.current();
-          void navigate({ to: "/sos", search: { instant: 1 } as never });
-          return;
+        if (data.onboardingChanged) window.dispatchEvent(new Event("allma:onboarding-sync"));
+        let exit = false;
+        for (const a of data.actions ?? []) {
+          if (a.type === "navigate" && a.to) void navigate({ to: a.to as "/" });
+          if (a.type === "back") window.history.back();
+          if (a.type === "request_location") navigator.geolocation?.getCurrentPosition(() => {}, () => {});
+          if (a.type === "sos") {
+            stopLoopRef.current();
+            void navigate({ to: "/sos", search: { instant: 1 } as never });
+            return;
+          }
+          if (a.type === "exit") exit = true;
         }
-        if (action === "exit") {
+        if (exit) {
           speak(reply || "Okay, closing voice mode.", () => {});
           stopLoopRef.current(true);
           return;
@@ -201,7 +213,18 @@ export function VoiceAssistant() {
         .then((s) => s.getTracks().forEach((t) => t.stop()))
         .catch(() => {});
       turnsRef.current = [{ role: "assistant", content: GREETING }];
-      runIntro();
+      void (async () => {
+        const { data } = await supabase.auth.getUser();
+        if (data.user) {
+          const st = await fetchOnboardingState(data.user.id);
+          if (!st.completed) {
+            void navigate({ to: "/onboarding" });
+            void ask("Hi Allma, please guide me through setting up my account by voice.");
+            return;
+          }
+        }
+        runIntro();
+      })();
       return;
     }
     // Start the microphone right inside the tap — phones block it otherwise.
