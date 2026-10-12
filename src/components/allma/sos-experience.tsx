@@ -1992,20 +1992,24 @@ function MinimalEmergencyScreen({
   const area = location?.district || location?.suburb || "Location pending";
   const locationReady = locationState === "found" || locationState === "approximate";
 
+  // Coarse (~100 m) key so GPS drift does not re-run the lookup and blink the list.
+  const helpAreaKey =
+    location && locationReady ? `${location.lat.toFixed(3)},${location.lng.toFixed(3)}` : null;
+
   useEffect(() => {
-    if (!location || !locationReady) {
-      setNearbyHelp([]);
+    if (!helpAreaKey) {
       setNearbyHelpLoading(false);
       return;
     }
+    const [lat, lng] = helpAreaKey.split(",").map(Number);
 
     let isActive = true;
     setNearbyHelpLoading(true);
 
     void getNearbyPlaces({
       data: {
-        latitude: location.lat,
-        longitude: location.lng,
+        latitude: lat,
+        longitude: lng,
         radiusMeters: 8000,
         limit: 8,
         types: ["hospital", "police", "fire_station", "doctor", "pharmacy"],
@@ -2027,7 +2031,7 @@ function MinimalEmergencyScreen({
         );
       })
       .catch(() => {
-        if (isActive) setNearbyHelp([]);
+        /* keep previous results visible */
       })
       .finally(() => {
         if (isActive) setNearbyHelpLoading(false);
@@ -2036,7 +2040,7 @@ function MinimalEmergencyScreen({
     return () => {
       isActive = false;
     };
-  }, [locationReady, location]);
+  }, [helpAreaKey]);
 
 
   const sections = [
