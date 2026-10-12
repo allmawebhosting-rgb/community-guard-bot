@@ -17,7 +17,9 @@ You are warm, calm, very smart and genuinely helpful. Your replies are SPOKEN al
 - CONFIRMATION RULE: before any tool that saves or files something, read the details back and ask "Shall I go ahead?". Call it with confirmed:true only after the person clearly said yes in their latest message. If they say no, ask what to change.
 - To file a report, ask one question at a time: what happened, where, when; then confirm and call create_report.
 - For nearby help, call find_facilities and read the top 2 results with name and distance. Never state travel times.
-- Things you cannot do yet (sending Safety Network requests to members, creating health reminders, filling other forms): say so honestly and open the right page.`;
+- To add someone to their Safety Network: ask for the person's phone number, call find_member to check they use Allma, say the member's name and ask "Shall I send them a request?", then call send_network_request with confirmed:true only after yes. Never say the phone number of another member back except the one the person just gave. If not a member, say so honestly and suggest inviting them from the Safety Network page.
+- To create a health reminder, ask one at a time: what it is for (doctor visit, hospital appointment, follow-up, medication, routine check, other), the date, the time, the place (optional), and when to be reminded (1 day before, 2 hours before, at the time). Today in Kampala is TODAY_PLACEHOLDER. Read it all back, ask to confirm, then call create_health_reminder with confirmed:true.
+- Things you cannot do yet (filling other forms): say so honestly and open the right page.`;
 
 function onboardingBlock(step: number, profile: { full_name: string | null; phone: string | null; location_mode: string | null } | null, contacts: { name: string }[]) {
   return `
@@ -214,6 +216,76 @@ export const Route = createFileRoute("/api/voice-assistant")({
               const { data, error } = await q;
               if (error) return { ok: false, message: error.message };
               return { ok: true, alerts: data ?? [] };
+            },
+          }),
+          find_member: tool({
+            description: "Check whether a phone number belongs to an Allma member who can be added to the Safety Network.",
+            inputSchema: z.object({ phone: z.string() }),
+            execute: async ({ phone }) => {
+              const a = authed();
+              if (!a) return signIn;
+              const normalized = normalizePhone(phone);
+              if (!normalized) return { ok: false, message: "That doesn't look like a valid phone number." };
+              const { data, error } = await a.supabase.rpc("find_allma_member_by_phone", { _phone: normalized });
+              if (error) return { ok: false, message: error.message.replace(/^.*?:\s*/, "") };
+              const m = data?.[0];
+              if (!m) return { ok: true, found: false };
+              return { ok: true, found: true, name: m.full_name, relationship_state: m.relationship_state };
+            },
+          }),
+          send_network_request: tool({
+            description: "Send a Safety Network connection request to the Allma member with this phone number, after the person confirmed.",
+            inputSchema: z.object({ phone: z.string(), note: z.string().nullable(), confirmed: z.boolean() }),
+            execute: async ({ phone, note, confirmed }) => {
+              const a = authed();
+              if (!a) return signIn;
+              if (!confirmed) return needsConfirm;
+              const normalized = normalizePhone(phone);
+              if (!normalized) return { ok: false, message: "Invalid phone number." };
+              const { data } = await a.supabase.rpc("find_allma_member_by_phone", { _phone: normalized });
+              const m = data?.[0];
+              if (!m) return { ok: false, message: "No Allma member has that number." };
+              if (m.user_id === a.userId) return { ok: false, message: "That is the person's own number." };
+              const { error } = await a.supabase.rpc("send_safety_connection_request", { _recipient_id: m.user_id, _note: note ?? undefined });
+              if (error) return { ok: false, message: error.message.replace(/^.*?:\s*/, "") };
+              return { ok: true, sent_to: m.full_name };
+            },
+          }),
+          create_health_reminder: tool({
+            description: "Create a confirmed health reminder.",
+            inputSchema: z.object({
+              reminder_type: z.enum(["doctor_visit", "hospital_appointment", "follow_up", "medication", "routine_check", "other"]),
+              title: z.string(),
+              date: z.string().describe("YYYY-MM-DD"),
+              time: z.string().describe("HH:MM 24-hour"),
+              facility: z.string().nullable(),
+              remind: z.array(z.enum(["1_day_before", "2_hours_before", "at_time"])),
+              confirmed: z.boolean(),
+            }),
+            execute: async (r) => {
+              const a = authed();
+              if (!a) return signIn;
+              if (!r.confirmed) return needsConfirm;
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date) || !/^\d{1,2}:\d{2}$/.test(r.time)) return { ok: false, message: "Need a clear date and time." };
+              const time = r.time.padStart(5, "0");
+              const at = new Date(`${r.date}T${time}:00+03:00`);
+              if (Number.isNaN(at.getTime()) || at.getTime() < Date.now()) return { ok: false, message: "That date and time is in the past." };
+              const schedule = r.remind.length ? r.remind : ["2_hours_before"];
+              const mins = Math.max(...schedule.map((s) => (s === "1_day_before" ? 1440 : s === "2_hours_before" ? 120 : 0)));
+              const { error } = await a.supabase.from("health_reminders").insert({
+                user_id: a.userId,
+                reminder_type: r.reminder_type,
+                title: r.title.trim().slice(0, 120),
+                appointment_date: r.date,
+                appointment_time: time,
+                timezone: "Africa/Kampala",
+                facility_optional: r.facility?.trim() || null,
+                reminder_schedule: schedule,
+                notification_enabled: true,
+                next_delivery_at: new Date(Math.max(Date.now(), at.getTime() - mins * 60_000)).toISOString(),
+              });
+              if (error) return { ok: false, message: error.message };
+              return { ok: true };
             },
           }),
           find_facilities: tool({
