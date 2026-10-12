@@ -139,20 +139,25 @@ export function useVoiceInput({
       setLevel(Math.min(1, peak * 1.8));
       if (autoStop) {
         const now = performance.now();
-        if (!spoke) noise = noise * 0.95 + Math.min(peak, 0.2) * 0.05;
-        const threshold = Math.max(0.035, noise * 2.2);
+        // Learn background noise only during the first second, before speech.
+        if (!spoke && now - startedAt < 1000) noise = noise * 0.9 + Math.min(peak, 0.15) * 0.1;
+        const threshold = Math.min(0.12, Math.max(0.03, noise * 1.8));
         if (peak > threshold) {
-          loudFrames += 1;
-          if (loudFrames > 3) spoke = true;
+          loudFrames += 1; // cumulative — short dips no longer reset speech detection
+          if (loudFrames > 6) spoke = true;
           lastLoud = now;
-        } else loudFrames = 0;
-        if (spoke && now - lastLoud > 1200) {
+        }
+        if (spoke && now - lastLoud > 1300) {
           void stopRef.current?.();
           return;
         }
-        if (!spoke && now - startedAt > 12000) {
-          cancelRef.current?.();
-          onIdle?.();
+        if (!spoke && now - startedAt > 10000) {
+          // Some sound but never clearly "speech": transcribe anyway instead of discarding.
+          if (loudFrames > 0) void stopRef.current?.();
+          else {
+            cancelRef.current?.();
+            onIdle?.();
+          }
           return;
         }
       }
