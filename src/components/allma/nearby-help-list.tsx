@@ -128,7 +128,7 @@ export function NearbyHelpList({
         )}
       </div>
 
-      {loading ? (
+      {loading && places.length === 0 ? (
         <div className={cn("mt-3 rounded-2xl border p-4 text-[12px]", noticeClass)}>
           Finding police, clinics and hospitals nearby…
         </div>
