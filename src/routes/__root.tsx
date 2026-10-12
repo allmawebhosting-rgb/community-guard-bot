@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CallCenter } from "@/components/allma/calls/call-center";
 import { SmartSosGuardian } from "@/components/allma/sos/smart-sos-guardian";
 import { ensurePushRegistered } from "@/lib/push";
+import { VoiceAssistant } from "@/components/allma/voice-assistant";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 import appCss from "@/styles.css?url";
 
@@ -200,6 +201,7 @@ function RootComponent() {
         <Outlet />
         <CallCenter />
         <SmartSosGuardian />
+        <VoiceAssistant />
         <Toaster position="top-center" richColors />
       </ThemeProvider>
     </QueryClientProvider>
