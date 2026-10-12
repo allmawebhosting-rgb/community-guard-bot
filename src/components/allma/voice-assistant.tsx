@@ -14,10 +14,19 @@ type Turn = { role: "user" | "assistant"; content: string };
 function speak(text: string, onEnd: () => void) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return onEnd();
   window.speechSynthesis.cancel();
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    clearTimeout(fallback);
+    onEnd();
+  };
+  // Some phones never fire onend — fall back on an estimate of speaking time.
+  const fallback = setTimeout(finish, 2500 + text.length * 75);
   const u = new SpeechSynthesisUtterance(text);
   u.rate = 0.97;
-  u.onend = onEnd;
-  u.onerror = onEnd;
+  u.onend = finish;
+  u.onerror = finish;
   window.speechSynthesis.speak(u);
 }
 
@@ -112,6 +121,15 @@ export function VoiceAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paused]);
 
+  // Phones only allow the microphone/audio after a tap, so resume the
+  // hands-free loop on the first tap anywhere when voice was left on.
+  useEffect(() => {
+    if (pref !== "on" || active || paused) return;
+    const resume = () => startLoopRef.current();
+    window.addEventListener("pointerdown", resume, { once: true });
+    return () => window.removeEventListener("pointerdown", resume);
+  }, [pref, active, paused]);
+
   const startLoop = () => {
     localStorage.setItem(PREF_KEY, "on");
     setPref("on");
@@ -122,6 +140,9 @@ export function VoiceAssistant() {
       say(GREETING);
     } else listenRef.current();
   };
+
+  const startLoopRef = useRef(startLoop);
+  startLoopRef.current = startLoop;
 
   const stopLoop = () => {
     setActive(false);
