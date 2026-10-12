@@ -125,7 +125,10 @@ export function VoiceAssistant() {
   // hands-free loop on the first tap anywhere when voice was left on.
   useEffect(() => {
     if (pref !== "on" || active || paused) return;
-    const resume = () => startLoopRef.current();
+    const resume = (e: PointerEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.("[data-allma-voice-dot]")) return;
+      startLoopRef.current();
+    };
     window.addEventListener("pointerdown", resume, { once: true });
     return () => window.removeEventListener("pointerdown", resume);
   }, [pref, active, paused]);
@@ -135,10 +138,12 @@ export function VoiceAssistant() {
     setPref("on");
     setActive(true);
     activeRef.current = true;
+    // Start the microphone right inside the tap — phones block it otherwise.
     if (!turnsRef.current.length) {
       turnsRef.current = [{ role: "assistant", content: GREETING }];
-      say(GREETING);
-    } else listenRef.current();
+      toast.success("Allma is listening — just speak.");
+    }
+    void voice.start();
   };
 
   const startLoopRef = useRef(startLoop);
@@ -191,6 +196,7 @@ export function VoiceAssistant() {
   return (
     <button
       type="button"
+      data-allma-voice-dot
       aria-label={label}
       title={label}
       onClick={() => (active ? stopLoop() : startLoop())}
