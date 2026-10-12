@@ -133,7 +133,7 @@ function NearbyScreen() {
     const source = (facilities ?? []).filter((f) => {
       const matchesType = filter === "all" || f.facility_type === filter;
       const q = search.toLowerCase();
-      const matchesSearch = !q || f.name.toLowerCase().includes(q) || (f.district ?? "").toLowerCase().includes(q);
+      const matchesSearch = !q || [f.name, f.district, f.address].some((v) => (v ?? "").toLowerCase().includes(q));
       return matchesType && matchesSearch;
     });
     return source;
