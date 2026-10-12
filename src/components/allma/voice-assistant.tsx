@@ -228,16 +228,14 @@ export function VoiceAssistant() {
   // First visit: choose a mode.
   if (pref === null) {
     return (
-      <div role="dialog" aria-label="Choose how to use Allma" className="fixed inset-x-3 bottom-4 z-[60] mx-auto max-w-md rounded-2xl border border-border bg-card p-4 shadow-2xl sm:inset-x-auto sm:right-4">
-        <div className="flex items-start gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"><Volume2 className="size-5" /></div>
-          <div className="min-w-0">
-            <p className="font-semibold">How would you like to use Allma?</p>
-            <p className="mt-1 text-sm text-muted-foreground">Voice mode takes over the screen — just talk and Allma opens pages, answers and acts for you. You can switch any time.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button size="sm" onClick={startLoop}><Mic className="size-4" /> Voice mode</Button>
-              <Button size="sm" variant="outline" onClick={decline}>Standard mode</Button>
-            </div>
+      <div role="dialog" aria-modal="true" aria-label="Choose how to use Allma" className="fixed inset-0 z-[70] grid place-items-center bg-background/80 p-4 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 text-center shadow-2xl">
+          <MascotAvatar className="mx-auto size-20" />
+          <p className="mt-4 text-xl font-bold">How would you like to use Allma?</p>
+          <p className="mt-2 text-sm text-muted-foreground">Talk to Allma hands-free, or use the app by typing and tapping. You can switch any time.</p>
+          <div className="mt-5 grid gap-2">
+            <Button size="lg" onClick={() => startLoop(true)}><Mic className="size-4" /> Use voice</Button>
+            <Button size="lg" variant="outline" onClick={decline}><Keyboard className="size-4" /> Text only</Button>
           </div>
         </div>
       </div>
@@ -251,7 +249,7 @@ export function VoiceAssistant() {
         type="button"
         data-allma-voice-dot
         aria-label="Start Allma voice mode"
-        onClick={startLoop}
+        onClick={() => startLoop(false)}
         className="fixed bottom-20 right-4 z-[60] grid size-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 md:bottom-6"
       >
         <Mic className="size-5" />
