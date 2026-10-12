@@ -848,6 +848,7 @@ export const Route = createFileRoute("/api/chat")({
                   return {
                     ok: true,
                     area: cleaned || "your shared location",
+                    resolved_from_area_name: resolvedFrom,
                     incident_type,
                     coordinates: { latitude, longitude },
                     police_station: policeStation,
