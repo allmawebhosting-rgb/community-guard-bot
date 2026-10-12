@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Mic, MicOff, Send, Volume2, X } from "lucide-react";
+import { Keyboard, Mic, MicOff, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { Button } from "@/components/ui/button";
+import { Mascot, MascotAvatar } from "@/components/allma/mascot";
+import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 
 const PREF_KEY = "allma.voice.pref"; // "on" | "off"
@@ -47,6 +49,14 @@ export function VoiceAssistant() {
   const [heard, setHeard] = useState("");
   const [reply, setReply] = useState("");
   const [hint, setHint] = useState("");
+  const [intro, setIntro] = useState(false);
+  const [shown, setShown] = useState(0);
+  const introRunRef = useRef(0);
+  const skipIntro = () => {
+    introRunRef.current++;
+    setIntro(false);
+    setShown(QUICK_ACTIONS.length);
+  };
   const turnsRef = useRef<Turn[]>([]);
   const activeRef = useRef(false);
   activeRef.current = active;
