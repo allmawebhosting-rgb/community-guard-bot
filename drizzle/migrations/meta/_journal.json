@@ -8,6 +8,13 @@
       "when": 1791788858646,
       "tag": "0000_restrict_lost_found_photo_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791788973449,
+      "tag": "0001_restrict_missing_persons_stations_uploads",
+      "breakpoints": true
     }
   ]
 }
