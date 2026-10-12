@@ -163,7 +163,7 @@ export function useVoiceInput({
     }, MAX_SECONDS * 1000);
 
     setRecording(true);
-  }, [onError]);
+  }, [onError, autoStop, onIdle]);
 
   const stop = useCallback(async () => {
     const active = recorder.current;
@@ -213,6 +213,7 @@ export function useVoiceInput({
     teardown(active);
     void active.ctx.close();
   }, [teardown]);
+  cancelRef.current = cancel;
 
   useEffect(
     () => () => {
