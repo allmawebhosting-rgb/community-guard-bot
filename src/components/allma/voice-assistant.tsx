@@ -271,34 +271,53 @@ export function VoiceAssistant() {
       aria-label="Allma voice mode"
       className="fixed inset-0 z-[70] flex flex-col bg-background/95 text-foreground backdrop-blur-xl animate-in fade-in duration-300"
     >
-      <div className="flex items-center justify-between p-4">
+      <div className="flex items-center justify-between px-4 pb-2" style={{ paddingTop: "max(env(safe-area-inset-top), 3rem)" }}>
         <div className="flex items-center gap-2">
-          <span className="size-2.5 animate-pulse rounded-full bg-success" />
-          <p className="text-sm font-semibold">Allma Voice</p>
+          <MascotAvatar />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold">Allma Voice</p>
+            <p className="flex items-center gap-1 text-xs text-muted-foreground"><span className="size-2 animate-pulse rounded-full bg-success" /> Online</p>
+          </div>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => stopLoop(true)}>
-          <X className="size-4" /> Exit voice mode
+        <Button size="sm" variant="ghost" onClick={() => { skipIntro(); stopLoop(true); }}>
+          <X className="size-4" /> Text mode
         </Button>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
-        <div className="relative grid size-56 place-items-center">
+      <div className="flex flex-1 flex-col items-center gap-5 overflow-y-auto px-6 py-4 text-center">
+        <div className="relative mt-2 grid size-44 shrink-0 place-items-center">
           <span className={cn("absolute inset-0 rounded-full bg-primary/20 blur-2xl", (busy || speaking) && "animate-pulse")} />
           <span
-            className="absolute inset-6 rounded-full bg-gradient-to-br from-primary via-accent to-destructive opacity-80 transition-transform duration-150"
+            className="absolute inset-3 rounded-full bg-gradient-to-br from-primary via-gold to-destructive opacity-70 transition-transform duration-150"
             style={{ transform: `scale(${scale})` }}
           />
-          <span className={cn("absolute inset-12 rounded-full bg-background/40", busy && "animate-ping")} />
-          <Mic className="relative size-10 text-primary-foreground" />
+          <span className={cn("absolute inset-7 rounded-full bg-background/70", busy && "animate-ping")} />
+          <Mascot size={110} priority className="relative" />
         </div>
-        <p className="text-2xl font-semibold" aria-live="polite">{status}</p>
+        <p className="text-2xl font-semibold" aria-live="polite">{intro ? "Hello, I'm Allma" : status}</p>
+        {(intro || shown > 0) && !heard && (
+          <ul className="grid w-full max-w-md gap-2 text-left">
+            {QUICK_ACTIONS.slice(0, shown).map((a) => (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  onClick={() => { skipIntro(); void ask(a.prompt); }}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500"
+                >
+                  <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl text-xl", a.iconColor)} aria-hidden>{a.emoji}</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold">{a.label}</span>
+                    <span className="block text-xs text-muted-foreground">{a.description}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="max-w-xl space-y-3">
           {heard && <p className="text-base text-muted-foreground">"{heard}"</p>}
           {reply && <p className="text-lg leading-relaxed">{reply}</p>}
           {hint && <p className="text-sm text-destructive">{hint}</p>}
-          {!heard && !reply && !hint && (
-            <p className="text-muted-foreground">Try: "Find the nearest hospital", "Open my safety network", "My phone was stolen", or "Start SOS".</p>
-          )}
         </div>
       </div>
 
@@ -306,11 +325,11 @@ export function VoiceAssistant() {
         {voice.recording ? (
           <Button size="lg" onClick={() => void voice.stop()}><Send className="size-4" /> Done speaking</Button>
         ) : (
-          <Button size="lg" variant="outline" disabled={busy} onClick={() => { window.speechSynthesis?.cancel(); setSpeaking(false); void voice.start(); }}>
+          <Button size="lg" variant="outline" disabled={busy} onClick={() => { skipIntro(); window.speechSynthesis?.cancel(); setSpeaking(false); void voice.start(); }}>
             <Mic className="size-4" /> Tap to speak
           </Button>
         )}
-        <Button size="lg" variant="ghost" onClick={() => stopLoop(false)}><MicOff className="size-4" /> Minimise</Button>
+        <Button size="lg" variant="ghost" onClick={() => { skipIntro(); stopLoop(false); }}><MicOff className="size-4" /> Minimise</Button>
       </div>
     </div>
   );
