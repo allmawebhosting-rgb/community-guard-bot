@@ -59,11 +59,18 @@ function encodeWav(chunks: Float32Array[], sampleRate: number, targetRate = 1600
 export function useVoiceInput({
   onTranscript,
   onError,
+  autoStop = false,
+  onIdle,
 }: {
   onTranscript: (text: string) => void;
   onError: (message: string) => void;
+  /** Automatically stop and transcribe when the speaker goes quiet. */
+  autoStop?: boolean;
+  /** Called when auto mode heard no speech and quietly gave up. */
+  onIdle?: () => void;
 }) {
   const recorder = useRef<Recorder | null>(null);
+  const cancelRef = useRef<(() => void) | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [level, setLevel] = useState(0);
@@ -116,6 +123,10 @@ export function useVoiceInput({
     recorder.current = active;
 
     const buffer = new Uint8Array(analyser.fftSize);
+    const startedAt = performance.now();
+    let spoke = false;
+    let loudFrames = 0;
+    let lastLoud = startedAt;
     const tick = () => {
       if (recorder.current !== active) return;
       analyser.getByteTimeDomainData(buffer);
@@ -124,6 +135,23 @@ export function useVoiceInput({
         peak = Math.max(peak, Math.abs((buffer[i] ?? 128) - 128) / 128);
       }
       setLevel(Math.min(1, peak * 1.8));
+      if (autoStop) {
+        const now = performance.now();
+        if (peak > 0.08) {
+          loudFrames += 1;
+          if (loudFrames > 4) spoke = true;
+          lastLoud = now;
+        } else loudFrames = 0;
+        if (spoke && now - lastLoud > 1300) {
+          void stopRef.current?.();
+          return;
+        }
+        if (!spoke && now - startedAt > 12000) {
+          cancelRef.current?.();
+          onIdle?.();
+          return;
+        }
+      }
       active.raf = requestAnimationFrame(tick);
     };
     active.raf = requestAnimationFrame(tick);
