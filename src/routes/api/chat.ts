@@ -540,12 +540,38 @@ export const Route = createFileRoute("/api/chat")({
                 area: z.string().nullable().describe("Optional district or area name"),
               }),
               execute: async ({ facility_type, area }) => {
+                const place = area ? resolveUgandaPlace(area) : null;
+                if (place) {
+                  const { data, error } = await supabase
+                    .from("facilities")
+                    .select("name, facility_type, phone, address, district, latitude, longitude")
+                    .eq("facility_type", facility_type)
+                    .not("latitude", "is", null)
+                    .not("longitude", "is", null);
+                  if (error) return { ok: false, message: "Directory lookup failed." };
+                  const toRad = (v: number) => (v * Math.PI) / 180;
+                  const ranked = (data ?? [])
+                    .map((row) => {
+                      const dLat = toRad(Number(row.latitude) - place.lat);
+                      const dLng = toRad(Number(row.longitude) - place.lng);
+                      const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(place.lat)) * Math.cos(toRad(Number(row.latitude))) * Math.sin(dLng / 2) ** 2;
+                      return { ...row, distance_km: Math.round(2 * 6371 * Math.asin(Math.min(1, Math.sqrt(s))) * 10) / 10 };
+                    })
+                    .sort((a, b) => a.distance_km - b.distance_km)
+                    .slice(0, 5);
+                  if (ranked.length) {
+                    return { ok: true, resolved_area: `${place.name}, ${place.district}`, facilities: ranked, note: "distance_km is straight-line from the centre of the named area; never state travel time." };
+                  }
+                }
                 let query = supabase
                   .from("facilities")
                   .select("name, facility_type, phone, address, district, latitude, longitude")
                   .eq("facility_type", facility_type)
                   .limit(5);
-                if (area) query = query.ilike("district", `%${area}%`);
+                if (area) {
+                  const p = `%${area.replace(/[,()%]/g, " ").trim()}%`;
+                  query = query.or(`district.ilike.${p},name.ilike.${p},address.ilike.${p}`);
+                }
                 const { data, error } = await query;
                 if (error) return { ok: false, message: "Directory lookup failed." };
                 return { ok: true, facilities: data ?? [] };
@@ -748,8 +774,19 @@ export const Route = createFileRoute("/api/chat")({
                 latitude: z.number().optional().describe("Latitude the user shared, if any."),
                 longitude: z.number().optional().describe("Longitude the user shared, if any."),
               }),
-              execute: async ({ area, incident_type, latitude, longitude }) => {
+              execute: async ({ area, incident_type, latitude: inLat, longitude: inLng }) => {
                 const cleaned = area.trim();
+                let latitude = inLat;
+                let longitude = inLng;
+                let resolvedFrom: string | null = null;
+                if (!(Number.isFinite(latitude) && Number.isFinite(longitude))) {
+                  const place = resolveUgandaPlace(cleaned);
+                  if (place) {
+                    latitude = place.lat;
+                    longitude = place.lng;
+                    resolvedFrom = `${place.name}, ${place.district}`;
+                  }
+                }
                 const hasCoords =
                   typeof latitude === "number" &&
                   typeof longitude === "number" &&
