@@ -163,8 +163,9 @@ export function VoiceAssistant() {
       "Just tell me what you need.",
     ];
     let i = 0;
+    const run = ++introRunRef.current;
     const next = () => {
-      if (!activeRef.current) return;
+      if (!activeRef.current || run !== introRunRef.current) return;
       if (i >= lines.length) {
         setIntro(false);
         setSpeaking(false);
