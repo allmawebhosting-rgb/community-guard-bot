@@ -1,3 +1,4 @@
+import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   convertToModelMessages,
