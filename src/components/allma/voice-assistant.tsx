@@ -53,6 +53,7 @@ export function VoiceAssistant() {
   const [hint, setHint] = useState("");
   const [intro, setIntro] = useState(false);
   const [shown, setShown] = useState(0);
+  const [docked, setDocked] = useState(false); // voice stays on, page visible
   const introRunRef = useRef(0);
   const skipIntro = () => {
     introRunRef.current++;
@@ -126,7 +127,12 @@ export function VoiceAssistant() {
         if (data.onboardingChanged) window.dispatchEvent(new Event("allma:onboarding-sync"));
         let exit = false;
         for (const a of data.actions ?? []) {
-          if (a.type === "navigate" && a.to) void navigate({ to: a.to as "/" });
+          if (a.type === "navigate" && a.to) {
+            introRunRef.current++;
+            setIntro(false);
+            setDocked(true);
+            void navigate({ to: a.to as "/" });
+          }
           if (a.type === "back") window.history.back();
           if (a.type === "request_location") navigator.geolocation?.getCurrentPosition(() => {}, () => {});
           if (a.type === "sos") {
@@ -236,6 +242,7 @@ export function VoiceAssistant() {
         if (data.user) {
           const st = await fetchOnboardingState(data.user.id);
           if (!st.completed) {
+            setDocked(true);
             void navigate({ to: "/onboarding" });
             void ask("Hi Allma, please guide me through setting up my account by voice.");
             return;
@@ -266,6 +273,7 @@ export function VoiceAssistant() {
     voice.cancel();
     window.speechSynthesis?.cancel();
     setSpeaking(false);
+    setDocked(false);
   };
 
   stopLoopRef.current = stopLoop;
@@ -315,6 +323,46 @@ export function VoiceAssistant() {
     ? voice.level > 0.08 ? "Listening…" : "Speak now"
     : voice.transcribing ? "Understanding…" : thinking ? "Thinking…" : speaking ? "Speaking…" : "Ready";
   const scale = 1 + (voice.recording ? voice.level * 0.6 : speaking ? 0.12 : 0);
+
+  // Docked: page stays visible and usable, Allma keeps listening and talking.
+  if (docked) {
+    return (
+      <div
+        data-allma-voice-dot
+        role="region"
+        aria-label="Allma voice assistant"
+        className="fixed inset-x-3 bottom-20 z-[60] mx-auto max-w-md rounded-3xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300 md:bottom-6"
+      >
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label="Expand Allma voice"
+            onClick={() => setDocked(false)}
+            className="relative grid size-12 shrink-0 place-items-center"
+          >
+            <span
+              className={cn("absolute inset-0 rounded-full bg-gradient-to-br from-primary via-gold to-destructive opacity-60 transition-transform duration-150", (busy || speaking) && "animate-pulse")}
+              style={{ transform: `scale(${scale})` }}
+            />
+            <MascotAvatar className="relative size-10" />
+          </button>
+          <div className="min-w-0 flex-1" aria-live="polite">
+            <p className="text-xs font-semibold text-muted-foreground">{status}</p>
+            <p className="line-clamp-2 text-sm">{hint || reply || heard || "Just speak — I'm here."}</p>
+          </div>
+          {voice.recording ? (
+            <Button size="icon" aria-label="Done speaking" onClick={() => void voice.stop()}><Send className="size-4" /></Button>
+          ) : (
+            <Button size="icon" variant="outline" aria-label="Tap to speak" disabled={busy} onClick={() => { window.speechSynthesis?.cancel(); setSpeaking(false); void voice.start(); }}>
+              <Mic className="size-4" />
+            </Button>
+          )}
+          <Button size="icon" variant="ghost" aria-label="Stop voice" onClick={() => stopLoop(false)}><X className="size-4" /></Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       data-allma-voice-dot
