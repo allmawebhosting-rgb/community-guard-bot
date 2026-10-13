@@ -160,7 +160,7 @@ export function VoiceAssistant() {
     onError: (m) => {
       setHint(QUIET_ERRORS.test(m) ? "I didn't catch that — please speak again, a little closer." : m);
       if (!QUIET_ERRORS.test(m)) toast.error(m);
-      if (/Microphone/i.test(m)) setActive(false);
+      if (/Microphone/i.test(m)) setHint("Allow microphone access, or use Tap to speak.");
       else if (activeRef.current) setTimeout(() => listenRef.current(), 300);
     },
     onIdle: () => {
@@ -321,7 +321,7 @@ export function VoiceAssistant() {
       role="dialog"
       aria-modal="true"
       aria-label="Allma voice mode"
-      className="fixed inset-0 z-[70] flex flex-col bg-background/95 text-foreground backdrop-blur-xl animate-in fade-in duration-300"
+      className="fixed inset-0 z-[70] flex flex-col bg-background text-foreground animate-in fade-in duration-300"
     >
       <div className="flex items-center justify-between px-4 pb-2" style={{ paddingTop: "max(env(safe-area-inset-top), 3rem)" }}>
         <div className="flex items-center gap-2">
@@ -354,7 +354,7 @@ export function VoiceAssistant() {
                 <button
                   type="button"
                   onClick={() => { skipIntro(); void ask(a.prompt); }}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500"
+                  className="flex w-full items-center gap-3 rounded-2xl text-left border border-border bg-card p-3 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500"
                 >
                   <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl text-xl", a.iconColor)} aria-hidden>{a.emoji}</span>
                   <span className="min-w-0">
