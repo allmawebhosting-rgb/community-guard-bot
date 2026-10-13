@@ -53,6 +53,7 @@ export function VoiceAssistant() {
   const [hint, setHint] = useState("");
   const [intro, setIntro] = useState(false);
   const [shown, setShown] = useState(0);
+  const [docked, setDocked] = useState(false); // voice stays on, page visible
   const introRunRef = useRef(0);
   const skipIntro = () => {
     introRunRef.current++;
@@ -126,7 +127,12 @@ export function VoiceAssistant() {
         if (data.onboardingChanged) window.dispatchEvent(new Event("allma:onboarding-sync"));
         let exit = false;
         for (const a of data.actions ?? []) {
-          if (a.type === "navigate" && a.to) void navigate({ to: a.to as "/" });
+          if (a.type === "navigate" && a.to) {
+            introRunRef.current++;
+            setIntro(false);
+            setDocked(true);
+            void navigate({ to: a.to as "/" });
+          }
           if (a.type === "back") window.history.back();
           if (a.type === "request_location") navigator.geolocation?.getCurrentPosition(() => {}, () => {});
           if (a.type === "sos") {
@@ -236,6 +242,7 @@ export function VoiceAssistant() {
         if (data.user) {
           const st = await fetchOnboardingState(data.user.id);
           if (!st.completed) {
+            setDocked(true);
             void navigate({ to: "/onboarding" });
             void ask("Hi Allma, please guide me through setting up my account by voice.");
             return;
