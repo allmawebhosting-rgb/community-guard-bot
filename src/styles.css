@@ -1435,3 +1435,11 @@
 @media (prefers-reduced-motion: reduce) { .safety-contact-card,.safety-tier-option,.safety-edit-label svg { transition: none !important; } }
 .safety-add-dialog { background: var(--card); box-shadow: var(--shadow-lift); }
 .safety-add-header { position: relative; border-bottom: 1px solid var(--border); background: linear-gradient(145deg,color-mix(in oklab,var(--trusted) 8%,var(--card)),var(--card) 62%); }
+/* Allma Voice deck (reference: friendly listening interface) */
+.voice-deck { --vb: oklch(0.6 0.2 255); --vp: oklch(0.58 0.24 300); --vc: oklch(0.78 0.14 220); --vs: oklch(0.97 0.012 250);
+  background: radial-gradient(ellipse at 50% 30%, color-mix(in oklab,var(--vp) 10%,transparent), transparent 60%), linear-gradient(180deg,var(--vs),var(--background)); }
+.voice-title { background: linear-gradient(90deg,var(--vb),var(--vp)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.voice-orb { background: radial-gradient(circle at 30% 25%, var(--vc), var(--vb) 45%, var(--vp)); box-shadow: 0 0 0 10px color-mix(in oklab,var(--card) 85%,transparent), 0 0 60px 20px color-mix(in oklab,var(--vp) 35%,transparent), 0 0 120px 40px color-mix(in oklab,var(--vb) 20%,transparent); }
+.voice-bar { background: linear-gradient(180deg,var(--vc),var(--vb),var(--vp)); }
+.voice-card { background: color-mix(in oklab,var(--card) 80%,transparent); border: 1px solid color-mix(in oklab,var(--vb) 15%,var(--border)); box-shadow: 0 8px 24px -16px color-mix(in oklab,var(--vb) 40%,transparent); }
+@media (prefers-reduced-motion: reduce) { .voice-deck * { animation: none !important; } }
