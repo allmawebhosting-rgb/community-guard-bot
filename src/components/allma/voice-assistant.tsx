@@ -67,9 +67,27 @@ export function VoiceAssistant() {
 
   const paused = path.startsWith("/sos") || path.startsWith("/police");
 
+  // Ask every time the app is opened.
   useEffect(() => {
-    const v = localStorage.getItem(PREF_KEY);
-    setPref(v === "on" || v === "off" ? v : null);
+    setPref(null);
+  }, []);
+
+  // Broadcast the current mode and accept switches from header / profile.
+  const voiceOn = pref === "on" && active;
+  useEffect(() => {
+    const send = () => window.dispatchEvent(new CustomEvent("allma:voice-mode-state", { detail: voiceOn ? "on" : "off" }));
+    send();
+    window.addEventListener("allma:voice-mode-query", send);
+    return () => window.removeEventListener("allma:voice-mode-query", send);
+  }, [voiceOn]);
+  useEffect(() => {
+    const h = (e: Event) => {
+      const m = (e as CustomEvent<"on" | "off">).detail;
+      if (m === "on") startLoopRef.current(true);
+      else { introRunRef.current++; setIntro(false); stopLoopRef.current(true); }
+    };
+    window.addEventListener("allma:voice-mode-set", h);
+    return () => window.removeEventListener("allma:voice-mode-set", h);
   }, []);
 
   const say = useCallback((text: string) => {
