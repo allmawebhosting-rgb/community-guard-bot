@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/lib/theme";
 import { DISCLAIMER } from "@/lib/allma";
 import { Switch } from "@/components/ui/switch";
+import { VoiceModeToggle } from "@/components/allma/voice-mode-toggle";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -386,6 +387,16 @@ function ProfileScreen() {
               </p>
               <div className="mb-4 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
                 <SmartSosPrivacyCenter />
+              </div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                Assistant mode
+              </p>
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-[1.4rem] border border-border/60 bg-card/70 p-4">
+                <div>
+                  <p className="text-sm font-semibold">Voice or text</p>
+                  <p className="text-xs text-muted-foreground">Talk to Allma hands-free, or type and tap.</p>
+                </div>
+                <VoiceModeToggle />
               </div>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
                 Allma calls
