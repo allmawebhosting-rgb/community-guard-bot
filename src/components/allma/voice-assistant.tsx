@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Keyboard, Mic, MicOff, Send, X } from "lucide-react";
+import { AudioLines, ChevronRight, FileText, Heart, Home, Hospital, Keyboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Mic, Package, RotateCcw, Send, ShieldCheck, Siren, Square, UserRound, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -382,93 +382,155 @@ export function VoiceAssistant() {
     );
   }
 
+  const phase = intro ? "intro" : voice.recording ? "listening" : busy ? "thinking" : speaking ? "speaking" : "ready";
+  const headline = { intro: "Hi, I'm Allma 👋", listening: "Listening…", thinking: "One moment…", speaking: "Allma is answering", ready: "Tap to talk" }[phase];
+  const sub = { intro: "Here is what I can do for you.", listening: "Talk to me naturally. I'm here to help.", thinking: "Working on it for you…", speaking: "Speak any time to interrupt.", ready: "Tap the microphone and speak." }[phase];
+  const tapTalk = () => { skipIntro(); window.speechSynthesis?.cancel(); setSpeaking(false); void voice.start(); };
+  const repeat = () => { if (reply) { voice.cancel(); say(reply); } };
+  const lvl = voice.recording ? voice.level : speaking ? 0.35 : busy ? 0.15 : 0.04;
+  const go = (to: string) => { setDocked(true); void navigate({ to }); };
+  const cards = [
+    { label: "Report Crime", sub: "Safe & secure", icon: ShieldCheck, tone: "bg-primary/10 text-primary", prompt: "I want to report a crime." },
+    { label: "Find Hospital", sub: "Nearest care", icon: MapPin, tone: "bg-gold/20 text-foreground", prompt: "Where is the nearest hospital?" },
+    { label: "Missing Person", sub: "Share & find", icon: UserRound, tone: "bg-accent text-accent-foreground", prompt: "I need to report a missing person." },
+    { label: "Lost & Found", sub: "Recover items", icon: Package, tone: "bg-success/15 text-success", prompt: "I want to report something lost or found." },
+  ];
+  const side = [
+    { label: "Ask anything", sub: "Get instant answers", icon: Zap, prompt: "What can you help me with?" },
+    { label: "Report an incident", sub: "Share details by voice", icon: MapPin, prompt: "I want to report an incident." },
+    { label: "Emergency help", sub: 'Say "emergency"', icon: Siren, prompt: "This is an emergency. I need help right now." },
+    { label: "Find & recover", sub: "Lost items & people", icon: UserRound, prompt: "I want to report something lost or found." },
+    { label: "Locate hospital", sub: "Nearest facility", icon: Hospital, prompt: "Where is the nearest hospital?" },
+  ];
+  const nav = [
+    { label: "Home", icon: Home, to: "/" }, { label: "Chat", icon: MessageCircle, to: "/chat" },
+    { label: "Reports", icon: FileText, to: "/reports" }, { label: "Find Hospital", icon: Hospital, to: "/nearby" },
+    { label: "Lost & Found", icon: Package, to: "/lost-found" }, { label: "Profile", icon: UserRound, to: "/profile" },
+  ];
+  const Bars = ({ dir }: { dir: 1 | -1 }) => (
+    <div className={cn("flex h-24 flex-1 items-center gap-[3px]", dir === -1 ? "justify-end" : "justify-start")} aria-hidden>
+      {Array.from({ length: 16 }).map((_, k) => {
+        const i = dir === -1 ? 15 - k : k;
+        const s = Math.sin((i + 1) * 1.7) * 0.5 + 0.5;
+        const fade = 1 - i / 18;
+        return <span key={k} className={cn("voice-bar w-[3px] rounded-full transition-[height] duration-100", (speaking || busy) && "animate-pulse")} style={{ height: `${Math.max(6, Math.min(100, (0.08 + lvl * 2.2 * s) * 100 * fade))}%`, opacity: 0.35 + fade * 0.65, animationDelay: `${i * 70}ms` }} />;
+      })}
+    </div>
+  );
+
   return (
-    <div
-      data-allma-voice-dot
-      role="dialog"
-      aria-modal="true"
-      aria-label="Allma voice mode"
-      className="fixed inset-0 z-[70] flex flex-col bg-background text-foreground animate-in fade-in duration-300"
-    >
-      <div className="flex items-center justify-between px-4 pb-2" style={{ paddingTop: "max(env(safe-area-inset-top), 3rem)" }}>
-        <div className="flex items-center gap-2">
-          <MascotAvatar />
-          <div className="leading-tight">
-            <p className="text-sm font-semibold">Allma Voice</p>
-            <p className="flex items-center gap-1 text-xs text-muted-foreground"><span className="size-2 animate-pulse rounded-full bg-success" /> Online</p>
+    <div data-allma-voice-dot role="dialog" aria-modal="true" aria-label="Allma voice mode"
+      className="voice-deck fixed inset-0 z-[70] flex text-foreground animate-in fade-in duration-300">
+      {/* Desktop left rail */}
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card/70 p-4 lg:flex">
+        <div className="flex items-center gap-3"><MascotAvatar className="size-12" /><div className="leading-tight"><p className="font-bold">Allma Voice</p><p className="flex items-center gap-1 text-xs text-success"><span className="size-2 rounded-full bg-success" /> Online</p><p className="text-xs text-muted-foreground">Your Safety & Community AI</p></div></div>
+        <div className="mt-6 flex items-center gap-3 rounded-xl bg-primary/10 px-3 py-2.5 text-sm font-semibold text-primary"><Mic className="size-4" /> Voice Mode</div>
+        <nav className="mt-2 grid gap-1">
+          {nav.map((n) => <button key={n.label} type="button" onClick={() => go(n.to)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm hover:bg-muted"><n.icon className="size-4" /> {n.label}</button>)}
+          <button type="button" onClick={() => { skipIntro(); void ask("This is an emergency. I need help right now."); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-destructive hover:bg-destructive/10"><Siren className="size-4" /> Emergency SOS</button>
+        </nav>
+        <div className="mt-auto rounded-2xl bg-muted p-3 text-sm"><Heart className="mb-1 size-5 text-primary" />Together for a safer community<div className="mt-2 flex h-1.5 w-10 overflow-hidden rounded"><span className="flex-1 bg-foreground" /><span className="flex-1 bg-gold" /><span className="flex-1 bg-destructive" /></div></div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Header */}
+        <header className="flex items-center justify-between gap-3 px-4 pb-2 lg:px-8" style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}>
+          <div className="flex items-center gap-3 lg:invisible">
+            <MascotAvatar className="size-12" />
+            <div className="leading-tight"><p className="font-bold">Allma Voice</p><p className="flex items-center gap-1 text-xs text-success"><span className="size-2 animate-pulse rounded-full bg-success" /> Online</p><p className="text-xs text-muted-foreground">Your Safety & Community AI</p></div>
           </div>
-        </div>
-        <Button size="sm" variant="ghost" onClick={() => { skipIntro(); stopLoop(true); }}>
-          <X className="size-4" /> Text mode
-        </Button>
-      </div>
+          <div className="flex items-center gap-2">
+            <span className="voice-card inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold text-primary"><Mic className="size-3.5" /> {voice.recording ? "Voice Active" : "Voice Mode"}<span className={cn("size-2 rounded-full", voice.recording ? "bg-success animate-pulse" : "bg-muted-foreground")} /></span>
+            <Button size="icon" variant="ghost" aria-label="Switch to text mode" onClick={() => { skipIntro(); stopLoop(true); }}><Keyboard className="size-5" /></Button>
+          </div>
+        </header>
 
-      <div className="flex flex-1 flex-col items-center gap-5 overflow-y-auto px-6 py-4 text-center">
-        <div className="relative mt-2 grid size-48 shrink-0 place-items-center">
-          <span
-            className={cn(
-              "absolute inset-0 rounded-full blur-3xl transition-colors duration-500",
-              voice.recording ? "bg-success/30" : busy ? "bg-gold/30" : speaking ? "bg-primary/30" : "bg-muted",
-              (busy || speaking) && "animate-pulse",
-            )}
-          />
-          <span
-            className="absolute inset-4 rounded-full bg-gradient-to-br from-primary via-gold to-destructive opacity-70 transition-transform duration-100 ease-out"
-            style={{ transform: `scale(${scale})` }}
-          />
-          <span className={cn("absolute inset-8 rounded-full bg-background/80", busy && "animate-ping")} />
-          <Mascot size={110} priority className="relative" />
-        </div>
-        <Waves level={voice.recording ? voice.level : speaking ? 0.35 : busy ? 0.15 : 0} animated={speaking || busy} />
-        <span
-          className={cn(
-            "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
-            voice.recording ? "border-success/40 text-success" : busy ? "border-gold/50 text-foreground" : "border-border text-muted-foreground",
-          )}
-        >
-          <span className={cn("size-2 rounded-full", voice.recording ? "bg-success animate-pulse" : busy ? "bg-gold animate-pulse" : speaking ? "bg-primary animate-pulse" : "bg-muted-foreground")} />
-          {status}
-        </span>
-        <p className="text-2xl font-semibold" aria-live="polite">{intro ? "Hello, I'm Allma" : voice.recording ? "I'm listening" : busy ? "One moment…" : speaking ? "Allma is answering" : "Tap to speak"}</p>
-        {(intro || shown > 0) && !heard && (
-          <ul className="grid w-full max-w-md gap-2 text-left">
-            {QUICK_ACTIONS.slice(0, shown).map((a) => (
-              <li key={a.id}>
-                <button
-                  type="button"
-                  onClick={() => { skipIntro(); void ask(a.prompt); }}
-                  className="flex w-full items-center gap-3 rounded-2xl text-left border border-border bg-card p-3 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500"
-                >
-                  <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl text-xl", a.iconColor)} aria-hidden>{a.emoji}</span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold">{a.label}</span>
-                    <span className="block text-xs text-muted-foreground">{a.description}</span>
-                  </span>
-                </button>
-              </li>
+        <div className="flex min-h-0 flex-1">
+          <main className="flex min-w-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-4 pb-6 text-center lg:justify-center">
+            <MascotAvatar className="hidden size-28 lg:block" />
+            <div>
+              <h2 className={cn("text-3xl font-bold tracking-tight lg:text-5xl", phase === "listening" && "voice-title")} aria-live="polite">{headline}</h2>
+              <p className="mt-1 text-muted-foreground">{sub}</p>
+            </div>
+
+            <div className="flex w-full max-w-3xl items-center gap-3">
+              <Bars dir={-1} />
+              <button type="button" aria-label={voice.recording ? "Done speaking" : "Tap to talk"} disabled={busy}
+                onClick={() => (voice.recording ? void voice.stop() : tapTalk())}
+                className="voice-orb grid size-36 shrink-0 place-items-center rounded-full text-primary-foreground transition-transform duration-100 ease-out lg:size-44"
+                style={{ transform: `scale(${scale})` }}>
+                {voice.recording ? <Mic className="size-14" /> : busy ? <Loader2 className="size-12 animate-spin" /> : <Mic className="size-14" />}
+              </button>
+              <Bars dir={1} />
+            </div>
+
+            <span className={cn("inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold",
+              voice.recording ? "border-success/30 bg-success/10 text-success" : busy ? "border-gold/40 bg-gold/15" : speaking ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground")}>
+              <span className={cn("size-2 rounded-full", voice.recording ? "bg-success animate-pulse" : busy ? "bg-gold animate-pulse" : speaking ? "bg-primary animate-pulse" : "bg-muted-foreground")} />
+              {voice.recording ? "Handsfree · Listening" : status.replace("…", "")}
+            </span>
+
+            <div className="voice-card flex w-full max-w-lg items-start gap-3 rounded-2xl p-4 text-left" aria-live="polite">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><AudioLines className="size-5" /></span>
+              <div className="min-w-0 flex-1 space-y-2">
+                {heard && <p className="text-sm"><span className="font-semibold">You: </span>{heard}</p>}
+                {reply ? <p className="text-sm leading-relaxed"><span className="font-semibold text-primary">Allma: </span>{reply}</p>
+                  : !heard && <><p className="font-semibold">I'm listening for your voice…</p><p className="text-sm text-muted-foreground">Speak now — I'll respond automatically.</p></>}
+                {hint && <p className="text-sm text-destructive">{hint}</p>}
+              </div>
+            </div>
+
+            {/* Mobile controls */}
+            <div className="grid w-full max-w-lg grid-cols-3 gap-2 lg:hidden">
+              <button type="button" onClick={() => { skipIntro(); stopLoop(false); }} className="flex items-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/5 p-2.5 text-left"><Square className="size-5 shrink-0 text-destructive" /><span className="leading-tight"><span className="block text-sm font-semibold text-destructive">Stop</span><span className="text-[11px] text-muted-foreground">end voice</span></span></button>
+              <button type="button" disabled={!reply} onClick={repeat} className="voice-card flex items-center gap-2 rounded-2xl p-2.5 text-left disabled:opacity-50"><RotateCcw className="size-5 shrink-0 text-primary" /><span className="leading-tight"><span className="block text-sm font-semibold text-primary">Repeat</span><span className="text-[11px] text-muted-foreground">last reply</span></span></button>
+              <button type="button" onClick={() => { skipIntro(); stopLoop(true); }} className="voice-card flex items-center gap-2 rounded-2xl p-2.5 text-left"><LogOut className="size-5 shrink-0" /><span className="leading-tight"><span className="block text-sm font-semibold">Exit</span><span className="text-[11px] text-muted-foreground">voice mode</span></span></button>
+            </div>
+
+            <button type="button" onClick={() => { skipIntro(); void ask("This is an emergency. I need help right now."); }}
+              className="flex w-full max-w-lg items-center gap-4 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-left lg:hidden">
+              <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-destructive text-destructive-foreground"><Siren className="size-6" /></span>
+              <span className="flex-1"><span className="block font-bold">Emergency SOS</span><span className="text-sm text-muted-foreground">Say "emergency" or "help"</span></span>
+              <ChevronRight className="size-5 text-destructive" />
+            </button>
+
+            <ul className="grid w-full max-w-lg grid-cols-2 gap-2 sm:grid-cols-4 lg:hidden">
+              {cards.slice(0, intro ? Math.max(0, shown - 1) : 4).map((c) => (
+                <li key={c.label}>
+                  <button type="button" onClick={() => { skipIntro(); void ask(c.prompt); }} className="voice-card flex h-full w-full flex-col gap-2 rounded-2xl p-3 text-left animate-in fade-in slide-in-from-top-4 duration-500">
+                    <span className="flex items-center justify-between"><span className={cn("grid size-9 place-items-center rounded-xl", c.tone)}><c.icon className="size-5" /></span><ChevronRight className="size-4 text-muted-foreground" /></span>
+                    <span><span className="block text-sm font-bold">{c.label}</span><span className="text-xs text-muted-foreground">{c.sub}</span></span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop controls */}
+            <div className="voice-card hidden items-center gap-1 rounded-full p-1.5 lg:flex">
+              {voice.recording
+                ? <Button variant="ghost" className="rounded-full" onClick={() => void voice.stop()}><Send className="size-4" /> Done speaking</Button>
+                : <Button variant="ghost" className="rounded-full" disabled={busy} onClick={tapTalk}><Mic className="size-4" /> Tap to talk</Button>}
+              <Button variant="ghost" className="rounded-full" disabled={!reply} onClick={repeat}><RotateCcw className="size-4" /> Repeat</Button>
+              <Button variant="ghost" className="rounded-full text-destructive" onClick={() => { skipIntro(); stopLoop(false); }}><Square className="size-4 fill-current" /> End</Button>
+            </div>
+
+            <div className="voice-card flex w-full max-w-lg items-center justify-between gap-2 rounded-full px-4 py-2 text-xs text-muted-foreground lg:hidden">
+              <span className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-primary" /> Allma is here to keep you safe</span>
+              {voice.recording && <span className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 font-medium text-success"><Lock className="size-3" /> Mic active</span>}
+            </div>
+          </main>
+
+          {/* Desktop right quick actions */}
+          <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto p-6 lg:flex">
+            {side.map((c) => (
+              <button key={c.label} type="button" onClick={() => { skipIntro(); void ask(c.prompt); }} className="voice-card flex items-center gap-3 rounded-2xl p-3 text-left transition-transform hover:-translate-y-0.5">
+                <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", c.icon === Siren ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground")}><c.icon className="size-5" /></span>
+                <span><span className="block text-sm font-bold">{c.label}</span><span className="text-xs text-muted-foreground">{c.sub}</span></span>
+              </button>
             ))}
-          </ul>
-        )}
-        <div className="w-full max-w-xl space-y-3 text-left">
-          {heard && (
-            <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2 text-sm text-primary-foreground animate-in fade-in slide-in-from-bottom-2 duration-300">{heard}</p>
-          )}
-          {reply && (
-            <p className="w-fit max-w-[90%] rounded-2xl rounded-bl-md border border-border bg-card px-4 py-3 text-base leading-relaxed shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">{reply}</p>
-          )}
-          {hint && <p className="text-center text-sm text-destructive">{hint}</p>}
+            <p className="mt-auto -rotate-6 text-right font-serif text-xl italic text-primary">Safer Communities<br />Stronger Uganda <Heart className="inline size-4 text-destructive" /></p>
+          </aside>
         </div>
-      </div>
-
-      <div className="flex justify-center gap-3 p-6 pb-10">
-        {voice.recording ? (
-          <Button size="lg" onClick={() => void voice.stop()}><Send className="size-4" /> Done speaking</Button>
-        ) : (
-          <Button size="lg" variant="outline" disabled={busy} onClick={() => { skipIntro(); window.speechSynthesis?.cancel(); setSpeaking(false); void voice.start(); }}>
-            <Mic className="size-4" /> Tap to speak
-          </Button>
-        )}
-        <Button size="lg" variant="ghost" onClick={() => { skipIntro(); stopLoop(false); }}><MicOff className="size-4" /> Minimise</Button>
       </div>
     </div>
   );
