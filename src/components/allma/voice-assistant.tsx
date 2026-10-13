@@ -36,6 +36,22 @@ function speak(text: string, onEnd: () => void) {
 
 const QUIET_ERRORS = /empty|No speech/i;
 
+const BAR_SHAPE = [0.35, 0.6, 0.85, 1, 0.75, 0.95, 0.65, 0.45, 0.8, 0.55, 0.3];
+
+function Waves({ level, animated, small }: { level: number; animated?: boolean; small?: boolean }) {
+  return (
+    <div className={cn("flex items-center justify-center gap-1", small ? "h-5" : "h-12")} aria-hidden>
+      {BAR_SHAPE.slice(0, small ? 5 : BAR_SHAPE.length).map((s, i) => (
+        <span
+          key={i}
+          className={cn("w-1 rounded-full bg-primary transition-[height] duration-100 ease-out", animated && "animate-pulse")}
+          style={{ height: `${Math.max(12, Math.min(100, (0.12 + level * 1.6 * s) * 100))}%`, animationDelay: `${i * 90}ms` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /**
  * Hands-free, invisible voice assistant. Listens continuously, sends
  * automatically when the person stops talking, acts and replies aloud,
@@ -347,7 +363,10 @@ export function VoiceAssistant() {
             <MascotAvatar className="relative size-10" />
           </button>
           <div className="min-w-0 flex-1" aria-live="polite">
-            <p className="text-xs font-semibold text-muted-foreground">{status}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold text-muted-foreground">{status}</p>
+              <Waves small level={voice.recording ? voice.level : speaking ? 0.35 : 0} animated={speaking || busy} />
+            </div>
             <p className="line-clamp-2 text-sm">{hint || reply || heard || "Just speak — I'm here."}</p>
           </div>
           {voice.recording ? (
@@ -385,16 +404,32 @@ export function VoiceAssistant() {
       </div>
 
       <div className="flex flex-1 flex-col items-center gap-5 overflow-y-auto px-6 py-4 text-center">
-        <div className="relative mt-2 grid size-44 shrink-0 place-items-center">
-          <span className={cn("absolute inset-0 rounded-full bg-primary/20 blur-2xl", (busy || speaking) && "animate-pulse")} />
+        <div className="relative mt-2 grid size-48 shrink-0 place-items-center">
           <span
-            className="absolute inset-3 rounded-full bg-gradient-to-br from-primary via-gold to-destructive opacity-70 transition-transform duration-150"
+            className={cn(
+              "absolute inset-0 rounded-full blur-3xl transition-colors duration-500",
+              voice.recording ? "bg-success/30" : busy ? "bg-gold/30" : speaking ? "bg-primary/30" : "bg-muted",
+              (busy || speaking) && "animate-pulse",
+            )}
+          />
+          <span
+            className="absolute inset-4 rounded-full bg-gradient-to-br from-primary via-gold to-destructive opacity-70 transition-transform duration-100 ease-out"
             style={{ transform: `scale(${scale})` }}
           />
-          <span className={cn("absolute inset-7 rounded-full bg-background/70", busy && "animate-ping")} />
+          <span className={cn("absolute inset-8 rounded-full bg-background/80", busy && "animate-ping")} />
           <Mascot size={110} priority className="relative" />
         </div>
-        <p className="text-2xl font-semibold" aria-live="polite">{intro ? "Hello, I'm Allma" : status}</p>
+        <Waves level={voice.recording ? voice.level : speaking ? 0.35 : busy ? 0.15 : 0} animated={speaking || busy} />
+        <span
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
+            voice.recording ? "border-success/40 text-success" : busy ? "border-gold/50 text-foreground" : "border-border text-muted-foreground",
+          )}
+        >
+          <span className={cn("size-2 rounded-full", voice.recording ? "bg-success animate-pulse" : busy ? "bg-gold animate-pulse" : speaking ? "bg-primary animate-pulse" : "bg-muted-foreground")} />
+          {status}
+        </span>
+        <p className="text-2xl font-semibold" aria-live="polite">{intro ? "Hello, I'm Allma" : voice.recording ? "I'm listening" : busy ? "One moment…" : speaking ? "Allma is answering" : "Tap to speak"}</p>
         {(intro || shown > 0) && !heard && (
           <ul className="grid w-full max-w-md gap-2 text-left">
             {QUICK_ACTIONS.slice(0, shown).map((a) => (
@@ -414,10 +449,14 @@ export function VoiceAssistant() {
             ))}
           </ul>
         )}
-        <div className="max-w-xl space-y-3">
-          {heard && <p className="text-base text-muted-foreground">"{heard}"</p>}
-          {reply && <p className="text-lg leading-relaxed">{reply}</p>}
-          {hint && <p className="text-sm text-destructive">{hint}</p>}
+        <div className="w-full max-w-xl space-y-3 text-left">
+          {heard && (
+            <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2 text-sm text-primary-foreground animate-in fade-in slide-in-from-bottom-2 duration-300">{heard}</p>
+          )}
+          {reply && (
+            <p className="w-fit max-w-[90%] rounded-2xl rounded-bl-md border border-border bg-card px-4 py-3 text-base leading-relaxed shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">{reply}</p>
+          )}
+          {hint && <p className="text-center text-sm text-destructive">{hint}</p>}
         </div>
       </div>
 

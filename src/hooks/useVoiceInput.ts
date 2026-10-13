@@ -128,26 +128,31 @@ export function useVoiceInput({
     let spoke = false;
     let loudFrames = 0;
     let lastLoud = startedAt;
-    let noise = 0.02;
+    let noise = 0.015;
+    let smooth = 0;
     const tick = () => {
       if (recorder.current !== active) return;
       analyser.getByteTimeDomainData(buffer);
-      let peak = 0;
+      let sum = 0;
       for (let i = 0; i < buffer.length; i += 1) {
-        peak = Math.max(peak, Math.abs((buffer[i] ?? 128) - 128) / 128);
+        const v = ((buffer[i] ?? 128) - 128) / 128;
+        sum += v * v;
       }
-      setLevel(Math.min(1, peak * 1.8));
+      const rms = Math.sqrt(sum / buffer.length);
+      const peak = rms * 2.2;
+      smooth = smooth * 0.6 + Math.min(1, peak * 2.4) * 0.4;
+      setLevel(smooth);
       if (autoStop) {
         const now = performance.now();
-        // Learn background noise only during the first second, before speech.
-        if (!spoke && now - startedAt < 1000) noise = noise * 0.9 + Math.min(peak, 0.15) * 0.1;
-        const threshold = Math.min(0.12, Math.max(0.03, noise * 1.8));
+        const threshold = Math.min(0.1, Math.max(0.025, noise * 2.2));
+        // Learn background noise only from quiet frames, so speaking early never raises it.
+        if (peak <= threshold) noise = noise * 0.97 + Math.min(peak, 0.08) * 0.03;
         if (peak > threshold) {
           loudFrames += 1; // cumulative — short dips no longer reset speech detection
-          if (loudFrames > 6) spoke = true;
+          if (loudFrames > 5) spoke = true;
           lastLoud = now;
         }
-        if (spoke && now - lastLoud > 1300) {
+        if (spoke && now - lastLoud > 950) {
           void stopRef.current?.();
           return;
         }
