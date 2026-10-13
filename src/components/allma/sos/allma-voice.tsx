@@ -60,29 +60,89 @@ export function AllmaVoice({
   const handleError = useCallback((error: string) => toast.error(error), []);
   const voiceInput = useVoiceInput({ onTranscript: handleTranscript, onError: handleError });
 
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
+  const lastSpokeRef = useRef(Date.now());
+  const announce = useCallback((text: string) => {
+    setMessage(text);
+    lastSpokeRef.current = Date.now();
+    if (mutedRef.current) return;
+    speak(text, () => setStatus("speaking"), () => setStatus("ready"));
+  }, []);
+
+  // Narrate the real escalation as it happens — every line maps to controller state.
   useEffect(() => {
     if (!activityId) return;
     const controller = getSosEscalation(activityId, "other");
+    let prev = { priority: -1, round: 0, answered: false, noTargets: false, failed: 0, wait: false };
+    const roleName = (p: number) => (p === 1 ? "primary" : p === 2 ? "backup" : "additional");
     const sync = () => {
-      const connected = Boolean(controller.state.answered);
+      const s = controller.state;
+      const connected = Boolean(s.answered);
       setResponderConnected(connected);
-      if (connected) {
-        window.speechSynthesis?.cancel();
-        setStatus("quiet");
-        setMessage("Allma will stay available quietly while you speak.");
+      if (connected && !prev.answered) {
+        const name = s.answered?.full_name || "Your contact";
+        announce(`${name} has answered and is on the line with you. I will stay quiet so you can talk.`);
+        prev.answered = true;
+        return;
       }
+      if (connected) return;
+      if (s.noTargets && !prev.noTargets) {
+        prev.noTargets = true;
+        announce("You have no reachable Safety Network contacts right now. Your alert is still active. If you are in danger, call Police on 999 or Emergency on 112.");
+      }
+      if (s.priority > 0 && s.priority !== prev.priority) {
+        const names = s.targets
+          .filter((t) => !t.ineligible_reason && Math.min(Math.max(t.priority || 3, 1), 3) === s.priority)
+          .map((t) => t.full_name)
+          .slice(0, 3);
+        const who = names.length ? names.join(" and ") : `your ${roleName(s.priority)} contacts`;
+        const lead = prev.priority > 0 ? `No answer yet. Moving to your ${roleName(s.priority)} contacts. ` : "";
+        announce(`${lead}I am calling ${who} now. Stay with me, help from your network is being reached.`);
+      }
+      const waiting = s.priority === 0 && s.round > 0 && s.waitSeconds != null;
+      if (waiting && !prev.wait) {
+        announce(`Nobody has answered yet, but I am not giving up. I will call everyone again in ${s.waitSeconds} seconds. Your alert and location stay active.`);
+      }
+      const failed = s.attempts.filter((a) => ["missed", "declined", "rejected", "unanswered"].includes(a.status)).length;
+      prev = { ...prev, priority: s.priority, round: s.round, failed, wait: waiting };
     };
     sync();
     return controller.subscribe(sync);
-  }, [activityId]);
+  }, [activityId, announce]);
+
+  useEffect(() => {
+    if (responderConnected) {
+      window.speechSynthesis?.cancel();
+      setStatus("quiet");
+    }
+  }, [responderConnected]);
 
   useEffect(() => {
     if (greeted.current || muted || responderConnected) return;
     greeted.current = true;
-    setMessage(ACTIVATION_MESSAGE);
-    speak(ACTIVATION_MESSAGE, () => setStatus("speaking"), () => setStatus("ready"));
-    return () => window.speechSynthesis?.cancel();
-  }, [muted, responderConnected]);
+    announce(ACTIVATION_MESSAGE);
+  }, [muted, responderConnected, announce]);
+
+  // Gentle reassurance while waiting, so the person never feels alone.
+  useEffect(() => {
+    if (responderConnected) return;
+    const lines = [
+      "I am still here with you. Your emergency is active and your Safety Network is being called.",
+      "Take a slow breath in, and out. Keep your phone close. I am staying with you.",
+      "If you can, move toward people or a safe, lit place. Your location is being shared with your contacts.",
+      "You are doing well. Keep listening for your phone. If you are in immediate danger, call 999 or 112.",
+    ];
+    let i = 0;
+    const id = setInterval(() => {
+      if (voiceInput.recording || window.speechSynthesis?.speaking) return;
+      if (Date.now() - lastSpokeRef.current < 25_000) return;
+      announce(lines[i++ % lines.length]);
+    }, 5_000);
+    return () => clearInterval(id);
+  }, [responderConnected, announce, voiceInput.recording]);
+
+  useEffect(() => () => window.speechSynthesis?.cancel(), []);
 
   useEffect(() => {
     if (!voiceInput.recording) return;
