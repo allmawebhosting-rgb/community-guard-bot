@@ -1440,7 +1440,7 @@
   --vn: oklch(0.24 0.06 265); --vm: oklch(0.5 0.04 265); color: var(--vn);
   background: radial-gradient(60% 40% at 15% 0%, color-mix(in oklab,var(--vc) 22%,transparent), transparent 70%), radial-gradient(55% 45% at 90% 20%, color-mix(in oklab,var(--vp) 16%,transparent), transparent 70%), linear-gradient(180deg, oklch(0.975 0.015 240), oklch(0.985 0.01 290)); }
 .voice-avatar-ring { background: linear-gradient(135deg,var(--vc),var(--vb),var(--vp)); }
-.voice-chip { background: color-mix(in oklab,var(--card) 85%,transparent); color: var(--vb); border: 1px solid color-mix(in oklab,var(--vb) 18%,transparent); }
+:where(.voice-chip) { background: color-mix(in oklab,var(--card) 85%,transparent); color: var(--vb); border: 1px solid color-mix(in oklab,var(--vb) 18%,transparent); }
 .voice-ctrl { background: var(--card); border: 1px solid color-mix(in oklab,var(--vn) 14%,transparent); box-shadow: 0 1px 2px color-mix(in oklab,var(--vn) 8%,transparent); transition: transform .15s, background .15s; }
 .voice-ctrl:hover { background: var(--card); }
 .voice-ctrl:focus-visible { outline: 2px solid var(--vb); outline-offset: 2px; }
