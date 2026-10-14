@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { AudioLines, ChevronRight, Flame, Map, ShieldAlert, FileText, Heart, Home, Hospital, Keyboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Mic, Package, RotateCcw, Send, ShieldCheck, Siren, Square, UserRound, X, Zap } from "lucide-react";
+import { AudioLines, ChevronRight, Flame, Map as MapIcon, ShieldAlert, FileText, Heart, Home, Hospital, Keyboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Mic, Package, RotateCcw, Send, ShieldCheck, Siren, Square, UserRound, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -505,7 +505,7 @@ export function VoiceAssistant() {
 
             <div className="flex w-full max-w-lg items-center justify-between gap-2 pt-1 text-left lg:hidden">
               <div className="flex min-w-0 items-center gap-2"><MapPin className="size-5 shrink-0 text-primary" /><div className="min-w-0"><p className="truncate font-bold">Nearby Help</p><p className="truncate text-xs text-muted-foreground">Find the right help, near you.</p></div></div>
-              <button type="button" onClick={() => go("/nearby")} className="voice-card inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-primary"><Map className="size-4" /> View on Map <ChevronRight className="size-3.5" /></button>
+              <button type="button" onClick={() => go("/nearby")} className="voice-card inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-primary"><MapIcon className="size-4" /> View on Map <ChevronRight className="size-3.5" /></button>
             </div>
 
             <ul className="grid w-full max-w-lg grid-cols-2 gap-2 lg:hidden">
