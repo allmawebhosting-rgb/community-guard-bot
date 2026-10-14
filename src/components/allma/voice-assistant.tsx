@@ -70,6 +70,14 @@ export function VoiceAssistant() {
   const [intro, setIntro] = useState(false);
   const [shown, setShown] = useState(0);
   const [docked, setDocked] = useState(false); // voice stays on, page visible
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const u = () => setOnline(navigator.onLine);
+    u();
+    window.addEventListener("online", u);
+    window.addEventListener("offline", u);
+    return () => { window.removeEventListener("online", u); window.removeEventListener("offline", u); };
+  }, []);
   const introRunRef = useRef(0);
   const skipIntro = () => {
     introRunRef.current++;
