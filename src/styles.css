@@ -1437,7 +1437,22 @@
 .safety-add-header { position: relative; border-bottom: 1px solid var(--border); background: linear-gradient(145deg,color-mix(in oklab,var(--trusted) 8%,var(--card)),var(--card) 62%); }
 /* Allma Voice deck (reference: friendly listening interface) */
 .voice-deck { --vb: oklch(0.6 0.2 255); --vp: oklch(0.58 0.24 300); --vc: oklch(0.78 0.14 220); --vs: oklch(0.97 0.012 250);
-  background: radial-gradient(ellipse at 50% 30%, color-mix(in oklab,var(--vp) 10%,transparent), transparent 60%), linear-gradient(180deg,var(--vs),var(--background)); }
+  --vn: oklch(0.24 0.06 265); --vm: oklch(0.5 0.04 265); color: var(--vn);
+  background: radial-gradient(60% 40% at 15% 0%, color-mix(in oklab,var(--vc) 22%,transparent), transparent 70%), radial-gradient(55% 45% at 90% 20%, color-mix(in oklab,var(--vp) 16%,transparent), transparent 70%), linear-gradient(180deg, oklch(0.975 0.015 240), oklch(0.985 0.01 290)); }
+.voice-avatar-ring { background: linear-gradient(135deg,var(--vc),var(--vb),var(--vp)); }
+:where(.voice-chip) { background: color-mix(in oklab,var(--card) 85%,transparent); color: var(--vb); border: 1px solid color-mix(in oklab,var(--vb) 18%,transparent); }
+.voice-ctrl { background: var(--card); border: 1px solid color-mix(in oklab,var(--vn) 14%,transparent); box-shadow: 0 1px 2px color-mix(in oklab,var(--vn) 8%,transparent); transition: transform .15s, background .15s; }
+.voice-ctrl:hover { background: var(--card); }
+.voice-ctrl:focus-visible { outline: 2px solid var(--vb); outline-offset: 2px; }
+.voice-stage { background: linear-gradient(180deg, color-mix(in oklab,var(--card) 85%,transparent), color-mix(in oklab,var(--card) 60%,transparent)); border: 1px solid color-mix(in oklab,var(--vb) 14%,transparent); box-shadow: 0 20px 50px -30px color-mix(in oklab,var(--vb) 45%,transparent); }
+.voice-bubble { background: var(--card); border: 1px solid color-mix(in oklab,var(--vb) 14%,transparent); }
+.voice-tile { background: var(--card); border: 1px solid color-mix(in oklab,var(--vn) 14%,transparent); box-shadow: 0 10px 22px -12px color-mix(in oklab,var(--vn) 50%,transparent); }
+.voice-tile:focus-visible, .voice-sos:focus-visible { outline: 2px solid var(--vb); outline-offset: 2px; }
+.voice-sos { background: linear-gradient(100deg, color-mix(in oklab,var(--destructive) 12%,var(--card)), var(--card)); border: 1px solid color-mix(in oklab,var(--destructive) 28%,transparent); box-shadow: 0 10px 24px -18px var(--destructive); }
+.voice-orb[data-phase="listening"] { animation: voice-breathe 2.4s ease-in-out infinite; }
+.voice-orb[data-phase="speaking"] { background: radial-gradient(circle at 30% 25%, var(--vc), var(--vp) 55%, var(--vb)); }
+.voice-orb[data-phase="thinking"] { filter: saturate(.8); }
+@keyframes voice-breathe { 50% { box-shadow: 0 0 0 14px color-mix(in oklab,var(--card) 80%,transparent), 0 0 80px 30px color-mix(in oklab,var(--vc) 40%,transparent), 0 0 140px 50px color-mix(in oklab,var(--vb) 22%,transparent); } }
 .voice-title { background: linear-gradient(90deg,var(--vb),var(--vp)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .voice-orb { background: radial-gradient(circle at 30% 25%, var(--vc), var(--vb) 45%, var(--vp)); box-shadow: 0 0 0 10px color-mix(in oklab,var(--card) 85%,transparent), 0 0 60px 20px color-mix(in oklab,var(--vp) 35%,transparent), 0 0 120px 40px color-mix(in oklab,var(--vb) 20%,transparent); }
 .voice-bar { background: linear-gradient(180deg,var(--vc),var(--vb),var(--vp)); }
