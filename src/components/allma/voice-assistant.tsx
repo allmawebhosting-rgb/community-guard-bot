@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { AudioLines, ChevronRight, FileText, Heart, Home, Hospital, Keyboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Mic, Package, RotateCcw, Send, ShieldCheck, Siren, Square, UserRound, X, Zap } from "lucide-react";
+import { AudioLines, ChevronRight, Flame, Map, ShieldAlert, FileText, Heart, Home, Hospital, Keyboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Mic, Package, RotateCcw, Send, ShieldCheck, Siren, Square, UserRound, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -390,10 +390,10 @@ export function VoiceAssistant() {
   const lvl = voice.recording ? voice.level : speaking ? 0.35 : busy ? 0.15 : 0.04;
   const go = (to: string) => { setDocked(true); void navigate({ to }); };
   const cards = [
-    { label: "Report Crime", sub: "Safe & secure", icon: ShieldCheck, tone: "bg-primary/10 text-primary", prompt: "I want to report a crime." },
-    { label: "Find Hospital", sub: "Nearest care", icon: MapPin, tone: "bg-gold/20 text-foreground", prompt: "Where is the nearest hospital?" },
-    { label: "Missing Person", sub: "Share & find", icon: UserRound, tone: "bg-accent text-accent-foreground", prompt: "I need to report a missing person." },
-    { label: "Lost & Found", sub: "Recover items", icon: Package, tone: "bg-success/15 text-success", prompt: "I want to report something lost or found." },
+    { label: "Find Hospital", sub: "Hospitals & clinics", icon: Hospital, tone: "bg-success/15 text-success", prompt: "Where is the nearest hospital?" },
+    { label: "Find Police", sub: "Stations & support", icon: ShieldCheck, tone: "bg-primary/10 text-primary", prompt: "Where is the nearest police station?" },
+    { label: "Fire & Ambulance", sub: "Fire & ambulance", icon: Flame, tone: "bg-gold/25 text-foreground", prompt: "Where is the nearest fire station or ambulance service?" },
+    { label: "Report Crime", sub: "Report incidents", icon: ShieldAlert, tone: "bg-destructive/10 text-destructive", prompt: "I want to report a crime." },
   ];
   const side = [
     { label: "Ask anything", sub: "Get instant answers", icon: Zap, prompt: "What can you help me with?" },
@@ -435,71 +435,86 @@ export function VoiceAssistant() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <header className="flex items-center justify-between gap-3 px-4 pb-2 lg:px-8" style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}>
-          <div className="flex items-center gap-3 lg:invisible">
-            <MascotAvatar className="size-12" />
-            <div className="leading-tight"><p className="font-bold">Allma Voice</p><p className="flex items-center gap-1 text-xs text-success"><span className="size-2 animate-pulse rounded-full bg-success" /> Online</p><p className="text-xs text-muted-foreground">Your Safety & Community AI</p></div>
+          <div className="flex min-w-0 items-center gap-2.5 lg:invisible">
+            <MascotAvatar className="size-11 border-2" />
+            <div className="min-w-0 leading-tight"><p className="truncate font-bold">Allma Voice</p><p className="flex items-center gap-1 text-xs text-success"><span className="size-2 animate-pulse rounded-full bg-success" /> Online</p><p className="truncate text-xs text-muted-foreground">Your Safety & Community AI</p></div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             <span className="voice-card inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold text-primary"><Mic className="size-3.5" /> {voice.recording ? "Voice Active" : "Voice Mode"}<span className={cn("size-2 rounded-full", voice.recording ? "bg-success animate-pulse" : "bg-muted-foreground")} /></span>
-            <Button size="icon" variant="ghost" aria-label="Switch to text mode" onClick={() => { skipIntro(); stopLoop(true); }}><Keyboard className="size-5" /></Button>
+            <Button size="icon" variant="outline" className="rounded-xl" aria-label="Switch to text mode" onClick={() => { skipIntro(); stopLoop(true); }}><Keyboard className="size-5" /></Button>
           </div>
         </header>
 
         <div className="flex min-h-0 flex-1">
-          <main className="flex min-w-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-4 pb-6 text-center lg:justify-center">
+          <main className="flex min-w-0 flex-1 flex-col items-center gap-3 overflow-y-auto overscroll-contain px-4 text-center lg:justify-center lg:gap-4 lg:pb-6" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}>
             <MascotAvatar className="hidden size-28 lg:block" />
-            <div>
-              <h2 className={cn("text-3xl font-bold tracking-tight lg:text-5xl", phase === "listening" && "voice-title")} aria-live="polite">{headline}</h2>
+            <div className="hidden lg:block">
+              <h2 className={cn("text-3xl font-bold tracking-tight lg:text-5xl", phase === "listening" && "voice-title")}>{headline}</h2>
               <p className="mt-1 text-muted-foreground">{sub}</p>
             </div>
 
-            <div className="flex w-full max-w-3xl items-center gap-3">
+            <div className="flex w-full max-w-3xl items-center gap-2 pt-1 lg:gap-3">
               <Bars dir={-1} />
               <button type="button" aria-label={voice.recording ? "Done speaking" : "Tap to talk"} disabled={busy}
                 onClick={() => (voice.recording ? void voice.stop() : tapTalk())}
-                className="voice-orb grid size-36 shrink-0 place-items-center rounded-full text-primary-foreground transition-transform duration-100 ease-out lg:size-44"
+                className="voice-orb grid size-28 shrink-0 place-items-center rounded-full text-primary-foreground transition-transform duration-100 ease-out active:scale-95 sm:size-32 lg:size-44"
                 style={{ transform: `scale(${scale})` }}>
-                {voice.recording ? <Mic className="size-14" /> : busy ? <Loader2 className="size-12 animate-spin" /> : <Mic className="size-14" />}
+                {busy ? <Loader2 className="size-10 animate-spin lg:size-12" /> : <Mic className="size-11 lg:size-14" />}
               </button>
               <Bars dir={1} />
             </div>
 
-            <span className={cn("inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold",
-              voice.recording ? "border-success/30 bg-success/10 text-success" : busy ? "border-gold/40 bg-gold/15" : speaking ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground")}>
-              <span className={cn("size-2 rounded-full", voice.recording ? "bg-success animate-pulse" : busy ? "bg-gold animate-pulse" : speaking ? "bg-primary animate-pulse" : "bg-muted-foreground")} />
-              {voice.recording ? "Handsfree · Listening" : status.replace("…", "")}
-            </span>
-
-            <div className="voice-card flex w-full max-w-lg items-start gap-3 rounded-2xl p-4 text-left" aria-live="polite">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><AudioLines className="size-5" /></span>
-              <div className="min-w-0 flex-1 space-y-2">
-                {heard && <p className="text-sm"><span className="font-semibold">You: </span>{heard}</p>}
-                {reply ? <p className="text-sm leading-relaxed"><span className="font-semibold text-primary">Allma: </span>{reply}</p>
-                  : !heard && <><p className="font-semibold">I'm listening for your voice…</p><p className="text-sm text-muted-foreground">Speak now — I'll respond automatically.</p></>}
-                {hint && <p className="text-sm text-destructive">{hint}</p>}
-              </div>
+            <div className="voice-card w-full max-w-xs rounded-2xl px-4 py-2" aria-live="polite">
+              <p className={cn("flex items-center justify-center gap-2 text-base font-bold",
+                phase === "listening" ? "text-success" : phase === "thinking" ? "text-foreground" : phase === "speaking" ? "text-primary" : "text-foreground")}>
+                <span className={cn("size-2.5 rounded-full", phase === "listening" ? "bg-success animate-pulse" : phase === "thinking" ? "bg-gold animate-pulse" : phase === "speaking" ? "bg-primary animate-pulse" : "bg-muted-foreground")} />
+                {hint ? "Something went wrong" : { intro: "Introducing…", listening: "I'm listening…", thinking: "Processing…", speaking: "Speaking…", ready: "Ready" }[phase]}
+              </p>
+              <p className="text-xs text-muted-foreground">{hint ? hint : phase === "ready" ? "Tap the mic to talk." : "Speak naturally — I'll respond automatically."}</p>
             </div>
 
+            {(heard || reply) && (
+              <div className="voice-card w-full max-w-lg space-y-1.5 rounded-2xl p-3 text-left">
+                {heard && <p className="text-sm"><span className="font-semibold">You: </span>{heard}</p>}
+                {reply && <p className="line-clamp-4 text-sm leading-relaxed"><span className="font-semibold text-primary">Allma: </span>{reply}</p>}
+              </div>
+            )}
+
             {/* Mobile controls */}
-            <div className="grid w-full max-w-lg grid-cols-3 gap-2 lg:hidden">
-              <button type="button" onClick={() => { skipIntro(); stopLoop(false); }} className="flex items-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/5 p-2.5 text-left"><Square className="size-5 shrink-0 text-destructive" /><span className="leading-tight"><span className="block text-sm font-semibold text-destructive">Stop</span><span className="text-[11px] text-muted-foreground">end voice</span></span></button>
-              <button type="button" disabled={!reply} onClick={repeat} className="voice-card flex items-center gap-2 rounded-2xl p-2.5 text-left disabled:opacity-50"><RotateCcw className="size-5 shrink-0 text-primary" /><span className="leading-tight"><span className="block text-sm font-semibold text-primary">Repeat</span><span className="text-[11px] text-muted-foreground">last reply</span></span></button>
-              <button type="button" onClick={() => { skipIntro(); stopLoop(true); }} className="voice-card flex items-center gap-2 rounded-2xl p-2.5 text-left"><LogOut className="size-5 shrink-0" /><span className="leading-tight"><span className="block text-sm font-semibold">Exit</span><span className="text-[11px] text-muted-foreground">voice mode</span></span></button>
+            <div className="voice-card grid w-full max-w-lg grid-cols-3 gap-1.5 rounded-2xl p-1.5 lg:hidden">
+              <button type="button" onClick={() => { skipIntro(); stopLoop(false); }} className="flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-2 text-left active:scale-[0.97]">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground"><Square className="size-3.5 fill-current" /></span>
+                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold text-destructive">Stop</span><span className="block truncate text-[11px] text-muted-foreground">end voice</span></span>
+              </button>
+              <button type="button" disabled={!reply} onClick={repeat} className="flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-2 text-left active:scale-[0.97] disabled:opacity-45">
+                <RotateCcw className="size-5 shrink-0 text-primary" />
+                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold text-primary">Repeat</span><span className="block truncate text-[11px] text-muted-foreground">last reply</span></span>
+              </button>
+              <button type="button" onClick={() => { skipIntro(); stopLoop(true); }} className="flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-2 text-left active:scale-[0.97]">
+                <LogOut className="size-5 shrink-0" />
+                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold">Exit</span><span className="block truncate text-[11px] text-muted-foreground">hands-free</span></span>
+              </button>
             </div>
 
             <button type="button" onClick={() => { skipIntro(); void ask("This is an emergency. I need help right now."); }}
-              className="flex w-full max-w-lg items-center gap-4 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-left lg:hidden">
-              <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-destructive text-destructive-foreground"><Siren className="size-6" /></span>
-              <span className="flex-1"><span className="block font-bold">Emergency SOS</span><span className="text-sm text-muted-foreground">Say "emergency" or "help"</span></span>
-              <ChevronRight className="size-5 text-destructive" />
+              className="flex w-full max-w-lg items-center gap-3 rounded-2xl border border-destructive/30 bg-gradient-to-r from-destructive/15 to-destructive/5 p-3 text-left shadow-sm active:scale-[0.99] lg:hidden">
+              <span className="grid size-12 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground shadow-md"><Siren className="size-6" /></span>
+              <span className="min-w-0 flex-1"><span className="block text-base font-bold text-destructive">Emergency SOS</span><span className="block text-xs text-muted-foreground">Say "emergency" or "help", or tap</span></span>
+              <ChevronRight className="size-5 shrink-0 text-destructive" />
             </button>
 
-            <ul className="grid w-full max-w-lg grid-cols-2 gap-2 sm:grid-cols-4 lg:hidden">
+            <div className="flex w-full max-w-lg items-center justify-between gap-2 pt-1 text-left lg:hidden">
+              <div className="flex min-w-0 items-center gap-2"><MapPin className="size-5 shrink-0 text-primary" /><div className="min-w-0"><p className="truncate font-bold">Nearby Help</p><p className="truncate text-xs text-muted-foreground">Find the right help, near you.</p></div></div>
+              <button type="button" onClick={() => go("/nearby")} className="voice-card inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-primary"><Map className="size-4" /> View on Map <ChevronRight className="size-3.5" /></button>
+            </div>
+
+            <ul className="grid w-full max-w-lg grid-cols-2 gap-2 lg:hidden">
               {cards.slice(0, intro ? Math.max(0, shown - 1) : 4).map((c) => (
-                <li key={c.label}>
-                  <button type="button" onClick={() => { skipIntro(); void ask(c.prompt); }} className="voice-card flex h-full w-full flex-col gap-2 rounded-2xl p-3 text-left animate-in fade-in slide-in-from-top-4 duration-500">
-                    <span className="flex items-center justify-between"><span className={cn("grid size-9 place-items-center rounded-xl", c.tone)}><c.icon className="size-5" /></span><ChevronRight className="size-4 text-muted-foreground" /></span>
-                    <span><span className="block text-sm font-bold">{c.label}</span><span className="text-xs text-muted-foreground">{c.sub}</span></span>
+                <li key={c.label} className="min-w-0">
+                  <button type="button" onClick={() => { skipIntro(); void ask(c.prompt); }} className="voice-card flex h-full w-full min-w-0 items-center gap-2.5 rounded-2xl p-3 text-left active:scale-[0.98] animate-in fade-in slide-in-from-top-4 duration-500">
+                    <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", c.tone)}><c.icon className="size-5" /></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{c.label}</span><span className="block truncate text-[11px] text-muted-foreground">{c.sub}</span></span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                   </button>
                 </li>
               ))}
