@@ -437,7 +437,7 @@ export function VoiceAssistant() {
         <header className="flex items-center justify-between gap-3 px-4 pb-2 lg:px-8" style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}>
           <div className="flex min-w-0 items-center gap-2.5 lg:invisible">
             <MascotAvatar className="size-11 border-2" />
-            <div className="min-w-0 leading-tight"><p className="truncate font-bold">Allma Voice</p><p className="flex items-center gap-1 text-xs text-success"><span className="size-2 animate-pulse rounded-full bg-success" /> Online</p><p className="truncate text-xs text-muted-foreground">Your Safety & Community AI</p></div>
+            <div className="min-w-0 leading-tight"><p className="font-bold">Allma Voice</p><p className="flex items-center gap-1 text-xs text-success"><span className="size-2 animate-pulse rounded-full bg-success" /> Online</p><p className="text-xs text-muted-foreground">Your Safety & Community AI</p></div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <span className="voice-card inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold text-primary"><Mic className="size-3.5" /> {voice.recording ? "Voice Active" : "Voice Mode"}<span className={cn("size-2 rounded-full", voice.recording ? "bg-success animate-pulse" : "bg-muted-foreground")} /></span>
@@ -457,14 +457,14 @@ export function VoiceAssistant() {
               <Bars dir={-1} />
               <button type="button" aria-label={voice.recording ? "Done speaking" : "Tap to talk"} disabled={busy}
                 onClick={() => (voice.recording ? void voice.stop() : tapTalk())}
-                className="voice-orb grid size-28 shrink-0 place-items-center rounded-full text-primary-foreground transition-transform duration-100 ease-out active:scale-95 sm:size-32 lg:size-44"
+                className="voice-orb grid size-[clamp(7rem,19dvh,10rem)] shrink-0 place-items-center rounded-full text-primary-foreground transition-transform duration-100 ease-out active:scale-95 lg:size-44"
                 style={{ transform: `scale(${scale})` }}>
                 {busy ? <Loader2 className="size-10 animate-spin lg:size-12" /> : <Mic className="size-11 lg:size-14" />}
               </button>
               <Bars dir={1} />
             </div>
 
-            <div className="voice-card w-full max-w-xs rounded-2xl px-4 py-2" aria-live="polite">
+            <div className="voice-card w-full max-w-sm rounded-2xl px-4 py-2" aria-live="polite">
               <p className={cn("flex items-center justify-center gap-2 text-base font-bold",
                 phase === "listening" ? "text-success" : phase === "thinking" ? "text-foreground" : phase === "speaking" ? "text-primary" : "text-foreground")}>
                 <span className={cn("size-2.5 rounded-full", phase === "listening" ? "bg-success animate-pulse" : phase === "thinking" ? "bg-gold animate-pulse" : phase === "speaking" ? "bg-primary animate-pulse" : "bg-muted-foreground")} />
@@ -481,18 +481,18 @@ export function VoiceAssistant() {
             )}
 
             {/* Mobile controls */}
-            <div className="voice-card grid w-full max-w-lg grid-cols-3 gap-1.5 rounded-2xl p-1.5 lg:hidden">
+            <div className="voice-card grid w-full max-w-lg grid-cols-2 gap-1.5 rounded-2xl p-1.5 min-[400px]:grid-cols-3 lg:hidden">
               <button type="button" onClick={() => { skipIntro(); stopLoop(false); }} className="flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-2 text-left active:scale-[0.97]">
                 <span className="grid size-8 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground"><Square className="size-3.5 fill-current" /></span>
-                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold text-destructive">Stop</span><span className="block truncate text-[11px] text-muted-foreground">end voice</span></span>
+                <span className="min-w-0 leading-tight"><span className="block text-sm font-semibold text-destructive">Stop</span><span className="block text-[11px] text-muted-foreground">end voice</span></span>
               </button>
               <button type="button" disabled={!reply} onClick={repeat} className="flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-2 text-left active:scale-[0.97] disabled:opacity-45">
                 <RotateCcw className="size-5 shrink-0 text-primary" />
-                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold text-primary">Repeat</span><span className="block truncate text-[11px] text-muted-foreground">last reply</span></span>
+                <span className="min-w-0 leading-tight"><span className="block text-sm font-semibold text-primary">Repeat</span><span className="block text-[11px] text-muted-foreground">last reply</span></span>
               </button>
               <button type="button" onClick={() => { skipIntro(); stopLoop(true); }} className="flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-2 text-left active:scale-[0.97]">
                 <LogOut className="size-5 shrink-0" />
-                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold">Exit</span><span className="block truncate text-[11px] text-muted-foreground">hands-free</span></span>
+                <span className="min-w-0 leading-tight"><span className="block text-sm font-semibold">Exit</span><span className="block text-[11px] text-muted-foreground">hands-free</span></span>
               </button>
             </div>
 
@@ -503,17 +503,17 @@ export function VoiceAssistant() {
               <ChevronRight className="size-5 shrink-0 text-destructive" />
             </button>
 
-            <div className="flex w-full max-w-lg items-center justify-between gap-2 pt-1 text-left lg:hidden">
-              <div className="flex min-w-0 items-center gap-2"><MapPin className="size-5 shrink-0 text-primary" /><div className="min-w-0"><p className="truncate font-bold">Nearby Help</p><p className="truncate text-xs text-muted-foreground">Find the right help, near you.</p></div></div>
+            <div className="flex w-full max-w-lg flex-wrap items-center justify-between gap-2 pt-1 text-left lg:hidden">
+              <div className="flex min-w-0 items-center gap-2"><MapPin className="size-5 shrink-0 text-primary" /><div className="min-w-0"><p className="font-bold">Nearby Help</p><p className="text-xs text-muted-foreground">Find the right help, near you.</p></div></div>
               <button type="button" onClick={() => go("/nearby")} className="voice-card inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-primary"><MapIcon className="size-4" /> View on Map <ChevronRight className="size-3.5" /></button>
             </div>
 
-            <ul className="grid w-full max-w-lg grid-cols-2 gap-2 lg:hidden">
+            <ul className="grid w-full max-w-lg grid-cols-1 gap-2 min-[350px]:grid-cols-2 lg:hidden">
               {cards.slice(0, intro ? Math.max(0, shown - 1) : 4).map((c) => (
                 <li key={c.label} className="min-w-0">
-                  <button type="button" onClick={() => { skipIntro(); void ask(c.prompt); }} className="voice-card flex h-full w-full min-w-0 items-center gap-2.5 rounded-2xl p-3 text-left active:scale-[0.98] animate-in fade-in slide-in-from-top-4 duration-500">
-                    <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", c.tone)}><c.icon className="size-5" /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{c.label}</span><span className="block truncate text-[11px] text-muted-foreground">{c.sub}</span></span>
+                  <button type="button" onClick={() => { skipIntro(); void ask(c.prompt); }} className="voice-card flex h-full w-full min-w-0 items-center gap-2.5 rounded-2xl p-2.5 text-left active:scale-[0.98] animate-in fade-in slide-in-from-top-4 duration-500">
+                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-full", c.tone)}><c.icon className="size-[18px]" /></span>
+                    <span className="min-w-0 flex-1"><span className="block text-sm font-bold leading-tight">{c.label}</span><span className="block text-[11px] leading-tight text-muted-foreground">{c.sub}</span></span>
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                   </button>
                 </li>
