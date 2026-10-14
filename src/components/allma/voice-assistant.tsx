@@ -416,7 +416,7 @@ export function VoiceAssistant() {
     { label: "Lost & Found", icon: Package, to: "/lost-found" }, { label: "Profile", icon: UserRound, to: "/profile" },
   ];
   const Bars = ({ dir }: { dir: 1 | -1 }) => (
-    <div className={cn("flex h-24 flex-1 items-center gap-[3px]", dir === -1 ? "justify-end" : "justify-start")} aria-hidden>
+    <div className={cn("flex h-[clamp(3rem,9dvh,5.5rem)] min-w-0 flex-1 items-center gap-[3px] overflow-hidden", dir === -1 ? "justify-end" : "justify-start")} aria-hidden>
       {Array.from({ length: 16 }).map((_, k) => {
         const i = dir === -1 ? 15 - k : k;
         const s = Math.sin((i + 1) * 1.7) * 0.5 + 0.5;
