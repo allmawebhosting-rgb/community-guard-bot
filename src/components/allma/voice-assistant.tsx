@@ -456,7 +456,7 @@ export function VoiceAssistant() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="voice-chip hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold min-[380px]:inline-flex"><AudioLines className="size-3.5" /> Voice Mode</span>
+            <span className="voice-chip hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold min-[410px]:inline-flex"><AudioLines className="size-3.5" /> Voice Mode</span>
             <button type="button" className="voice-ctrl grid size-10 place-items-center rounded-full" aria-label="Switch to text mode" onClick={() => { skipIntro(); stopLoop(true); }}><Keyboard className="size-[18px]" /></button>
           </div>
         </header>
