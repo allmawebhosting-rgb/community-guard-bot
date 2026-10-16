@@ -44,6 +44,7 @@ import { Route as ApiVoiceAssistantRouteImport } from './routes/api/voice-assist
 import { Route as ApiZegoTokenRouteImport } from './routes/api/zego-token'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
@@ -245,6 +246,11 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => BlogRoute,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -402,6 +408,7 @@ export interface FileRoutesByFullPath {
   '/api/voice-assistant': typeof ApiVoiceAssistantRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/blog/': typeof BlogIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -457,6 +464,7 @@ export interface FileRoutesByTo {
   '/api/voice-assistant': typeof ApiVoiceAssistantRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/blog': typeof BlogIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -516,6 +524,7 @@ export interface FileRoutesById {
   '/api/voice-assistant': typeof ApiVoiceAssistantRoute
   '/api/zego-token': typeof ApiZegoTokenRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/blog/': typeof BlogIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -575,6 +584,7 @@ export interface FileRouteTypes {
     | '/api/voice-assistant'
     | '/api/zego-token'
     | '/blog/$slug'
+    | '/invite/$token'
     | '/blog/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -630,6 +640,7 @@ export interface FileRouteTypes {
     | '/api/voice-assistant'
     | '/api/zego-token'
     | '/blog/$slug'
+    | '/invite/$token'
     | '/blog'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -688,6 +699,7 @@ export interface FileRouteTypes {
     | '/api/voice-assistant'
     | '/api/zego-token'
     | '/blog/$slug'
+    | '/invite/$token'
     | '/blog/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -738,6 +750,7 @@ export interface RootRouteChildren {
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiVoiceAssistantRoute: typeof ApiVoiceAssistantRoute
   ApiZegoTokenRoute: typeof ApiZegoTokenRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
@@ -988,6 +1001,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/blog/$slug'
       preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof BlogRoute
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
@@ -1250,6 +1270,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiVoiceAssistantRoute: ApiVoiceAssistantRoute,
   ApiZegoTokenRoute: ApiZegoTokenRoute,
+  InviteTokenRoute: InviteTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }

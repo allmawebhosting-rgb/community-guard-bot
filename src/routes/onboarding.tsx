@@ -27,6 +27,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BrandLockup } from "@/components/allma/brand";
 import { Mascot } from "@/components/allma/mascot";
 import { ImportContacts } from "@/components/allma/safety-network/import-contacts";
+import { WhatsAppInvite } from "@/components/allma/safety-network/whatsapp-invite";
 import { SafetyNetworkPanel } from "@/components/allma/safety-network/safety-network-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -788,6 +789,7 @@ function CircleStep({
       </div>
       {signedIn && (
         <div className="mb-6 space-y-4">
+          <WhatsAppInvite />
           <ImportContacts />
           <SafetyNetworkPanel />
         </div>
