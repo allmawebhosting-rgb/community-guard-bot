@@ -118,6 +118,46 @@ export async function removeConnection(id: string) {
   if (error) throw new Error(friendly(error.message));
 }
 
+// ---- WhatsApp / share-link invites ----
+export type SafetyInvite = {
+  inviter_name: string;
+  inviter_avatar: string | null;
+  safety_role: string;
+  priority: number;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  expired: boolean;
+  is_own: boolean;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rpc = (name: string, args: Record<string, unknown>) => (supabase.rpc as any)(name, args);
+
+export async function createSafetyInvite(role: string, priority: number): Promise<string> {
+  const { data, error } = await rpc("create_safety_invite", { _role: role, _priority: priority });
+  if (error) throw new Error(friendly(error.message));
+  return data as string;
+}
+
+export async function getSafetyInvite(token: string): Promise<SafetyInvite | null> {
+  const { data, error } = await rpc("get_safety_invite", { _token: token });
+  if (error) throw new Error(friendly(error.message));
+  return ((data as SafetyInvite[] | null) ?? [])[0] ?? null;
+}
+
+export async function respondToSafetyInvite(token: string, action: "accept" | "decline") {
+  const { data, error } = await rpc("respond_to_safety_invite", { _token: token, _action: action });
+  if (error) throw new Error(friendly(error.message));
+  return data as string;
+}
+
+export function inviteUrl(token: string) {
+  return `${window.location.origin}/invite/${token}`;
+}
+
+export function inviteText(url: string, role: string) {
+  return `Hi! I've chosen you as my ${role.toLowerCase()} emergency contact on ALLMA Safety AI. If I ever press SOS, you'll get my alert and location. Tap to accept: ${url}`;
+}
+
 export function inviteMessage(origin: string) {
   return `I'm using Allma Safety AI to stay safe. Join my safety network: ${origin}`;
 }

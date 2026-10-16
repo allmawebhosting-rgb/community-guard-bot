@@ -23,6 +23,8 @@ export async function fetchOnboardingState(userId: string): Promise<OnboardingSt
 
 /** Where a freshly signed-in user should land. */
 export async function resolvePostAuthPath(userId: string, next?: string) {
+  // Invite links must finish first so the connection isn't lost behind onboarding.
+  if (next?.startsWith("/invite")) return next;
   const state = await fetchOnboardingState(userId);
   if (!state.completed) return "/onboarding";
   return next ?? "/dashboard";
