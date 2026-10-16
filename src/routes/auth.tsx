@@ -13,6 +13,29 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { DISCLAIMER } from "@/lib/allma";
 import { resolvePostAuthPath } from "@/lib/onboarding";
+import { formatLocalInput, isLikelyValidPhone } from "@/lib/phone";
+import { phoneLoginEmail } from "@/lib/phone-auth";
+import { signUpWithPhone } from "@/lib/phone-auth.functions";
+
+function PhoneField({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>Phone number</Label>
+      <div className="flex items-center gap-2">
+        <span className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium">🇺🇬 +256</span>
+        <Input
+          id={id}
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          placeholder="772 123 456"
+          value={formatLocalInput(value)}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { next?: string } =>
@@ -69,6 +92,8 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
+  const [useEmail, setUseEmail] = useState(false);
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -102,6 +127,33 @@ function AuthPage() {
     if (error) return toast.error(error.message);
     if (!data.session) { setCheckEmail(true); return; }
     void goNext(data.session.user.id);
+  }
+
+  async function phoneSignIn() {
+    if (!isLikelyValidPhone(phone)) return toast.error("Enter a valid phone number.");
+    if (password.length < 6) return toast.error("Enter your PIN or password.");
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: phoneLoginEmail(phone)!, password });
+    setLoading(false);
+    if (error) return toast.error("Phone number or PIN is incorrect.");
+    void goNext();
+  }
+
+  async function phoneSignUp() {
+    if (!isLikelyValidPhone(phone)) return toast.error("Enter a valid phone number.");
+    if (password.length < 6) return toast.error("Your PIN or password needs at least 6 characters.");
+    setLoading(true);
+    try {
+      const res = await signUpWithPhone({ data: { phone, password, fullName } });
+      if (!res.ok) { setLoading(false); return toast.error(res.error); }
+      const { error } = await supabase.auth.signInWithPassword({ email: phoneLoginEmail(phone)!, password });
+      setLoading(false);
+      if (error) return toast.error("Account created. Please sign in.");
+      void goNext();
+    } catch (e) {
+      setLoading(false);
+      toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+    }
   }
 
   async function google() {
@@ -197,7 +249,7 @@ function AuthPage() {
                     Back
                   </Button>
                 </div>
-              ) : (
+              ) : useEmail ? (
                 <Tabs defaultValue="signin" className="lg:mt-5">
                   <TabsList className="mb-5 grid w-full grid-cols-2 rounded-full">
                     <TabsTrigger value="signin" className="rounded-full">Sign in</TabsTrigger>
@@ -237,7 +289,47 @@ function AuthPage() {
                       Create account <ArrowRight className="ml-1.5 h-4 w-4" />
                     </Button>
                   </TabsContent>
+                  <button type="button" onClick={() => setUseEmail(false)} className="mt-3 w-full text-center text-[12px] font-medium text-primary">
+                    Use my phone number instead
+                  </button>
                 </Tabs>
+              ) : (
+                <Tabs defaultValue="signup" className="lg:mt-5">
+                  <TabsList className="mb-5 grid w-full grid-cols-2 rounded-full">
+                    <TabsTrigger value="signup" className="rounded-full">Join free</TabsTrigger>
+                    <TabsTrigger value="signin" className="rounded-full">Sign in</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="signup" className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="p-name">Your name</Label>
+                      <Input id="p-name" autoComplete="name" value={fullName} maxLength={80} onChange={(e) => setFullName(e.target.value)} />
+                    </div>
+                    <PhoneField id="p-phone-up" value={phone} onChange={setPhone} />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="p-pin-up">Create a PIN or password</Label>
+                      <Input id="p-pin-up" type="password" inputMode="text" autoComplete="new-password" placeholder="At least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+                    </div>
+                    <Button className="w-full rounded-full" disabled={loading} onClick={phoneSignUp}>
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Create my account <ArrowRight className="ml-1.5 h-4 w-4" />
+                    </Button>
+                  </TabsContent>
+                  <TabsContent value="signin" className="space-y-3">
+                    <PhoneField id="p-phone-in" value={phone} onChange={setPhone} />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="p-pin-in">PIN or password</Label>
+                      <Input id="p-pin-in" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                    </div>
+                    <Button className="w-full rounded-full" disabled={loading} onClick={phoneSignIn}>
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Sign in <ArrowRight className="ml-1.5 h-4 w-4" />
+                    </Button>
+                  </TabsContent>
+                  <button type="button" onClick={() => setUseEmail(true)} className="mt-3 w-full text-center text-[12px] font-medium text-primary">
+                    Use email instead
+                  </button>
+                </Tabs>
+
               )}
 
               <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
