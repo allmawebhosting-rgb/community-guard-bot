@@ -9,7 +9,7 @@ import { ContactSetupSheet, savePendingSetup, type ContactSetup } from "./contac
 
 type Imported = { name: string; phone: string };
 type Row = Imported & {
-  status: "checking" | "member" | "not_member" | "invalid" | "sent" | "sending";
+  status: "checking" | "member" | "not_member" | "invalid" | "sent" | "sending" | "invited";
   match?: MemberMatch | null;
 };
 
@@ -119,7 +119,7 @@ export function ImportContacts({ onRequestSent }: { onRequestSent?: () => void }
     } else {
       window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
     }
-    setRows((p) => p.map((r) => (r.phone === row.phone ? { ...r, status: "sent" } : r)));
+    setRows((p) => p.map((r) => (r.phone === row.phone ? { ...r, status: "invited" } : r)));
     void inviteMessage;
   }
 
@@ -186,6 +186,7 @@ export function ImportContacts({ onRequestSent }: { onRequestSent?: () => void }
                       {row.match?.relationship_state === "request_sent" && " · request pending"}
                     </span>
                   )}
+                  {row.status === "invited" && <span className="text-success">Invite opened — send it to finish</span>}
                   {row.status === "sent" && <span className="text-success">Request sent — awaiting acceptance</span>}
                 </p>
               </div>
