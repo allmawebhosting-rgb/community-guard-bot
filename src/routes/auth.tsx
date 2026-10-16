@@ -22,7 +22,7 @@ function PhoneField({ id, value, onChange }: { id: string; value: string; onChan
     <div className="space-y-1.5">
       <Label htmlFor={id}>Phone number</Label>
       <div className="flex items-center gap-2">
-        <span className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium">🇺🇬 +256</span>
+        <span className="flex h-10 items-center rounded-md border border-input shrink-0 whitespace-nowrap bg-muted px-3 text-sm font-medium">UG +256</span>
         <Input
           id={id}
           type="tel"
