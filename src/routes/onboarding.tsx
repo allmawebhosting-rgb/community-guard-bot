@@ -26,6 +26,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { BrandLockup } from "@/components/allma/brand";
 import { Mascot } from "@/components/allma/mascot";
+import { ImportContacts } from "@/components/allma/safety-network/import-contacts";
 import { SafetyNetworkPanel } from "@/components/allma/safety-network/safety-network-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -775,8 +776,8 @@ function CircleStep({
     <>
       <StepIntro
         eyebrow="03 · Safety Network"
-        title="Build your trusted response team."
-        description="Choose people you trust to support you during an emergency. Every connection requires their consent."
+        title="Who should Allma contact in an emergency?"
+        description="Import people from your phone contacts or search by number. Allma reaches them in the order you set — your first person is called first, then the next if they don’t answer."
         icon={Users}
       />
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-trusted/20 bg-trusted/5 p-4">
@@ -786,7 +787,8 @@ function CircleStep({
         </p>
       </div>
       {signedIn && (
-        <div className="mb-6">
+        <div className="mb-6 space-y-4">
+          <ImportContacts />
           <SafetyNetworkPanel />
         </div>
       )}
@@ -975,8 +977,8 @@ function PlanStep({
     <>
       <StepIntro
         eyebrow="04 · Emergency plan"
-        title="Decide what Allma should do."
-        description="You’re in control. These preferences guide Allma during SOS, while safety rules always apply — especially in violent or armed emergencies."
+        title="What should Allma do when you need help?"
+        description="Choose what happens after you trigger SOS, in this order: your people, nearby responders, then official services. You’re in control. These preferences guide Allma during SOS, while safety rules always apply — especially in violent or armed emergencies."
         icon={Shield}
       />
       <div className="space-y-2">

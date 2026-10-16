@@ -87,7 +87,7 @@ export function AddSafetyContactDialog({
       }}
     >
       <DialogContent
-        className="safety-add-dialog w-[calc(100vw-1.5rem)] max-w-lg gap-0 overflow-hidden rounded-2xl border-border/60 p-0 sm:w-full"
+        className="safety-add-dialog max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl border-border/60 p-0 sm:w-full"
       >
         <DialogHeader className="safety-add-header space-y-2 px-5 pb-5 pt-6 text-left sm:px-6">
           <div className="flex items-center gap-3">
