@@ -112,41 +112,62 @@ export function ImportContacts({ onRequestSent }: { onRequestSent?: () => void }
   }
 
   function invite(row: Row) {
-    const text = inviteMessage(window.location.origin);
-    if (navigator.share) {
-      void navigator.share({ title: "Join me on Allma", text }).catch(() => undefined);
-      return;
+    const text = `Hi ${row.name}, I've added you as my emergency contact on ALLMA Safety AI. Please join so you can get my alerts if I ever need help: ${window.location.origin}/auth`;
+    const digits = row.phone.replace(/\D/g, "");
+    if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+      window.location.href = `sms:${row.phone}${/iPhone|iPad/i.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(text)}`;
+    } else {
+      window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
     }
-    window.open(`https://wa.me/${row.phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+    setRows((p) => p.map((r) => (r.phone === row.phone ? { ...r, status: "sent" } : r)));
+    void inviteMessage;
   }
+
+  const [qr, setQr] = useState<string | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const desktop = !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+    setIsDesktop(desktop);
+    if (!desktop) return;
+    void import("qrcode").then((QR) =>
+      QR.toDataURL(`${window.location.origin}/safety-network?from=qr`, { width: 220, margin: 1 }).then(setQr),
+    );
+  }, []);
 
   return (
     <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
-      <p className="text-[13px] font-bold">Import from your phone contacts</p>
+      <p className="text-[13px] font-bold">Add people from your phone contacts</p>
       <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
-        Pick the people you want Allma to reach in an emergency. We only check which of them use Allma — nothing is uploaded or saved.
+        Pick the people Allma should reach in an emergency. We only check who already uses Allma — your contact list is never uploaded.
       </p>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        {supported && (
-          <Button type="button" onClick={() => void pick()} className="h-11 flex-1 rounded-xl text-[13px] font-bold">
-            <BookUser className="mr-2 h-4 w-4" /> Choose contacts
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => fileRef.current?.click()}
-          className="h-11 flex-1 rounded-xl text-[13px] font-bold"
-        >
-          <FileUp className="mr-2 h-4 w-4" /> Upload contacts file (.vcf)
+      {supported && (
+        <Button type="button" onClick={() => void pick()} className="mt-3 h-12 w-full rounded-xl text-[14px] font-bold">
+          <BookUser className="mr-2 h-5 w-5" /> Choose from my contacts
         </Button>
-        <input ref={fileRef} type="file" accept=".vcf,text/vcard,text/x-vcard" hidden onChange={(e) => void onFile(e)} />
-      </div>
-      {!supported && (
-        <p className="mt-2 text-[10.5px] text-muted-foreground">
-          Your browser can’t open contacts directly. Export them from your Contacts app as a .vcf file, then upload it here.
+      )}
+      {!supported && isDesktop && (
+        <div className="mt-3 flex flex-col items-center gap-3 rounded-xl border border-border/50 bg-background/70 p-4 sm:flex-row">
+          {qr ? <img src={qr} alt="QR code to open Allma on your phone" className="size-40 rounded-lg bg-card p-1" /> : <div className="size-40 animate-pulse rounded-lg bg-muted" />}
+          <div className="text-[12px] leading-relaxed">
+            <p className="text-[13px] font-bold">Use your phone's contacts</p>
+            <ol className="mt-1 list-decimal pl-4 text-muted-foreground">
+              <li>Point your phone camera at this code.</li>
+              <li>Sign in with the same account.</li>
+              <li>Tap “Choose from my contacts”.</li>
+            </ol>
+            <p className="mt-1 text-muted-foreground">People you add appear here once they accept.</p>
+          </div>
+        </div>
+      )}
+      {!supported && !isDesktop && (
+        <p className="mt-3 rounded-xl bg-muted/60 p-3 text-[11.5px] text-muted-foreground">
+          This browser can’t open your contacts list. Open Allma in Chrome on Android to pick contacts, or search a number above.
         </p>
       )}
+      <button type="button" onClick={() => fileRef.current?.click()} className="mt-2 text-[11px] text-muted-foreground underline">
+        <FileUp className="mr-1 inline h-3 w-3" />I have a contacts file
+      </button>
+      <input ref={fileRef} type="file" accept=".vcf,text/vcard,text/x-vcard" hidden onChange={(e) => void onFile(e)} />
       {rows.length > 0 && (
         <ul className="mt-4 space-y-2">
           {rows.map((row) => (
