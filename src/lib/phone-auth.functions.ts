@@ -6,7 +6,7 @@ type Input = { phone: string; password: string; fullName?: string };
 
 /** Creates a phone-number account (already confirmed) so sign-up needs no email. */
 export const signUpWithPhone = createServerFn({ method: "POST" })
-  .inputValidator((input: Input) => {
+  .validator((input: Input) => {
     if (!input || typeof input.phone !== "string" || !isLikelyValidPhone(input.phone)) {
       throw new Error("Enter a valid phone number.");
     }
@@ -28,7 +28,7 @@ export const signUpWithPhone = createServerFn({ method: "POST" })
     });
     if (error || !created.user) {
       const exists = /already|registered|exists/i.test(error?.message ?? "");
-      return { ok: false as const, error: exists ? "This phone number already has an account. Please sign in." : "We couldn't create your account. Please try again." };
+      return { ok: false as const, error: exists ? "This phone number already has an account. Please sign in." : "We couldn't create your account. Please try again." , detail: error?.message };
     }
     await supabaseAdmin
       .from("profiles")
