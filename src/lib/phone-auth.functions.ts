@@ -33,7 +33,6 @@ export const signUpWithPhone = createServerFn({ method: "POST" })
     }
     await supabaseAdmin
       .from("profiles")
-      .update({ phone: e164, ...(data.fullName ? { full_name: data.fullName } : {}) })
-      .eq("id", created.user.id);
+      .upsert({ id: created.user.id, phone: e164, full_name: data.fullName || null }, { onConflict: "id" });
     return { ok: true as const };
   });
