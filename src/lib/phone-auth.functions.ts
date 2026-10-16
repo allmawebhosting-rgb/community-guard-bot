@@ -27,8 +27,9 @@ export const signUpWithPhone = createServerFn({ method: "POST" })
       user_metadata: { full_name: data.fullName || null, phone: e164 },
     });
     if (error || !created.user) {
+      if (/weak|guess|pwned/i.test(error?.message ?? "")) return { ok: false as const, error: "That PIN is too easy to guess. Please choose a stronger one (mix numbers and letters)." };
       const exists = /already|registered|exists/i.test(error?.message ?? "");
-      return { ok: false as const, error: exists ? "This phone number already has an account. Please sign in." : "We couldn't create your account. Please try again." , detail: error?.message };
+      return { ok: false as const, error: exists ? "This phone number already has an account. Please sign in." : "We couldn't create your account. Please try again." };
     }
     await supabaseAdmin
       .from("profiles")
