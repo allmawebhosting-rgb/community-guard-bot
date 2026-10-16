@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { UG_DIAL_CODE, formatLocalInput, formatPhoneDisplay, isLikelyValidPhone, normalizePhone } from "@/lib/phone";
 import { type MemberMatch, inviteMessage, searchMemberByPhone, sendConnectionRequest } from "@/lib/safety-network";
+import { ImportContacts } from "./import-contacts";
 
 type Phase = "idle" | "searching" | "found" | "empty" | "sent";
 
@@ -86,7 +87,7 @@ export function AddSafetyContactDialog({
       }}
     >
       <DialogContent
-        className="safety-add-dialog w-[calc(100vw-1.5rem)] max-w-lg gap-0 overflow-hidden rounded-2xl border-border/60 p-0 sm:w-full"
+        className="safety-add-dialog max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl border-border/60 p-0 sm:w-full"
       >
         <DialogHeader className="safety-add-header space-y-2 px-5 pb-5 pt-6 text-left sm:px-6">
           <div className="flex items-center gap-3">
@@ -254,6 +255,10 @@ export function AddSafetyContactDialog({
               </motion.div>
             )}
           </AnimatePresence>
+          <div className="my-5 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="h-px flex-1 bg-border/60" /> or <span className="h-px flex-1 bg-border/60" />
+          </div>
+          <ImportContacts onRequestSent={onRequestSent} />
           <div className="mt-5 flex items-start gap-2 border-t border-border/60 pt-4 text-[10.5px] leading-relaxed text-muted-foreground"><LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-trusted" /><span>Their phone number is used only to find the account. It is never displayed in your Safety Network.</span></div>
         </div>
       </DialogContent>
