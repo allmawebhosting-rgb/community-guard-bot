@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { isLikelyValidPhone, normalizePhone } from "@/lib/phone";
 import { type MemberMatch, inviteMessage, searchMemberByPhone, sendConnectionRequest } from "@/lib/safety-network";
 import { Avatar } from "./add-safety-contact";
+import { ContactSetupSheet, savePendingSetup, type ContactSetup } from "./contact-setup-sheet";
 
 type Imported = { name: string; phone: string };
 type Row = Imported & {
@@ -31,6 +32,7 @@ export function ImportContacts({ onRequestSent }: { onRequestSent?: () => void }
   const [rows, setRows] = useState<Row[]>([]);
   const [supported, setSupported] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [setupRow, setSetupRow] = useState<Row | null>(null);
 
   useEffect(() => {
     setSupported(typeof navigator !== "undefined" && "contacts" in navigator);
@@ -82,6 +84,18 @@ export function ImportContacts({ onRequestSent }: { onRequestSent?: () => void }
     const file = e.target.files?.[0];
     e.target.value = "";
     if (file) await load(parseVcf(await file.text()));
+  }
+
+  async function confirmSetup(setup: ContactSetup) {
+    const row = setupRow;
+    if (!row) return;
+    setSetupRow(null);
+    if (row.match) {
+      savePendingSetup(row.match.user_id, setup);
+      await request(row);
+    } else {
+      invite(row);
+    }
   }
 
   async function request(row: Row) {
@@ -157,13 +171,13 @@ export function ImportContacts({ onRequestSent }: { onRequestSent?: () => void }
               {row.status === "checking" && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
               {(row.status === "member" || row.status === "sending") &&
                 row.match?.relationship_state === "none" && (
-                  <Button size="sm" disabled={row.status === "sending"} onClick={() => void request(row)} className="rounded-lg">
+                  <Button size="sm" disabled={row.status === "sending"} onClick={() => setSetupRow(row)} className="rounded-lg">
                     {row.status === "sending" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1 h-3.5 w-3.5" />}
                     Add
                   </Button>
                 )}
               {row.status === "not_member" && (
-                <Button size="sm" variant="outline" onClick={() => invite(row)} className="rounded-lg">
+                <Button size="sm" variant="outline" onClick={() => setSetupRow(row)} className="rounded-lg">
                   <Share2 className="mr-1 h-3.5 w-3.5" /> Invite
                 </Button>
               )}
@@ -171,6 +185,11 @@ export function ImportContacts({ onRequestSent }: { onRequestSent?: () => void }
           ))}
         </ul>
       )}
+      <ContactSetupSheet
+        contact={setupRow ? { name: setupRow.match?.full_name ?? setupRow.name, phone: setupRow.phone, avatar: setupRow.match?.avatar_url, onAllma: !!setupRow.match } : null}
+        onCancel={() => setSetupRow(null)}
+        onConfirm={(s) => void confirmSetup(s)}
+      />
     </div>
   );
 }
