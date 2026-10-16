@@ -44,6 +44,7 @@ import {
   type SosCallingSettings,
 } from "@/lib/sos-calling-settings";
 import { AddSafetyContactDialog, Avatar } from "./add-safety-contact";
+import { clearPendingSetup, readPendingSetups } from "./contact-setup-sheet";
 
 export function SafetyNetworkPanel({ compact = false, workspace = false }: { compact?: boolean; workspace?: boolean }) {
   const [loading, setLoading] = useState(true);
@@ -60,6 +61,19 @@ export function SafetyNetworkPanel({ compact = false, workspace = false }: { com
   const refresh = useCallback(async () => {
     try {
       const [nextConnections, nextRequests] = await Promise.all([listConnections(), listRequests()]);
+      const pending = readPendingSetups();
+      for (const c of nextConnections) {
+        const setup = pending[c.member_id];
+        if (!setup) continue;
+        try {
+          await updateConnection(c.id, { safety_role: setup.role, priority: setup.priority });
+          c.safety_role = setup.role;
+          c.priority = setup.priority;
+          clearPendingSetup(c.member_id);
+        } catch {
+          /* keep for next time */
+        }
+      }
       setConnections(nextConnections);
       setRequests(nextRequests);
     } catch (error) {

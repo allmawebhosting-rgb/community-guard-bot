@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { UG_DIAL_CODE, formatLocalInput, formatPhoneDisplay, isLikelyValidPhone, normalizePhone } from "@/lib/phone";
 import { type MemberMatch, inviteMessage, searchMemberByPhone, sendConnectionRequest } from "@/lib/safety-network";
 import { ImportContacts } from "./import-contacts";
+import { ContactSetupSheet, savePendingSetup } from "./contact-setup-sheet";
 
 type Phase = "idle" | "searching" | "found" | "empty" | "sent";
 
@@ -25,6 +26,7 @@ export function AddSafetyContactDialog({
   const [phase, setPhase] = useState<Phase>("idle");
   const [match, setMatch] = useState<MemberMatch | null>(null);
   const [sending, setSending] = useState(false);
+  const [askSetup, setAskSetup] = useState(false);
 
   function reset() {
     setValue("");
@@ -89,6 +91,16 @@ export function AddSafetyContactDialog({
       <DialogContent
         className="safety-add-dialog max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl border-border/60 p-0 sm:w-full"
       >
+        <ContactSetupSheet
+          contact={askSetup && match ? { name: match.full_name, phone: formatPhoneDisplay(normalized ?? ""), avatar: match.avatar_url, onAllma: true } : null}
+          busy={sending}
+          onCancel={() => setAskSetup(false)}
+          onConfirm={(setup) => {
+            if (match) savePendingSetup(match.user_id, setup);
+            setAskSetup(false);
+            void sendRequest();
+          }}
+        />
         <DialogHeader className="safety-add-header space-y-2 px-5 pb-5 pt-6 text-left sm:px-6">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-xl bg-trusted text-trusted-foreground shadow-soft">
@@ -192,7 +204,7 @@ export function AddSafetyContactDialog({
                   </p>
                 ) : (
                   <Button
-                    onClick={() => void sendRequest()}
+                    onClick={() => setAskSetup(true)}
                     disabled={sending}
                     className="mt-4 h-11 w-full rounded-xl text-[13px] font-bold"
                   >

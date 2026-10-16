@@ -777,7 +777,7 @@ function CircleStep({
       <StepIntro
         eyebrow="03 · Safety Network"
         title="Who should Allma contact in an emergency?"
-        description="Import people from your phone contacts or search by number. Allma reaches them in the order you set — your first person is called first, then the next if they don’t answer."
+        description="Pick people from your phone. For each one, choose who they are to you and whether they’re called first, as backup, or just alerted."
         icon={Users}
       />
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-trusted/20 bg-trusted/5 p-4">
