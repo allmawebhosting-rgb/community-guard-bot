@@ -2552,6 +2552,45 @@ export type Database = {
           },
         ]
       }
+      safety_invites: {
+        Row: {
+          accepted_by: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          inviter_id: string
+          priority: number
+          responded_at: string | null
+          safety_role: string
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          inviter_id: string
+          priority?: number
+          responded_at?: string | null
+          safety_role?: string
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          inviter_id?: string
+          priority?: number
+          responded_at?: string | null
+          safety_role?: string
+          status?: string
+          token?: string
+        }
+        Relationships: []
+      }
       smart_sos_check_events: {
         Row: {
           action: string
@@ -2860,6 +2899,10 @@ export type Database = {
         Args: { p_sos_activity_id: string }
         Returns: undefined
       }
+      create_safety_invite: {
+        Args: { _priority: number; _role: string }
+        Returns: string
+      }
       create_sos_responder_offers: {
         Args: { p_radius_meters?: number; p_sos_activity_id: string }
         Returns: {
@@ -2924,6 +2967,18 @@ export type Database = {
           emergency_type: string
           offer_id: string
           sos_activity_id: string
+          status: string
+        }[]
+      }
+      get_safety_invite: {
+        Args: { _token: string }
+        Returns: {
+          expired: boolean
+          inviter_avatar: string
+          inviter_name: string
+          is_own: boolean
+          priority: number
+          safety_role: string
           status: string
         }[]
       }
@@ -3082,6 +3137,10 @@ export type Database = {
       }
       respond_to_safety_connection_request: {
         Args: { _action: string; _request_id: string }
+        Returns: string
+      }
+      respond_to_safety_invite: {
+        Args: { _action: string; _token: string }
         Returns: string
       }
       respond_to_sos_offer: {
