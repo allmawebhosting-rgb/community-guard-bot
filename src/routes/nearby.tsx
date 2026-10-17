@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getNearbyMembers, getNearbyPlaces } from "@/lib/places.functions";
 import { sendConnectionRequest } from "@/lib/safety-network";
 import type { NearbyMember, NearbyPlace } from "@/lib/places.types";
+import { getPreciseLocation, describeAccuracy } from "@/lib/precise-location";
 
 const NearbyMap = lazy(() => import("@/components/allma/nearby-map").then((module) => ({ default: module.NearbyMap })));
 
