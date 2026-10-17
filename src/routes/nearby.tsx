@@ -64,24 +64,32 @@ function NearbyScreen() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [sendingRequestId, setSendingRequestId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!("geolocation" in navigator)) {
-      setLocation(DEFAULT_LOCATION);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setLocation({ lat: coords.latitude, lng: coords.longitude });
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [locating, setLocating] = useState(false);
+  const locate = () => {
+    setLocating(true);
+    getPreciseLocation({
+      onUpdate: (fix) => {
+        setLocation({ lat: fix.lat, lng: fix.lng });
+        setAccuracy(fix.accuracy);
         setLocationError(null);
       },
-      () => {
-        setLocation(DEFAULT_LOCATION);
-        setLocationError("Location access was denied, so the district list is being shown instead.");
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 },
-    );
+    })
+      .catch((err: unknown) => {
+        const denied = (err as GeolocationPositionError)?.code === 1;
+        setLocation((cur) => cur ?? DEFAULT_LOCATION);
+        setLocationError(
+          denied
+            ? "Location access is blocked. Allow location for this site in your browser settings, then tap Retry."
+            : "We couldn't get your position. On a computer, turn on Location Services (Windows: Settings → Privacy → Location; Mac: System Settings → Privacy → Location Services) and tap Retry.",
+        );
+      })
+      .finally(() => setLocating(false));
+  };
+  useEffect(() => {
+    locate();
   }, []);
+  const acc = accuracy != null ? describeAccuracy(accuracy) : null;
 
   const { data: facilities, isLoading, isError, refetch } = useQuery({
     queryKey: ["facilities"],
@@ -203,9 +211,33 @@ function NearbyScreen() {
           )}
         </div>
 
-        {locationError && (
-          <div className="mb-5 rounded-[1.25rem] border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-[12px] text-amber-700 dark:text-amber-300">
-            {locationError}
+        {(locationError || acc || locating) && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[1.25rem] border border-border/60 bg-card/70 px-4 py-3 text-[12px]">
+            <div className="text-muted-foreground">
+              {locationError ? (
+                <span className="text-amber-700 dark:text-amber-300">{locationError}</span>
+              ) : (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {locating ? "Finding your exact position…" : "Your location: "}
+                  </span>
+                  {acc && <span> {acc.label}</span>}
+                  {acc?.tone === "poor" && !locating && (
+                    <span className="block pt-1">
+                      Computers without GPS can only guess from your internet connection. Turn on Wi‑Fi and Location Services, or use your phone for exact results.
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={locate}
+              disabled={locating}
+              className="rounded-full border border-border px-3 py-1.5 font-semibold text-foreground disabled:opacity-50"
+            >
+              {locating ? "Locating…" : "Retry"}
+            </button>
           </div>
         )}
 
