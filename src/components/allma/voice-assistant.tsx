@@ -9,6 +9,7 @@ import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchOnboardingState } from "@/lib/onboarding";
+import { callAudioRevision, isCallAudioBlocked, subscribeCallAudio, useCallAudioBlocked } from "@/lib/call-audio-state";
 
 const PREF_KEY = "allma.voice.pref"; // "on" | "off"
 const GREETING = "Hello, I'm Allma, your safety assistant. I'm listening — just speak whenever you need me.";
@@ -89,8 +90,13 @@ export function VoiceAssistant() {
   activeRef.current = active;
   const listenRef = useRef<() => void>(() => {});
   const stopLoopRef = useRef<(exit?: boolean) => void>(() => {});
+  const callBlocked = useCallAudioBlocked();
+  const requestRef = useRef<AbortController | null>(null);
+  const voiceRunRef = useRef(0);
 
-  const paused = path.startsWith("/sos") || path.startsWith("/police");
+  const paused = callBlocked || path.startsWith("/sos") || path.startsWith("/police");
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
 
   // Ask every time the app is opened.
   useEffect(() => {
@@ -116,8 +122,12 @@ export function VoiceAssistant() {
   }, []);
 
   const say = useCallback((text: string) => {
+    if (pausedRef.current || isCallAudioBlocked()) return;
+    const run = voiceRunRef.current;
+    const revision = callAudioRevision();
     setSpeaking(true);
     speak(text, () => {
+      if (run !== voiceRunRef.current || revision !== callAudioRevision()) return;
       setSpeaking(false);
       if (activeRef.current) listenRef.current();
     });
@@ -125,6 +135,13 @@ export function VoiceAssistant() {
 
   const ask = useCallback(
     async (text: string) => {
+      if (pausedRef.current || isCallAudioBlocked()) return;
+      requestRef.current?.abort();
+      const request = new AbortController();
+      requestRef.current = request;
+      const run = voiceRunRef.current;
+      const revision = callAudioRevision();
+      const interrupted = () => request.signal.aborted || run !== voiceRunRef.current || revision !== callAudioRevision() || pausedRef.current || isCallAudioBlocked();
       const next = [...turnsRef.current, { role: "user" as const, content: text }].slice(-16);
       turnsRef.current = next;
       setHeard(text);
@@ -133,11 +150,13 @@ export function VoiceAssistant() {
       setThinking(true);
       try {
         const { data: sess } = await supabase.auth.getSession();
+        if (interrupted()) return;
         const token = sess.session?.access_token;
         const res = await fetch("/api/voice-assistant", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ messages: next, path }),
+          signal: request.signal,
         });
         if (!res.ok) throw new Error((await res.text()) || "Allma could not answer.");
         const data = (await res.json()) as {
@@ -145,6 +164,7 @@ export function VoiceAssistant() {
           actions?: { type: string; to?: string }[];
           onboardingChanged?: boolean;
         };
+        if (interrupted()) return;
         const reply = data.text.replace(/\[\[(NAV|ACTION):[^\]]*\]\]/g, "").trim();
         turnsRef.current = [...turnsRef.current, { role: "assistant", content: reply }];
         setReply(reply);
@@ -173,12 +193,16 @@ export function VoiceAssistant() {
         }
         say(reply);
       } catch (e) {
+        if (interrupted()) return;
         const m = e instanceof Error ? e.message : "Allma could not answer.";
         setHint(m);
         toast.error(m);
         if (activeRef.current) listenRef.current();
       } finally {
-        setThinking(false);
+        if (requestRef.current === request) {
+          requestRef.current = null;
+          setThinking(false);
+        }
       }
     },
     [navigate, path, say],
@@ -199,15 +223,38 @@ export function VoiceAssistant() {
   });
 
   listenRef.current = () => {
-    if (!activeRef.current || paused) return;
+    if (!activeRef.current || pausedRef.current || isCallAudioBlocked()) return;
     void voice.start();
   };
 
-  // Pause on SOS / police screens, resume after.
+  // Release audio synchronously, before CallCenter plays an emergency announcement.
+  useEffect(() => subscribeCallAudio(() => {
+    if (!isCallAudioBlocked()) return;
+    voiceRunRef.current++;
+    introRunRef.current++;
+    requestRef.current?.abort();
+    requestRef.current = null;
+    voice.cancel();
+    window.speechSynthesis?.cancel();
+    setIntro(false);
+    setSpeaking(false);
+    setThinking(false);
+  }), [voice.cancel]);
+
+  // Pause on calls / SOS / police screens, resume after.
   useEffect(() => {
     if (paused) {
       voice.cancel();
-      window.speechSynthesis?.cancel();
+      if (!callBlocked) {
+        voiceRunRef.current++;
+        introRunRef.current++;
+        requestRef.current?.abort();
+        requestRef.current = null;
+        window.speechSynthesis?.cancel();
+        setSpeaking(false);
+        setThinking(false);
+        setIntro(false);
+      }
     } else if (active && !voice.recording && !thinking && !speaking) {
       listenRef.current();
     }
@@ -225,7 +272,7 @@ export function VoiceAssistant() {
     let i = 0;
     const run = ++introRunRef.current;
     const next = () => {
-      if (!activeRef.current || run !== introRunRef.current) return;
+      if (!activeRef.current || pausedRef.current || isCallAudioBlocked() || run !== introRunRef.current) return;
       if (i >= lines.length) {
         setIntro(false);
         setSpeaking(false);
@@ -241,6 +288,7 @@ export function VoiceAssistant() {
   };
 
   const startLoop = (withIntro = false) => {
+    if (pausedRef.current || isCallAudioBlocked()) return;
     localStorage.setItem(PREF_KEY, "on");
     setPref("on");
     setActive(true);
@@ -262,9 +310,12 @@ export function VoiceAssistant() {
         .catch(() => {});
       turnsRef.current = [{ role: "assistant", content: GREETING }];
       void (async () => {
+        const run = voiceRunRef.current;
         const { data } = await supabase.auth.getUser();
+        if (run !== voiceRunRef.current || isCallAudioBlocked()) return;
         if (data.user) {
           const st = await fetchOnboardingState(data.user.id);
+          if (run !== voiceRunRef.current || isCallAudioBlocked()) return;
           if (!st.completed) {
             setDocked(true);
             void navigate({ to: "/onboarding" });
@@ -288,6 +339,11 @@ export function VoiceAssistant() {
   startLoopRef.current = startLoop;
 
   const stopLoop = (exitMode = false) => {
+    voiceRunRef.current++;
+    introRunRef.current++;
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setThinking(false);
     if (exitMode) {
       localStorage.setItem(PREF_KEY, "off");
       setPref("off");
