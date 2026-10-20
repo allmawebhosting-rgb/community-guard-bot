@@ -39,7 +39,11 @@ export const savePushSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(validateSubscription)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("push_subscriptions").upsert(
+    // A browser endpoint belongs to the device, not permanently to an account.
+    // Authentication above fixes the new owner; only this exact validated
+    // endpoint is reassigned atomically, without weakening owner-only RLS.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
         user_id: context.userId,
         endpoint: data.endpoint,
