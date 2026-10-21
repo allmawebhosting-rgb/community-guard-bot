@@ -49,6 +49,15 @@ const KIND_ICON: Record<HelpKind, typeof Shield> = {
   other: MapPin,
 };
 
+const GROUP_ORDER: HelpKind[] = ["police", "hospital", "clinic", "fire", "other"];
+const GROUP_LABEL: Record<HelpKind, string> = {
+  police: "Police stations",
+  hospital: "Hospitals & ambulance",
+  clinic: "Clinics & pharmacies",
+  fire: "Fire stations",
+  other: "Other help",
+};
+
 export function formatDistance(meters: number) {
   if (!Number.isFinite(meters)) return "";
   return meters < 950 ? `${Math.round(meters)} m away` : `${(meters / 1000).toFixed(1)} km away`;
@@ -235,6 +244,10 @@ export function NearbyHelpList({
             );
           })}
         </ul>
+          </section>
+          );
+        })}
+        </div>
       )}
     </div>
   );
