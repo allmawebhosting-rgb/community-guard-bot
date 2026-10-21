@@ -29,6 +29,7 @@ import { notifyIncomingCall } from "@/lib/push.functions";
 import { setCallAudioPhase } from "@/lib/call-audio-state";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
+import { ResponderNavigation } from "@/components/allma/responder-navigation";
 import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
 import { EmergencyRoom } from "@/components/allma/calls/emergency-room";
 import { getNearbyPlaces } from "@/lib/places.functions";
@@ -658,6 +659,8 @@ export function CallCenter() {
                         <Fact icon={<Crosshair />} label="GPS accuracy" value={typeof emergency.accuracy_m === "number" ? `Approximately ${Math.round(emergency.accuracy_m)} m` : "Waiting for GPS"} />
                         <Fact icon={<Clipboard />} label="Case ID" value={callId ? `ASA-${callId.slice(0, 8).toUpperCase()}` : "Loading"} />
                       </section>
+
+                      {callerPoint && <section id="receiver-route" className="receiver-surface" aria-label="Directions to caller"><div className="receiver-section-head"><span className="h-2 w-2 rounded-full bg-success" /><div className="min-w-0"><p>Directions to {peer?.name?.split(" ")[0] ?? "caller"}</p><span>Live route from your location</span></div></div><ResponderNavigation caller={{ lat: callerPoint.lat, lng: callerPoint.lng }} callerName={peer?.name?.split(" ")[0] ?? "the caller"} /></section>}
 
                       {callerPoint && <section id="receiver-map" className="receiver-surface" aria-label="Caller location"><div className="receiver-section-head"><span className="h-2 w-2 rounded-full bg-success" /><div className="min-w-0"><p>Live location</p><span>Shared with responders</span></div></div><LiveLocationMap location={{ lat: callerPoint.lat, lng: callerPoint.lng, accuracy: emergency.accuracy_m ?? null, address: emergency.area }} badge="Live location" directions directionsLabel="Open in Google Maps" places={helpPlaces} selectedPlaceId={selectedHelpId} onSelectPlace={setSelectedHelpId} heightClassName="h-52 sm:h-64 lg:h-[260px]" /></section>}
 
