@@ -49,6 +49,15 @@ const KIND_ICON: Record<HelpKind, typeof Shield> = {
   other: MapPin,
 };
 
+const GROUP_ORDER: HelpKind[] = ["police", "hospital", "clinic", "fire", "other"];
+const GROUP_LABEL: Record<HelpKind, string> = {
+  police: "Police stations",
+  hospital: "Hospitals & ambulance",
+  clinic: "Clinics & pharmacies",
+  fire: "Fire stations",
+  other: "Other help",
+};
+
 export function formatDistance(meters: number) {
   if (!Number.isFinite(meters)) return "";
   return meters < 950 ? `${Math.round(meters)} m away` : `${(meters / 1000).toFixed(1)} km away`;
@@ -135,8 +144,24 @@ export function NearbyHelpList({
       ) : places.length === 0 ? (
         <div className={cn("mt-3 rounded-2xl border p-4 text-[12px]", noticeClass)}>{emptyLabel}</div>
       ) : (
-        <ul className="mt-4 grid min-w-0 grid-cols-1 gap-2.5 min-[1180px]:grid-cols-2">
-          {places.map((place) => {
+        <div className="mt-4 space-y-5">
+        {GROUP_ORDER.map((groupKind) => {
+          const group = places
+            .filter((p) => helpKind(p.type) === groupKind)
+            .sort((a, b) => a.distance_m - b.distance_m);
+          if (group.length === 0) return null;
+          const GroupIcon = KIND_ICON[groupKind];
+          return (
+          <section key={groupKind} className="min-w-0">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="grid h-6 w-6 place-items-center rounded-md" style={{ backgroundColor: `${HELP_KIND_COLOR[groupKind]}1f`, color: HELP_KIND_COLOR[groupKind] }}>
+                <GroupIcon className="h-3.5 w-3.5" />
+              </span>
+              <h4 className={cn("text-[12px] font-black uppercase tracking-[0.14em]", nameClass)}>{GROUP_LABEL[groupKind]}</h4>
+              <span className={cn("text-[11px] font-semibold", metaClass)}>· {group.length}</span>
+            </div>
+        <ul className="grid min-w-0 grid-cols-1 gap-2.5 min-[1180px]:grid-cols-2">
+          {group.map((place) => {
             const kind = helpKind(place.type);
             const Icon = KIND_ICON[kind];
             const selected = selectedId === place.id;
@@ -219,6 +244,10 @@ export function NearbyHelpList({
             );
           })}
         </ul>
+          </section>
+          );
+        })}
+        </div>
       )}
     </div>
   );

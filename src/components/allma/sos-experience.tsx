@@ -2010,8 +2010,8 @@ function MinimalEmergencyScreen({
       data: {
         latitude: lat,
         longitude: lng,
-        radiusMeters: 8000,
-        limit: 8,
+        radiusMeters: 10000,
+        limit: 20,
         types: ["hospital", "police", "fire_station", "doctor", "pharmacy"],
       },
     })
