@@ -71,6 +71,9 @@ export function useVoiceInput({
 }) {
   const recorder = useRef<Recorder | null>(null);
   const cancelRef = useRef<(() => void) | null>(null);
+  const generation = useRef(0);
+  const starting = useRef(false);
+  const transcription = useRef<AbortController | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [level, setLevel] = useState(0);
@@ -87,17 +90,30 @@ export function useVoiceInput({
   }, []);
 
   const start = useCallback(async () => {
-    if (recorder.current) return;
+    if (recorder.current || starting.current || transcription.current) return;
+    starting.current = true;
+    const run = generation.current;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      onError("Microphone access is needed to record.");
+      if (run === generation.current) onError("Microphone access is needed to record.");
+      return;
+    } finally {
+      starting.current = false;
+    }
+    if (run !== generation.current) {
+      stream.getTracks().forEach((track) => track.stop());
       return;
     }
 
     const ctx = new AudioContext();
     if (ctx.state === "suspended") await ctx.resume().catch(() => undefined);
+    if (run !== generation.current) {
+      stream.getTracks().forEach((track) => track.stop());
+      void ctx.close();
+      return;
+    }
     const source = ctx.createMediaStreamSource(stream);
     const processor = ctx.createScriptProcessor(4096, 1, 1);
     const analyser = ctx.createAnalyser();
@@ -182,6 +198,7 @@ export function useVoiceInput({
   const stop = useCallback(async () => {
     const active = recorder.current;
     if (!active) return;
+    const run = generation.current;
     recorder.current = null;
     setRecording(false);
     setLevel(0);
@@ -189,6 +206,7 @@ export function useVoiceInput({
     teardown(active);
     const blob = encodeWav(active.chunks, active.ctx.sampleRate);
     await active.ctx.close();
+    if (run !== generation.current) return;
 
     if (blob.size < 4096) {
       onError("That recording was empty — please try again.");
@@ -196,21 +214,28 @@ export function useVoiceInput({
     }
 
     setTranscribing(true);
+    const request = new AbortController();
+    transcription.current = request;
     try {
       const form = new FormData();
       form.append("audio", blob, "recording.wav");
-      const response = await fetch("/api/transcribe", { method: "POST", body: form });
+      const response = await fetch("/api/transcribe", { method: "POST", body: form, signal: request.signal });
+      if (run !== generation.current) return;
       if (!response.ok) {
         onError((await response.text().catch(() => "")) || "Could not transcribe that recording.");
         return;
       }
       const data = (await response.json()) as { text?: string };
+      if (run !== generation.current) return;
       if (data.text?.trim()) onTranscript(data.text.trim());
       else onError("No speech was detected.");
     } catch {
-      onError("Could not transcribe that recording.");
+      if (run === generation.current) onError("Could not transcribe that recording.");
     } finally {
-      setTranscribing(false);
+      if (transcription.current === request) {
+        transcription.current = null;
+        setTranscribing(false);
+      }
     }
   }, [onError, onTranscript, teardown]);
 
@@ -218,6 +243,10 @@ export function useVoiceInput({
   stopRef.current = stop;
 
   const cancel = useCallback(() => {
+    generation.current += 1;
+    transcription.current?.abort();
+    transcription.current = null;
+    setTranscribing(false);
     const active = recorder.current;
     if (!active) return;
     recorder.current = null;
@@ -231,6 +260,8 @@ export function useVoiceInput({
 
   useEffect(
     () => () => {
+      generation.current += 1;
+      transcription.current?.abort();
       const active = recorder.current;
       if (!active) return;
       recorder.current = null;

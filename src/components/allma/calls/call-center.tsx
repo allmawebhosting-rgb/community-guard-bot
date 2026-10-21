@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/allma/brand";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyIncomingCall } from "@/lib/push.functions";
+import { setCallAudioPhase } from "@/lib/call-audio-state";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
@@ -59,7 +60,11 @@ const qualityCopy: Record<ConnectionQuality, string> = {
 
 export function CallCenter() {
   const [userId, setUserId] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhaseState] = useState<Phase>("idle");
+  const setPhase = useCallback((next: Phase) => {
+    setCallAudioPhase(next);
+    setPhaseState(next);
+  }, []);
   const [peer, setPeer] = useState<CallPeer | null>(null);
   const [callId, setCallId] = useState<string | null>(null);
   const [isCaller, setIsCaller] = useState(false);
@@ -162,7 +167,7 @@ export function CallCenter() {
     setEmergency(null);
     setSosRoomId(null);
     setPhase(note ? "ended" : "idle");
-    if (note) setTimeout(() => setPhase((current) => (current === "ended" ? "idle" : current)), 2600);
+    if (note) setTimeout(() => { if (phaseRef.current === "ended") setPhase("idle"); }, 2600);
   }, []);
 
   // Identity + safety-network name lookup (calls only exist between connections).
@@ -195,7 +200,8 @@ export function CallCenter() {
 
   const beginEngine = useCallback(
     async (id: string, caller: boolean, stream?: MediaStream) => {
-      const engine = new VoiceCallEngine(id, userId!, caller, {
+      if (!userId) return;
+      const engine = new VoiceCallEngine(id, userId, caller, {
         onQuality: setQuality,
         onConnected: () => {
           setQuality("good");
@@ -241,6 +247,7 @@ export function CallCenter() {
         }
         let id: string | null = null;
         try {
+          if (!requested.sosActivityId) setPhase("outgoing");
           // SOS calls go through the SOS-scoped RPC so the server can verify the
           // caller owns that emergency and link the call to it.
           id = requested.sosActivityId
@@ -484,7 +491,10 @@ export function CallCenter() {
     };
   }, [emergency, phase]);
 
-  useEffect(() => () => engineRef.current?.close(), []);
+  useEffect(() => () => {
+    engineRef.current?.close();
+    setCallAudioPhase("idle");
+  }, []);
 
   const answer = async () => {
     const id = callIdRef.current;
