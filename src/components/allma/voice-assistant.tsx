@@ -98,9 +98,9 @@ export function VoiceAssistant() {
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
 
-  // Ask every time the app is opened.
+  // Voice mode starts OFF on every app open — no takeover, no listening.
   useEffect(() => {
-    setPref(null);
+    setPref("off");
   }, []);
 
   // Broadcast the current mode and accept switches from header / profile.
