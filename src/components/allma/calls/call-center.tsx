@@ -247,13 +247,13 @@ export function CallCenter() {
         }
         let id: string | null = null;
         try {
+          if (!requested.sosActivityId) setPhase("outgoing");
           // SOS calls go through the SOS-scoped RPC so the server can verify the
           // caller owns that emergency and link the call to it.
           id = requested.sosActivityId
             ? await startSosEmergencyCall(requested.id, requested.sosActivityId)
             : await startVoiceCall(requested.id);
           if (isPrimarySosCall || !requested.sosActivityId) callIdRef.current = id;
-          if (!requested.sosActivityId) setPhase("outgoing");
           sosOutgoingRef.current.set(id, requested);
           if (isPrimarySosCall) setCallId(id);
           // Best-effort: rings the recipient's device even if their app is closed.

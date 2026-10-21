@@ -9,7 +9,7 @@ vi.mock("@/hooks/useVoiceInput", () => ({ useVoiceInput: (options: { onTranscrip
   mocks.transcript = options.onTranscript;
   return { start: mocks.start, cancel: mocks.cancel, stop: vi.fn(), recording: false, transcribing: false, level: 0 };
 } }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getSession: async () => ({ data: { session: null } }) } } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getSession: async () => ({ data: { session: null } }), getUser: async () => ({ data: { user: null } }) } } }));
 vi.mock("@/lib/onboarding", () => ({ fetchOnboardingState: vi.fn() }));
 vi.mock("@/components/allma/mascot", () => ({ Mascot: () => null, MascotAvatar: () => null }));
 import { VoiceAssistant } from "./voice-assistant";
