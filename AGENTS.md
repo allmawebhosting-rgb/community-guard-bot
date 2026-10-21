@@ -11,3 +11,4 @@
 
 - CallCenter publishes microphone ownership synchronously through the call-audio store; voice work checks its revision to discard replies from before a call.
 - Push endpoint reassignment uses an atomic privileged upsert only inside the authenticated save handler; owner-scoped RLS remains unchanged for ordinary access.
+- Responder navigation aborts route requests only when superseded or unmounted, not on ordinary renders; this preserves pending directions through call timer ticks and small GPS updates.

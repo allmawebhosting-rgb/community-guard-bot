@@ -166,6 +166,7 @@ export function ResponderNavigation({ caller, callerName = "the caller" }: { cal
   const [googleFailed, setGoogleFailed] = useState(false);
   const [nonce, setNonce] = useState(0);
   const anchor = useRef<{ me: Pt; caller: Pt; mode: Mode; nonce: number } | null>(null);
+  const routeRequest = useRef<AbortController | null>(null);
   const useGoogle = Boolean(getGoogleMapsBrowserKey()) && !googleFailed && !googleMapsAuthFailed();
 
   useEffect(() => {
@@ -178,19 +179,27 @@ export function ResponderNavigation({ caller, callerName = "the caller" }: { cal
     return () => navigator.geolocation.clearWatch(id);
   }, []);
 
+  // Ordinary renders/GPS fixes must not cancel a request that is still loading.
+  useEffect(() => () => {
+    routeRequest.current?.abort();
+    routeRequest.current = null;
+    anchor.current = null;
+  }, []);
+
   // Re-route when you move ~40 m, the caller moves ~40 m, or travel mode changes.
   useEffect(() => {
     if (!me) return;
     const a = anchor.current;
     if (a && a.mode === mode && a.nonce === nonce && haversine(a.me, me) < 40 && haversine(a.caller, caller) < 40) return;
+    routeRequest.current?.abort();
     anchor.current = { me, caller, mode, nonce };
     const ctrl = new AbortController();
+    routeRequest.current = ctrl;
     setLoading(true);
     fetchRoute(me, caller, mode, ctrl.signal)
-      .then((r) => { setRoute(r); setRouteError(null); })
+      .then((r) => { if (!ctrl.signal.aborted) { setRoute(r); setRouteError(null); } })
       .catch((e) => { if (!ctrl.signal.aborted) setRouteError(e instanceof Error ? e.message : "Route unavailable"); })
       .finally(() => !ctrl.signal.aborted && setLoading(false));
-    return () => ctrl.abort();
   }, [me, caller, mode, nonce]);
 
   const nextStep = useMemo(() => route?.steps.find((s, i) => i > 0) ?? route?.steps[0], [route]);
