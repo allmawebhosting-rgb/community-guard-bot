@@ -12,6 +12,14 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: {
+    cloudflare: {
+      wrangler: {
+        compatibility_flags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
+        previews: {},
+      },
+    },
+  },
   vite: {
     server: {
       host: "0.0.0.0",
