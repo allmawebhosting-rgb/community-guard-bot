@@ -27,9 +27,33 @@ export const signUpWithPhone = createServerFn({ method: "POST" })
       user_metadata: { full_name: data.fullName || null, phone: e164 },
     });
     if (error || !created.user) {
-      if (/weak|guess|pwned/i.test(error?.message ?? "")) return { ok: false as const, error: "That PIN is too easy to guess. Please choose a stronger one (mix numbers and letters)." };
-      const exists = /already|registered|exists/i.test(error?.message ?? "");
-      return { ok: false as const, error: exists ? "This phone number already has an account. Please sign in." : "We couldn't create your account. Please try again." };
+      if (/weak|guess|pwned/i.test(error?.message ?? "")) {
+        return {
+          ok: false as const,
+          code: "weak_password" as const,
+          error: "That PIN is too easy to guess. Please choose a stronger one (mix numbers and letters).",
+        };
+      }
+      const accountExists =
+        error?.code === "email_exists" ||
+        error?.code === "user_already_exists" ||
+        error?.code === "phone_exists" ||
+        /user already registered/i.test(error?.message ?? "");
+      console.error("[Auth] Phone signup failed", {
+        code: error?.code ?? "unknown",
+        status: error?.status ?? null,
+      });
+      return accountExists
+        ? {
+            ok: false as const,
+            code: "account_exists" as const,
+            error: "This phone number already has an account.",
+          }
+        : {
+            ok: false as const,
+            code: "signup_failed" as const,
+            error: "We couldn't create your account. Please try again.",
+          };
     }
     await supabaseAdmin
       .from("profiles")

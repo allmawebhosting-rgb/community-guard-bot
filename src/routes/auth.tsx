@@ -144,7 +144,24 @@ function AuthPage() {
     setLoading(true);
     try {
       const res = await signUpWithPhone({ data: { phone, password, fullName } });
-      if (!res.ok) { setLoading(false); return toast.error(res.error); }
+      if (!res.ok) {
+        if (res.code === "account_exists") {
+          const { error } = await supabase.auth.signInWithPassword({
+            email: phoneLoginEmail(phone)!,
+            password,
+          });
+          setLoading(false);
+          if (error) {
+            return toast.error(
+              "This phone number already has an account. Sign in with its existing PIN or password.",
+            );
+          }
+          void goNext();
+          return;
+        }
+        setLoading(false);
+        return toast.error(res.error);
+      }
       const { error } = await supabase.auth.signInWithPassword({ email: phoneLoginEmail(phone)!, password });
       setLoading(false);
       if (error) return toast.error("Account created. Please sign in.");
