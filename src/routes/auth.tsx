@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { DISCLAIMER } from "@/lib/allma";
 import { resolvePostAuthPath } from "@/lib/onboarding";
 import { formatLocalInput, isLikelyValidPhone } from "@/lib/phone";
@@ -157,12 +156,14 @@ function AuthPage() {
   }
 
   async function google() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/auth${next ? `?next=${encodeURIComponent(next)}` : ""}`,
+    const redirectTo = new URL("/auth", window.location.origin);
+    if (next) redirectTo.searchParams.set("next", next);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: redirectTo.toString() },
     });
-    if (result.error) return toast.error("Google sign-in failed. Please try again.");
-    if (result.redirected) return;
-    void goNext();
+    if (error) toast.error(`Google sign-in failed: ${error.message}`);
   }
 
   return (
