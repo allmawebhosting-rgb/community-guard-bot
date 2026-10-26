@@ -67,6 +67,17 @@ it.each(["user_already_exists", "phone_exists"])(
   },
 );
 
+it("recognizes the exact duplicate-account message when no code is provided", async () => {
+  createUser.mockResolvedValue({
+    data: { user: null },
+    error: { status: 422, message: "User already registered" },
+  });
+
+  await expect(
+    invoke({ data: { phone: "0770420951", password: "test-password" } }),
+  ).resolves.toMatchObject({ ok: false, code: "account_exists" });
+});
+
 it("returns the dedicated error for a weak password", async () => {
   createUser.mockResolvedValue({
     data: { user: null },
