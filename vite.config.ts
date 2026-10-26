@@ -16,6 +16,7 @@ export default defineConfig({
     cloudflare: {
       wrangler: {
         compatibility_flags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
+        previews: {},
       },
     },
   },
