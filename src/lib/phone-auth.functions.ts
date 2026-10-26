@@ -10,7 +10,11 @@ export const signUpWithPhone = createServerFn({ method: "POST" })
     if (!input || typeof input.phone !== "string" || !isLikelyValidPhone(input.phone)) {
       throw new Error("Enter a valid phone number.");
     }
-    if (typeof input.password !== "string" || input.password.length < 6 || input.password.length > 72) {
+    if (
+      typeof input.password !== "string" ||
+      input.password.length < 6 ||
+      input.password.length > 72
+    ) {
       throw new Error("Your PIN or password needs at least 6 characters.");
     }
     const fullName = typeof input.fullName === "string" ? input.fullName.trim().slice(0, 80) : "";
@@ -31,7 +35,8 @@ export const signUpWithPhone = createServerFn({ method: "POST" })
         return {
           ok: false as const,
           code: "weak_password" as const,
-          error: "That PIN is too easy to guess. Please choose a stronger one (mix numbers and letters).",
+          error:
+            "That PIN is too easy to guess. Please choose a stronger one (mix numbers and letters).",
         };
       }
       const accountExists =
@@ -57,6 +62,9 @@ export const signUpWithPhone = createServerFn({ method: "POST" })
     }
     await supabaseAdmin
       .from("profiles")
-      .upsert({ id: created.user.id, phone: e164, full_name: data.fullName || null }, { onConflict: "id" });
+      .upsert(
+        { id: created.user.id, phone: e164, full_name: data.fullName || null },
+        { onConflict: "id" },
+      );
     return { ok: true as const };
   });

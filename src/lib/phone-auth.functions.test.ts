@@ -43,7 +43,9 @@ it("reports an existing account only for a Supabase duplicate error", async () =
     error: { code: "email_exists", status: 422, message: "User already registered" },
   });
 
-  await expect(invoke({ data: { phone: "0770420951", password: "test-password" } })).resolves.toEqual({
+  await expect(
+    invoke({ data: { phone: "0770420951", password: "test-password" } }),
+  ).resolves.toEqual({
     ok: false,
     code: "account_exists",
     error: "This phone number already has an account.",
@@ -54,10 +56,16 @@ it("reports an existing account only for a Supabase duplicate error", async () =
 it("does not mislabel unrelated auth errors as an existing account", async () => {
   createUser.mockResolvedValue({
     data: { user: null },
-    error: { code: "unexpected_failure", status: 500, message: "Resource exists in upstream service" },
+    error: {
+      code: "unexpected_failure",
+      status: 500,
+      message: "Resource exists in upstream service",
+    },
   });
 
-  await expect(invoke({ data: { phone: "0770420951", password: "test-password" } })).resolves.toEqual({
+  await expect(
+    invoke({ data: { phone: "0770420951", password: "test-password" } }),
+  ).resolves.toEqual({
     ok: false,
     code: "signup_failed",
     error: "We couldn't create your account. Please try again.",
