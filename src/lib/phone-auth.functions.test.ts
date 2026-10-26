@@ -98,6 +98,27 @@ it("does not mislabel unrelated auth errors as an existing account", async () =>
   });
 });
 
+it("logs only safe Auth error metadata", async () => {
+  const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+  createUser.mockResolvedValue({
+    data: { user: null },
+    error: {
+      code: "unexpected_failure",
+      status: 500,
+      message: "Sensitive upstream details",
+    },
+  });
+
+  await invoke({ data: { phone: "0770420951", password: "test-password" } });
+
+  expect(logError).toHaveBeenCalledWith("[Auth] Phone signup failed", {
+    code: "unexpected_failure",
+    status: 500,
+  });
+  expect(logError).not.toHaveBeenCalledWith(expect.stringContaining("Sensitive upstream details"));
+  logError.mockRestore();
+});
+
 it("creates a profile after successful phone account creation", async () => {
   createUser.mockResolvedValue({
     data: { user: { id: "user-1" } },
