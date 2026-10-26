@@ -53,6 +53,32 @@ it("reports an existing account only for a Supabase duplicate error", async () =
   expect(profileUpsert).not.toHaveBeenCalled();
 });
 
+it.each(["user_already_exists", "phone_exists"])(
+  "recognizes the Supabase %s duplicate code",
+  async (code) => {
+    createUser.mockResolvedValue({
+      data: { user: null },
+      error: { code, status: 422, message: "Auth error" },
+    });
+
+    await expect(
+      invoke({ data: { phone: "0770420951", password: "test-password" } }),
+    ).resolves.toMatchObject({ ok: false, code: "account_exists" });
+  },
+);
+
+it("returns the dedicated error for a weak password", async () => {
+  createUser.mockResolvedValue({
+    data: { user: null },
+    error: { code: "weak_password", status: 422, message: "Password is too weak" },
+  });
+
+  await expect(
+    invoke({ data: { phone: "0770420951", password: "123456" } }),
+  ).resolves.toMatchObject({ ok: false, code: "weak_password" });
+  expect(profileUpsert).not.toHaveBeenCalled();
+});
+
 it("does not mislabel unrelated auth errors as an existing account", async () => {
   createUser.mockResolvedValue({
     data: { user: null },
