@@ -13,12 +13,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   nitro: {
-    cloudflare: {
-      wrangler: {
-        compatibility_flags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
-        previews: {},
-      },
-    },
+    compatibilityFlags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
   },
   vite: {
     server: {
