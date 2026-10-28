@@ -198,6 +198,17 @@ function AuthPage() {
     if (next) redirectTo.searchParams.set("next", next);
 
     setLoading(true);
+    // The self-hosted custom domain runs on its own backend, where the
+    // managed sign-in broker is not available; use that backend's Google setup.
+    if (/(^|\.)allmasafetyai\.online$/.test(window.location.hostname)) {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: redirectTo.toString() },
+      });
+      setLoading(false);
+      if (error) toast.error(`Google sign-in failed: ${error.message}`);
+      return;
+    }
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: redirectTo.toString(),
