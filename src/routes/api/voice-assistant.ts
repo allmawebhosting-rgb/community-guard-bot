@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { createLovableAiGatewayResponsesProvider } from "@/lib/ai-gateway.server";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
+import { getGatewayFailure } from "@/lib/ai-gateway-errors";
 
 const STEPS = ["Welcome", "Profile (name, optional phone)", "Location permission", "Trusted circle (emergency contacts)", "Location sharing preference", "Health reminders yes/no", "Ready — read back a summary and finish"];
 
@@ -329,6 +330,7 @@ export const Route = createFileRoute("/api/voice-assistant")({
         try {
           const result = streamText({
             model: gateway.responses("openai/gpt-6-astra"),
+            maxRetries: 0,
             system: `${SYSTEM.replace("TODAY_PLACEHOLDER", new Date().toLocaleDateString("en-GB", { timeZone: "Africa/Kampala", weekday: "long", year: "numeric", month: "long", day: "numeric" }))}${extra}\nThe person is currently on page: ${String(body.path ?? "/").slice(0, 80)}`,
             messages,
             tools,
@@ -347,12 +349,10 @@ export const Route = createFileRoute("/api/voice-assistant")({
           const text = await result.text;
           return Response.json({ text, actions, onboardingChanged, onboarding: !onboardingDone });
         } catch (error) {
-          const status = (error as { statusCode?: number }).statusCode;
-          if (status === 429) return new Response("Allma is busy. Please try again in a moment.", { status: 429 });
-          if (status === 402) return new Response("AI credits have run out for this workspace.", { status: 402 });
           if (request.signal.aborted) return new Response(null, { status: 499 });
           console.error("[voice-assistant]", error);
-          return new Response("Allma could not answer right now.", { status: 502 });
+          const failure = getGatewayFailure(error);
+          return new Response(failure.message, { status: failure.status });
         }
       },
     },

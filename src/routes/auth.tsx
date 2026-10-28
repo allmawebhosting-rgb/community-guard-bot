@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { DISCLAIMER } from "@/lib/allma";
 import { resolvePostAuthPath } from "@/lib/onboarding";
 import { formatLocalInput, isLikelyValidPhone } from "@/lib/phone";
@@ -196,11 +197,22 @@ function AuthPage() {
     const redirectTo = new URL("/auth", window.location.origin);
     if (next) redirectTo.searchParams.set("next", next);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: redirectTo.toString() },
-    });
-    if (error) toast.error(`Google sign-in failed: ${error.message}`);
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: redirectTo.toString(),
+      });
+      if (result.error) {
+        toast.error(`Google sign-in failed: ${result.error.message}`);
+        return;
+      }
+      if (result.redirected) return;
+      void goNext();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Google sign-in could not start.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -454,7 +466,7 @@ function AuthPage() {
                 <span className="h-px flex-1 bg-border" />
               </div>
 
-              <Button variant="outline" className="w-full rounded-full" onClick={google}>
+              <Button variant="outline" className="w-full rounded-full" disabled={loading} onClick={google}>
                 Continue with Google
               </Button>
               <Button variant="ghost" className="mt-2 w-full rounded-full" asChild>

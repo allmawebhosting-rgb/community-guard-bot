@@ -1,4 +1,5 @@
 import { resolveUgandaPlace } from "@/lib/uganda-places";
+import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   convertToModelMessages,
@@ -346,6 +347,8 @@ export const Route = createFileRoute("/api/chat")({
 
         const buildStream = (modelId: string) => streamText({
           model: resolveModel(modelId),
+          maxRetries: 0,
+          abortSignal: request.signal,
           system: `${systemPrompt}\n\n${ALLMA_MARKER_CONTRACT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
           }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}\n\nTURN BUDGET: exactly one reply per turn. Write your one message with its inline markers, then stop and wait for the user. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
@@ -930,51 +933,28 @@ export const Route = createFileRoute("/api/chat")({
 
         });
 
-        // Primary: the most capable reasoning model, which follows the long
-        // safety procedure faithfully. Fallback keeps a report alive if it is
-        // rate limited mid-flow.
+        // Preserve configured models, but never switch providers after a failure.
         const CHAT_MODELS = [
           "openai/gpt-6-astra",
           "google/gemini-3.6-flash",
         ];
 
 
-        let result: ReturnType<typeof buildStream> | null = null;
-        let usedModel = CHAT_MODELS[0];
-        for (const modelId of CHAT_MODELS) {
-          const attempt = buildStream(modelId);
-          try {
-            await attempt.warnings;
-            result = attempt;
-            usedModel = modelId;
-            break;
-          } catch (error) {
-            console.error(`Model ${modelId} unavailable, trying fallback`, error);
-          }
-        }
-        if (!result) {
-          return new Response("The assistant is busy right now. Please try again.", {
-            status: 503,
+        const selected = await selectChatStream(CHAT_MODELS, buildStream);
+        if ("failure" in selected) {
+          return new Response(selected.failure.message, {
+            status: selected.failure.status,
+            headers: { "Cache-Control": "no-store" },
           });
         }
+        const { result, model: usedModel } = selected;
 
         const response = result.toUIMessageStreamResponse({
           sendReasoning: false,
           // Plain-language surface for gateway failures, instead of a silent stall.
           onError: (error) => {
             console.error("Chat stream error", error);
-            const raw =
-              error instanceof Error ? error.message : typeof error === "string" ? error : "";
-            if (/\b429\b|rate limit/i.test(raw)) {
-              return "Allma is handling a lot of requests right now. Please send that again in a few seconds.";
-            }
-            if (/\b402\b|credit/i.test(raw)) {
-              return "Allma's AI usage limit has been reached. The app owner needs to top up AI credits before the assistant can reply.";
-            }
-            if (/\b403\b/.test(raw)) {
-              return "Allma's AI access is currently blocked by a workspace setting. Please contact the app owner.";
-            }
-            return "Something went wrong reaching Allma. Please try that message again.";
+            return getGatewayFailure(error).message;
           },
 
           originalMessages: uiMessages,
