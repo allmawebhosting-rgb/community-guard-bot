@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: { component: () => unknown }) => ({
-    ...options, useSearch: () => ({ next: mocks.next }),
+    options, useSearch: () => ({ next: mocks.next }),
   }),
   useNavigate: () => mocks.navigate,
   Link: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
@@ -31,7 +31,7 @@ beforeEach(() => {
   mocks.resolvePath.mockResolvedValue("/onboarding");
 });
 afterEach(cleanup);
-const AuthPage = Route.component as React.ComponentType;
+const AuthPage = Route.options.component as React.ComponentType;
 
 it("uses managed Google with a public callback and preserves the invitation destination", async () => {
   mocks.oauth.mockResolvedValue({ redirected: true });
