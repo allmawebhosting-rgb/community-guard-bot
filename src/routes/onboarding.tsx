@@ -343,52 +343,75 @@ function OnboardingPage() {
     navigate({ to: draft.healthSetup ? "/health-reminders" : "/chat" });
   }
 
+  const minutesLeft = Math.max(1, Math.ceil((6 - step) * 0.35));
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background">
-      <div className="signal-streak pointer-events-none fixed inset-0 -z-10 opacity-70" />
-      <header className="border-b border-border/50 bg-background/75 backdrop-blur-xl">
+    <div className="relative min-h-screen overflow-x-hidden bg-background">
+      <div className="signal-streak pointer-events-none fixed inset-0 -z-10 opacity-60" />
+      <div className="pointer-events-none fixed -left-32 top-24 -z-10 h-80 w-80 rounded-full bg-primary/15 blur-3xl" />
+      <div className="pointer-events-none fixed -right-32 bottom-10 -z-10 h-80 w-80 rounded-full bg-gold/10 blur-3xl" />
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5">
           <Link to="/">
             <BrandLockup />
           </Link>
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
-            <LockKeyhole className="h-3.5 w-3.5 text-success" />
-            Your setup is private
+          <div className="flex items-center gap-2 rounded-full border border-success/25 bg-success/10 px-3 py-1.5 text-[11px] font-semibold text-success">
+            <LockKeyhole className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Private &amp; encrypted setup</span>
+            <span className="sm:hidden">Private</span>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-col px-5 pb-12 pt-8 sm:pt-12">
+      <main className="mx-auto flex w-full max-w-5xl flex-col px-4 pb-16 pt-6 sm:px-5 sm:pt-10">
         <div className="mx-auto w-full max-w-2xl">
-          <div className="mb-8">
-            <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-              <span>Build your safety network</span>
-              <span>{String(step + 1).padStart(2, "0")} / 06</span>
+          <div className="mb-6 rounded-3xl border border-border/50 bg-card/50 p-4 shadow-soft backdrop-blur-xl sm:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                  Step {step + 1} of {STEP_LABELS.length}
+                </p>
+                <p className="mt-0.5 font-display text-base font-bold">{STEP_LABELS[step]}</p>
+              </div>
+              <span className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+                <Clock3 className="h-3.5 w-3.5" />
+                {step === 6 ? "Done" : `~${minutesLeft} min left`}
+              </span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-gold via-primary-glow to-primary"
-                animate={{ width: `${Math.max(8, progress)}%` }}
-                transition={{ duration: 0.35 }}
-              />
-            </div>
-            <div className="mt-3 hidden grid-cols-6 gap-2 sm:grid">
+            <div className="flex items-center gap-1.5">
               {STEP_LABELS.map((label, index) => (
-                <div
+                <button
+                  key={label}
+                  type="button"
+                  aria-label={`Go to ${label}`}
+                  disabled={index > step}
+                  onClick={() => index < step && update({ step: index as Step })}
+                  className="group h-2 flex-1 overflow-hidden rounded-full bg-muted disabled:cursor-default"
+                >
+                  <motion.span
+                    className="block h-full rounded-full bg-gradient-to-r from-primary to-primary-glow"
+                    initial={false}
+                    animate={{ width: index < step ? "100%" : index === step ? "55%" : "0%" }}
+                    transition={{ duration: 0.35 }}
+                  />
+                </button>
+              ))}
+            </div>
+            <div className="mt-2.5 hidden grid-cols-7 gap-1.5 sm:grid">
+              {STEP_LABELS.map((label, index) => (
+                <span
                   key={label}
                   className={cn(
-                    "text-[10px] font-semibold",
-                    index <= step ? "text-foreground" : "text-muted-foreground/50",
+                    "flex items-center gap-1 text-[10px] font-semibold",
+                    index < step
+                      ? "text-success"
+                      : index === step
+                        ? "text-foreground"
+                        : "text-muted-foreground/50",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "mr-1.5 inline-block h-1.5 w-1.5 rounded-full",
-                      index <= step ? "bg-primary" : "bg-muted",
-                    )}
-                  />
+                  {index < step && <Check className="h-3 w-3" />}
                   {label}
-                </div>
+                </span>
               ))}
             </div>
           </div>
@@ -396,11 +419,11 @@ function OnboardingPage() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={step}
-              initial={false}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -18 }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.22 }}
-              className="rounded-[2rem] border border-border/60 bg-card/65 p-5 shadow-lift backdrop-blur-xl sm:p-9"
+              className="relative overflow-hidden rounded-[2rem] border border-border/60 bg-card/75 p-5 shadow-lift ring-1 ring-primary/5 backdrop-blur-xl sm:p-9"
             >
               {step === 0 && <WelcomeStep onNext={next} />}
               {step === 1 && (
