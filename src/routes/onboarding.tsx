@@ -1176,3 +1176,43 @@ function CompleteStep({
     </>
   );
 }
+
+const CIRCLE_TABS = [
+  { id: "whatsapp", label: "WhatsApp", hint: "Fastest", icon: Sparkles },
+  { id: "contacts", label: "Contacts", hint: "From phone", icon: Users },
+  { id: "network", label: "My network", hint: "Order & roles", icon: ShieldCheck },
+] as const;
+
+function CircleTabs() {
+  const [tab, setTab] = useState<(typeof CIRCLE_TABS)[number]["id"]>("whatsapp");
+  return (
+    <div className="mb-6">
+      <div role="tablist" className="grid grid-cols-3 gap-1.5 rounded-2xl border border-border/60 bg-muted/50 p-1.5">
+        {CIRCLE_TABS.map(({ id, label, hint, icon: Icon }) => (
+          <button
+            key={id}
+            role="tab"
+            type="button"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={cn(
+              "flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-center transition-all",
+              tab === id
+                ? "bg-card text-foreground shadow-soft ring-1 ring-primary/20"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Icon className={cn("h-4 w-4", tab === id && "text-primary")} />
+            <span className="text-[13px] font-bold leading-none">{label}</span>
+            <span className="text-[10px] leading-none opacity-70">{hint}</span>
+          </button>
+        ))}
+      </div>
+      <div className="mt-4">
+        {tab === "whatsapp" && <WhatsAppInvite />}
+        {tab === "contacts" && <ImportContacts />}
+        {tab === "network" && <SafetyNetworkPanel />}
+      </div>
+    </div>
+  );
+}
