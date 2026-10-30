@@ -497,15 +497,18 @@ function StepIntro({
   icon?: typeof Sparkles;
 }) {
   return (
-    <div className="mb-8">
-      <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
-        <Icon className="h-5 w-5 text-primary" />
+    <div className="relative mb-8">
+      <div className="pointer-events-none absolute -right-20 -top-20 h-44 w-44 rounded-full bg-primary/10 blur-3xl" />
+      <div className="relative flex items-center gap-3">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-soft">
+          <Icon className="h-5 w-5" />
+        </div>
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
       </div>
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-      <h1 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] sm:text-[2.6rem]">
+      <h1 className="relative mt-5 font-display text-[1.9rem] font-black leading-[1.08] tracking-[-0.04em] sm:text-[2.6rem]">
         {title}
       </h1>
-      <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
+      <p className="relative mt-3 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>
@@ -524,24 +527,28 @@ function FooterActions({
   disabled?: boolean;
 }) {
   return (
-    <div className="mt-9 flex items-center justify-between gap-3 border-t border-border/50 pt-5">
-      {onBack ? (
-        <Button variant="ghost" onClick={onBack} className="rounded-full text-muted-foreground">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+    <div className="sticky bottom-0 -mx-5 -mb-5 mt-9 flex items-center gap-3 border-t border-border/50 bg-card/90 px-5 py-4 backdrop-blur-xl sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5">
+      {onBack && (
+        <Button
+          variant="outline"
+          onClick={onBack}
+          className="h-12 rounded-full px-5 text-muted-foreground"
+        >
+          <ArrowLeft className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Back</span>
         </Button>
-      ) : (
-        <span />
       )}
       <Button
         onClick={onNext}
         disabled={disabled}
-        className="rounded-full bg-gradient-to-r from-primary to-primary-glow px-6 text-primary-foreground shadow-soft"
+        className="h-12 flex-1 rounded-full bg-gradient-to-r from-primary to-primary-glow px-7 text-[15px] font-semibold text-primary-foreground shadow-lift sm:ml-auto sm:flex-none"
       >
         {nextLabel} <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
     </div>
   );
 }
+
 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
