@@ -817,13 +817,7 @@ function CircleStep({
           If you activate SOS, Allma contacts only accepted people whose emergency-call permissions are enabled. You control location sharing for each connection.
         </p>
       </div>
-      {signedIn && (
-        <div className="mb-6 space-y-4">
-          <WhatsAppInvite />
-          <ImportContacts />
-          <SafetyNetworkPanel />
-        </div>
-      )}
+      {signedIn && <CircleTabs />}
       <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
         <span>
           {members.length
