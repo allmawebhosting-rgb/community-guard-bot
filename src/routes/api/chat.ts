@@ -938,10 +938,10 @@ export const Route = createFileRoute("/api/chat")({
         });
 
         // Preserve configured models, but never switch providers after a failure.
-        const CHAT_MODELS = [
-          "openai/gpt-6-astra",
-          "google/gemini-3.6-flash",
-        ];
+        // On the Cloudflare deployment the Workers AI binding answers with no credit limits.
+        const CHAT_MODELS = cfModel
+          ? [CF_CHAT_MODEL]
+          : ["openai/gpt-6-astra", "google/gemini-3.6-flash"];
 
 
         const selected = await selectChatStream(CHAT_MODELS, buildStream);
