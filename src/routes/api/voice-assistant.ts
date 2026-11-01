@@ -331,7 +331,7 @@ export const Route = createFileRoute("/api/voice-assistant")({
         const gateway = createLovableAiGatewayResponsesProvider(apiKey);
         try {
           const result = streamText({
-            model: gateway.responses("openai/gpt-6-astra"),
+            model: cfModel ?? gateway.responses("openai/gpt-6-astra"),
             maxRetries: 0,
             system: `${SYSTEM.replace("TODAY_PLACEHOLDER", new Date().toLocaleDateString("en-GB", { timeZone: "Africa/Kampala", weekday: "long", year: "numeric", month: "long", day: "numeric" }))}${extra}\nThe person is currently on page: ${String(body.path ?? "/").slice(0, 80)}`,
             messages,

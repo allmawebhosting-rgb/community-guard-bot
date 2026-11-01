@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { getCloudflareAiBinding, transcribeWithCloudflare } from "@/lib/cloudflare-ai.server";
 
 const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -7,7 +8,8 @@ export const Route = createFileRoute("/api/transcribe")({
     handlers: {
       POST: async ({ request }) => {
         const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) {
+        const hasCloudflareAi = getCloudflareAiBinding() !== null;
+        if (!apiKey && !hasCloudflareAi) {
           return new Response("Voice input is not configured yet.", { status: 500 });
         }
 
@@ -24,6 +26,16 @@ export const Route = createFileRoute("/api/transcribe")({
         }
         if (audio.size > MAX_BYTES) {
           return new Response("That recording is too long.", { status: 413 });
+        }
+
+        if (hasCloudflareAi) {
+          try {
+            const text = await transcribeWithCloudflare(audio);
+            return Response.json({ text: text ?? "" });
+          } catch (error) {
+            console.error("Cloudflare transcription failed", error);
+            return new Response("Could not transcribe that recording.", { status: 502 });
+          }
         }
 
         const upstream = new FormData();
