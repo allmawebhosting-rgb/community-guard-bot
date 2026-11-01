@@ -1,4 +1,5 @@
 import { resolveUgandaPlace } from "@/lib/uganda-places";
+import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -99,8 +100,9 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Messages are required", { status: 400 });
         }
 
-        const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) {
+        const cfModel = getCloudflareChatModel();
+        const apiKey = process.env.LOVABLE_API_KEY ?? "";
+        if (!cfModel && !apiKey) {
           return new Response("AI is not configured yet.", { status: 500 });
         }
 
@@ -324,9 +326,11 @@ export const Route = createFileRoute("/api/chat")({
         // `openai/*` ids are served on the gateway Responses API; everything
         // else stays on the chat-completions provider.
         const resolveModel = (modelId: string) =>
-          modelId.startsWith("openai/")
-            ? responsesGateway.responses(modelId)
-            : gateway(modelId);
+          modelId === CF_CHAT_MODEL && cfModel
+            ? cfModel
+            : modelId.startsWith("openai/")
+              ? responsesGateway.responses(modelId)
+              : gateway(modelId);
 
         const providerOptionsFor = (modelId: string) => {
           if (modelId.startsWith("openai/")) {
@@ -934,10 +938,10 @@ export const Route = createFileRoute("/api/chat")({
         });
 
         // Preserve configured models, but never switch providers after a failure.
-        const CHAT_MODELS = [
-          "openai/gpt-6-astra",
-          "google/gemini-3.6-flash",
-        ];
+        // On the Cloudflare deployment the Workers AI binding answers with no credit limits.
+        const CHAT_MODELS = cfModel
+          ? [CF_CHAT_MODEL]
+          : ["openai/gpt-6-astra", "google/gemini-3.6-flash"];
 
 
         const selected = await selectChatStream(CHAT_MODELS, buildStream);

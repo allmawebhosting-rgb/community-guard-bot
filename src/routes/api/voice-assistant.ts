@@ -5,6 +5,7 @@ import { stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { createLovableAiGatewayResponsesProvider } from "@/lib/ai-gateway.server";
+import { getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { getGatewayFailure } from "@/lib/ai-gateway-errors";
 
@@ -59,8 +60,9 @@ export const Route = createFileRoute("/api/voice-assistant")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) return new Response("Voice assistant is not configured.", { status: 500 });
+        const cfModel = getCloudflareChatModel();
+        const apiKey = process.env.LOVABLE_API_KEY ?? "";
+        if (!cfModel && !apiKey) return new Response("Voice assistant is not configured.", { status: 500 });
         let body: { messages?: Turn[]; path?: string };
         try {
           body = await request.json();
@@ -329,7 +331,7 @@ export const Route = createFileRoute("/api/voice-assistant")({
         const gateway = createLovableAiGatewayResponsesProvider(apiKey);
         try {
           const result = streamText({
-            model: gateway.responses("openai/gpt-6-astra"),
+            model: cfModel ?? gateway.responses("openai/gpt-6-astra"),
             maxRetries: 0,
             system: `${SYSTEM.replace("TODAY_PLACEHOLDER", new Date().toLocaleDateString("en-GB", { timeZone: "Africa/Kampala", weekday: "long", year: "numeric", month: "long", day: "numeric" }))}${extra}\nThe person is currently on page: ${String(body.path ?? "/").slice(0, 80)}`,
             messages,
