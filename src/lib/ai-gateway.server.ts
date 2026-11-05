@@ -40,7 +40,13 @@ export function createLovableAiGatewayRunIdFetch(initialRunId?: string) {
       }
     },
     getRunId: () => runId,
-    waitForRunId: () => (runId ? Promise.resolve(runId) : runIdReady),
+    waitForRunId: () =>
+      runId
+        ? Promise.resolve(runId)
+        : Promise.race([
+            runIdReady,
+            new Promise<string | undefined>((resolve) => setTimeout(() => resolve(runId), 1500)),
+          ]),
   };
 }
 

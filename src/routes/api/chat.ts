@@ -1008,6 +1008,9 @@ export const Route = createFileRoute("/api/chat")({
 
         });
 
+        // Workers AI never calls the Lovable gateway, so there is no run ID to wait for.
+        if (usedModel === CF_CHAT_MODEL && cfModel) return response;
+
         return withLovableAiGatewayRunIdHeader(
           response,
           usedModel.startsWith("openai/") ? responsesGateway : gateway,
