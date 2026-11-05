@@ -1355,7 +1355,7 @@ export function AllmaChat({
   }, [send]);
 
   return (
-    <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
+    <div className={cn("flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
       {/* Hidden file input for attachment sheet */}
       <input
         ref={attachInputRef}

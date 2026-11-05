@@ -661,7 +661,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         {isAuthenticated && <ConnectionRequestsBanner />}
 
         {/* Main content — no max-w constraint; children control their own width */}
-        <main className={cn("flex min-h-0 flex-1 flex-col", isChat && "overflow-hidden")}>
+        <main className={cn("flex h-full min-h-0 flex-1 flex-col", isChat && "overflow-hidden")}>
 
           {children}
         </main>
