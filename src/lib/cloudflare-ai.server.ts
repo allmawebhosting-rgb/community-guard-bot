@@ -3,7 +3,7 @@ import { createWorkersAI } from "workers-ai-provider";
 // Cloudflare Workers AI binding, exposed by the Nitro Cloudflare preset on globalThis.__env__.
 type AiBinding = { run: (model: string, input: unknown) => Promise<unknown> };
 
-export const CF_CHAT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+export const CF_CHAT_MODEL = "@cf/zai-org/glm-4.7-flash";
 export const CF_WHISPER_MODEL = "@cf/openai/whisper-large-v3-turbo";
 
 export function getCloudflareAiBinding(): AiBinding | null {
