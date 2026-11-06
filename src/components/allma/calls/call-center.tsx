@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  BellRing,
   Clipboard,
   Crosshair,
-  MapPinned,
   MapPin,
-  MessageCircle,
   Mic,
   MicOff,
   Navigation,
   Phone,
   PhoneOff,
-  Settings,
   ShieldCheck,
   TriangleAlert,
-  Users,
   Volume2,
   VolumeX,
   X,
@@ -28,10 +23,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { notifyIncomingCall } from "@/lib/push.functions";
 import { setCallAudioPhase } from "@/lib/call-audio-state";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
-import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { ResponderNavigation } from "@/components/allma/responder-navigation";
-import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
-import { EmergencyRoom } from "@/components/allma/calls/emergency-room";
+import type { HelpPlace } from "@/components/allma/nearby-help-list";
 import { getNearbyPlaces } from "@/lib/places.functions";
 import {
   claimSosEmergencyCall,
@@ -82,7 +75,6 @@ export function CallCenter() {
   const [sosRoomId, setSosRoomId] = useState<string | null>(null);
   const [helpPlaces, setHelpPlaces] = useState<HelpPlace[]>([]);
   const [helpLoading, setHelpLoading] = useState(false);
-  const [selectedHelpId, setSelectedHelpId] = useState<string | null>(null);
   const [localPoint, setLocalPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [localLocationError, setLocalLocationError] = useState<string | null>(null);
 
@@ -119,17 +111,15 @@ export function CallCenter() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [isCaller, peer?.sosActivityId, peer?.shareLocation, phase]);
 
-  const helpPoint = isCaller ? localPoint : callerPoint;
-  // Coarse key so small GPS drift does not re-run the Places lookup.
-  const callerAreaKey = helpPoint
-    ? `${helpPoint.lat.toFixed(3)},${helpPoint.lng.toFixed(3)}`
+  // Nearby destinations are only needed for the caller's own route to help.
+  const callerAreaKey = isCaller && localPoint
+    ? `${localPoint.lat.toFixed(3)},${localPoint.lng.toFixed(3)}`
     : null;
 
   useEffect(() => {
     if (!callerAreaKey) {
       setHelpPlaces([]);
       setHelpLoading(false);
-      setSelectedHelpId(null);
       return;
     }
     const [lat, lng] = callerAreaKey.split(",").map(Number);
@@ -639,23 +629,7 @@ export function CallCenter() {
           role="dialog"
           aria-label="Allma voice call"
         >
-          <aside className="receiver-sidebar hidden lg:flex">
-            <div className="flex items-center gap-3 px-5 py-6">
-              <BrandMark className="h-11 w-11 bg-transparent shadow-none" />
-              <div><p className="text-lg font-black">Allma</p><p className="text-[11px] text-background/65">Safety AI</p></div>
-            </div>
-            <nav className="space-y-1 px-4" aria-label="Emergency screen sections">
-              <a href="#receiver-caller" className="receiver-nav receiver-nav-active"><BellRing /> Emergency</a>
-              <a href="#receiver-map" className="receiver-nav"><MapPinned /> Map & Location</a>
-              <a href="#receiver-help" className="receiver-nav"><Users /> Contacts</a>
-              {sosRoomId && <a href="#receiver-chat" className="receiver-nav"><MessageCircle /> Chat</a>}
-              <span className="receiver-nav"><Phone /> Voice</span>
-              <span className="receiver-nav"><Settings /> Settings</span>
-            </nav>
-            <div className="mt-auto px-5 pb-7"><p className="text-sm font-black">Your safety<br />matters.</p><p className="mt-3 text-xs font-bold text-success">Allma Safety AI</p><p className="mt-1 text-[10px] text-background/55">Smarter tools. Safer communities.</p></div>
-          </aside>
-
-          <div className="receiver-shell lg:pl-[228px]">
+          <div className="receiver-shell">
             <header className="receiver-topbar">
               <div className="flex min-w-0 items-center gap-3 lg:hidden">
                 <BrandMark className="h-9 w-9 bg-transparent shadow-none" />
@@ -673,152 +647,120 @@ export function CallCenter() {
 
             <main className={cn("receiver-scroll", phase === "incoming" && "receiver-scroll-with-dock")}>
               <div className="mx-auto w-full max-w-[1320px] px-3 py-3 sm:px-5 sm:py-4">
-                <section className="receiver-mobile-alert lg:hidden">
-                  <div className="flex min-w-0 items-center gap-3"><span className="h-7 w-7 shrink-0 rounded-full bg-destructive" /><div className="min-w-0"><p className="text-[12px] font-black uppercase">Incoming emergency</p><p className="truncate text-[10px] text-background/70">Allma Safety Network</p></div></div>
-                  <div className="min-w-0 border-l border-background/35 pl-3 text-[9px]"><p className="truncate font-bold">Case {callId ? `ASA-${callId.slice(0, 8).toUpperCase()}` : "Loading"}</p><p className="truncate capitalize text-background/70">{emergencyLabel ?? "Voice call"}</p></div>
-                </section>
-
                 <div className="receiver-workspace">
-                  <div className="min-w-0 space-y-3">
-                    <section id="receiver-caller" className="receiver-caller-card">
-                      <div className="receiver-caller-main">
-                        <motion.div className="receiver-avatar" animate={phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.025, 1] } : {}} transition={{ repeat: Infinity, duration: 1.8 }}>
-                          <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={94} />
-                          <span className="receiver-avatar-phone"><Phone /></span>
-                        </motion.div>
-                        <div className="min-w-0 flex-1">
-                          <h2 className="break-words text-2xl font-black leading-none sm:text-[29px]">{peer?.name ?? "Allma member"}</h2>
-                          <p className="mt-1 text-lg font-semibold leading-tight text-background/90">{phase === "incoming" && isEmergencyCall ? "needs your help" : statusLine}</p>
-                          {emergencyLabel && <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-destructive/60 bg-destructive/15 px-3 py-1 text-[10px] font-bold capitalize"><TriangleAlert className="h-3.5 w-3.5" />{emergencyLabel}</p>}
-                          {emergency?.location_shared && emergency.area && <p className="mt-3 flex items-start gap-2 text-[12px] font-semibold text-background/80"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{emergency.area}</p>}
-                          <p className="mt-2 flex items-center gap-2 text-[10.5px] text-background/65"><ShieldCheck className="h-3.5 w-3.5 shrink-0" />In-app call · Phone numbers stay private</p>
-                          {phase === "active" && quality !== "connecting" && <p className="mt-3 font-mono text-xl tabular-nums">{formatDuration(seconds)}</p>}
-                        </div>
+                  <section id="receiver-caller" className="receiver-caller-card">
+                    <div className="receiver-caller-main">
+                      <motion.div className="receiver-avatar" animate={phase === "incoming" || phase === "outgoing" ? { scale: [1, 1.025, 1] } : {}} transition={{ repeat: Infinity, duration: 1.8 }}>
+                        <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={94} />
+                        <span className="receiver-avatar-phone"><Phone /></span>
+                      </motion.div>
+                      <div className="min-w-0 flex-1">
+                        <h2 className="break-words text-2xl font-black leading-none sm:text-[29px]">{peer?.name ?? "Allma member"}</h2>
+                        <p className="mt-1 text-lg font-semibold leading-tight text-background/90">{phase === "incoming" && isEmergencyCall ? "needs your help" : statusLine}</p>
+                        {emergencyLabel && <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-destructive/60 bg-destructive/15 px-3 py-1 text-[10px] font-bold capitalize"><TriangleAlert className="h-3.5 w-3.5" />{emergencyLabel}</p>}
+                        {emergency?.location_shared && emergency.area && <p className="mt-3 flex items-start gap-2 text-[12px] font-semibold text-background/80"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{emergency.area}</p>}
+                        <p className="mt-2 flex items-center gap-2 text-[10.5px] text-background/65"><ShieldCheck className="h-3.5 w-3.5 shrink-0" />In-app call · Phone numbers stay private</p>
+                        {phase === "active" && quality !== "connecting" && <p className="mt-3 font-mono text-xl tabular-nums">{formatDuration(seconds)}</p>}
                       </div>
+                    </div>
 
-                      {phase !== "incoming" && <div className="receiver-call-actions">
-                        {phase === "ended" ? <p className="col-span-2 py-3 text-center text-sm font-bold">{endedNote ?? "Call ended"}</p> : <div className="col-span-2 flex items-center justify-center gap-8 py-1"><CallAction label={muted ? "Unmute" : "Mute"} tone="muted" active={muted} onClick={toggleMute}>{muted ? <MicOff /> : <Mic />}</CallAction><CallAction label={speaker ? "Speaker" : "Earpiece"} tone="muted" active={speaker} onClick={toggleSpeaker}>{speaker ? <Volume2 /> : <VolumeX />}</CallAction><CallAction label="End" tone="destructive" onClick={() => void hangUp()}><PhoneOff /></CallAction></div>}
-                      </div>}
+                    {phase !== "incoming" && <div className="receiver-call-actions">
+                      {phase === "ended" ? <p className="col-span-2 py-3 text-center text-sm font-bold">{endedNote ?? "Call ended"}</p> : <div className="col-span-2 flex items-center justify-center gap-8 py-1"><CallAction label={muted ? "Unmute" : "Mute"} tone="muted" active={muted} onClick={toggleMute}>{muted ? <MicOff /> : <Mic />}</CallAction><CallAction label={speaker ? "Speaker" : "Earpiece"} tone="muted" active={speaker} onClick={toggleSpeaker}>{speaker ? <Volume2 /> : <VolumeX />}</CallAction><CallAction label="End" tone="destructive" onClick={() => void hangUp()}><PhoneOff /></CallAction></div>}
+                    </div>}
+                  </section>
+
+                  {emergency && phase !== "ended" && <>
+                    <section className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Emergency quick actions">
+                      <a
+                        href={callerPoint ? `https://www.google.com/maps/dir/?api=1&destination=${callerPoint.lat},${callerPoint.lng}` : undefined}
+                        target={callerPoint ? "_blank" : undefined}
+                        rel={callerPoint ? "noreferrer" : undefined}
+                        aria-disabled={!callerPoint}
+                        onClick={(event) => {
+                          if (!callerPoint) event.preventDefault();
+                        }}
+                        className={cn(
+                          "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-bold text-foreground transition hover:bg-accent",
+                          !callerPoint && "cursor-not-allowed opacity-55",
+                        )}
+                      >
+                        <Navigation className="h-4 w-4" />
+                        Open in Google Maps
+                      </a>
+                      <Button
+                        variant="outline"
+                        disabled={!callerPoint}
+                        onClick={() => void copyCallerGps()}
+                        className="min-h-12 justify-center gap-2 rounded-xl text-sm font-bold"
+                      >
+                        <Clipboard className="h-4 w-4" />
+                        Copy GPS coordinates
+                      </Button>
                     </section>
 
-                    {emergency && phase !== "ended" && <>
-                      <section className="receiver-facts" aria-label="Emergency details">
-                        <Fact icon={<BellRing />} label="Emergency type" value={emergencyLabel ?? "Emergency"} tone="danger" />
-                        <Fact
-                          icon={<MapPin />}
-                          label="Location"
-                          value={
-                            emergency.location_shared
-                              ? emergency.area
-                              : emergency.location_requested
-                                ? "Acquiring caller GPS…"
-                                : "Not shared"
-                          }
-                        />
-                        <Fact icon={<Crosshair />} label="GPS accuracy" value={typeof emergency.accuracy_m === "number" ? `Approximately ${Math.round(emergency.accuracy_m)} m` : "Waiting for GPS"} />
-                        <Fact icon={<Clipboard />} label="Case ID" value={callId ? `ASA-${callId.slice(0, 8).toUpperCase()}` : "Loading"} />
-                      </section>
-
-                      {callerPoint && <section id="receiver-route" className="receiver-surface" aria-label="Directions to caller"><div className="receiver-section-head"><span className="h-2 w-2 rounded-full bg-success" /><div className="min-w-0"><p>Directions to {peer?.name?.split(" ")[0] ?? "caller"}</p><span>Live route from your location</span></div></div><ResponderNavigation caller={{ lat: callerPoint.lat, lng: callerPoint.lng }} callerName={peer?.name?.split(" ")[0] ?? "the caller"} /></section>}
-
-                      <section id="receiver-map" className="receiver-surface" aria-label="Caller location">
-                        <div className="receiver-section-head">
-                          <span className={cn("h-2 w-2 rounded-full", callerPoint ? "bg-success" : "bg-gold")} />
-                          <div className="min-w-0">
-                            <p>Live location</p>
-                            <span>
-                              {callerPoint
-                                ? "Shared with responders"
-                                : emergency.location_requested
-                                  ? "Waiting for caller GPS"
-                                  : "Location sharing is off"}
-                            </span>
-                          </div>
-                        </div>
-                        {callerPoint ? (
-                          <LiveLocationMap
-                            location={{
-                              lat: callerPoint.lat,
-                              lng: callerPoint.lng,
-                              accuracy: emergency.accuracy_m ?? null,
-                              address: emergency.area,
-                            }}
-                            badge="Live location"
-                            directions
-                            directionsLabel="Open in Google Maps"
-                            places={helpPlaces}
-                            selectedPlaceId={selectedHelpId}
-                            onSelectPlace={setSelectedHelpId}
-                            heightClassName="h-52 sm:h-64 lg:h-[260px]"
-                          />
-                        ) : emergency.location_requested ? (
-                          <div
-                            role="status"
-                            className="relative mt-3 flex min-h-52 flex-col items-center justify-center overflow-hidden rounded-2xl border border-gold/25 bg-gold/[0.06] px-5 text-center"
-                          >
-                            <span className="absolute h-20 w-20 animate-ping rounded-full border border-gold/35" />
-                            <span className="relative grid h-11 w-11 place-items-center rounded-full border border-gold/35 bg-gold/10 text-gold">
-                              <Crosshair className="h-5 w-5" />
-                            </span>
-                            <p className="relative mt-4 text-sm font-bold text-foreground">
-                              Acquiring caller GPS…
-                            </p>
-                            <p className="relative mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
-                              The live map and route will appear as soon as the caller’s location is available.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="mt-3 flex min-h-52 items-center justify-center rounded-2xl border border-border/60 bg-muted/20 px-5 text-center text-sm text-muted-foreground">
-                            The caller has not shared their location for this emergency.
-                          </div>
-                        )}
-                      </section>
-
-                      {callerPoint && <section id="receiver-help" className="receiver-surface"><NearbyHelpList places={helpPlaces} loading={helpLoading} origin={callerPoint} selectedId={selectedHelpId} onSelect={setSelectedHelpId} tone="surface" title="Help near the caller" subtitle="Police, clinics and hospitals closest to where they are" emptyLabel="No police, clinics or hospitals were found near the caller yet." /></section>}
-                      {sosRoomId && <section id="receiver-chat" className="receiver-surface"><EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} /></section>}
-                    </>}
-
-                    {isCaller && peer?.sosActivityId && !peer.shareLocation && phase !== "ended" && (
-                      <section className="receiver-surface" aria-label="Nearby directions unavailable">
-                        <p className="text-[12px] font-semibold text-muted-foreground">
-                          Live directions are unavailable because location sharing is off for this SOS.
-                        </p>
-                      </section>
-                    )}
-
-                    {isCaller && peer?.sosActivityId && peer.shareLocation && !localPoint && phase !== "ended" && (
-                      <section className="receiver-surface" aria-label="Waiting for live location">
-                        <p className="text-[12px] font-semibold text-muted-foreground">
-                          {localLocationError ?? "Waiting for a current GPS position to find nearby help."}
-                        </p>
-                      </section>
-                    )}
-
-                    {isCaller && peer?.sosActivityId && peer.shareLocation && localPoint && phase !== "ended" && (
-                      <section id="receiver-route" className="receiver-surface" aria-label="Directions to nearby help">
-                        <div className="receiver-section-head">
-                          <span className="h-2 w-2 rounded-full bg-success" />
-                          <div className="min-w-0"><p>Directions to nearby help</p><span>Nearest facility · live route updates</span></div>
-                        </div>
+                    <section id="receiver-map" className="receiver-surface" aria-label="Rescue navigation">
+                      {callerPoint ? (
                         <ResponderNavigation
-                          caller={localPoint}
-                          callerName="nearby help"
-                          initialLocation={localPoint}
-                          currentLocation={localPoint}
-                          trackLocation={false}
-                          helpPlaces={helpPlaces}
-                          onSelectDestination={setSelectedHelpId}
+                          caller={{ lat: callerPoint.lat, lng: callerPoint.lng }}
+                          callerName={peer?.name?.split(" ")[0] ?? "the caller"}
                         />
-                        {helpLoading && helpPlaces.length === 0 && <p className="mt-3 text-[11px] text-muted-foreground">Finding hospitals, police stations, and clinics nearby…</p>}
-                      </section>
-                    )}
-                  </div>
+                      ) : emergency.location_requested ? (
+                        <div
+                          role="status"
+                          className="relative flex min-h-[22rem] flex-col items-center justify-center overflow-hidden rounded-2xl border border-gold/25 bg-gold/[0.06] px-5 text-center"
+                        >
+                          <span className="absolute h-24 w-24 animate-ping rounded-full border border-gold/35" />
+                          <span className="relative grid h-12 w-12 place-items-center rounded-full border border-gold/35 bg-gold/10 text-gold">
+                            <Crosshair className="h-5 w-5" />
+                          </span>
+                          <p className="relative mt-4 text-sm font-bold text-foreground">
+                            Acquiring caller GPS…
+                          </p>
+                          <p className="relative mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                            Waiting for caller&apos;s live GPS coordinates. The route will appear as soon as they arrive.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex min-h-[22rem] items-center justify-center rounded-2xl border border-border/60 bg-muted/20 px-5 text-center text-sm text-muted-foreground">
+                          The caller has not shared a location for this emergency.
+                        </div>
+                      )}
+                    </section>
+                  </>}
 
-                  {emergency && phase !== "ended" && <aside className="receiver-info-rail">
-                    <InfoCard icon={<BellRing />} title="Emergency details"><InfoRow label="Case ID" value={callId ? `ASA-${callId.slice(0, 8).toUpperCase()}` : "Loading"} /><InfoRow label="Type" value={emergencyLabel ?? "Emergency"} /><InfoRow label="Location" value={emergency.location_shared ? emergency.area : emergency.location_requested ? "Acquiring caller GPS…" : "Not shared"} /><InfoRow label="GPS Accuracy" value={typeof emergency.accuracy_m === "number" ? `Approximately ${Math.round(emergency.accuracy_m)} m` : "Waiting"} /></InfoCard>
-                    <InfoCard icon={<MapPin />} title="Location"><p className={cn("text-[11px] font-bold", emergency.location_shared ? "text-success" : "text-muted-foreground")}>{emergency.location_shared ? "Live location shared" : emergency.location_requested ? "Acquiring caller GPS…" : "Location not shared"}</p><p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{emergency.location_shared ? "Your location is visible to the response team." : emergency.location_requested ? "The map will update when the caller’s GPS is available." : "The caller has not shared a location for this emergency."}</p><a href="#receiver-map" className="receiver-rail-action"><MapPinned /> View on Map</a></InfoCard>
-                    <InfoCard icon={<Crosshair />} title="Quick actions">{callerPoint && <><a className="receiver-quick" href={`https://www.google.com/maps/dir/?api=1&destination=${callerPoint.lat},${callerPoint.lng}`} target="_blank" rel="noreferrer"><Navigation /> Directions to location</a><Button variant="ghost" className="receiver-quick" onClick={() => void copyCallerGps()}><Clipboard /> Copy GPS coordinates</Button></>}</InfoCard>
-                  </aside>}
+                  {isCaller && peer?.sosActivityId && !peer.shareLocation && phase !== "ended" && (
+                    <section className="receiver-surface" aria-label="Nearby directions unavailable">
+                      <p className="text-[12px] font-semibold text-muted-foreground">
+                        Live directions are unavailable because location sharing is off for this SOS.
+                      </p>
+                    </section>
+                  )}
+
+                  {isCaller && peer?.sosActivityId && peer.shareLocation && !localPoint && phase !== "ended" && (
+                    <section className="receiver-surface" aria-label="Waiting for live location">
+                      <p className="text-[12px] font-semibold text-muted-foreground">
+                        {localLocationError ?? "Waiting for a current GPS position to find nearby help."}
+                      </p>
+                    </section>
+                  )}
+
+                  {isCaller && peer?.sosActivityId && peer.shareLocation && localPoint && phase !== "ended" && (
+                    <section id="receiver-route" className="receiver-surface" aria-label="Directions to nearby help">
+                      <div className="receiver-section-head">
+                        <span className="h-2 w-2 rounded-full bg-success" />
+                        <div className="min-w-0"><p>Directions to nearby help</p><span>Nearest facility · live route updates</span></div>
+                      </div>
+                      <ResponderNavigation
+                        caller={localPoint}
+                        callerName="nearby help"
+                        initialLocation={localPoint}
+                        currentLocation={localPoint}
+                        trackLocation={false}
+                        helpPlaces={helpPlaces}
+                      />
+                      {helpLoading && helpPlaces.length === 0 && <p className="mt-3 text-[11px] text-muted-foreground">Finding hospitals, police stations, and clinics nearby…</p>}
+                    </section>
+                  )}
                 </div>
               </div>
             </main>
@@ -839,18 +781,6 @@ export function CallCenter() {
       )}
     </AnimatePresence>
   );
-}
-
-function Fact({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone?: "danger" }) {
-  return <div className="receiver-fact"><span className={cn("receiver-fact-icon", tone === "danger" && "text-destructive")}>{icon}</span><div className="min-w-0"><p>{label}</p><strong>{value}</strong></div></div>;
-}
-
-function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return <section className="receiver-info-card"><header>{icon}<h3>{title}</h3></header><div className="mt-4">{children}</div></section>;
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return <div className="receiver-info-row"><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function CallAction({
