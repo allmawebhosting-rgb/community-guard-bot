@@ -44,6 +44,7 @@ import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-e
 import { AllmaVoice } from "@/components/allma/sos/allma-voice";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
+import { ResponderNavigation } from "@/components/allma/responder-navigation";
 import { cn } from "@/lib/utils";
 import { logCheckEvent, resolveSafetyCheck } from "@/lib/smart-sos";
 import { notifySosActivity } from "@/lib/push.functions";
@@ -1393,6 +1394,7 @@ export function SOSExperience({
             emergencyId={emergencyId}
             location={location}
             locationState={locationState}
+            shareLocation={shareLocation}
             activityId={sosActivityId}
             microphoneStream={microphoneStream}
             onReport={() => setPhase("report")}
@@ -1966,6 +1968,7 @@ function MinimalEmergencyScreen({
   emergencyId,
   location,
   locationState,
+  shareLocation,
   activityId,
   microphoneStream,
   onEnableLocation,
@@ -1976,6 +1979,7 @@ function MinimalEmergencyScreen({
   emergencyId: string | null;
   location: LocationInfo | null;
   locationState: LocationState;
+  shareLocation: boolean;
   activityId: string | null;
   microphoneStream?: MediaStream;
   onEnableLocation: () => void;
@@ -2133,7 +2137,7 @@ function MinimalEmergencyScreen({
           {/* Response column */}
           <aside className="grid min-w-0 content-start gap-4">
             <div id="deck-response" className="deck-panel deck-panel-critical cmd-rise min-w-0 p-4 sm:p-5">
-              <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} compact />
+              <EmergencyCallEscalation activityId={activityId} emergencyType={emergencyType} microphoneStream={microphoneStream} shareLocation={shareLocation} compact />
             </div>
 
             <button
@@ -2212,6 +2216,17 @@ function MinimalEmergencyScreen({
 
             {locationReady && location && (
               <section id="deck-help" className="deck-panel cmd-rise min-w-0 p-4 sm:p-5" style={{ animationDelay: "170ms" }}>
+                <div className="mb-5">
+                  <ResponderNavigation
+                    caller={{ lat: location.lat, lng: location.lng }}
+                    callerName="nearby help"
+                    initialLocation={{ lat: location.lat, lng: location.lng }}
+                    currentLocation={{ lat: location.lat, lng: location.lng }}
+                    trackLocation={false}
+                    helpPlaces={nearbyHelp}
+                    onSelectDestination={setSelectedHelpId}
+                  />
+                </div>
                 <NearbyHelpList
                   places={nearbyHelp}
                   loading={nearbyHelpLoading}

@@ -18,8 +18,6 @@ import {
   onGoogleMapsAuthFailure,
 } from "@/lib/google-maps-loader";
 
-
-
 // ─── Live location map (shared by the SOS screen and the emergency call screen) ──
 
 export type LiveLocationPoint = {
@@ -38,6 +36,12 @@ export const MAP_ZOOM_LEVELS = [
 ] as const;
 
 const TILE_SIZE = 256;
+
+type GoogleInfoWindow = {
+  close: () => void;
+  setContent: (content: HTMLElement) => void;
+  open: (options: { map: unknown; anchor: unknown }) => void;
+};
 
 function lngToTileX(lng: number, z: number) {
   return ((lng + 180) / 360) * 2 ** z;
@@ -148,6 +152,7 @@ export function GoogleLocationCanvas({
   const mapRef = useRef<any>(null);
   const mapsRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const infoWindowRef = useRef<GoogleInfoWindow | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const selectRef = useRef(onSelectPlace);
   selectRef.current = onSelectPlace;
@@ -220,52 +225,42 @@ export function GoogleLocationCanvas({
       const kind = helpKind(place.type);
       const color = HELP_KIND_COLOR[kind];
       const isHospital = kind === "hospital" || kind === "clinic";
+      const distanceLabel = Number.isFinite(place.distance_m)
+        ? place.distance_m < 950
+          ? `${Math.round(place.distance_m)} m`
+          : `${(place.distance_m / 1000).toFixed(1)} km`
+        : "";
+      const infoContent = document.createElement("div");
+      infoContent.style.cssText = "font: 13px system-ui,sans-serif;max-width:240px;padding:4px 2px";
+      const name = document.createElement("strong");
+      name.textContent = place.name;
+      name.style.display = "block";
+      const details = document.createElement("span");
+      details.textContent = [distanceLabel, kind].filter(Boolean).join(" · ");
+      details.style.cssText = "display:block;margin-top:4px;color:#52616b;text-transform:capitalize";
+      infoContent.append(name, details);
+      if (!infoWindowRef.current) infoWindowRef.current = new maps.InfoWindow();
       let marker;
       if (isHospital) {
-        // Animated SVG marker for hospital/clinic
-        let pulse = 0;
-        const getIcon = () => {
-          // Pulse between 0.7 and 1.15 scale
-          const scale = 1 + 0.15 * Math.sin(pulse);
-          pulse += 0.18;
-          return {
-            url:
-              `data:image/svg+xml;utf8,` +
-              encodeURIComponent(`
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="16" cy="16" r="12" fill="#34d399" fill-opacity="0.32"/>
-                  <circle cx="16" cy="16" r="7" fill="#34d399" filter="url(#glow)"/>
-                  <g>
-                    <rect x="14.2" y="8.5" width="3.6" height="15" rx="1.2" fill="#fff"/>
-                    <rect x="8.5" y="14.2" width="15" height="3.6" rx="1.2" fill="#fff"/>
-                  </g>
-                  <defs>
-                    <filter id="glow" x="0" y="0" width="32" height="32" filterUnits="userSpaceOnUse">
-                      <feGaussianBlur stdDeviation="2.5" result="blur"/>
-                      <feMerge>
-                        <feMergeNode in="blur"/>
-                        <feMergeNode in="SourceGraphic"/>
-                      </feMerge>
-                    </filter>
-                  </defs>
-                </svg>
-              `),
-            scaledSize: new maps.Size(32 * scale, 32 * scale),
-            anchor: new maps.Point(16 * scale, 16 * scale),
-          };
-        };
         marker = new maps.Marker({
           map,
           position: { lat: place.latitude, lng: place.longitude },
-          title: place.name,
-          icon: getIcon(),
+          title: [place.name, distanceLabel, kind].filter(Boolean).join(" · "),
+          icon: {
+            url: `data:image/svg+xml;utf8,${encodeURIComponent(`
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="24" r="8" fill="#10b981" fill-opacity=".28">
+                  <animate attributeName="r" values="8;22" dur="1.6s" repeatCount="indefinite"/>
+                  <animate attributeName="fill-opacity" values=".35;0" dur="1.6s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="24" cy="24" r="10" fill="#10b981" stroke="#fff" stroke-width="3"/>
+                <path d="M22 16h4v6h6v4h-6v6h-4v-6h-6v-4h6z" fill="#fff"/>
+              </svg>
+            `)}`,
+            scaledSize: new maps.Size(44, 44),
+            anchor: new maps.Point(22, 22),
+          },
         });
-        marker.addListener("click", () => selectRef.current?.(place.id));
-        // Animate the marker icon
-        const interval = setInterval(() => {
-          marker.setIcon(getIcon());
-        }, 320);
-        marker._allmaPulseInterval = interval;
       } else {
         marker = new maps.Marker({
           map,
@@ -280,16 +275,23 @@ export function GoogleLocationCanvas({
             strokeWeight: selectedPlaceId === place.id ? 3 : 1.5,
           },
         });
-        marker.addListener("click", () => selectRef.current?.(place.id));
+      }
+      marker.addListener("click", () => {
+        selectRef.current?.(place.id);
+        infoWindowRef.current?.setContent(infoContent);
+        infoWindowRef.current?.open({ map, anchor: marker });
+      });
+      if (selectedPlaceId === place.id) {
+        infoWindowRef.current?.setContent(infoContent);
+        infoWindowRef.current?.open({ map, anchor: marker });
       }
       return marker;
     });
-    // Clean up animated intervals
     return () => {
       markersRef.current.forEach((marker) => {
-        if (marker._allmaPulseInterval) clearInterval(marker._allmaPulseInterval);
         marker.setMap(null);
       });
+      infoWindowRef.current?.close();
       markersRef.current = [];
     };
   }, [mapReady, places, selectedPlaceId]);
@@ -412,8 +414,8 @@ export function LiveLocationMap({
                 <button
                   key={place.id}
                   type="button"
-                  title={place.name}
-                  aria-label={place.name}
+                  title={`${place.name}${place.distance_m ? ` · ${Math.round(place.distance_m)} m` : ""} · ${kind}`}
+                  aria-label={`${place.name}${place.distance_m ? `, ${Math.round(place.distance_m)} meters away` : ""}, ${kind}`}
                   onClick={() => onSelectPlace?.(place.id)}
                   className={cn(
                     "absolute -translate-x-1/2 -translate-y-1/2 group focus:z-20",
@@ -444,7 +446,7 @@ export function LiveLocationMap({
                     />
                   )}
                   {/* Tooltip/label on hover/focus */}
-                  <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-max -translate-x-1/2 scale-95 rounded bg-background/95 px-2 py-1 text-xs font-semibold text-foreground opacity-0 shadow transition group-hover:opacity-100 group-focus:opacity-100">
+                  <span className={cn("pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-max max-w-52 -translate-x-1/2 rounded bg-background/95 px-2 py-1 text-xs font-semibold text-foreground shadow transition", active ? "opacity-100" : "scale-95 opacity-0 group-hover:opacity-100 group-focus:opacity-100")}>
                     {place.name}
                     {place.distance_m ? (
                       <span className="ml-2 text-muted-foreground font-normal">{Math.round(place.distance_m) < 1000 ? `${Math.round(place.distance_m)}m` : `${(place.distance_m/1000).toFixed(1)}km`}</span>

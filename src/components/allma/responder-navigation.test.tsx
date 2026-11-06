@@ -10,7 +10,7 @@ vi.mock("@/lib/google-maps-loader", () => ({
 import { ResponderNavigation } from "./responder-navigation";
 
 let gps: PositionCallback;
-const requests: { signal: AbortSignal; resolve: (value: unknown) => void }[] = [];
+const requests: { url: string; signal: AbortSignal; resolve: (value: unknown) => void }[] = [];
 const caller = { lat: 0.32, lng: 32.59 };
 const routeResponse = {
   ok: true,
@@ -33,8 +33,8 @@ beforeEach(() => {
     watchPosition: vi.fn((callback: PositionCallback) => { gps = callback; return 1; }),
     clearWatch: vi.fn(),
   } });
-  vi.stubGlobal("fetch", vi.fn((_url: string, options: { signal: AbortSignal }) =>
-    new Promise((resolve) => requests.push({ signal: options.signal, resolve }))));
+  vi.stubGlobal("fetch", vi.fn((url: string, options: { signal: AbortSignal }) =>
+    new Promise((resolve) => requests.push({ url, signal: options.signal, resolve }))));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
@@ -68,4 +68,55 @@ it("supersedes routes only for meaningful movement, mode changes or manual refre
   expect(screen.queryByText("5 min")).toBeNull();
   view.unmount();
   expect(requests[3].signal.aborted).toBe(true);
+});
+
+it("starts at the nearest hospital and reroutes when another help type is selected", async () => {
+  const places = [
+    {
+      id: "hospital-far",
+      name: "Far Hospital",
+      type: "hospital",
+      address: null,
+      phone: null,
+      distance_m: 1800,
+      latitude: 0.33,
+      longitude: 32.59,
+    },
+    {
+      id: "hospital-near",
+      name: "Nearest Hospital",
+      type: "hospital",
+      address: null,
+      phone: null,
+      distance_m: 220,
+      latitude: 0.311,
+      longitude: 32.581,
+    },
+    {
+      id: "clinic",
+      name: "Nearby Clinic",
+      type: "clinic",
+      address: null,
+      phone: null,
+      distance_m: 350,
+      latitude: 0.312,
+      longitude: 32.582,
+    },
+  ];
+  render(
+    <ResponderNavigation
+      caller={caller}
+      initialLocation={{ lat: 0.31, lng: 32.58 }}
+      trackLocation={false}
+      helpPlaces={places}
+    />,
+  );
+
+  expect(requests).toHaveLength(1);
+  expect(requests[0].url).toContain("32.581,0.311");
+  await act(async () => requests[0].resolve(routeResponse));
+
+  fireEvent.click(screen.getByRole("button", { name: /Nearest Clinic/ }));
+  expect(requests).toHaveLength(2);
+  expect(requests[1].url).toContain("32.582,0.312");
 });

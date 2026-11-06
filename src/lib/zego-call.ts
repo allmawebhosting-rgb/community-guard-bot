@@ -66,6 +66,7 @@ export type CallPeer = {
   avatarUrl?: string | null;
   sosActivityId?: string;
   emergencyType?: string;
+  shareLocation?: boolean;
   onError?: (message: string) => void;
   microphoneStream?: MediaStream;
 };

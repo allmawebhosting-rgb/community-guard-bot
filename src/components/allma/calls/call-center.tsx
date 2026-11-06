@@ -33,7 +33,11 @@ import { ResponderNavigation } from "@/components/allma/responder-navigation";
 import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
 import { EmergencyRoom } from "@/components/allma/calls/emergency-room";
 import { getNearbyPlaces } from "@/lib/places.functions";
-import { acceptEmergencyCallInvitation, getEmergencyCallContext, type EmergencyCallContext } from "@/lib/sos-calling";
+import {
+  acceptEmergencyCallInvitation,
+  getEmergencyCallContext,
+  type EmergencyCallContext,
+} from "@/lib/sos-calling";
 import { startSosEmergencyCall } from "@/lib/sos-calling";
 import {
   VoiceCallEngine,
@@ -79,15 +83,46 @@ export function CallCenter() {
   const [helpPlaces, setHelpPlaces] = useState<HelpPlace[]>([]);
   const [helpLoading, setHelpLoading] = useState(false);
   const [selectedHelpId, setSelectedHelpId] = useState<string | null>(null);
+  const [localPoint, setLocalPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [localLocationError, setLocalLocationError] = useState<string | null>(null);
 
   // Where the caller is, when they chose to share it with this receiver.
   const callerPoint =
     emergency?.location_shared && emergency.latitude !== null && emergency.longitude !== null
       ? { lat: emergency.latitude, lng: emergency.longitude }
       : null;
+  useEffect(() => {
+    if (!isCaller || !peer?.sosActivityId || !peer.shareLocation || phase === "ended" || phase === "idle") {
+      setLocalPoint(null);
+      setLocalLocationError(null);
+      return;
+    }
+    if (!navigator.geolocation) {
+      setLocalLocationError("This device does not provide live location.");
+      return;
+    }
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setLocalPoint({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setLocalLocationError(null);
+      },
+      (error) => {
+        console.warn("Caller navigation location unavailable", error);
+        setLocalLocationError(
+          error.code === 1
+            ? "Allow location access in your browser to get nearby directions."
+            : "Waiting for a current GPS position.",
+        );
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [isCaller, peer?.sosActivityId, peer?.shareLocation, phase]);
+
+  const helpPoint = isCaller ? localPoint : callerPoint;
   // Coarse key so small GPS drift does not re-run the Places lookup.
-  const callerAreaKey = callerPoint
-    ? `${callerPoint.lat.toFixed(3)},${callerPoint.lng.toFixed(3)}`
+  const callerAreaKey = helpPoint
+    ? `${helpPoint.lat.toFixed(3)},${helpPoint.lng.toFixed(3)}`
     : null;
 
   useEffect(() => {
@@ -134,9 +169,6 @@ export function CallCenter() {
       active = false;
     };
   }, [callerAreaKey]);
-
-
-
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
   const sosOutgoingRef = useRef(new Map<string, CallPeer>());
@@ -667,6 +699,41 @@ export function CallCenter() {
                       {callerPoint && <section id="receiver-help" className="receiver-surface"><NearbyHelpList places={helpPlaces} loading={helpLoading} origin={callerPoint} selectedId={selectedHelpId} onSelect={setSelectedHelpId} tone="surface" title="Help near the caller" subtitle="Police, clinics and hospitals closest to where they are" emptyLabel="No police, clinics or hospitals were found near the caller yet." /></section>}
                       {sosRoomId && <section id="receiver-chat" className="receiver-surface"><EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} /></section>}
                     </>}
+
+                    {isCaller && peer?.sosActivityId && !peer.shareLocation && phase !== "ended" && (
+                      <section className="receiver-surface" aria-label="Nearby directions unavailable">
+                        <p className="text-[12px] font-semibold text-muted-foreground">
+                          Live directions are unavailable because location sharing is off for this SOS.
+                        </p>
+                      </section>
+                    )}
+
+                    {isCaller && peer?.sosActivityId && peer.shareLocation && !localPoint && phase !== "ended" && (
+                      <section className="receiver-surface" aria-label="Waiting for live location">
+                        <p className="text-[12px] font-semibold text-muted-foreground">
+                          {localLocationError ?? "Waiting for a current GPS position to find nearby help."}
+                        </p>
+                      </section>
+                    )}
+
+                    {isCaller && peer?.sosActivityId && peer.shareLocation && localPoint && phase !== "ended" && (
+                      <section id="receiver-route" className="receiver-surface" aria-label="Directions to nearby help">
+                        <div className="receiver-section-head">
+                          <span className="h-2 w-2 rounded-full bg-success" />
+                          <div className="min-w-0"><p>Directions to nearby help</p><span>Nearest facility · live route updates</span></div>
+                        </div>
+                        <ResponderNavigation
+                          caller={localPoint}
+                          callerName="nearby help"
+                          initialLocation={localPoint}
+                          currentLocation={localPoint}
+                          trackLocation={false}
+                          helpPlaces={helpPlaces}
+                          onSelectDestination={setSelectedHelpId}
+                        />
+                        {helpLoading && helpPlaces.length === 0 && <p className="mt-3 text-[11px] text-muted-foreground">Finding hospitals, police stations, and clinics nearby…</p>}
+                      </section>
+                    )}
                   </div>
 
                   {emergency && phase !== "ended" && <aside className="receiver-info-rail">

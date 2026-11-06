@@ -19,12 +19,14 @@ export function EmergencyCallEscalation({
   autoStart = true,
   compact = false,
   microphoneStream,
+  shareLocation = false,
 }: {
   activityId: string | null;
   emergencyType: string;
   autoStart?: boolean;
   compact?: boolean;
   microphoneStream?: MediaStream;
+  shareLocation?: boolean;
 }) {
   // Keyed on the emergency only: re-keying on the emergency type used to drop
   // the subscription and kill the running dialer mid-emergency.
@@ -43,7 +45,8 @@ export function EmergencyCallEscalation({
   useEffect(() => {
     controller?.setEmergencyType(emergencyType);
     controller?.setMicrophoneStream(microphoneStream);
-  }, [controller, emergencyType, microphoneStream]);
+    controller?.setLocationConsent(shareLocation);
+  }, [controller, emergencyType, microphoneStream, shareLocation]);
 
   useEffect(() => {
     if (controller) return;

@@ -72,6 +72,7 @@ class SosEscalation {
   private loadingTargets = false;
   private autoStartRequested = false;
   private microphoneStream: MediaStream | undefined;
+  private shareLocation = false;
   private disposeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -85,6 +86,10 @@ class SosEscalation {
 
   setMicrophoneStream(stream: MediaStream | undefined) {
     this.microphoneStream = stream;
+  }
+
+  setLocationConsent(shareLocation: boolean) {
+    this.shareLocation = shareLocation;
   }
 
   subscribe(listener: () => void) {
@@ -216,6 +221,7 @@ class SosEscalation {
             avatarUrl: target.avatar_url,
             sosActivityId: this.activityId,
             emergencyType: this.emergencyType,
+            shareLocation: this.shareLocation,
             microphoneStream: this.microphoneStream,
             onError: (message) => {
               if (!alive()) return;
