@@ -2080,8 +2080,6 @@ function MinimalEmergencyScreen({
   const navItems = [
     { label: "Emergency", icon: ShieldAlert, id: "deck-response", active: true },
     { label: "Map & Location", icon: MapPin, id: "deck-location" },
-    { label: "Contacts", icon: Users, id: "deck-response" },
-    { label: "Chat", icon: Send, id: "deck-chat" },
   ];
 
   return (

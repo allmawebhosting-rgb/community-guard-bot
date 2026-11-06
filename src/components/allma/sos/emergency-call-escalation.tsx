@@ -97,7 +97,7 @@ export function EmergencyCallEscalation({
   }, [autoStart, controller, state]);
 
   const targets = controller ? (state?.targets ?? []) : (preTargets ?? []);
-  const callableCount = targets.length;
+  const callableCount = targets.filter((target) => !target.ineligible_reason).length;
   const attempts = state?.attempts ?? [];
   const answered = state?.answered ?? null;
   const running = Boolean(state?.running);
@@ -127,11 +127,12 @@ export function EmergencyCallEscalation({
           ? "No answer"
           : "Preparing";
 
-    const reachedCount = rows.filter(({ attempt }) => {
+    const reachedCount = rows.filter(({ attempt, target }) => {
+      if (target.ineligible_reason) return false;
       const derived = attempt ? attemptState(attempt.status) : null;
       return derived === "answered" || derived === "calling" || derived === "alerted";
     }).length;
-    const progress = rows.length ? Math.round((reachedCount / rows.length) * 100) : 0;
+    const progress = callableCount ? Math.round((reachedCount / callableCount) * 100) : 0;
 
     return (
       <section aria-labelledby="response-heading" className="min-w-0">
@@ -160,7 +161,7 @@ export function EmergencyCallEscalation({
 
         <div className="mt-3">
           <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
-            <span>{reachedCount}/{rows.length} contacts reached</span>
+            <span>{reachedCount}/{callableCount} eligible contacts reached</span>
             {current && !answered ? (
               <span className="truncate pl-3 text-foreground/70">{current.target.full_name}</span>
             ) : null}
@@ -168,7 +169,7 @@ export function EmergencyCallEscalation({
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-gradient-to-r from-destructive to-gold transition-[width] duration-500"
-              style={{ width: `${Math.max(progress, rows.length ? 6 : 0)}%` }}
+              style={{ width: `${callableCount ? Math.max(progress, 6) : 0}%` }}
             />
           </div>
         </div>
@@ -182,6 +183,14 @@ export function EmergencyCallEscalation({
           {!loading && rows.length === 0 && (
             <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-[12px] leading-relaxed text-muted-foreground">
               No Safety Network members are available for this emergency.
+            </p>
+          )}
+          {!loading && rows.length > 0 && callableCount === 0 && (
+            <p
+              role="status"
+              className="rounded-lg border border-border/60 bg-muted/30 p-3 text-[12px] leading-relaxed text-muted-foreground"
+            >
+              No contacts have enabled SOS alerts and in-app emergency calls.
             </p>
           )}
           {rows.map(({ target, attempt }) => {
@@ -206,7 +215,7 @@ export function EmergencyCallEscalation({
                 <span className="min-w-0">
                   <span className="block truncate font-semibold text-foreground">{target.full_name}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">
-                    {target.safety_role ?? "Friend"}
+                    {target.ineligible_reason ?? target.safety_role ?? "Friend"}
                   </span>
                 </span>
                 <span
@@ -215,7 +224,17 @@ export function EmergencyCallEscalation({
                     isAnswered ? "text-success" : isCalling ? "text-gold" : "text-muted-foreground",
                   )}
                 >
-                  {isAnswered ? (attempt?.status === "connected" ? "Connected" : "Answered") : isCalling ? "Calling" : derived === "alerted" ? "Notified" : "Waiting"}
+                  {target.ineligible_reason
+                    ? "Unavailable"
+                    : isAnswered
+                      ? attempt?.status === "connected"
+                        ? "Connected"
+                        : "Answered"
+                      : isCalling
+                        ? "Calling"
+                        : derived === "alerted"
+                          ? "Notified"
+                          : "Waiting"}
                 </span>
               </div>
             );
@@ -315,7 +334,9 @@ export function EmergencyCallEscalation({
               ? answered?.status === "connected"
                 ? "CONNECTED"
                 : "ANSWERED"
-              : derived
+              : target.ineligible_reason
+                ? "UNAVAILABLE"
+                : derived
                   ? (copy?.label ?? "NEXT").toUpperCase()
                   : "NEXT";
             return (
@@ -330,7 +351,7 @@ export function EmergencyCallEscalation({
                 <span
                   className={cn(
                     "text-sm font-black uppercase tracking-[0.08em]",
-                    isAnswered ? "text-success" : (copy?.tone ?? "text-muted-foreground"),
+                    isAnswered ? "text-success" : target.ineligible_reason ? "text-muted-foreground" : (copy?.tone ?? "text-muted-foreground"),
                     isCurrent && !isAnswered && "text-gold",
                   )}
                 >

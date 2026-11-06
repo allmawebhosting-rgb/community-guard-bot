@@ -106,13 +106,13 @@ export async function listSosCallTargets(): Promise<SosCallTarget[]> {
         avatar_url: connection.avatar_url ?? null,
         safety_role: connection.safety_role || "Safety contact",
         priority: connection.priority ?? 0,
-        share_location_on_sos: connection.share_location_on_sos !== false,
+        share_location_on_sos: connection.share_location_on_sos === true,
         // Kept in the list so the user can see who is skipped and why, instead
-        // of an unexplained empty network.
+        // of an unexplained empty network. Unknown permission values fail closed.
         ineligible_reason:
-          connection.allow_emergency_calls === false
+          connection.allow_emergency_calls !== true
             ? "Allma calls off"
-            : connection.notify_on_sos === false
+            : connection.notify_on_sos !== true
               ? "SOS alerts off"
               : null,
       }))

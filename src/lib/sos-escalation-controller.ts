@@ -147,7 +147,7 @@ class SosEscalation {
       const targets = await listSosCallTargets();
       this.patch({
         targets,
-        noTargets: targets.length === 0,
+        noTargets: targets.every((target) => Boolean(target.ineligible_reason)),
         loading: false,
       });
     } catch (error) {
@@ -174,13 +174,9 @@ class SosEscalation {
     await this.init(autoStart);
   }
 
-  /**
-   * Every configured Safety Network member is dialed. Whether a person can
-   * actually be reached is decided by the real call attempt, not by a
-   * pre-flight eligibility filter.
-   */
+  /** Return only contacts whose SOS permissions allow an emergency call. */
   callable() {
-    return this.state.targets;
+    return this.state.targets.filter((target) => !target.ineligible_reason);
   }
 
   start() {

@@ -401,6 +401,23 @@ export function CallCenter() {
               .then(() => setCallStatus(row.id, "connecting"))
               .catch(() => undefined);
           }
+          // Location writes on the caller's SOS row bump updated_at on active
+          // call rows. Re-read the recipient-authorized context immediately so
+          // the receiver's map hydrates as soon as GPS arrives.
+          if (
+            row.id === callIdRef.current &&
+            !isCallerRef.current &&
+            (phaseRef.current === "incoming" || phaseRef.current === "active")
+          ) {
+            void getEmergencyCallContext(row.id).then((context) => {
+              if (
+                callIdRef.current === row.id &&
+                context?.is_emergency
+              ) {
+                setEmergency(context);
+              }
+            });
+          }
           if (row.id !== callIdRef.current) return;
           if (row.status === "declined") teardown(`${peerRef.current?.name ?? "They"} declined the call.`);
           else if (row.status === "ended") teardown("Call ended");
@@ -687,14 +704,75 @@ export function CallCenter() {
                     {emergency && phase !== "ended" && <>
                       <section className="receiver-facts" aria-label="Emergency details">
                         <Fact icon={<BellRing />} label="Emergency type" value={emergencyLabel ?? "Emergency"} tone="danger" />
-                        <Fact icon={<MapPin />} label="Location" value={emergency.location_shared ? emergency.area : "Not shared"} />
+                        <Fact
+                          icon={<MapPin />}
+                          label="Location"
+                          value={
+                            emergency.location_shared
+                              ? emergency.area
+                              : emergency.location_requested
+                                ? "Acquiring caller GPS…"
+                                : "Not shared"
+                          }
+                        />
                         <Fact icon={<Crosshair />} label="GPS accuracy" value={typeof emergency.accuracy_m === "number" ? `Approximately ${Math.round(emergency.accuracy_m)} m` : "Waiting for GPS"} />
                         <Fact icon={<Clipboard />} label="Case ID" value={callId ? `ASA-${callId.slice(0, 8).toUpperCase()}` : "Loading"} />
                       </section>
 
                       {callerPoint && <section id="receiver-route" className="receiver-surface" aria-label="Directions to caller"><div className="receiver-section-head"><span className="h-2 w-2 rounded-full bg-success" /><div className="min-w-0"><p>Directions to {peer?.name?.split(" ")[0] ?? "caller"}</p><span>Live route from your location</span></div></div><ResponderNavigation caller={{ lat: callerPoint.lat, lng: callerPoint.lng }} callerName={peer?.name?.split(" ")[0] ?? "the caller"} /></section>}
 
-                      {callerPoint && <section id="receiver-map" className="receiver-surface" aria-label="Caller location"><div className="receiver-section-head"><span className="h-2 w-2 rounded-full bg-success" /><div className="min-w-0"><p>Live location</p><span>Shared with responders</span></div></div><LiveLocationMap location={{ lat: callerPoint.lat, lng: callerPoint.lng, accuracy: emergency.accuracy_m ?? null, address: emergency.area }} badge="Live location" directions directionsLabel="Open in Google Maps" places={helpPlaces} selectedPlaceId={selectedHelpId} onSelectPlace={setSelectedHelpId} heightClassName="h-52 sm:h-64 lg:h-[260px]" /></section>}
+                      <section id="receiver-map" className="receiver-surface" aria-label="Caller location">
+                        <div className="receiver-section-head">
+                          <span className={cn("h-2 w-2 rounded-full", callerPoint ? "bg-success" : "bg-gold")} />
+                          <div className="min-w-0">
+                            <p>Live location</p>
+                            <span>
+                              {callerPoint
+                                ? "Shared with responders"
+                                : emergency.location_requested
+                                  ? "Waiting for caller GPS"
+                                  : "Location sharing is off"}
+                            </span>
+                          </div>
+                        </div>
+                        {callerPoint ? (
+                          <LiveLocationMap
+                            location={{
+                              lat: callerPoint.lat,
+                              lng: callerPoint.lng,
+                              accuracy: emergency.accuracy_m ?? null,
+                              address: emergency.area,
+                            }}
+                            badge="Live location"
+                            directions
+                            directionsLabel="Open in Google Maps"
+                            places={helpPlaces}
+                            selectedPlaceId={selectedHelpId}
+                            onSelectPlace={setSelectedHelpId}
+                            heightClassName="h-52 sm:h-64 lg:h-[260px]"
+                          />
+                        ) : emergency.location_requested ? (
+                          <div
+                            role="status"
+                            className="relative mt-3 flex min-h-52 flex-col items-center justify-center overflow-hidden rounded-2xl border border-gold/25 bg-gold/[0.06] px-5 text-center"
+                          >
+                            <span className="absolute h-20 w-20 animate-ping rounded-full border border-gold/35" />
+                            <span className="relative grid h-11 w-11 place-items-center rounded-full border border-gold/35 bg-gold/10 text-gold">
+                              <Crosshair className="h-5 w-5" />
+                            </span>
+                            <p className="relative mt-4 text-sm font-bold text-foreground">
+                              Acquiring caller GPS…
+                            </p>
+                            <p className="relative mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                              The live map and route will appear as soon as the caller’s location is available.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mt-3 flex min-h-52 items-center justify-center rounded-2xl border border-border/60 bg-muted/20 px-5 text-center text-sm text-muted-foreground">
+                            The caller has not shared their location for this emergency.
+                          </div>
+                        )}
+                      </section>
 
                       {callerPoint && <section id="receiver-help" className="receiver-surface"><NearbyHelpList places={helpPlaces} loading={helpLoading} origin={callerPoint} selectedId={selectedHelpId} onSelect={setSelectedHelpId} tone="surface" title="Help near the caller" subtitle="Police, clinics and hospitals closest to where they are" emptyLabel="No police, clinics or hospitals were found near the caller yet." /></section>}
                       {sosRoomId && <section id="receiver-chat" className="receiver-surface"><EmergencyRoom sosActivityId={sosRoomId} currentUserId={userId} compact showLocation={false} /></section>}
@@ -737,8 +815,8 @@ export function CallCenter() {
                   </div>
 
                   {emergency && phase !== "ended" && <aside className="receiver-info-rail">
-                    <InfoCard icon={<BellRing />} title="Emergency details"><InfoRow label="Case ID" value={callId ? `ASA-${callId.slice(0, 8).toUpperCase()}` : "Loading"} /><InfoRow label="Type" value={emergencyLabel ?? "Emergency"} /><InfoRow label="Location" value={emergency.location_shared ? emergency.area : "Not shared"} /><InfoRow label="GPS Accuracy" value={typeof emergency.accuracy_m === "number" ? `Approximately ${Math.round(emergency.accuracy_m)} m` : "Waiting"} /></InfoCard>
-                    <InfoCard icon={<MapPin />} title="Location"><p className="text-[11px] font-bold text-success">Live location shared</p><p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">Your location is visible to the response team.</p>{callerPoint && <a href="#receiver-map" className="receiver-rail-action"><MapPinned /> View on Map</a>}</InfoCard>
+                    <InfoCard icon={<BellRing />} title="Emergency details"><InfoRow label="Case ID" value={callId ? `ASA-${callId.slice(0, 8).toUpperCase()}` : "Loading"} /><InfoRow label="Type" value={emergencyLabel ?? "Emergency"} /><InfoRow label="Location" value={emergency.location_shared ? emergency.area : emergency.location_requested ? "Acquiring caller GPS…" : "Not shared"} /><InfoRow label="GPS Accuracy" value={typeof emergency.accuracy_m === "number" ? `Approximately ${Math.round(emergency.accuracy_m)} m` : "Waiting"} /></InfoCard>
+                    <InfoCard icon={<MapPin />} title="Location"><p className={cn("text-[11px] font-bold", emergency.location_shared ? "text-success" : "text-muted-foreground")}>{emergency.location_shared ? "Live location shared" : emergency.location_requested ? "Acquiring caller GPS…" : "Location not shared"}</p><p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{emergency.location_shared ? "Your location is visible to the response team." : emergency.location_requested ? "The map will update when the caller’s GPS is available." : "The caller has not shared a location for this emergency."}</p><a href="#receiver-map" className="receiver-rail-action"><MapPinned /> View on Map</a></InfoCard>
                     <InfoCard icon={<Crosshair />} title="Quick actions">{callerPoint && <><a className="receiver-quick" href={`https://www.google.com/maps/dir/?api=1&destination=${callerPoint.lat},${callerPoint.lng}`} target="_blank" rel="noreferrer"><Navigation /> Directions to location</a><Button variant="ghost" className="receiver-quick" onClick={() => void copyCallerGps()}><Clipboard /> Copy GPS coordinates</Button></>}</InfoCard>
                   </aside>}
                 </div>
