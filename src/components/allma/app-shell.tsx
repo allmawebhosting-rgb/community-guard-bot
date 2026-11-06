@@ -422,7 +422,7 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             </div>
 
             {tab === "menu" ? (
-              <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+              <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3 touch-pan-y [-webkit-overflow-scrolling:touch]">
                 {NAV_ITEMS.map((item) => {
                   const Icon = item.icon;
                   const active =
@@ -534,7 +534,7 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 >
                   <Plus className="h-4 w-4" /> New chat
                 </button>
-                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
                   {!isAuthenticated ? (
                     <p className="px-2 pt-6 text-center text-sm text-muted-foreground">
                       Sign in to keep your conversations.
@@ -661,7 +661,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         {isAuthenticated && <ConnectionRequestsBanner />}
 
         {/* Main content — no max-w constraint; children control their own width */}
-        <main className={cn("flex h-full min-h-0 flex-1 flex-col", isChat && "overflow-hidden")}>
+        <main className={cn("flex min-h-0 flex-1 flex-col", isChat && "overflow-hidden")}>
 
           {children}
         </main>
