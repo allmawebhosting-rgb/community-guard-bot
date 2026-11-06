@@ -99,7 +99,29 @@ export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom:
     }
   }
 
-  if (failed) return <div ref={wrapperRef} className="absolute inset-0" aria-hidden />;
+  if (failed) {
+    return (
+      <div
+        ref={wrapperRef}
+        role="img"
+        aria-label="Approximate map view. Street map tiles are unavailable."
+        className="map-tint absolute inset-0 overflow-hidden bg-[radial-gradient(ellipse_at_25%_30%,hsl(var(--primary)/.12),transparent_42%),linear-gradient(135deg,hsl(var(--secondary)/.8),hsl(var(--background)))]"
+      >
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage:
+              "linear-gradient(hsl(var(--border)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+        <span className="absolute bottom-3 left-3 rounded-lg border border-border/60 bg-background/90 px-3 py-2 text-[10px] font-semibold text-muted-foreground shadow-sm backdrop-blur">
+          Street map unavailable · showing approximate locations
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div ref={wrapperRef} className="map-tint absolute inset-0 overflow-hidden" aria-hidden>

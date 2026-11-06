@@ -59,6 +59,53 @@ function getGoogleMaps() {
   return (globalThis as typeof globalThis & GoogleMapsGlobal).google?.maps;
 }
 
+function projectToWorld(point: LatLng, zoom: number) {
+  const scale = 2 ** zoom;
+  const latitude = Math.max(-85.05112878, Math.min(85.05112878, point.lat));
+  const radians = (latitude * Math.PI) / 180;
+  return {
+    x: ((point.lng + 180) / 360) * scale,
+    y: ((1 - Math.log(Math.tan(radians) + 1 / Math.cos(radians)) / Math.PI) / 2) * scale,
+  };
+}
+
+function getFallbackCamera(points: LatLng[], width: number, height: number) {
+  const usable = points.filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  if (usable.length === 0) return { center: { lat: 0.3152, lng: 32.5816 }, zoom: 14 };
+
+  const baseZoom = 14;
+  const projected = usable.map((point) => projectToWorld(point, baseZoom));
+  const xs = projected.map((point) => point.x);
+  const ys = projected.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const spanX = maxX - minX;
+  const spanY = maxY - minY;
+  let zoom = baseZoom;
+
+  if (usable.length > 1 && Math.max(spanX, spanY) > 0.00001) {
+    const scaleToFit = Math.min(
+      Math.max(140, width - 96) / (Math.max(spanX, 0.00001) * 256),
+      Math.max(140, height - 96) / (Math.max(spanY, 0.00001) * 256),
+    );
+    zoom = Math.floor(Math.max(11, Math.min(16, baseZoom + Math.log2(Math.max(scaleToFit, 0.01)))));
+  }
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const worldScale = 2 ** baseZoom;
+  const n = Math.PI - (2 * Math.PI * centerY) / worldScale;
+  return {
+    center: {
+      lng: (centerX / worldScale) * 360 - 180,
+      lat: (180 / Math.PI) * Math.atan(Math.sinh(n)),
+    },
+    zoom,
+  };
+}
+
 function markerSvg(kind: ReturnType<typeof helpKind>) {
   const color = HELP_KIND_COLOR[kind];
   const symbol =
@@ -326,7 +373,20 @@ export function NearbyMap({
     return () => observer.disconnect();
   }, [useGoogle]);
 
-  const fallbackZoom = 14;
+  const selectedPlace = places.find((place) => place.id === selectedPlaceId);
+  const cameraPoints = route?.coordinates.length
+    ? route.coordinates
+    : selectedPlace
+      ? [
+          userLocation
+            ? { lat: userLocation.lat, lng: userLocation.lng }
+            : { lat: center.lat, lng: center.lng },
+          { lat: selectedPlace.latitude, lng: selectedPlace.longitude },
+        ]
+      : [{ lat: center.lat, lng: center.lng }];
+  const fallbackCamera = getFallbackCamera(cameraPoints, fallbackSize.width, fallbackSize.height);
+  const fallbackZoom = fallbackCamera.zoom;
+  const fallbackCenter = fallbackCamera.center;
   const tileX = (lng: number) => ((lng + 180) / 360) * 2 ** fallbackZoom;
   const tileY = (lat: number) => {
     const radians = (lat * Math.PI) / 180;
@@ -335,8 +395,8 @@ export function NearbyMap({
     );
   };
   const userOffset = {
-    dx: userLocation ? (tileX(userLocation.lng) - tileX(center.lng)) * 256 : 0,
-    dy: userLocation ? (tileY(userLocation.lat) - tileY(center.lat)) * 256 : 0,
+    dx: userLocation ? (tileX(userLocation.lng) - tileX(fallbackCenter.lng)) * 256 : 0,
+    dy: userLocation ? (tileY(userLocation.lat) - tileY(fallbackCenter.lat)) * 256 : 0,
   };
   const metersPerPixel =
     (156543.03392 * Math.cos((center.lat * Math.PI) / 180)) / 2 ** fallbackZoom;
@@ -345,8 +405,8 @@ export function NearbyMap({
     : 0;
   const placeOffsets = places.slice(0, 30).map((place) => ({
     place,
-    dx: (tileX(place.longitude) - tileX(center.lng)) * 256,
-    dy: (tileY(place.latitude) - tileY(center.lat)) * 256,
+    dx: (tileX(place.longitude) - tileX(fallbackCenter.lng)) * 256,
+    dy: (tileY(place.latitude) - tileY(fallbackCenter.lat)) * 256,
   }));
 
   return (
@@ -360,7 +420,7 @@ export function NearbyMap({
         <div ref={containerRef} className="h-[390px] w-full lg:h-[560px]" />
       ) : (
         <div ref={fallbackRef} className="relative h-[390px] w-full overflow-hidden lg:h-[560px]">
-          <OsmTileMap lat={center.lat} lng={center.lng} zoom={fallbackZoom} />
+          <OsmTileMap lat={fallbackCenter.lat} lng={fallbackCenter.lng} zoom={fallbackZoom} />
           {route?.coordinates.length ? (
             <svg
               className="pointer-events-none absolute inset-0 z-[5] h-full w-full overflow-visible"
@@ -371,7 +431,7 @@ export function NearbyMap({
                 points={route.coordinates
                   .map(
                     (point) =>
-                      `${fallbackSize.width / 2 + (tileX(point.lng) - tileX(center.lng)) * 256},${fallbackSize.height / 2 + (tileY(point.lat) - tileY(center.lat)) * 256}`,
+                      `${fallbackSize.width / 2 + (tileX(point.lng) - tileX(fallbackCenter.lng)) * 256},${fallbackSize.height / 2 + (tileY(point.lat) - tileY(fallbackCenter.lat)) * 256}`,
                   )
                   .join(" ")}
                 fill="none"
@@ -385,7 +445,7 @@ export function NearbyMap({
                 points={route.coordinates
                   .map(
                     (point) =>
-                      `${fallbackSize.width / 2 + (tileX(point.lng) - tileX(center.lng)) * 256},${fallbackSize.height / 2 + (tileY(point.lat) - tileY(center.lat)) * 256}`,
+                      `${fallbackSize.width / 2 + (tileX(point.lng) - tileX(fallbackCenter.lng)) * 256},${fallbackSize.height / 2 + (tileY(point.lat) - tileY(fallbackCenter.lat)) * 256}`,
                   )
                   .join(" ")}
                 fill="none"
@@ -451,7 +511,7 @@ export function NearbyMap({
                   onClick={() => {
                     selectPlaceRef.current(active ? "" : place.id);
                   }}
-                  className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-[left,top] duration-500 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   style={{ left: `calc(50% + ${dx}px)`, top: `calc(50% + ${dy}px)` }}
                 >
                   <span

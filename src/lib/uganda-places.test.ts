@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getUgandaPlaceSuggestions, resolveUgandaPlace } from "@/lib/uganda-places";
+import {
+  getNearestUgandaPlace,
+  getUgandaPlaceSuggestions,
+  resolveUgandaPlace,
+} from "@/lib/uganda-places";
 
 describe("Uganda place search", () => {
   it("suggests matching suburbs and roads", () => {
@@ -15,5 +19,17 @@ describe("Uganda place search", () => {
       lat: 0.3152,
       lng: 32.5816,
     });
+  });
+
+  it("labels a live fix with a nearby gazetteer area without claiming an exact address", () => {
+    expect(getNearestUgandaPlace({ lat: 0.3151, lng: 32.5817 })).toMatchObject({
+      name: "Kampala Central",
+      district: "Kampala",
+    });
+  });
+
+  it("does not invent a nearby area for a distant or invalid location", () => {
+    expect(getNearestUgandaPlace({ lat: 10, lng: 10 })).toBeNull();
+    expect(getNearestUgandaPlace({ lat: Number.NaN, lng: 32.58 })).toBeNull();
   });
 });

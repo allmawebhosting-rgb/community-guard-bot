@@ -105,3 +105,29 @@ export function resolveUgandaPlace(text: string): UgandaPlace | null {
   }
   return best?.place ?? null;
 }
+
+function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const radians = (value: number) => (value * Math.PI) / 180;
+  const dLat = radians(b.lat - a.lat);
+  const dLng = radians(b.lng - a.lng);
+  const value =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(radians(a.lat)) * Math.cos(radians(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+}
+
+/** Returns a nearby gazetteer label for a live GPS fix without implying an exact address. */
+export function getNearestUgandaPlace(
+  point: { lat: number; lng: number },
+  maxDistanceMeters = 30_000,
+): UgandaPlace | null {
+  if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return null;
+
+  let nearest: { place: UgandaPlace; distance: number } | null = null;
+  for (const place of PLACES) {
+    const distance = distanceMeters(point, place);
+    if (!nearest || distance < nearest.distance) nearest = { place, distance };
+  }
+
+  return nearest && nearest.distance <= maxDistanceMeters ? nearest.place : null;
+}

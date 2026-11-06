@@ -30,11 +30,11 @@ export function helpKind(type: string): HelpKind {
 }
 
 export const HELP_KIND_COLOR: Record<HelpKind, string> = {
-  hospital: "#34d399",
-  clinic: "#a3e635",
+  hospital: "#10b981",
+  clinic: "#10b981",
   pharmacy: "#14b8a6",
-  police: "#38bdf8",
-  fire: "#fb923c",
+  police: "#2563eb",
+  fire: "#f59e0b",
   other: "#cbd5e1",
 };
 

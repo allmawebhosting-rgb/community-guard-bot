@@ -335,13 +335,23 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
     return cached.data.slice(0, limit);
   }
 
-  const [googlePlaces, seeded, policeStations] = await Promise.all([
+  const [googleResult, seededResult, policeResult] = await Promise.allSettled([
     loadGooglePlaces(latitude, longitude, radiusMeters, types),
     loadSeededFacilities(latitude, longitude, radiusMeters),
     normalizeGoogleTypes(types).includes("police")
       ? loadPoliceStations(latitude, longitude, radiusMeters)
       : Promise.resolve([] as NearbyPlaceResult[]),
   ]);
+  const googlePlaces = googleResult.status === "fulfilled" ? googleResult.value : [];
+  const seeded = seededResult.status === "fulfilled" ? seededResult.value : [];
+  const policeStations = policeResult.status === "fulfilled" ? policeResult.value : [];
+  if (
+    googleResult.status === "rejected" ||
+    seededResult.status === "rejected" ||
+    policeResult.status === "rejected"
+  ) {
+    console.warn("A nearby-place source is unavailable; continuing with available listings.");
+  }
 
   const sorted = dedupePlaces([...googlePlaces, ...seeded, ...policeStations]).sort(
     (a, b) => a.distance_m - b.distance_m,
