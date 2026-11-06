@@ -326,6 +326,7 @@ export function LiveLocationMap({
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [googleFailed, setGoogleFailed] = useState(false);
+  const [localSelectedPlaceId, setLocalSelectedPlaceId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasHeight, setCanvasHeight] = useState(208);
   const [canvasWidth, setCanvasWidth] = useState(640);
@@ -408,15 +409,26 @@ export function LiveLocationMap({
             {fallbackPins.map(({ place, dx, dy }) => {
               const kind = helpKind(place.type);
               const color = HELP_KIND_COLOR[kind];
-              const active = selectedPlaceId === place.id;
+              const distanceLabel = Number.isFinite(place.distance_m)
+                ? place.distance_m < 950
+                  ? `${Math.round(place.distance_m)} m`
+                  : `${(place.distance_m / 1000).toFixed(1)} km`
+                : "";
+              const active =
+                selectedPlaceId === place.id ||
+                (selectedPlaceId == null && localSelectedPlaceId === place.id);
               const isHospital = kind === "hospital" || kind === "clinic";
               return (
                 <button
                   key={place.id}
                   type="button"
-                  title={`${place.name}${place.distance_m ? ` · ${Math.round(place.distance_m)} m` : ""} · ${kind}`}
-                  aria-label={`${place.name}${place.distance_m ? `, ${Math.round(place.distance_m)} meters away` : ""}, ${kind}`}
-                  onClick={() => onSelectPlace?.(place.id)}
+                  title={[place.name, distanceLabel, kind].filter(Boolean).join(" · ")}
+                  aria-label={`${place.name}${distanceLabel ? `, ${distanceLabel} away` : ""}, ${kind}`}
+                  aria-pressed={active}
+                  onClick={() => {
+                    setLocalSelectedPlaceId(active ? null : place.id);
+                    onSelectPlace?.(place.id);
+                  }}
                   className={cn(
                     "absolute -translate-x-1/2 -translate-y-1/2 group focus:z-20",
                     active ? "z-10" : "z-0"
@@ -429,9 +441,9 @@ export function LiveLocationMap({
                   {isHospital ? (
                     <>
                       {/* Animated ping ring */}
-                      <span className="absolute left-1/2 top-1/2 -z-10 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/30 animate-ping" style={{animationDuration:'1.5s'}} />
+                      <span className="absolute left-1/2 top-1/2 z-0 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/30 animate-ping" style={{animationDuration:'1.5s'}} />
                       {/* Glowing emerald core */}
-                      <span className="block h-4 w-4 rounded-full bg-emerald-400 shadow-[0_0_0_2px_white,0_0_8px_2px_#34d399] flex items-center justify-center">
+                      <span className="relative z-10 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400 shadow-[0_0_0_2px_white,0_0_8px_2px_#34d399]">
                         {/* White cross icon */}
                         <svg viewBox="0 0 20 20" fill="none" className="h-3 w-3" aria-hidden="true">
                           <rect x="8.25" y="3.5" width="3.5" height="13" rx="1.2" fill="#fff" />
@@ -448,8 +460,8 @@ export function LiveLocationMap({
                   {/* Tooltip/label on hover/focus */}
                   <span className={cn("pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-max max-w-52 -translate-x-1/2 rounded bg-background/95 px-2 py-1 text-xs font-semibold text-foreground shadow transition", active ? "opacity-100" : "scale-95 opacity-0 group-hover:opacity-100 group-focus:opacity-100")}>
                     {place.name}
-                    {place.distance_m ? (
-                      <span className="ml-2 text-muted-foreground font-normal">{Math.round(place.distance_m) < 1000 ? `${Math.round(place.distance_m)}m` : `${(place.distance_m/1000).toFixed(1)}km`}</span>
+                    {distanceLabel ? (
+                      <span className="ml-2 text-muted-foreground font-normal">{distanceLabel}</span>
                     ) : null}
                     <span className="ml-2 text-muted-foreground font-normal capitalize">{kind}</span>
                   </span>

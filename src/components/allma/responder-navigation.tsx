@@ -50,14 +50,14 @@ export function formatDuration(s: number) {
   return min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`;
 }
 
-function describeStep(step: any): Step {
+function describeStep(step: any, destinationName: string): Step {
   const m = step.maneuver ?? {};
   const road = step.name ? ` onto ${step.name}` : "";
   const mod = (m.modifier as string | undefined)?.replace("slight ", "slightly ").replace("sharp ", "sharply ");
   let instruction: string;
   switch (m.type) {
     case "depart": instruction = `Head out${step.name ? ` on ${step.name}` : ""}`; break;
-    case "arrive": instruction = "Arrive at the caller's location"; break;
+    case "arrive": instruction = `Arrive at ${destinationName}`; break;
     case "roundabout":
     case "rotary": instruction = `At the roundabout, take exit ${m.exit ?? ""}${road}`.replace("  ", " "); break;
     case "continue":
@@ -70,7 +70,13 @@ function describeStep(step: any): Step {
   return { instruction, distance: step.distance ?? 0, type: m.type ?? "", modifier: m.modifier, location };
 }
 
-async function fetchRoute(from: Pt, to: Pt, mode: Mode, signal: AbortSignal): Promise<Route> {
+async function fetchRoute(
+  from: Pt,
+  to: Pt,
+  mode: Mode,
+  signal: AbortSignal,
+  destinationName: string,
+): Promise<Route> {
   const base = mode === "drive" ? "https://routing.openstreetmap.de/routed-car/route/v1/driving" : "https://routing.openstreetmap.de/routed-foot/route/v1/foot";
   const url = `${base}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`;
   const res = await fetch(url, { signal });
@@ -82,7 +88,9 @@ async function fetchRoute(from: Pt, to: Pt, mode: Mode, signal: AbortSignal): Pr
     coords: (r.geometry.coordinates as [number, number][]).map(([lng, lat]) => ({ lat, lng })),
     distance: r.distance,
     duration: r.duration,
-    steps: (r.legs?.[0]?.steps ?? []).map(describeStep),
+    steps: (r.legs?.[0]?.steps ?? []).map((step: unknown) =>
+      describeStep(step, destinationName),
+    ),
   };
 }
 
@@ -157,13 +165,17 @@ function GoogleRouteCanvas({
     if (me) next.push(new maps.Marker({ map, position: me, title: "You", icon: { path: maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#1a73e8", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 3 } }));
     layers.current = next;
     const destinationKey = caller ? `${caller.lat},${caller.lng}` : null;
-    if (destinationKey && fitted.current !== destinationKey && me) {
-      const b = new maps.LatLngBounds();
-      (route?.coords ?? [me, ...(caller ? [caller] : [])]).forEach((p) => b.extend(p));
-      if (caller) b.extend(caller);
-      b.extend(me);
-      map.fitBounds(b, 40);
-      fitted.current = destinationKey;
+    if (destinationKey && me) {
+      if (fitted.current !== destinationKey) {
+        const b = new maps.LatLngBounds();
+        (route?.coords ?? [me, caller]).forEach((p) => b.extend(p));
+        b.extend(caller);
+        b.extend(me);
+        map.fitBounds(b, 40);
+        fitted.current = destinationKey;
+      } else {
+        map.panTo(me);
+      }
     }
   }, [ready, me, caller, route, callerName, medical]);
 
@@ -336,7 +348,7 @@ export function ResponderNavigation({
     const ctrl = new AbortController();
     routeRequest.current = ctrl;
     setLoading(true);
-    fetchRoute(me, destination, mode, ctrl.signal)
+    fetchRoute(me, destination, mode, ctrl.signal, destinationLabel)
       .then((r) => { if (!ctrl.signal.aborted) { setRoute(r); setRouteError(null); } })
       .catch((e) => { if (!ctrl.signal.aborted) setRouteError(e instanceof Error ? e.message : "Route unavailable"); })
       .finally(() => !ctrl.signal.aborted && setLoading(false));

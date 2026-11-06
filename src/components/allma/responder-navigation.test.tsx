@@ -18,7 +18,8 @@ const routeResponse = {
     geometry: { coordinates: [[32.58, 0.31], [32.59, 0.32]] },
     distance: 1500, duration: 300,
     legs: [{ steps: [{ distance: 100, maneuver: { type: "depart" } },
-      { distance: 1400, name: "Jinja Road", maneuver: { type: "turn", modifier: "right" } }] }],
+      { distance: 1400, name: "Jinja Road", maneuver: { type: "turn", modifier: "right" } },
+      { distance: 0, maneuver: { type: "arrive" } }] }],
   }] }),
 };
 
@@ -115,6 +116,8 @@ it("starts at the nearest hospital and reroutes when another help type is select
   expect(requests).toHaveLength(1);
   expect(requests[0].url).toContain("32.581,0.311");
   await act(async () => requests[0].resolve(routeResponse));
+  fireEvent.click(screen.getByRole("button", { name: /Show turn-by-turn steps/ }));
+  expect(screen.getByText("Arrive at Nearest Hospital")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: /Nearest Clinic/ }));
   expect(requests).toHaveLength(2);

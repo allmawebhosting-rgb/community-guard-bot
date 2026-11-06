@@ -240,8 +240,8 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
                 >
                   {medical ? (
                     <>
-                      <span className="absolute left-1/2 top-1/2 -z-10 h-9 w-9 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-emerald-400/35 [animation-duration:1.6s]" />
-                      <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-emerald-500 shadow-[0_0_10px_3px_rgba(16,185,129,0.65)]">
+                      <span className="absolute left-1/2 top-1/2 z-0 h-9 w-9 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-emerald-400/35 [animation-duration:1.6s]" />
+                      <span className="relative z-10 grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-emerald-500 shadow-[0_0_10px_3px_rgba(16,185,129,0.65)]">
                         <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden="true">
                           <path d="M8.25 3.5h3.5v4.75h4.75v3.5h-4.75v4.75h-3.5v-4.75H3.5v-3.5h4.75z" fill="white" />
                         </svg>
