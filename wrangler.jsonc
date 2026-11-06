@@ -1,7 +1,12 @@
 {
   "name": "community-guard-bot",
+  "main": "dist/server/index.mjs",
   "compatibility_date": "2026-11-05",
   "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS"
+  },
   "ai": {
     "binding": "AI"
   }
