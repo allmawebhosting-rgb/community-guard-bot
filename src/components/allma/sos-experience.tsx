@@ -26,14 +26,12 @@ import {
   Clock,
   LocateFixed,
   Users,
-  Settings2,
   Check,
   Plus,
   Minus,
   Crosshair,
   Copy,
   ExternalLink,
-  Mic,
   Send,
   WifiOff,
 } from "lucide-react";
@@ -41,7 +39,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
-import { AllmaVoice } from "@/components/allma/sos/allma-voice";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-list";
 import { ResponderNavigation } from "@/components/allma/responder-navigation";
@@ -1157,7 +1154,13 @@ export function SOSExperience({
   useEffect(() => {
     if (!user || !activated.current || sosActivityId || activityRecording.current) return;
     void (async () => {
-      const id = await recordSosActivity(user.id, emergencyType);
+      const id = await recordSosActivity(
+        user.id,
+        emergencyType,
+        shareLocation ? location : null,
+        shareLocation,
+        notifyResponders,
+      );
       if (id) setSosActivityId(id);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1167,7 +1170,11 @@ export function SOSExperience({
     setPendingEmergencyType("other");
     setShareLocation(true);
     setNotifyResponders(true);
-    void activateEmergency();
+    void activateEmergency({
+      type: "other",
+      shareLocation: true,
+      notifyResponders: true,
+    });
   }
 
   function handleTypeSelect(type: string) {
@@ -1177,7 +1184,13 @@ export function SOSExperience({
     setPhase("consent");
   }
 
-  async function recordSosActivity(userId: string, type: string) {
+  async function recordSosActivity(
+    userId: string,
+    type: string,
+    initialLocation: LocationInfo | null,
+    locationConsent: boolean,
+    notificationConsent: boolean,
+  ) {
     if (activityRecording.current) return null;
     activityRecording.current = true;
     const { data: activity, error } = await supabase
@@ -1188,12 +1201,17 @@ export function SOSExperience({
         title: "Emergency SOS activated",
         summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
         severity: "critical",
-        location_text: "Location pending",
+        location_text: initialLocation
+          ? `${initialLocation.address}, ${initialLocation.district}`.replace(/(^, )|(, $)/g, "")
+          : "Location pending",
+        latitude: locationConsent ? initialLocation?.lat ?? null : null,
+        longitude: locationConsent ? initialLocation?.lng ?? null : null,
         details: {
           channel: "sos",
           emergency_type: type,
-          location_consent: shareLocation,
-          responder_notification_consent: notifyResponders,
+          location_consent: locationConsent,
+          responder_notification_consent: notificationConsent,
+          accuracy_m: locationConsent ? initialLocation?.accuracy ?? null : null,
           coordination_mode: "consent_based",
           activation_mode: smartCheckId ? "smart_detection" : "manual",
           ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
@@ -1213,8 +1231,14 @@ export function SOSExperience({
     return activityId;
   }
 
-  async function activateEmergency() {
-    const type = pendingEmergencyType;
+  async function activateEmergency(options?: {
+    type?: string;
+    shareLocation?: boolean;
+    notifyResponders?: boolean;
+  }) {
+    const type = options?.type ?? pendingEmergencyType;
+    const locationConsent = options?.shareLocation ?? shareLocation;
+    const notificationConsent = options?.notifyResponders ?? notifyResponders;
     if (activated.current) return;
     activated.current = true;
     try {
@@ -1228,18 +1252,24 @@ export function SOSExperience({
     setResponderOffers([]);
     setEmergencyType(type);
     setPhase("loading");
-    setLocationState(shareLocation ? "finding" : "skipped");
+    setLocationState(locationConsent ? "finding" : "skipped");
 
     let activityId: string | null = null;
     if (user) {
-      activityId = await recordSosActivity(user.id, type);
+      activityId = await recordSosActivity(
+        user.id,
+        type,
+        locationConsent ? location : null,
+        locationConsent,
+        notificationConsent,
+      );
       setSosActivityId(activityId);
     }
 
     // Make the emergency screen and responder calling available as soon as the
     // SOS record exists. GPS and nearby-resource lookups continue below.
     setPhase("help");
-    if (activityId && notifyResponders) {
+    if (activityId && notificationConsent) {
       void notifySosActivity({ data: { activityId } }).catch((error) => {
         console.error("[ALLMA PUSH] SOS activity notification failed", error);
       });
@@ -1256,7 +1286,7 @@ export function SOSExperience({
         error instanceof Error && error.name === "denied" ? "denied" : "unavailable",
       );
     }
-    setLocation(shareLocation ? loc : null);
+    setLocation(locationConsent ? loc : null);
 
     // The location is persisted to the emergency session by the effect above,
     // which runs whichever of the session row / GPS fix lands last and keeps
@@ -1273,11 +1303,11 @@ export function SOSExperience({
         });
     }
 
-    const offersPromise = activityId && notifyResponders
+    const offersPromise = activityId && notificationConsent
       ? createResponderOffers(activityId, COMMUNITY_RADIUS[type] ?? 1000)
       : Promise.resolve([] as ResponderOffer[]);
 
-    if (loc && shareLocation) {
+    if (loc && locationConsent) {
       const [nearby, offers] = await Promise.all([
         loadNearbyFacilities(loc.lat, loc.lng),
         offersPromise,
@@ -1397,7 +1427,6 @@ export function SOSExperience({
             shareLocation={shareLocation}
             activityId={sosActivityId}
             microphoneStream={microphoneStream}
-            onReport={() => setPhase("report")}
             onEnableLocation={async () => {
               setLocationState("finding");
               try {
@@ -1972,7 +2001,6 @@ function MinimalEmergencyScreen({
   activityId,
   microphoneStream,
   onEnableLocation,
-  onReport,
   onClose,
 }: {
   emergencyType: string;
@@ -1983,7 +2011,6 @@ function MinimalEmergencyScreen({
   activityId: string | null;
   microphoneStream?: MediaStream;
   onEnableLocation: () => void;
-  onReport: () => void;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
@@ -2047,14 +2074,6 @@ function MinimalEmergencyScreen({
   }, [helpAreaKey]);
 
 
-  const sections = [
-    { id: "deck-location", label: "Location & Map" },
-    { id: "deck-help", label: "Nearby Help" },
-    { id: "deck-response", label: "Response Contacts" },
-    { id: "deck-chat", label: "Emergency Chat" },
-    { id: "deck-voice", label: "Allma Voice" },
-    { id: "deck-actions", label: "Immediate Actions" },
-  ];
   const goTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -2063,7 +2082,6 @@ function MinimalEmergencyScreen({
     { label: "Map & Location", icon: MapPin, id: "deck-location" },
     { label: "Contacts", icon: Users, id: "deck-response" },
     { label: "Chat", icon: Send, id: "deck-chat" },
-    { label: "Voice", icon: Mic, id: "deck-voice" },
   ];
 
   return (
@@ -2096,10 +2114,6 @@ function MinimalEmergencyScreen({
               <span className="truncate">{item.label}</span>
             </button>
           ))}
-          <button type="button" onClick={onReport} className="deck-nav">
-            <Settings2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">Incident report</span>
-          </button>
         </nav>
         <div className="mt-auto px-2 pt-6">
           <p className="font-display text-[13px] font-black leading-snug">Your safety<br />matters.</p>
@@ -2126,14 +2140,11 @@ function MinimalEmergencyScreen({
               </div>
             </div>
           </div>
-          <button type="button" onClick={() => setCloseConfirm(true)} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-4 text-[12px] font-bold text-foreground transition hover:bg-accent">
-            <X className="h-3.5 w-3.5" /> Close
-          </button>
         </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="grid w-full min-w-0 grid-cols-1 items-start gap-4 px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-8 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:gap-5 lg:px-7 lg:py-5 2xl:grid-cols-[minmax(320px,400px)_minmax(0,1fr)_260px]">
+        <div className="grid w-full min-w-0 grid-cols-1 items-start gap-4 px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-8 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:gap-5 lg:px-7 lg:py-5">
           {/* Response column */}
           <aside className="grid min-w-0 content-start gap-4">
             <div id="deck-response" className="deck-panel deck-panel-critical cmd-rise min-w-0 p-4 sm:p-5">
@@ -2156,18 +2167,11 @@ function MinimalEmergencyScreen({
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
             </button>
 
-            <div id="deck-voice" className="deck-panel cmd-rise min-w-0 p-4" style={{ animationDelay: "90ms" }}>
-              <AllmaVoice activityId={activityId} compact />
-            </div>
-
             <section id="deck-actions" aria-labelledby="actions-heading" className="deck-panel cmd-rise min-w-0 p-4 sm:p-5" style={{ animationDelay: "130ms" }}>
               <p id="actions-heading" className="deck-label">Immediate actions</p>
               <div className="mt-3.5 grid gap-2.5">
                 <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-gradient-to-r from-destructive via-primary to-primary-glow px-4 text-left text-[13.5px] font-bold text-destructive-foreground shadow-lg shadow-destructive/25 transition duration-200 hover:brightness-105 active:scale-[0.99]">
                   <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive-foreground/15"><Phone className="h-4 w-4" /></span><span className="min-w-0"><span className="block">Call Emergency Services</span><span className="block text-[10.5px] font-semibold opacity-80">Get immediate help from emergency services</span></span></span><ChevronRight className="h-4 w-4 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
-                </button>
-                <button type="button" onClick={onReport} className="group flex min-h-14 items-center justify-between rounded-xl border border-border bg-card px-4 text-left text-[13.5px] font-semibold text-foreground transition duration-200 hover:border-primary/40 active:scale-[0.99]">
-                  <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted"><Shield className="h-4 w-4 text-muted-foreground" /></span><span className="min-w-0"><span className="block">File an Incident Report</span><span className="block text-[10.5px] font-medium text-muted-foreground">Report the incident for tracking</span></span></span><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button type="button" onClick={() => setCloseConfirm(true)} className="min-h-12 rounded-xl border border-destructive/35 text-[12px] font-bold uppercase tracking-[0.14em] text-destructive transition hover:bg-destructive/10">
                   Stop SOS
@@ -2241,64 +2245,8 @@ function MinimalEmergencyScreen({
               </section>
             )}
 
-            <div className="deck-panel cmd-rise flex min-w-0 flex-wrap items-center gap-3 p-4" style={{ animationDelay: "210ms" }}>
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-success/15 text-success"><Shield className="h-4.5 w-4.5" /></span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-black">Stay connected. Stay safer.</p>
-                <p className="mt-0.5 text-[11.5px] text-muted-foreground">Keep your Safety Network, contacts and settings up to date.</p>
-              </div>
-              <button type="button" onClick={() => navigate({ to: "/profile" })} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-[12px] font-bold transition hover:bg-accent">
-                Open Settings <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
           </div>
 
-          {/* Right rail */}
-          <aside className="hidden min-w-0 content-start gap-4 2xl:grid">
-            <nav className="deck-panel cmd-rise min-w-0 p-3" style={{ animationDelay: "150ms" }}>
-              <p className="deck-label px-1.5 pb-2">On this page</p>
-              <div className="grid gap-1">
-                {sections.map((section, index) => (
-                  <button key={section.id} type="button" onClick={() => goTo(section.id)} className={cn("deck-nav", index === 0 && "deck-nav-active")}>
-                    <span className="font-mono text-[10px] text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="truncate">{section.label}</span>
-                  </button>
-                ))}
-              </div>
-            </nav>
-
-            <div className="deck-panel cmd-rise min-w-0 p-4" style={{ animationDelay: "190ms" }}>
-              <div className="flex items-center gap-2.5">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted"><Crosshair className="h-4 w-4 text-info" /></span>
-                <p className="deck-label">Location accuracy</p>
-              </div>
-              <div className="mt-3 flex items-center gap-2.5">
-                <p className="font-display text-[19px] font-black">
-                  {location?.accuracy ? `±${Math.round(location.accuracy)} m` : "Pending"}
-                </p>
-                {locationReady && (
-                  <span className="rounded-full border border-success/35 bg-success/10 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-success">Live</span>
-                )}
-              </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                GPS accuracy is approximate. Your exact location may vary.
-              </p>
-            </div>
-
-            <div className="deck-panel cmd-rise min-w-0 p-4" style={{ animationDelay: "230ms" }}>
-              <div className="flex items-center gap-2.5">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-success/15"><Users className="h-4 w-4 text-success" /></span>
-                <p className="deck-label">Related feature</p>
-              </div>
-              <p className="mt-3 font-display text-[14px] font-black">Safety Network</p>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                Keep your trusted contacts updated so help reaches you faster.
-              </p>
-              <button type="button" onClick={() => navigate({ to: "/profile" })} className="mt-3 inline-flex items-center gap-1.5 text-[11.5px] font-bold text-success">
-                Manage contacts <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </aside>
       </div>
       </div>
       </div>

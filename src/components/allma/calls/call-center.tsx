@@ -34,7 +34,7 @@ import { NearbyHelpList, type HelpPlace } from "@/components/allma/nearby-help-l
 import { EmergencyRoom } from "@/components/allma/calls/emergency-room";
 import { getNearbyPlaces } from "@/lib/places.functions";
 import {
-  acceptEmergencyCallInvitation,
+  claimSosEmergencyCall,
   getEmergencyCallContext,
   type EmergencyCallContext,
 } from "@/lib/sos-calling";
@@ -535,8 +535,8 @@ export function CallCenter() {
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     try {
       const invitationId = new URLSearchParams(window.location.search).get("invitation");
-      if (invitationId) {
-        const result = await acceptEmergencyCallInvitation(invitationId);
+      if (sosRoomId || invitationId) {
+        const result = await claimSosEmergencyCall(id);
         if (!result.accepted) {
           toast.message("Another responder has already accepted this emergency.");
           teardown("Another responder has accepted this emergency.");
@@ -544,7 +544,7 @@ export function CallCenter() {
         }
       }
       const microphoneStream = await primeMicrophone();
-      await setCallStatus(id, "connecting");
+      if (!sosRoomId && !invitationId) await setCallStatus(id, "connecting");
       await beginEngine(id, false, microphoneStream);
     } catch (error) {
       const message =

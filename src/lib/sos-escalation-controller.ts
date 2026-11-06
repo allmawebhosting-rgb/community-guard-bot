@@ -5,6 +5,7 @@ import {
   listSosCallAttempts,
   listSosCallTargets,
   isSosWelfareConfirmed,
+  finishSosCallRound,
   type SosCallAttempt,
   type SosCallTarget,
 } from "@/lib/sos-calling";
@@ -29,8 +30,6 @@ export type EscalationState = {
   loading: boolean;
   running: boolean;
   round: number;
-  priority: number;
-  currentIndex: number;
   waitSeconds: number | null;
   targets: SosCallTarget[];
   attempts: SosCallAttempt[];
@@ -44,8 +43,6 @@ const initialState = (): EscalationState => ({
   loading: true,
   running: false,
   round: 0,
-  priority: 0,
-  currentIndex: -1,
   waitSeconds: null,
   targets: [],
   attempts: [],
@@ -194,74 +191,86 @@ class SosEscalation {
 
   stop() {
     this.generation += 1;
-    this.patch({ running: false, currentIndex: -1, waitSeconds: null });
+    const activeAttempts = this.state.attempts.filter((attempt) => !isTerminal(attempt.status));
+    void Promise.all(
+      activeAttempts.map((attempt) => setCallStatus(attempt.call_id, "ended").catch(() => undefined)),
+    );
+    this.patch({ running: false, waitSeconds: null });
   }
 
-  /** Rings every contact together, then repeats until someone answers. */
+  /** Rings every eligible contact together, then repeats until someone answers. */
   private async loop(generation: number) {
     const alive = () => generation === this.generation && this.state.running;
+    const targets = this.callable();
+    const settings = loadSosCallingSettings();
 
     while (alive() && !this.state.welfareConfirmed) {
       this.patch({ round: this.state.round + 1 });
-      const priorities = [1, 2, 3];
-      const settings = loadSosCallingSettings();
-      for (const priority of priorities) {
-        if (!alive() || this.state.welfareConfirmed) return;
-        const targets = this.callable().filter((target) =>
-          Math.min(Math.max(target.priority || 3, 1), 3) === priority,
-        );
-        if (!targets.length) continue;
-
-        const startedAt = Date.now();
-        this.patch({ priority, currentIndex: -1, waitSeconds: null });
-        targets.forEach((target) => {
-          requestVoiceCall({
-            id: target.member_id,
-            name: target.full_name,
-            avatarUrl: target.avatar_url,
-            sosActivityId: this.activityId,
-            emergencyType: this.emergencyType,
-            shareLocation: this.shareLocation,
-            microphoneStream: this.microphoneStream,
-            onError: (message) => {
-              if (!alive()) return;
-              this.patch({ error: message });
-            },
-          });
-        });
-
-        const outcome = await this.waitForRoundOutcome(
-          targets,
-          startedAt,
-          alive,
-          settings.responseWindowSeconds * 1000,
-        );
-        if (!alive()) return;
-        if (outcome) {
-          const winner = this.state.answered;
-          if (winner) {
-            const winnerCreatedAt = new Date(winner.created_at).getTime();
-            await Promise.all(
-              this.state.attempts
-                .filter((attempt) => {
-                  const createdAt = new Date(attempt.created_at).getTime();
-                  return (
-                    attempt.call_id !== winner.call_id &&
-                    createdAt >= startedAt - 15_000 &&
-                    createdAt <= winnerCreatedAt &&
-                    !isTerminal(attempt.status)
-                  );
-                })
-                .map((attempt) => setCallStatus(attempt.call_id, "ended").catch(() => undefined)),
-            );
-          }
-          this.patch({ running: false, currentIndex: -1, waitSeconds: null });
-          return;
-        }
+      if (!targets.length) {
+        this.patch({ running: false, waitSeconds: null });
+        return;
       }
 
+      const startedAt = Date.now();
+      this.patch({ waitSeconds: null });
+      targets.forEach((target) => {
+        requestVoiceCall({
+          id: target.member_id,
+          name: target.full_name,
+          avatarUrl: target.avatar_url,
+          sosActivityId: this.activityId,
+          emergencyType: this.emergencyType,
+          shareLocation: this.shareLocation && target.share_location_on_sos,
+          microphoneStream: this.microphoneStream,
+          onError: (message) => {
+            if (!alive()) return;
+            this.patch({ error: message });
+          },
+        });
+      });
+
+      const outcome = await this.waitForRoundOutcome(
+        targets,
+        startedAt,
+        alive,
+        settings.responseWindowSeconds * 1000,
+      );
+      if (!alive()) return;
+      if (outcome) {
+        this.patch({ running: false, waitSeconds: null });
+        return;
+      }
+
+      await this.refresh();
+      if (!alive()) return;
+      const winner = this.state.answered;
+      if (winner && new Date(winner.created_at).getTime() >= startedAt - 15_000) {
+        this.patch({ running: false, waitSeconds: null });
+        return;
+      }
+      const roundCallIds = this.state.attempts
+        .filter((attempt) => new Date(attempt.created_at).getTime() >= startedAt - 15_000)
+        .map((attempt) => attempt.call_id);
+      let roundClosed: boolean;
+      try {
+        roundClosed = await finishSosCallRound(this.activityId, roundCallIds);
+      } catch (error) {
+        this.patch({
+          running: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unanswered calls could not be closed safely.",
+        });
+        return;
+      }
+      if (!roundClosed) {
+        await this.refresh();
+        this.patch({ running: false, waitSeconds: null });
+        return;
+      }
+      await this.refresh();
       if (!alive() || this.state.welfareConfirmed) return;
-      this.patch({ priority: 0, currentIndex: -1 });
       await this.countdown(settings.retryIntervalSeconds, alive);
     }
   }

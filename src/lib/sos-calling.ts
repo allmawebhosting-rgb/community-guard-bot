@@ -34,6 +34,7 @@ export type EmergencyCallContext = {
   severity: string;
   area: string;
   location_shared: boolean;
+  location_requested: boolean;
   latitude: number | null;
   longitude: number | null;
   accuracy_m?: number | null;
@@ -142,6 +143,31 @@ export async function listSosCallAttempts(sosActivityId: string): Promise<SosCal
   });
   if (error) throw new Error(friendly(error.message));
   return (data ?? []) as SosCallAttempt[];
+}
+
+/** Atomically reserves one responder and closes every sibling SOS call. */
+export async function claimSosEmergencyCall(callId: string) {
+  const { data, error } = await supabase.rpc("claim_sos_emergency_call", {
+    p_call_id: callId,
+  });
+  if (error) throw new Error(friendly(error.message));
+  const result = (data?.[0] ?? data) as
+    | { accepted?: boolean; call_session_id?: string }
+    | null;
+  return {
+    accepted: Boolean(result?.accepted),
+    callId: result?.call_session_id ?? null,
+  };
+}
+
+/** Ends a no-answer round unless a responder claimed a call at the same time. */
+export async function finishSosCallRound(sosActivityId: string, callIds: string[]) {
+  const { data, error } = await supabase.rpc("finish_sos_call_round", {
+    p_sos_activity_id: sosActivityId,
+    p_call_ids: callIds,
+  });
+  if (error) throw new Error(friendly(error.message));
+  return data === true;
 }
 
 export async function isSosWelfareConfirmed(sosActivityId: string) {
