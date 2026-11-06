@@ -14,20 +14,25 @@ export type HelpPlace = {
   longitude: number;
 };
 
-export type HelpKind = "hospital" | "clinic" | "police" | "fire" | "other";
+export type HelpKind = "hospital" | "clinic" | "pharmacy" | "police" | "fire" | "other";
 
 export function helpKind(type: string): HelpKind {
   const value = (type ?? "").toLowerCase();
   if (value.includes("police")) return "police";
   if (value.includes("fire")) return "fire";
-  if (value.includes("clinic") || value.includes("pharmac") || value.includes("doctor")) return "clinic";
-  if (value.includes("hospital") || value.includes("ambulance") || value.includes("health")) return "hospital";
+  if (value.includes("pharmac") || value.includes("chemist") || value.includes("drugstore"))
+    return "pharmacy";
+  if (value.includes("clinic") || value.includes("doctor") || value.includes("dispensary"))
+    return "clinic";
+  if (value.includes("hospital") || value.includes("ambulance") || value.includes("health"))
+    return "hospital";
   return "other";
 }
 
 export const HELP_KIND_COLOR: Record<HelpKind, string> = {
   hospital: "#34d399",
   clinic: "#a3e635",
+  pharmacy: "#14b8a6",
   police: "#38bdf8",
   fire: "#fb923c",
   other: "#cbd5e1",
@@ -36,6 +41,7 @@ export const HELP_KIND_COLOR: Record<HelpKind, string> = {
 const KIND_LABEL: Record<HelpKind, string> = {
   hospital: "Hospital",
   clinic: "Clinic",
+  pharmacy: "Pharmacy",
   police: "Police",
   fire: "Fire",
   other: "Help",
@@ -44,16 +50,18 @@ const KIND_LABEL: Record<HelpKind, string> = {
 const KIND_ICON: Record<HelpKind, typeof Shield> = {
   hospital: Building2,
   clinic: HeartPulse,
+  pharmacy: HeartPulse,
   police: Shield,
   fire: Flame,
   other: MapPin,
 };
 
-const GROUP_ORDER: HelpKind[] = ["police", "hospital", "clinic", "fire", "other"];
+const GROUP_ORDER: HelpKind[] = ["police", "hospital", "clinic", "pharmacy", "fire", "other"];
 const GROUP_LABEL: Record<HelpKind, string> = {
   police: "Police stations",
   hospital: "Hospitals & ambulance",
   clinic: "Clinics & pharmacies",
+  pharmacy: "Pharmacies & first aid",
   fire: "Fire stations",
   other: "Other help",
 };
@@ -97,12 +105,8 @@ export function NearbyHelpList({
 }) {
   const dark = tone === "dark";
 
-  const shell = dark
-    ? "border-border/70 bg-card"
-    : "border-border/70 bg-card";
-  const selectedShell = dark
-    ? "border-primary/50 bg-card"
-    : "border-primary/45 bg-accent/60";
+  const shell = dark ? "border-border/70 bg-card" : "border-border/70 bg-card";
+  const selectedShell = dark ? "border-primary/50 bg-card" : "border-primary/45 bg-accent/60";
   const nameClass = "text-foreground";
   const metaClass = "text-muted-foreground";
   const strongMeta = "text-foreground";
@@ -129,7 +133,9 @@ export function NearbyHelpList({
           <span
             className={cn(
               "shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em]",
-              dark ? "border-border/70 bg-card text-muted-foreground" : "border-border/60 text-muted-foreground",
+              dark
+                ? "border-border/70 bg-card text-muted-foreground"
+                : "border-border/60 text-muted-foreground",
             )}
           >
             {places.length} found
@@ -142,111 +148,137 @@ export function NearbyHelpList({
           Finding police, clinics and hospitals nearby…
         </div>
       ) : places.length === 0 ? (
-        <div className={cn("mt-3 rounded-2xl border p-4 text-[12px]", noticeClass)}>{emptyLabel}</div>
+        <div className={cn("mt-3 rounded-2xl border p-4 text-[12px]", noticeClass)}>
+          {emptyLabel}
+        </div>
       ) : (
         <div className="mt-4 space-y-5">
-        {GROUP_ORDER.map((groupKind) => {
-          const group = places
-            .filter((p) => helpKind(p.type) === groupKind)
-            .sort((a, b) => a.distance_m - b.distance_m);
-          if (group.length === 0) return null;
-          const GroupIcon = KIND_ICON[groupKind];
-          return (
-          <section key={groupKind} className="min-w-0">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-md" style={{ backgroundColor: `${HELP_KIND_COLOR[groupKind]}1f`, color: HELP_KIND_COLOR[groupKind] }}>
-                <GroupIcon className="h-3.5 w-3.5" />
-              </span>
-              <h4 className={cn("text-[12px] font-black uppercase tracking-[0.14em]", nameClass)}>{GROUP_LABEL[groupKind]}</h4>
-              <span className={cn("text-[11px] font-semibold", metaClass)}>· {group.length}</span>
-            </div>
-        <ul className="grid min-w-0 grid-cols-1 gap-2.5 min-[1180px]:grid-cols-2">
-          {group.map((place) => {
-            const kind = helpKind(place.type);
-            const Icon = KIND_ICON[kind];
-            const selected = selectedId === place.id;
-            const tel = place.phone ? place.phone.replace(/[^\d+]/g, "") : null;
+          {GROUP_ORDER.map((groupKind) => {
+            const group = places
+              .filter((p) => helpKind(p.type) === groupKind)
+              .sort((a, b) => a.distance_m - b.distance_m);
+            if (group.length === 0) return null;
+            const GroupIcon = KIND_ICON[groupKind];
             return (
-              <li
-                key={place.id}
-                id={`help-place-${place.id}`}
-                onClick={() => onSelect?.(place.id)}
-                className={cn(
-                  "min-w-0 rounded-lg border p-3.5 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 hover:border-foreground/20 hover:shadow-soft",
-                  shell,
-                  selected && selectedShell,
-                  onSelect && "cursor-pointer",
-                )}
-              >
-                <div className="flex items-start gap-3">
+              <section key={groupKind} className="min-w-0">
+                <div className="mb-2 flex items-center gap-2">
                   <span
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-md"
+                    className="grid h-6 w-6 place-items-center rounded-md"
                     style={{
-                      backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
-                      color: HELP_KIND_COLOR[kind],
+                      backgroundColor: `${HELP_KIND_COLOR[groupKind]}1f`,
+                      color: HELP_KIND_COLOR[groupKind],
                     }}
                   >
-                    <Icon className="h-4 w-4" />
+                    <GroupIcon className="h-3.5 w-3.5" />
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                      <p className={cn("min-w-0 break-words text-[13px] font-bold leading-snug", nameClass)}>{place.name}</p>
-                      <span
-                        className="shrink-0 rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
-                        style={{
-                          backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
-                          color: HELP_KIND_COLOR[kind],
-                        }}
-                      >
-                        {KIND_LABEL[kind]}
-                      </span>
-                    </div>
-                    {place.address && (
-                      <p className={cn("mt-1 flex items-center gap-1 text-[11px]", metaClass)}>
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="line-clamp-2">{place.address}</span>
-                      </p>
-                    )}
-                    <p className={cn("mt-1 text-[11px] font-semibold", strongMeta)}>
-                      {formatDistance(place.distance_m)}
-                      {place.phone ? ` · ${place.phone}` : ""}
-                    </p>
-                  </div>
-                </div>
-
-                <div className={cn("mt-3 grid gap-2", tel ? "grid-cols-2" : "grid-cols-1")}>
-                  <a
-                    href={directionsUrl(origin, place)}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(event) => event.stopPropagation()}
-                    className={cn(
-                      "flex min-h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-[11px] font-bold transition-colors",
-                      actionClass,
-                    )}
+                  <h4
+                    className={cn("text-[12px] font-black uppercase tracking-[0.14em]", nameClass)}
                   >
-                    <Navigation2 className="h-3.5 w-3.5" /> Directions
-                  </a>
-                  {tel && (
-                    <a
-                      href={`tel:${tel}`}
-                      onClick={(event) => event.stopPropagation()}
-                      className={cn(
-                        "flex min-h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-[11px] font-bold transition-colors",
-                        actionClass,
-                      )}
-                    >
-                      <Phone className="h-3.5 w-3.5" /> Call
-                    </a>
-                  )}
+                    {GROUP_LABEL[groupKind]}
+                  </h4>
+                  <span className={cn("text-[11px] font-semibold", metaClass)}>
+                    · {group.length}
+                  </span>
                 </div>
-              </li>
+                <ul className="grid min-w-0 grid-cols-1 gap-2.5 min-[1180px]:grid-cols-2">
+                  {group.map((place) => {
+                    const kind = helpKind(place.type);
+                    const Icon = KIND_ICON[kind];
+                    const selected = selectedId === place.id;
+                    const tel = place.phone ? place.phone.replace(/[^\d+]/g, "") : null;
+                    return (
+                      <li
+                        key={place.id}
+                        id={`help-place-${place.id}`}
+                        onClick={() => onSelect?.(place.id)}
+                        className={cn(
+                          "min-w-0 rounded-lg border p-3.5 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 hover:border-foreground/20 hover:shadow-soft",
+                          shell,
+                          selected && selectedShell,
+                          onSelect && "cursor-pointer",
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span
+                            className="grid h-9 w-9 shrink-0 place-items-center rounded-md"
+                            style={{
+                              backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
+                              color: HELP_KIND_COLOR[kind],
+                            }}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                              <p
+                                className={cn(
+                                  "min-w-0 break-words text-[13px] font-bold leading-snug",
+                                  nameClass,
+                                )}
+                              >
+                                {place.name}
+                              </p>
+                              <span
+                                className="shrink-0 rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+                                style={{
+                                  backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
+                                  color: HELP_KIND_COLOR[kind],
+                                }}
+                              >
+                                {KIND_LABEL[kind]}
+                              </span>
+                            </div>
+                            {place.address && (
+                              <p
+                                className={cn(
+                                  "mt-1 flex items-center gap-1 text-[11px]",
+                                  metaClass,
+                                )}
+                              >
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                <span className="line-clamp-2">{place.address}</span>
+                              </p>
+                            )}
+                            <p className={cn("mt-1 text-[11px] font-semibold", strongMeta)}>
+                              {formatDistance(place.distance_m)}
+                              {place.phone ? ` · ${place.phone}` : ""}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className={cn("mt-3 grid gap-2", tel ? "grid-cols-2" : "grid-cols-1")}>
+                          <a
+                            href={directionsUrl(origin, place)}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                            className={cn(
+                              "flex min-h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-[11px] font-bold transition-colors",
+                              actionClass,
+                            )}
+                          >
+                            <Navigation2 className="h-3.5 w-3.5" /> Directions
+                          </a>
+                          {tel && (
+                            <a
+                              href={`tel:${tel}`}
+                              onClick={(event) => event.stopPropagation()}
+                              className={cn(
+                                "flex min-h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-[11px] font-bold transition-colors",
+                                actionClass,
+                              )}
+                            >
+                              <Phone className="h-3.5 w-3.5" /> Call
+                            </a>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             );
           })}
-        </ul>
-          </section>
-          );
-        })}
         </div>
       )}
     </div>

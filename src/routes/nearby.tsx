@@ -1,7 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, MapPin, Phone, RefreshCw, Search, UserRound, UserPlus, ShieldCheck } from "lucide-react";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import {
+  ArrowUpRight,
+  Clock,
+  Crosshair,
+  Flame,
+  Footprints,
+  Hospital,
+  MapPin,
+  Navigation2,
+  Phone,
+  Plus,
+  RefreshCw,
+  Search,
+  Shield,
+  ShieldCheck,
+  UserPlus,
+  X,
+} from "lucide-react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/allma/app-shell";
 import { ClientOnly } from "@/components/allma/client-only";
@@ -9,9 +26,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { getNearbyMembers, getNearbyPlaces } from "@/lib/places.functions";
 import { sendConnectionRequest } from "@/lib/safety-network";
 import type { NearbyMember, NearbyPlace } from "@/lib/places.types";
-import { getPreciseLocation, describeAccuracy } from "@/lib/precise-location";
+import { describeAccuracy, watchLiveLocation, type LiveLocationFix } from "@/lib/precise-location";
+import { getUgandaPlaceSuggestions, type UgandaPlace } from "@/lib/uganda-places";
+import { getNearbyRoute, type RouteMode } from "@/lib/nearby-routing";
+import { helpKind, HELP_KIND_COLOR } from "@/components/allma/nearby-help-list";
 
-const NearbyMap = lazy(() => import("@/components/allma/nearby-map").then((module) => ({ default: module.NearbyMap })));
+const NearbyMap = lazy(() =>
+  import("@/components/allma/nearby-map").then((module) => ({ default: module.NearbyMap })),
+);
 
 export const Route = createFileRoute("/nearby")({
   head: () => ({
@@ -25,7 +47,8 @@ export const Route = createFileRoute("/nearby")({
       { property: "og:title", content: "Nearby help — Allma Safety AI" },
       {
         property: "og:description",
-        content: "Hospitals, police stations and rescue services near you with direct call numbers.",
+        content:
+          "Hospitals, police stations and rescue services near you with direct call numbers.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -34,23 +57,27 @@ export const Route = createFileRoute("/nearby")({
   component: NearbyScreen,
 });
 
-const ICONS: Record<string, string> = {
-  hospital: "🏥",
-  clinic: "🏥",
-  police: "👮",
-  fire: "🚒",
-  ambulance: "🚑",
-};
-
 const TYPE_LABELS: Record<string, string> = {
   hospital: "Hospital",
   clinic: "Clinic",
+  doctor: "Clinic",
+  medical_clinic: "Clinic",
+  pharmacy: "Pharmacy",
   police: "Police Station",
+  police_station: "Police Station",
+  police_post: "Police Post",
   fire: "Fire Station",
+  fire_station: "Fire & Rescue",
   ambulance: "Ambulance",
 };
 
-const FILTER_TYPES = ["all", "hospital", "police", "fire", "ambulance"] as const;
+const FILTER_TYPES = [
+  { value: "all", label: "All services", color: "#64748b" },
+  { value: "medical", label: "Hospitals & clinics", color: "#10b981" },
+  { value: "police", label: "Police stations", color: "#2563eb" },
+  { value: "pharmacy", label: "Pharmacies & first aid", color: "#14b8a6" },
+  { value: "fire", label: "Fire & rescue", color: "#f59e0b" },
+] as const;
 
 const DEFAULT_LOCATION = { lat: 0.3476, lng: 32.5825 };
 
@@ -58,46 +85,116 @@ function formatDistance(meters: number) {
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 
+function distanceBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const radians = (value: number) => (value * Math.PI) / 180;
+  const dLat = radians(b.lat - a.lat);
+  const dLng = radians(b.lng - a.lng);
+  const value =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(radians(a.lat)) * Math.cos(radians(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+}
+
+function matchesCategory(place: NearbyPlace, category: string) {
+  const kind = helpKind(place.type);
+  if (category === "all") return true;
+  if (category === "medical") return kind === "hospital" || kind === "clinic";
+  return kind === category;
+}
+
+function directionsUrl(
+  origin: { lat: number; lng: number } | null,
+  place: NearbyPlace,
+  mode: RouteMode,
+) {
+  const destination = `${place.latitude},${place.longitude}`;
+  const travelMode = mode === "walk" ? "walking" : "driving";
+  const isApple = typeof navigator !== "undefined" && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isApple) {
+    return `https://maps.apple.com/?${origin ? `saddr=${origin.lat},${origin.lng}&` : ""}daddr=${destination}&dirflg=${mode === "walk" ? "w" : "d"}`;
+  }
+  return `https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin.lat},${origin.lng}` : ""}&destination=${destination}&travelmode=${travelMode}&dir_action=navigate`;
+}
+
+function FacilityIcon({ type }: { type: string }) {
+  const kind = helpKind(type);
+  const Icon =
+    kind === "police" ? Shield : kind === "fire" ? Flame : kind === "pharmacy" ? Plus : Hospital;
+  return <Icon className="h-5 w-5" aria-hidden="true" />;
+}
+
+function formatEta(seconds: number) {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
+}
+
 function NearbyScreen() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [location, setLocation] = useState<LiveLocationFix | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [sendingRequestId, setSendingRequestId] = useState<string | null>(null);
-
-  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [searchArea, setSearchArea] = useState<UgandaPlace | null>(null);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [routeMode, setRouteMode] = useState<RouteMode>("drive");
+  const [route, setRoute] = useState<Awaited<ReturnType<typeof getNearbyRoute>> | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const stopWatchingRef = useRef<(() => void) | null>(null);
+  const activeRouteRef = useRef<{
+    key: string;
+    origin: { lat: number; lng: number };
+    controller: AbortController;
+  } | null>(null);
+
   const locate = () => {
+    stopWatchingRef.current?.();
     setLocating(true);
-    getPreciseLocation({
-      onUpdate: (fix) => {
-        setLocation({ lat: fix.lat, lng: fix.lng });
-        setAccuracy(fix.accuracy);
+    setLocationError(null);
+    stopWatchingRef.current = watchLiveLocation(
+      (fix) => {
+        setLocation(fix);
         setLocationError(null);
+        setLocating(false);
       },
-    })
-      .catch((err: unknown) => {
-        const denied = (err as GeolocationPositionError)?.code === 1;
-        setLocation((cur) => cur ?? DEFAULT_LOCATION);
+      (error) => {
+        setLocating(false);
+        const denied = error.code === error.PERMISSION_DENIED;
         setLocationError(
           denied
-            ? "Location access is blocked. Allow location for this site in your browser settings, then tap Retry."
-            : "We couldn't get your position. On a computer, turn on Location Services (Windows: Settings → Privacy → Location; Mac: System Settings → Privacy → Location Services) and tap Retry.",
+            ? "Location access is blocked. Allow location for this site in your browser settings, then try again."
+            : "We couldn't get your position. Turn on Location Services or search for a Uganda area to browse nearby services.",
         );
-      })
-      .finally(() => setLocating(false));
+      },
+      { minimumIntervalMs: 6000, minimumMovementMeters: 15 },
+    );
   };
   useEffect(() => {
     locate();
+    return () => {
+      stopWatchingRef.current?.();
+      activeRouteRef.current?.controller.abort();
+    };
   }, []);
-  const acc = accuracy != null ? describeAccuracy(accuracy) : null;
+  const acc = location ? describeAccuracy(location.accuracy) : null;
+  const searchCenter = useMemo(
+    () => searchArea ?? (location ? { lat: location.lat, lng: location.lng } : null),
+    [location, searchArea],
+  );
+  const canShowMap = Boolean(location || searchArea);
 
-  const { data: facilities, isLoading, isError, refetch } = useQuery({
+  const {
+    data: facilities,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["facilities"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("facilities")
-        .select("id, name, facility_type, address, district, phone, is_24_7")
+        .select("id, name, facility_type, address, district, phone, is_24_7, latitude, longitude")
         .order("name")
         .limit(60);
       if (error) throw error;
@@ -106,16 +203,22 @@ function NearbyScreen() {
   });
 
   const livePlacesQuery = useQuery({
-    queryKey: ["nearby-places", location?.lat ?? DEFAULT_LOCATION.lat, location?.lng ?? DEFAULT_LOCATION.lng],
-    enabled: Boolean(location),
+    queryKey: [
+      "nearby-places",
+      searchCenter?.lat.toFixed(3) ?? DEFAULT_LOCATION.lat,
+      searchCenter?.lng.toFixed(3) ?? DEFAULT_LOCATION.lng,
+      searchArea?.name,
+    ],
+    enabled: canShowMap,
     queryFn: async () => {
       const data = await getNearbyPlaces({
         data: {
-          latitude: location!.lat,
-          longitude: location!.lng,
+          latitude: searchCenter!.lat,
+          longitude: searchCenter!.lng,
           radiusMeters: 2500,
-          limit: 12,
-          types: ["hospital", "police", "fire_station", "doctor", "pharmacy"],
+          limit: 20,
+          types: ["hospital", "medical_clinic", "doctor", "police", "fire_station", "pharmacy"],
+          ...(searchArea ? { searchText: searchArea.name } : {}),
         },
       });
       return (data ?? []) as NearbyPlace[];
@@ -123,7 +226,11 @@ function NearbyScreen() {
   });
 
   const nearbyMembersQuery = useQuery({
-    queryKey: ["nearby-members", location?.lat ?? DEFAULT_LOCATION.lat, location?.lng ?? DEFAULT_LOCATION.lng],
+    queryKey: [
+      "nearby-members",
+      location ? location.lat.toFixed(3) : null,
+      location ? location.lng.toFixed(3) : null,
+    ],
     enabled: Boolean(location),
     queryFn: async () => {
       const data = await getNearbyMembers({
@@ -138,22 +245,116 @@ function NearbyScreen() {
     },
   });
 
-  const filtered = useMemo(() => {
-    const source = (facilities ?? []).filter((f) => {
-      const matchesType = filter === "all" || f.facility_type === filter;
-      const q = search.toLowerCase();
-      const matchesSearch = !q || [f.name, f.district, f.address].some((v) => (v ?? "").toLowerCase().includes(q));
-      return matchesType && matchesSearch;
+  const fallbackPlaces = useMemo<NearbyPlace[]>(() => {
+    if (!searchCenter) return [];
+    return (facilities ?? []).flatMap((facility) => {
+      if (facility.latitude == null || facility.longitude == null) return [];
+      const latitude = Number(facility.latitude);
+      const longitude = Number(facility.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+      const distance = distanceBetween(searchCenter, { lat: latitude, lng: longitude });
+      if (distance > 10_000) return [];
+      return [
+        {
+          id: `seeded:${facility.id}`,
+          name: facility.name,
+          type: facility.facility_type ?? "facility",
+          address: facility.address ?? facility.district ?? null,
+          phone: facility.phone ?? null,
+          open_now: facility.is_24_7 ? true : null,
+          distance_m: distance,
+          latitude,
+          longitude,
+          source: "seeded" as const,
+        },
+      ];
     });
-    return source;
-  }, [facilities, filter, search]);
+  }, [facilities, searchCenter]);
 
-  const livePlaces = useMemo(() => {
-    const entries = (livePlacesQuery.data ?? []) as NearbyPlace[];
-    if (!search.trim()) return entries;
-    const q = search.toLowerCase();
-    return entries.filter((item) => item.name.toLowerCase().includes(q) || (item.address ?? "").toLowerCase().includes(q));
-  }, [livePlacesQuery.data, search]);
+  const candidates = (
+    livePlacesQuery.data?.length ? livePlacesQuery.data : fallbackPlaces
+  ) as NearbyPlace[];
+  const filteredPlaces = useMemo(() => {
+    const query = searchArea ? "" : search.trim().toLowerCase();
+    return candidates
+      .filter((place) => matchesCategory(place, filter))
+      .filter(
+        (place) =>
+          !query ||
+          [place.name, place.address, place.type].some((value) =>
+            (value ?? "").toLowerCase().includes(query),
+          ),
+      )
+      .map((place) =>
+        searchCenter
+          ? {
+              ...place,
+              distance_m: distanceBetween(searchCenter, {
+                lat: place.latitude,
+                lng: place.longitude,
+              }),
+            }
+          : place,
+      )
+      .sort((a, b) => a.distance_m - b.distance_m);
+  }, [candidates, filter, search, searchArea, searchCenter]);
+  const selectedPlace = filteredPlaces.find((place) => place.id === selectedPlaceId) ?? null;
+
+  const placeSuggestions = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (query.length < 2 || searchArea)
+      return { areas: [] as UgandaPlace[], facilities: [] as NearbyPlace[] };
+    const areas = getUgandaPlaceSuggestions(search, 5);
+    const matchedFacilities = candidates
+      .filter((place) => place.name.toLowerCase().includes(query))
+      .filter(
+        (place) => !areas.some((area) => area.name.toLowerCase() === place.name.toLowerCase()),
+      )
+      .slice(0, 5);
+    return { areas, facilities: matchedFacilities };
+  }, [candidates, search, searchArea]);
+
+  useEffect(() => {
+    if (!location || !selectedPlace) {
+      activeRouteRef.current?.controller.abort();
+      activeRouteRef.current = null;
+      setRoute(null);
+      setRouteError(null);
+      setRouteLoading(false);
+      return;
+    }
+    const key = `${selectedPlace.id}:${routeMode}`;
+    const last = activeRouteRef.current;
+    if (last?.key === key && distanceBetween(last.origin, location) < 20) return;
+
+    last?.controller.abort();
+    const controller = new AbortController();
+    const origin = { lat: location.lat, lng: location.lng };
+    activeRouteRef.current = { key, origin, controller };
+    setRouteLoading(true);
+    setRouteError(null);
+    void getNearbyRoute(
+      origin,
+      { lat: selectedPlace.latitude, lng: selectedPlace.longitude },
+      routeMode,
+      controller.signal,
+    )
+      .then((nextRoute) => {
+        if (activeRouteRef.current?.controller === controller) setRoute(nextRoute);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setRoute(null);
+        setRouteError(
+          error instanceof Error ? error.message : "A route is not available right now.",
+        );
+      })
+      .finally(() => {
+        if (activeRouteRef.current?.controller === controller) setRouteLoading(false);
+      });
+  }, [location, routeMode, selectedPlace]);
+
+  useEffect(() => () => activeRouteRef.current?.controller.abort(), []);
 
   async function handleSendRequest(memberId: string) {
     setSendingRequestId(memberId);
@@ -162,133 +363,519 @@ function NearbyScreen() {
       toast.success("Connection request sent");
       await nearbyMembersQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not send the connection request.");
+      toast.error(
+        error instanceof Error ? error.message : "Could not send the connection request.",
+      );
     } finally {
       setSendingRequestId(null);
     }
   }
 
-  const hasLocation = Boolean(location) && !locationError;
+  const hasLocation = Boolean(location);
 
-  const cards = useMemo(() => {
-    if (hasLocation) {
-      return livePlaces.map((place) => ({
-        id: place.id,
-        name: place.name,
-        type: place.type,
-        address: place.address,
-        phone: place.phone,
-        open_now: place.open_now,
-        distance_m: place.distance_m,
-        source: place.source as string,
-      }));
-    }
-    return (filtered ?? []).map((facility) => ({
-      id: facility.id,
-      name: facility.name,
-      type: facility.facility_type,
-      address: facility.address ?? facility.district,
-      phone: facility.phone,
-      open_now: null as boolean | null,
-      distance_m: 0,
-      source: "seeded" as string,
-    }));
-  }, [hasLocation, livePlaces, filtered]);
+  function selectArea(area: UgandaPlace) {
+    setSearch(area.name);
+    setSearchArea(area);
+    setSelectedPlaceId(null);
+    setSuggestionsOpen(false);
+  }
+
+  function selectFacility(place: NearbyPlace) {
+    setSearch(place.name);
+    setSearchArea(null);
+    setSelectedPlaceId(place.id);
+    setSuggestionsOpen(false);
+  }
 
   return (
     <AppShell title="Nearby help">
-      <div className="mx-auto w-full max-w-6xl px-5 pb-6 pt-6 lg:px-10 lg:pt-8">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-5 sm:px-6 lg:px-10 lg:pt-8">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-black tracking-[-0.02em] lg:text-3xl">Nearby Help</h1>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+              Nearby services
+            </p>
+            <h1 className="font-display text-2xl font-black tracking-[-0.03em] lg:text-3xl">
+              Find help around you
+            </h1>
             <p className="mt-1 text-[12px] text-muted-foreground lg:text-[13px]">
-              Real nearby services, plus nearby members who opted in to share their presence.
+              Nearby facilities and routes are guides; call ahead when possible.
             </p>
           </div>
-          {!isLoading && facilities && (
-            <span className="rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-[12px] font-semibold text-muted-foreground">
-              {facilities.length} facilities
-            </span>
-          )}
-        </div>
-
-        {(locationError || acc || locating) && (
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[1.25rem] border border-border/60 bg-card/70 px-4 py-3 text-[12px]">
-            <div className="text-muted-foreground">
-              {locationError ? (
-                <span className="text-amber-700 dark:text-amber-300">{locationError}</span>
-              ) : (
-                <>
-                  <span className="font-semibold text-foreground">
-                    {locating ? "Finding your exact position…" : "Your location: "}
-                  </span>
-                  {acc && <span> {acc.label}</span>}
-                  {acc?.tone === "poor" && !locating && (
-                    <span className="block pt-1">
-                      Computers without GPS can only guess from your internet connection. Turn on Wi‑Fi and Location Services, or use your phone for exact results.
-                    </span>
-                  )}
-                </>
+          <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/[0.08] px-3.5 py-2 text-[11px] font-bold text-blue-700 shadow-sm backdrop-blur dark:text-blue-300">
+            <span
+              className={`relative grid h-2.5 w-2.5 place-items-center rounded-full ${location ? "bg-emerald-500" : "bg-amber-500"}`}
+            >
+              {location && (
+                <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-emerald-500/60" />
               )}
-            </div>
+            </span>
+            <span>
+              {searchArea
+                ? `Browsing ${searchArea.name}`
+                : locating
+                  ? "Locating…"
+                  : location && acc
+                    ? `Live GPS · ±${Math.round(location.accuracy)} m`
+                    : "Location unavailable"}
+            </span>
             <button
               type="button"
               onClick={locate}
               disabled={locating}
-              className="rounded-full border border-border px-3 py-1.5 font-semibold text-foreground disabled:opacity-50"
+              aria-label="Refresh live location"
+              className="ml-1 rounded-full p-1 text-current transition hover:bg-blue-500/10 disabled:opacity-50"
             >
-              {locating ? "Locating…" : "Retry"}
+              <Crosshair className={`h-3.5 w-3.5 ${locating ? "animate-pulse" : ""}`} />
+            </button>
+          </div>
+        </div>
+
+        {locationError && !location && !searchArea && (
+          <div
+            role="status"
+            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-[12px] text-amber-800 dark:text-amber-200"
+          >
+            <span>{locationError}</span>
+            <button
+              type="button"
+              onClick={locate}
+              className="shrink-0 rounded-full border border-current/25 px-3 py-1.5 font-bold"
+            >
+              Try again
             </button>
           </div>
         )}
 
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[180px] max-w-sm">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="mb-4 flex flex-col gap-3">
+          <div className="relative z-30 w-full">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
-              placeholder="Search by name or district…"
+              role="combobox"
+              aria-label="Search Uganda areas and nearby facilities"
+              aria-expanded={
+                suggestionsOpen &&
+                (placeSuggestions.areas.length > 0 || placeSuggestions.facilities.length > 0)
+              }
+              aria-controls="nearby-search-suggestions"
+              placeholder="Search a facility, suburb, or road…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-full border border-border/60 bg-card/70 py-2.5 pl-9 pr-4 text-[13px] outline-none placeholder:text-muted-foreground/60 focus:border-primary/50 focus:bg-card"
+              onFocus={() => setSuggestionsOpen(true)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setSearchArea(null);
+                setSelectedPlaceId(null);
+                setSuggestionsOpen(true);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setSuggestionsOpen(false);
+              }}
+              className="h-12 w-full rounded-2xl border border-border/70 bg-card/90 pl-11 pr-11 text-[13px] shadow-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
             />
-          </div>
-          <div className="flex gap-1.5 flex-wrap">
-            {FILTER_TYPES.map((type) => (
+            {search && (
               <button
-                key={type}
                 type="button"
-                onClick={() => setFilter(type)}
-                className={`rounded-full border px-3.5 py-2 text-[12px] font-semibold capitalize transition-all ${
-                  filter === type
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border/60 bg-card/70 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                aria-label="Clear search"
+                onClick={() => {
+                  setSearch("");
+                  setSearchArea(null);
+                  setSelectedPlaceId(null);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            {suggestionsOpen &&
+              (placeSuggestions.areas.length > 0 || placeSuggestions.facilities.length > 0) && (
+                <div
+                  id="nearby-search-suggestions"
+                  role="listbox"
+                  className="absolute left-0 right-0 top-[calc(100%+6px)] max-h-80 overflow-y-auto rounded-2xl border border-border/70 bg-card p-2 shadow-xl"
+                >
+                  {placeSuggestions.areas.length > 0 && (
+                    <>
+                      <p className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                        Uganda areas & roads
+                      </p>
+                      {placeSuggestions.areas.map((area) => (
+                        <button
+                          key={`${area.name}-${area.district}`}
+                          type="button"
+                          role="option"
+                          aria-selected={false}
+                          onClick={() => selectArea(area)}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-muted/70"
+                        >
+                          <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[12px] font-bold">
+                              {area.name}
+                            </span>
+                            <span className="block text-[10px] text-muted-foreground">
+                              {area.district} District · approximate area
+                            </span>
+                          </span>
+                          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {placeSuggestions.facilities.length > 0 && (
+                    <>
+                      <p className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                        Nearby facilities
+                      </p>
+                      {placeSuggestions.facilities.map((place) => (
+                        <button
+                          key={place.id}
+                          type="button"
+                          role="option"
+                          aria-selected={false}
+                          onClick={() => selectFacility(place)}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-muted/70"
+                        >
+                          <FacilityIcon type={place.type} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[12px] font-bold">
+                              {place.name}
+                            </span>
+                            <span className="block truncate text-[10px] text-muted-foreground">
+                              {place.address || TYPE_LABELS[place.type] || place.type}
+                            </span>
+                          </span>
+                          <span className="text-[10px] font-semibold text-primary">
+                            {formatDistance(place.distance_m)}
+                          </span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Filter help facilities">
+            {FILTER_TYPES.map((category) => (
+              <button
+                key={category.value}
+                type="button"
+                onClick={() => {
+                  setFilter(category.value);
+                  setSelectedPlaceId(null);
+                }}
+                aria-pressed={filter === category.value}
+                className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-[11px] font-bold transition ${
+                  filter === category.value
+                    ? "border-foreground/15 bg-foreground text-background shadow-sm"
+                    : "border-border/60 bg-card/75 text-muted-foreground hover:border-foreground/20 hover:text-foreground"
                 }`}
               >
-                {type === "all" ? "All" : TYPE_LABELS[type] ?? type}
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: category.color }}
+                />
+                {category.label}
               </button>
             ))}
           </div>
         </div>
 
-        {hasLocation ? (
-          <div className="mb-6 space-y-5">
-            <ClientOnly fallback={<div className="h-[320px] animate-pulse rounded-[1.5rem] border border-border/60 bg-card/70" />}>
-              <Suspense fallback={<div className="h-[320px] animate-pulse rounded-[1.5rem] border border-border/60 bg-card/70" />}>
-                <NearbyMap
-                  center={{ lat: location!.lat, lng: location!.lng }}
-                  userLocation={{ lat: location!.lat, lng: location!.lng }}
-                  places={livePlaces}
-                />
-              </Suspense>
-            </ClientOnly>
-          </div>
-        ) : null}
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(350px,0.85fr)]">
+          <section aria-label="Map and route" className="min-w-0">
+            {canShowMap && searchCenter ? (
+              <div className="relative">
+                <ClientOnly
+                  fallback={
+                    <div className="h-[390px] animate-pulse rounded-[1.5rem] border border-border/60 bg-card/70 lg:h-[560px]" />
+                  }
+                >
+                  <Suspense
+                    fallback={
+                      <div className="h-[390px] animate-pulse rounded-[1.5rem] border border-border/60 bg-card/70 lg:h-[560px]" />
+                    }
+                  >
+                    <NearbyMap
+                      center={{ lat: searchCenter.lat, lng: searchCenter.lng }}
+                      userLocation={
+                        location
+                          ? { lat: location.lat, lng: location.lng, accuracy: location.accuracy }
+                          : null
+                      }
+                      places={filteredPlaces}
+                      selectedPlaceId={selectedPlaceId}
+                      onSelectPlace={(id) => setSelectedPlaceId(id || null)}
+                      route={route}
+                    />
+                  </Suspense>
+                </ClientOnly>
+
+                {selectedPlace && (
+                  <section
+                    aria-label="Route to selected facility"
+                    className="absolute bottom-3 left-3 right-3 z-20 rounded-2xl border border-white/40 bg-background/95 p-3 shadow-xl backdrop-blur-md sm:left-4 sm:right-auto sm:w-[min(480px,calc(100%-2rem))] sm:p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-foreground"
+                        style={{
+                          backgroundColor: `${HELP_KIND_COLOR[helpKind(selectedPlace.type)]}22`,
+                        }}
+                      >
+                        <FacilityIcon type={selectedPlace.type} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12px] font-black">{selectedPlace.name}</p>
+                        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                          {routeLoading
+                            ? "Finding a route…"
+                            : route
+                              ? `${formatDistance(route.distance_m)} · ${formatEta(route.duration_s)} ${routeMode === "walk" ? "walking" : "driving"}`
+                              : routeError
+                                ? routeError
+                                : location
+                                  ? "Route information is loading"
+                                  : "Share live location for an in-app route"}
+                        </p>
+                        {route?.nextManeuver && (
+                          <p className="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                            {route.nextManeuver}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Clear selected facility"
+                        onClick={() => setSelectedPlaceId(null)}
+                        className="rounded-full p-1 text-muted-foreground hover:bg-muted"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <div
+                        className="inline-flex rounded-full border border-border/60 bg-muted/40 p-0.5"
+                        role="group"
+                        aria-label="Travel mode"
+                      >
+                        {(["drive", "walk"] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            aria-pressed={routeMode === mode}
+                            onClick={() => setRouteMode(mode)}
+                            className={`inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 text-[10px] font-bold ${routeMode === mode ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+                          >
+                            {mode === "drive" ? (
+                              <Navigation2 className="h-3 w-3" />
+                            ) : (
+                              <Footprints className="h-3 w-3" />
+                            )}
+                            {mode === "drive" ? "Drive" : "Walk"}
+                          </button>
+                        ))}
+                      </div>
+                      {selectedPlace.phone && (
+                        <a
+                          href={`tel:${selectedPlace.phone.replace(/[^\d+]/g, "")}`}
+                          className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border/70 bg-card px-3 text-[10px] font-bold hover:bg-muted"
+                        >
+                          <Phone className="h-3 w-3" /> Call
+                        </a>
+                      )}
+                      <a
+                        href={directionsUrl(location, selectedPlace, routeMode)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-3 text-[10px] font-bold text-white hover:bg-emerald-700"
+                      >
+                        <Navigation2 className="h-3 w-3" /> Start navigation
+                      </a>
+                    </div>
+                  </section>
+                )}
+              </div>
+            ) : (
+              <div className="grid min-h-[320px] place-items-center rounded-[1.5rem] border border-dashed border-border/70 bg-card/60 p-8 text-center">
+                <div>
+                  <Crosshair className="mx-auto h-8 w-8 text-primary" />
+                  <h2 className="mt-3 text-sm font-bold">
+                    {locating ? "Getting your live location" : "Choose an area to browse"}
+                  </h2>
+                  <p className="mx-auto mt-1 max-w-sm text-[11px] leading-relaxed text-muted-foreground">
+                    Allow GPS for nearby results, or search a Uganda suburb, town, or major road
+                    above.
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section
+            aria-label="Nearby facility directory"
+            className="min-w-0 rounded-[1.5rem] border border-border/60 bg-card/65 p-3.5 shadow-sm backdrop-blur sm:p-4"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Facility directory
+                </p>
+                <h2 className="mt-1 text-base font-black">
+                  {searchArea ? `Near ${searchArea.name}` : "Closest help"}
+                </h2>
+              </div>
+              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+                {filteredPlaces.length} found
+              </span>
+            </div>
+
+            {(livePlacesQuery.isLoading || isLoading) && filteredPlaces.length === 0 ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-24 animate-pulse rounded-2xl border border-border/50 bg-background/50"
+                  />
+                ))}
+              </div>
+            ) : filteredPlaces.length === 0 ? (
+              <div className="grid min-h-52 place-items-center rounded-2xl border border-dashed border-border/70 bg-background/40 p-5 text-center">
+                <div>
+                  <MapPin className="mx-auto h-7 w-7 text-muted-foreground/50" />
+                  <p className="mt-2 text-[12px] font-bold">
+                    {livePlacesQuery.isError
+                      ? "Nearby places are unavailable"
+                      : "No matching facilities found"}
+                  </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {search
+                      ? "Try another search or category."
+                      : "Try a different area, or retry your location."}
+                  </p>
+                  {livePlacesQuery.isError && (
+                    <button
+                      type="button"
+                      onClick={() => void livePlacesQuery.refetch()}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[10px] font-bold"
+                    >
+                      <RefreshCw className="h-3 w-3" /> Retry search
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="max-h-[680px] space-y-2 overflow-y-auto pr-1">
+                {filteredPlaces.map((facility) => {
+                  const kind = helpKind(facility.type);
+                  const selected = selectedPlaceId === facility.id;
+                  const detail = TYPE_LABELS[facility.type] || facility.type.replace(/_/g, " ");
+                  const status =
+                    facility.source === "seeded" && facility.open_now
+                      ? "Open 24/7"
+                      : facility.open_now === true
+                        ? "Open now"
+                        : facility.open_now === false
+                          ? "Reported closed"
+                          : /referral/i.test(facility.name)
+                            ? "Referral hospital"
+                            : /division/i.test(facility.name)
+                              ? "Police division"
+                              : null;
+                  return (
+                    <article
+                      key={facility.id}
+                      className={`rounded-2xl border p-3 transition ${selected ? "border-emerald-500/45 bg-emerald-500/[0.06] shadow-sm" : "border-border/60 bg-background/55 hover:border-border hover:bg-background"}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlaceId(facility.id)}
+                        aria-pressed={selected}
+                        className="flex w-full items-start gap-3 text-left"
+                      >
+                        <span
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+                          style={{
+                            backgroundColor: `${HELP_KIND_COLOR[kind]}22`,
+                            color: HELP_KIND_COLOR[kind],
+                          }}
+                        >
+                          <FacilityIcon type={facility.type} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12px] font-black">
+                            {facility.name}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                            {facility.address || detail}
+                          </span>
+                          <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[9px] font-bold capitalize"
+                              style={{
+                                color: HELP_KIND_COLOR[kind],
+                                backgroundColor: `${HELP_KIND_COLOR[kind]}18`,
+                              }}
+                            >
+                              {detail}
+                            </span>
+                            {status && (
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${facility.open_now === false ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}
+                              >
+                                <Clock className="h-2.5 w-2.5" />
+                                {status}
+                              </span>
+                            )}
+                            <span className="ml-auto text-[10px] font-bold text-foreground">
+                              {formatDistance(facility.distance_m)}
+                            </span>
+                          </span>
+                        </span>
+                      </button>
+                      <div className="mt-2.5 grid grid-cols-2 gap-2">
+                        {facility.phone ? (
+                          <a
+                            href={`tel:${facility.phone.replace(/[^\d+]/g, "")}`}
+                            onClick={(event) => event.stopPropagation()}
+                            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-card text-[10px] font-bold hover:bg-muted"
+                          >
+                            <Phone className="h-3 w-3" /> Call facility
+                          </a>
+                        ) : (
+                          <span className="inline-flex min-h-9 items-center justify-center rounded-xl border border-border/50 bg-muted/20 text-[9px] font-semibold text-muted-foreground">
+                            No verified phone
+                          </span>
+                        )}
+                        <a
+                          href={directionsUrl(location, facility, routeMode)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-foreground text-[10px] font-bold text-background hover:opacity-85"
+                        >
+                          <Navigation2 className="h-3 w-3" /> Navigate
+                        </a>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+            {isError && filteredPlaces.length === 0 && (
+              <p className="mt-3 text-center text-[9px] text-muted-foreground">
+                Showing saved facilities when available. Map listings may need an internet
+                connection.
+              </p>
+            )}
+          </section>
+        </div>
 
         <div className="mb-8 rounded-[1.6rem] border border-border/60 bg-card/75 p-4 shadow-soft">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Neighbours nearby</p>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                Neighbours nearby
+              </p>
               <h2 className="mt-1 font-display text-xl font-black">Active members</h2>
             </div>
             <span className="rounded-full border border-border/60 bg-background/50 px-2.5 py-1 text-[10.5px] font-semibold text-muted-foreground">
@@ -296,18 +883,30 @@ function NearbyScreen() {
             </span>
           </div>
 
-          {nearbyMembersQuery.isLoading ? (
+          {!hasLocation ? (
+            <div className="rounded-[1.1rem] border border-dashed border-border/60 bg-background/40 p-4 text-[12px] text-muted-foreground">
+              Allow live location to check whether nearby members have opted in to share their
+              presence.
+            </div>
+          ) : nearbyMembersQuery.isLoading ? (
             <div className="rounded-[1.1rem] border border-dashed border-border/60 bg-background/40 p-4 text-[12px] text-muted-foreground">
               Checking for nearby members…
             </div>
           ) : nearbyMembersQuery.data && nearbyMembersQuery.data.length > 0 ? (
             <div className="space-y-3">
               {nearbyMembersQuery.data.map((member) => (
-                <div key={member.user_id} className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-border/60 bg-background/50 p-3">
+                <div
+                  key={member.user_id}
+                  className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-border/60 bg-background/50 p-3"
+                >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary">
                       {member.avatar_url ? (
-                        <img src={member.avatar_url} alt={member.full_name} className="h-full w-full object-cover" />
+                        <img
+                          src={member.avatar_url}
+                          alt={member.full_name}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         member.full_name.slice(0, 2).toUpperCase()
                       )}
@@ -315,9 +914,13 @@ function NearbyScreen() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="truncate text-[13px] font-semibold">{member.full_name}</p>
-                        {member.phone_verified && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
+                        {member.phone_verified && (
+                          <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                        )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{formatDistance(member.distance_m)} away</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatDistance(member.distance_m)} away
+                      </p>
                     </div>
                   </div>
 
@@ -327,7 +930,11 @@ function NearbyScreen() {
                     onClick={() => void handleSendRequest(member.user_id)}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
                   >
-                    {sendingRequestId === member.user_id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                    {sendingRequestId === member.user_id ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-3.5 w-3.5" />
+                    )}
                     {member.relationship_state === "connected" ? "Connected" : "Send request"}
                   </button>
                 </div>
@@ -340,91 +947,10 @@ function NearbyScreen() {
           )}
         </div>
 
-        {isLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-28 animate-pulse rounded-[1.4rem] border border-border/50 bg-card/50" />
-            ))}
-          </div>
-        ) : isError ? (
-          <div className="rounded-[2rem] border border-destructive/25 bg-destructive/5 p-16 text-center">
-            <MapPin className="mx-auto h-10 w-10 text-destructive/70" />
-            <p className="mt-4 font-display text-lg font-bold">Nearby help could not be loaded</p>
-            <p className="mt-2 text-[13px] text-muted-foreground">
-              Check your connection and try again. For urgent help, use Emergency SOS or call official services.
-            </p>
-            <button
-              type="button"
-              onClick={() => void refetch()}
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[13px] font-bold text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              <RefreshCw className="h-4 w-4" /> Try again
-            </button>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="rounded-[2rem] border border-border/60 bg-card/70 p-16 text-center">
-            <MapPin className="mx-auto h-10 w-10 text-muted-foreground/30" />
-            <p className="mt-4 font-display text-lg font-bold">No facilities found</p>
-            <p className="mt-2 text-[13px] text-muted-foreground">
-              {search ? "Try a different search term." : "Ask Allma in chat and it will guide you to the closest help."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {cards.map((facility) => (
-              <article
-                key={facility.id}
-                className="group flex flex-col rounded-[1.4rem] border border-border/60 bg-card/80 p-5 shadow-soft backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-2xl transition-transform group-hover:scale-110" aria-hidden>
-                    {facility.source === "google" ? "📍" : ICONS[facility.type] ?? "📍"}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14.5px] font-bold leading-tight">{facility.name}</p>
-                    <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                      {facility.address || (TYPE_LABELS[facility.type] ?? facility.type)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex items-center gap-3 text-[10.5px] text-muted-foreground/80">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {TYPE_LABELS[facility.type] ?? facility.type}
-                  </span>
-                  {facility.open_now !== null && (
-                    <span className="flex items-center gap-1 text-gold font-semibold">
-                      <Clock className="h-3 w-3" /> {facility.open_now ? "Open now" : "Closed"}
-                    </span>
-                  )}
-                  {facility.distance_m > 0 && (
-                    <span className="ml-auto text-[10.5px] font-semibold text-primary">{formatDistance(facility.distance_m)}</span>
-                  )}
-                </div>
-
-                {facility.phone && (
-                  <a
-                    href={`tel:${facility.phone}`}
-                    aria-label={`Call ${facility.name}`}
-                    className="mt-4 flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-primary to-primary-glow py-2.5 text-[12.5px] font-bold text-primary-foreground shadow-soft transition-all hover:opacity-90 hover:scale-[1.02]"
-                  >
-                    <Phone className="h-3.5 w-3.5" /> Call {facility.phone}
-                  </a>
-                )}
-                {facility.distance_m > 0 && !facility.phone && (
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(facility.name)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-4 flex items-center justify-center gap-2 rounded-full border border-border/60 bg-background/40 py-2.5 text-[12.5px] font-bold text-foreground"
-                  >
-                    <MapPin className="h-3.5 w-3.5" /> Directions
-                  </a>
-                )}
-              </article>
-            ))}
-          </div>
-        )}
+        <p className="mb-2 text-center text-[10px] text-muted-foreground">
+          Facility hours and phone details come from listing data and may not be current. Confirm
+          before travelling when possible.
+        </p>
       </div>
     </AppShell>
   );

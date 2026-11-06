@@ -10,31 +10,151 @@ import { HELP_KIND_COLOR, helpKind } from "@/components/allma/nearby-help-list";
 import { OsmTileMap } from "@/components/allma/live-location-map";
 import { cn } from "@/lib/utils";
 
-type NearbyMapProps = {
-  center: { lat: number; lng: number };
-  userLocation: { lat: number; lng: number };
-  places: NearbyPlace[];
+export type NearbyRoute = {
+  coordinates: Array<{ lat: number; lng: number }>;
+  distance_m: number;
+  duration_s: number;
+  nextManeuver: string | null;
 };
 
+type NearbyMapProps = {
+  center: { lat: number; lng: number };
+  userLocation: { lat: number; lng: number; accuracy?: number } | null;
+  places: NearbyPlace[];
+  selectedPlaceId?: string | null;
+  onSelectPlace?: (id: string) => void;
+  route?: NearbyRoute | null;
+};
+
+type LatLng = { lat: number; lng: number };
+type GoogleBounds = { extend: (position: LatLng) => void };
 type GoogleMapOverlay = { setMap: (map: unknown) => void };
+type GoogleMap = {
+  setCenter: (center: LatLng) => void;
+  panTo: (center: LatLng) => void;
+  fitBounds: (bounds: GoogleBounds, padding?: number) => void;
+};
+type GoogleMarker = GoogleMapOverlay & {
+  addListener: (event: string, listener: () => void) => void;
+};
 type GoogleInfoWindow = {
   close: () => void;
   setContent: (content: HTMLElement) => void;
   open: (options: { map: unknown; anchor: unknown }) => void;
 };
+type GoogleMapsNamespace = {
+  Map: new (container: HTMLElement, options: Record<string, unknown>) => GoogleMap;
+  Marker: new (options: Record<string, unknown>) => GoogleMarker;
+  Circle: new (options: Record<string, unknown>) => GoogleMapOverlay;
+  Polyline: new (options: Record<string, unknown>) => GoogleMapOverlay;
+  InfoWindow: new () => GoogleInfoWindow;
+  LatLngBounds: new () => GoogleBounds;
+  Size: new (width: number, height: number) => unknown;
+  Point: new (x: number, y: number) => unknown;
+  MapTypeControlStyle: { HORIZONTAL_BAR: string };
+};
+type GoogleMapsGlobal = { google?: { maps?: GoogleMapsNamespace } };
 
-export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
+function getGoogleMaps() {
+  return (globalThis as typeof globalThis & GoogleMapsGlobal).google?.maps;
+}
+
+function markerSvg(kind: ReturnType<typeof helpKind>) {
+  const color = HELP_KIND_COLOR[kind];
+  const symbol =
+    kind === "police"
+      ? '<path d="M24 11l8 3v6c0 6-3.5 10-8 12-4.5-2-8-6-8-12v-6l8-3z" fill="white"/><path d="M24 15v13m-5-6.5h10" stroke="#1d4ed8" stroke-width="2.4" stroke-linecap="round"/>'
+      : kind === "fire"
+        ? '<path d="M25 12c1 5-4 6-2 11 1-2 3-3 4-5 4 4 6 7 4 11a8 8 0 0 1-15-3c0-4 3-8 9-14z" fill="white"/>'
+        : '<path d="M22 16h4v6h6v4h-6v6h-4v-6h-6v-4h6z" fill="white"/>';
+  return `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="8" fill="${color}" fill-opacity=".3">
+        <animate attributeName="r" values="8;22" dur="1.7s" repeatCount="indefinite"/>
+        <animate attributeName="fill-opacity" values=".35;0" dur="1.7s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="24" cy="24" r="10" fill="${color}" stroke="#fff" stroke-width="3"/>
+      ${symbol}
+    </svg>`,
+  )}`;
+}
+
+const USER_BEACON_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="22" cy="22" r="9" fill="#2563eb" fill-opacity=".28">
+      <animate attributeName="r" values="8;20" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="fill-opacity" values=".32;0" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="22" cy="22" r="8" fill="#2563eb" stroke="white" stroke-width="3"/>
+  </svg>`,
+)}`;
+
+function FallbackMarker({ kind }: { kind: ReturnType<typeof helpKind> }) {
+  if (kind === "police") {
+    return (
+      <span className="relative z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-blue-700 shadow-[0_0_12px_3px_rgba(29,78,216,.55)]">
+        <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
+          <path
+            d="M10 2.5 16 4.7v4.5c0 4.2-2.6 6.8-6 8.3-3.4-1.5-6-4.1-6-8.3V4.7L10 2.5Z"
+            fill="white"
+          />
+          <path d="M10 6v7m-3.5-3.5h7" stroke="#1d4ed8" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </span>
+    );
+  }
+  if (kind === "fire") {
+    return (
+      <span className="relative z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-amber-500 shadow-[0_0_12px_3px_rgba(245,158,11,.5)]">
+        <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
+          <path
+            d="M10.7 2.5c.7 3.2-2.3 4.3-1.3 7 1.1-1 1.6-1.8 2.1-2.7 2.1 2.1 3.4 4.1 2.8 6.4a4.6 4.6 0 0 1-9 0c-.3-3.1 1.7-6.1 5.4-10.7Z"
+            fill="white"
+          />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span
+      className="relative z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-white shadow-[0_0_12px_3px_rgba(16,185,129,.45)]"
+      style={{ backgroundColor: HELP_KIND_COLOR[kind] }}
+    >
+      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden="true">
+        <path d="M8.25 3.5h3.5v4.75h4.75v3.5h-4.75v4.75h-3.5v-4.75H3.5v-3.5h4.75z" fill="white" />
+      </svg>
+    </span>
+  );
+}
+
+export function NearbyMap({
+  center,
+  userLocation,
+  places,
+  selectedPlaceId: selectedId,
+  onSelectPlace,
+  route,
+}: NearbyMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fallbackRef = useRef<HTMLDivElement | null>(null);
-  const markersRef = useRef<GoogleMapOverlay[]>([]);
+  const mapRef = useRef<GoogleMap | null>(null);
+  const mapsRef = useRef<GoogleMapsNamespace | null>(null);
+  const overlaysRef = useRef<GoogleMapOverlay[]>([]);
   const infoWindowRef = useRef<GoogleInfoWindow | null>(null);
-  const [ready, setReady] = useState<boolean>(Boolean((globalThis as any)?.google?.maps));
+  const centerRef = useRef(center);
+  centerRef.current = center;
+  const selectPlaceRef = useRef<(id: string) => void>(() => {});
+  selectPlaceRef.current = (id: string) => {
+    setLocalSelectedId(id);
+    onSelectPlace?.(id);
+  };
+  const [ready, setReady] = useState<boolean>(() => Boolean(getGoogleMaps()));
   const [mapFailed, setMapFailed] = useState(googleMapsAuthFailed());
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
   const [fallbackSize, setFallbackSize] = useState({ width: 640, height: 320 });
+  const selectedPlaceId = selectedId === undefined ? localSelectedId : selectedId;
   const browserKey = getGoogleMapsBrowserKey();
   const useGoogle = Boolean(browserKey) && ready && !mapFailed;
-
   useEffect(() => {
     const unsubscribe = onGoogleMapsAuthFailure(() => {
       setMapFailed(true);
@@ -66,12 +186,12 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
   }, [browserKey]);
 
   useEffect(() => {
-    if (!useGoogle || !containerRef.current || !(window as any)?.google?.maps) return;
-    const maps = (window as any).google.maps;
+    const maps = getGoogleMaps();
+    if (!useGoogle || !containerRef.current || !maps) return;
     const map = new maps.Map(containerRef.current, {
-      center: { lat: center.lat, lng: center.lng },
-      zoom: 12,
-      mapTypeId: "satellite",
+      center: centerRef.current,
+      zoom: 14,
+      mapTypeId: "roadmap",
       mapTypeControl: true,
       mapTypeControlOptions: { style: maps.MapTypeControlStyle.HORIZONTAL_BAR },
       streetViewControl: false,
@@ -79,38 +199,59 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
       zoomControl: true,
       gestureHandling: "greedy",
     });
+    mapRef.current = map;
+    mapsRef.current = maps;
     infoWindowRef.current = new maps.InfoWindow();
-    markersRef.current.push(
-      new maps.Marker({
+    return () => {
+      infoWindowRef.current?.close();
+      overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      overlaysRef.current = [];
+      mapRef.current = null;
+      mapsRef.current = null;
+    };
+  }, [useGoogle]);
+
+  useEffect(() => {
+    if (!useGoogle || !mapRef.current) return;
+    mapRef.current.setCenter({ lat: center.lat, lng: center.lng });
+  }, [center.lat, center.lng, useGoogle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const maps = mapsRef.current;
+    if (!useGoogle || !map || !maps) return;
+    overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    overlaysRef.current = [];
+    if (userLocation) {
+      const userMarker = new maps.Marker({
         map,
         position: { lat: userLocation.lat, lng: userLocation.lng },
-        title: "Your location",
+        title: `Your location${userLocation.accuracy ? ` · accurate to ±${Math.round(userLocation.accuracy)} m` : ""}`,
         icon: {
-          path: maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: "#2563eb",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 2,
+          url: USER_BEACON_ICON,
+          scaledSize: new maps.Size(44, 44),
+          anchor: new maps.Point(22, 22),
         },
-      }),
-    );
-    markersRef.current.push(
-      new maps.Circle({
-        map,
-        center: { lat: userLocation.lat, lng: userLocation.lng },
-        radius: 2000,
-        fillColor: "#22c55e",
-        fillOpacity: 0.08,
-        strokeColor: "#22c55e",
-        strokeOpacity: 0.5,
-        strokeWeight: 1,
-      }),
-    );
+      });
+      overlaysRef.current.push(userMarker);
+      if (userLocation.accuracy && Number.isFinite(userLocation.accuracy)) {
+        overlaysRef.current.push(
+          new maps.Circle({
+            map,
+            center: { lat: userLocation.lat, lng: userLocation.lng },
+            radius: Math.max(5, userLocation.accuracy),
+            fillColor: "#2563eb",
+            fillOpacity: 0.1,
+            strokeColor: "#2563eb",
+            strokeOpacity: 0.45,
+            strokeWeight: 1,
+          }),
+        );
+      }
+    }
 
     places.slice(0, 30).forEach((place) => {
       const kind = helpKind(place.type);
-      const isMedical = kind === "hospital" || kind === "clinic";
       const distanceLabel = Number.isFinite(place.distance_m)
         ? place.distance_m < 950
           ? `${Math.round(place.distance_m)} m`
@@ -123,50 +264,52 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
       name.style.display = "block";
       const details = document.createElement("span");
       details.textContent = [distanceLabel, kind].filter(Boolean).join(" · ");
-      details.style.cssText = "display:block;margin-top:4px;color:#52616b;text-transform:capitalize";
+      details.style.cssText =
+        "display:block;margin-top:4px;color:#52616b;text-transform:capitalize";
       content.append(name, details);
       const marker = new maps.Marker({
         map,
         position: { lat: place.latitude, lng: place.longitude },
         title: [place.name, distanceLabel, kind].filter(Boolean).join(" · "),
-        icon: isMedical
-          ? {
-              url: `data:image/svg+xml;utf8,${encodeURIComponent(`
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="24" cy="24" r="8" fill="#10b981" fill-opacity=".28">
-                    <animate attributeName="r" values="8;22" dur="1.6s" repeatCount="indefinite"/>
-                    <animate attributeName="fill-opacity" values=".35;0" dur="1.6s" repeatCount="indefinite"/>
-                  </circle>
-                  <circle cx="24" cy="24" r="10" fill="#10b981" stroke="#fff" stroke-width="3"/>
-                  <path d="M22 16h4v6h6v4h-6v6h-4v-6h-6v-4h6z" fill="#fff"/>
-                </svg>
-              `)}`,
-              scaledSize: new maps.Size(44, 44),
-              anchor: new maps.Point(22, 22),
-            }
-          : {
-              path: maps.SymbolPath.CIRCLE,
-              scale: 7,
-              fillColor: HELP_KIND_COLOR[kind],
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 2,
-            },
+        icon: {
+          url: markerSvg(kind),
+          scaledSize: new maps.Size(44, 44),
+          anchor: new maps.Point(22, 22),
+        },
       });
       marker.addListener("click", () => {
-        setSelectedPlaceId(place.id);
+        selectPlaceRef.current(place.id);
+        map.panTo({ lat: place.latitude, lng: place.longitude });
         infoWindowRef.current?.setContent(content);
         infoWindowRef.current?.open({ map, anchor: marker });
       });
-      markersRef.current.push(marker);
+      overlaysRef.current.push(marker);
     });
 
+    if (route?.coordinates.length) {
+      overlaysRef.current.push(
+        new maps.Polyline({
+          map,
+          path: route.coordinates.map(({ lat, lng }) => ({ lat, lng })),
+          geodesic: true,
+          strokeColor: "#059669",
+          strokeOpacity: 0.95,
+          strokeWeight: 6,
+        }),
+      );
+      const bounds = new maps.LatLngBounds();
+      route.coordinates.forEach((coordinate) => bounds.extend(coordinate));
+      map.fitBounds(bounds, 36);
+    } else if (selectedPlaceId) {
+      const selected = places.find((place) => place.id === selectedPlaceId);
+      if (selected) map.panTo({ lat: selected.latitude, lng: selected.longitude });
+    }
+
     return () => {
-      infoWindowRef.current?.close();
-      markersRef.current.forEach((marker) => marker.setMap(null));
-      markersRef.current = [];
+      overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      overlaysRef.current = [];
     };
-  }, [center.lat, center.lng, places, useGoogle, userLocation.lat, userLocation.lng]);
+  }, [places, route, selectedPlaceId, useGoogle, userLocation]);
 
   useEffect(() => {
     if (useGoogle || !fallbackRef.current) return;
@@ -187,12 +330,19 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
   const tileX = (lng: number) => ((lng + 180) / 360) * 2 ** fallbackZoom;
   const tileY = (lat: number) => {
     const radians = (lat * Math.PI) / 180;
-    return ((1 - Math.log(Math.tan(radians) + 1 / Math.cos(radians)) / Math.PI) / 2) * 2 ** fallbackZoom;
+    return (
+      ((1 - Math.log(Math.tan(radians) + 1 / Math.cos(radians)) / Math.PI) / 2) * 2 ** fallbackZoom
+    );
   };
   const userOffset = {
-    dx: (tileX(userLocation.lng) - tileX(center.lng)) * 256,
-    dy: (tileY(userLocation.lat) - tileY(center.lat)) * 256,
+    dx: userLocation ? (tileX(userLocation.lng) - tileX(center.lng)) * 256 : 0,
+    dy: userLocation ? (tileY(userLocation.lat) - tileY(center.lat)) * 256 : 0,
   };
+  const metersPerPixel =
+    (156543.03392 * Math.cos((center.lat * Math.PI) / 180)) / 2 ** fallbackZoom;
+  const accuracyDiameter = userLocation?.accuracy
+    ? Math.max(18, (userLocation.accuracy / metersPerPixel) * 2)
+    : 0;
   const placeOffsets = places.slice(0, 30).map((place) => ({
     place,
     dx: (tileX(place.longitude) - tileX(center.lng)) * 256,
@@ -207,20 +357,84 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
         </div>
       )}
       {useGoogle ? (
-        <div ref={containerRef} className="h-[320px] w-full" />
+        <div ref={containerRef} className="h-[390px] w-full lg:h-[560px]" />
       ) : (
-        <div ref={fallbackRef} className="relative h-[320px] w-full overflow-hidden">
+        <div ref={fallbackRef} className="relative h-[390px] w-full overflow-hidden lg:h-[560px]">
           <OsmTileMap lat={center.lat} lng={center.lng} zoom={fallbackZoom} />
-          <span
-            aria-label="Your location"
-            className="pointer-events-none absolute z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-blue-600 shadow-[0_0_0_5px_rgba(37,99,235,0.2)]"
-            style={{ left: `calc(50% + ${userOffset.dx}px)`, top: `calc(50% + ${userOffset.dy}px)` }}
-          />
+          {route?.coordinates.length ? (
+            <svg
+              className="pointer-events-none absolute inset-0 z-[5] h-full w-full overflow-visible"
+              viewBox={`0 0 ${fallbackSize.width} ${fallbackSize.height}`}
+              aria-hidden="true"
+            >
+              <polyline
+                points={route.coordinates
+                  .map(
+                    (point) =>
+                      `${fallbackSize.width / 2 + (tileX(point.lng) - tileX(center.lng)) * 256},${fallbackSize.height / 2 + (tileY(point.lat) - tileY(center.lat)) * 256}`,
+                  )
+                  .join(" ")}
+                fill="none"
+                stroke="#047857"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity=".22"
+              />
+              <polyline
+                points={route.coordinates
+                  .map(
+                    (point) =>
+                      `${fallbackSize.width / 2 + (tileX(point.lng) - tileX(center.lng)) * 256},${fallbackSize.height / 2 + (tileY(point.lat) - tileY(center.lat)) * 256}`,
+                  )
+                  .join(" ")}
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : null}
+          {userLocation ? (
+            <>
+              {accuracyDiameter > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute z-[6] -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-500/40 bg-blue-500/10"
+                  style={{
+                    width: accuracyDiameter,
+                    height: accuracyDiameter,
+                    left: `calc(50% + ${userOffset.dx}px)`,
+                    top: `calc(50% + ${userOffset.dy}px)`,
+                  }}
+                />
+              )}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute z-[6] h-9 w-9 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-blue-500/35 [animation-duration:1.8s]"
+                style={{
+                  left: `calc(50% + ${userOffset.dx}px)`,
+                  top: `calc(50% + ${userOffset.dy}px)`,
+                }}
+              />
+              <span
+                aria-label="Your live location"
+                className="pointer-events-none absolute z-[7] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-blue-600 shadow-[0_0_0_5px_rgba(37,99,235,0.23)]"
+                style={{
+                  left: `calc(50% + ${userOffset.dx}px)`,
+                  top: `calc(50% + ${userOffset.dy}px)`,
+                }}
+              />
+            </>
+          ) : null}
           {placeOffsets
-            .filter(({ dx, dy }) => Math.abs(dx) < fallbackSize.width / 2 && Math.abs(dy) < fallbackSize.height / 2)
+            .filter(
+              ({ dx, dy }) =>
+                Math.abs(dx) < fallbackSize.width / 2 && Math.abs(dy) < fallbackSize.height / 2,
+            )
             .map(({ place, dx, dy }) => {
               const kind = helpKind(place.type);
-              const medical = kind === "hospital" || kind === "clinic";
               const active = selectedPlaceId === place.id;
               const distance = Number.isFinite(place.distance_m)
                 ? place.distance_m < 950
@@ -234,30 +448,36 @@ export function NearbyMap({ center, userLocation, places }: NearbyMapProps) {
                   aria-label={`${place.name}${distance ? `, ${distance} away` : ""}, ${kind}`}
                   aria-pressed={active}
                   title={`${place.name}${distance ? ` · ${distance}` : ""} · ${kind}`}
-                  onClick={() => setSelectedPlaceId(active ? null : place.id)}
+                  onClick={() => {
+                    selectPlaceRef.current(active ? "" : place.id);
+                  }}
                   className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   style={{ left: `calc(50% + ${dx}px)`, top: `calc(50% + ${dy}px)` }}
                 >
-                  {medical ? (
-                    <>
-                      <span className="absolute left-1/2 top-1/2 z-0 h-9 w-9 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-emerald-400/35 [animation-duration:1.6s]" />
-                      <span className="relative z-10 grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-emerald-500 shadow-[0_0_10px_3px_rgba(16,185,129,0.65)]">
-                        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden="true">
-                          <path d="M8.25 3.5h3.5v4.75h4.75v3.5h-4.75v4.75h-3.5v-4.75H3.5v-3.5h4.75z" fill="white" />
-                        </svg>
-                      </span>
-                    </>
-                  ) : (
-                    <span className="block h-3.5 w-3.5 rounded-full border-2 border-white shadow" style={{ backgroundColor: HELP_KIND_COLOR[kind] }} />
-                  )}
-                  <span className={cn("pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max max-w-56 -translate-x-1/2 rounded-lg bg-background/95 px-2.5 py-1.5 text-left text-[11px] font-semibold text-foreground shadow-lg", active ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100")}>
+                  <span
+                    className="absolute left-1/2 top-1/2 z-0 h-10 w-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full opacity-35 [animation-duration:1.7s]"
+                    style={{ backgroundColor: HELP_KIND_COLOR[kind] }}
+                  />
+                  <FallbackMarker kind={kind} />
+                  <span
+                    className={cn(
+                      "pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max max-w-56 -translate-x-1/2 rounded-lg bg-background/95 px-2.5 py-1.5 text-left text-[11px] font-semibold text-foreground shadow-lg",
+                      active
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
+                    )}
+                  >
                     <span className="block">{place.name}</span>
-                    <span className="mt-0.5 block font-normal capitalize text-muted-foreground">{[distance, kind].filter(Boolean).join(" · ")}</span>
+                    <span className="mt-0.5 block font-normal capitalize text-muted-foreground">
+                      {[distance, kind].filter(Boolean).join(" · ")}
+                    </span>
                   </span>
                 </button>
               );
             })}
-          <span className="absolute bottom-2 right-2 rounded bg-background/85 px-2 py-1 text-[9px] font-medium text-muted-foreground">© OpenStreetMap contributors</span>
+          <span className="absolute bottom-2 right-2 rounded bg-background/85 px-2 py-1 text-[9px] font-medium text-muted-foreground">
+            © OpenStreetMap contributors
+          </span>
         </div>
       )}
     </div>

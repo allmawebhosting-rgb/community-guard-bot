@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { resolveUgandaPlace } from "@/lib/uganda-places";
 
 const GOOGLE_API_URL = "https://connector-gateway.lovable.dev/google_maps/places/v1";
 const MAX_RADIUS_M = 10_000;
@@ -12,6 +13,7 @@ const SUPPORTED_PLACE_TYPES = new Set([
   "fire_station",
   "doctor",
   "pharmacy",
+  "medical_clinic",
   "dental_clinic",
   "medical_lab",
 ]);
@@ -25,14 +27,25 @@ const PLACE_TYPE_ALIASES: Record<string, string> = {
   health_center: "doctor",
   medical: "doctor",
   medical_center: "doctor",
+  medical_centre: "doctor",
+  dispensary: "pharmacy",
+  chemist: "pharmacy",
   fire: "fire_station",
   fire_brigade: "fire_station",
   police_station: "police",
+  police_post: "police",
   ambulance: "hospital",
   drugstore: "pharmacy",
 };
 
-export const DEFAULT_PLACE_TYPES = ["hospital", "police", "fire_station", "doctor", "pharmacy"];
+export const DEFAULT_PLACE_TYPES = [
+  "hospital",
+  "medical_clinic",
+  "doctor",
+  "police",
+  "fire_station",
+  "pharmacy",
+];
 
 /** Translate/drop unsupported categories so one bad value can't fail the whole search. */
 function normalizeGoogleTypes(types: string[]) {
@@ -41,9 +54,8 @@ function normalizeGoogleTypes(types: string[]) {
     .map((value) => PLACE_TYPE_ALIASES[value] ?? value)
     .filter((value) => SUPPORTED_PLACE_TYPES.has(value));
   const unique = [...new Set(mapped)];
-  return (unique.length ? unique : DEFAULT_PLACE_TYPES).slice(0, 5);
+  return unique.length ? unique : DEFAULT_PLACE_TYPES;
 }
-
 
 const NearbyPlaceSchema = z.object({
   id: z.string(),
@@ -66,6 +78,7 @@ export type NearbyPlacesInput = {
   radiusMeters?: number;
   limit?: number;
   types?: string[];
+  searchText?: string;
 };
 
 function toRadians(value: number) {
@@ -100,7 +113,9 @@ function placeCategory(type: string) {
   if (value.includes("police")) return "police";
   if (value.includes("fire")) return "fire";
   if (value.includes("hospital")) return "hospital";
-  if (value.includes("clinic") || value.includes("doctor") || value.includes("pharmac") || value.includes("health")) return "clinic";
+  if (value.includes("pharmac") || value.includes("chemist")) return "pharmacy";
+  if (value.includes("clinic") || value.includes("doctor") || value.includes("health"))
+    return "clinic";
   return "other";
 }
 
@@ -115,13 +130,16 @@ function diversifyPlaces(places: NearbyPlaceResult[], limit: number) {
     }
     if (selected.length === limit) return selected;
   }
-  return [...selected, ...places.filter((place) => !selected.some((item) => item.id === place.id))].slice(0, limit);
+  return [
+    ...selected,
+    ...places.filter((place) => !selected.some((item) => item.id === place.id)),
+  ].slice(0, limit);
 }
 
 async function loadSeededFacilities(latitude: number, longitude: number, radiusMeters: number) {
   const { data, error } = await supabaseAdmin
     .from("facilities")
-    .select("id, name, facility_type, address, district, phone, latitude, longitude")
+    .select("id, name, facility_type, address, district, phone, is_24_7, latitude, longitude")
     .not("latitude", "is", null)
     .not("longitude", "is", null);
 
@@ -141,8 +159,13 @@ async function loadSeededFacilities(latitude: number, longitude: number, radiusM
       type: String(item.facility_type ?? "facility"),
       address: item.address ?? item.district ?? null,
       phone: item.phone ?? null,
-      open_now: null,
-      distance_m: haversineMeters(latitude, longitude, Number(item.latitude), Number(item.longitude)),
+      open_now: item.is_24_7 ? true : null,
+      distance_m: haversineMeters(
+        latitude,
+        longitude,
+        Number(item.latitude),
+        Number(item.longitude),
+      ),
       latitude: Number(item.latitude),
       longitude: Number(item.longitude),
       source: "seeded" as const,
@@ -164,10 +187,15 @@ async function loadPoliceStations(latitude: number, longitude: number, radiusMet
       id: `police_station:${item.id}`,
       name: String(item.name ?? "Police station"),
       type: "police",
-      address: item.parish ? `${item.parish}, ${item.district}` : item.district ?? null,
+      address: item.parish ? `${item.parish}, ${item.district}` : (item.district ?? null),
       phone: item.phone ?? null,
       open_now: null,
-      distance_m: haversineMeters(latitude, longitude, Number(item.latitude), Number(item.longitude)),
+      distance_m: haversineMeters(
+        latitude,
+        longitude,
+        Number(item.latitude),
+        Number(item.longitude),
+      ),
       latitude: Number(item.latitude),
       longitude: Number(item.longitude),
       source: "seeded" as const,
@@ -181,7 +209,12 @@ async function loadPoliceStations(latitude: number, longitude: number, radiusMet
     );
 }
 
-async function loadGooglePlaces(latitude: number, longitude: number, radiusMeters: number, types: string[]) {
+async function loadGooglePlaces(
+  latitude: number,
+  longitude: number,
+  radiusMeters: number,
+  types: string[],
+) {
   // Read credentials at call time — env injection happens per request, not at module load.
   const lovableApiKey = process.env["LOVABLE_API_KEY"];
   const googleMapsKey =
@@ -190,7 +223,9 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
     process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
 
   if (!lovableApiKey || !googleMapsKey) {
-    console.warn("Google Places lookup skipped: Google Maps credentials are not available on the server.");
+    console.warn(
+      "Google Places lookup skipped: Google Maps credentials are not available on the server.",
+    );
     return [] as NearbyPlaceResult[];
   }
 
@@ -224,7 +259,9 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
       return [] as NearbyPlaceResult[];
     }
     if (body.includes("API_KEY_SERVICE_BLOCKED")) {
-      console.warn("Google Places lookup blocked: Google Maps service is not enabled for this API key.");
+      console.warn(
+        "Google Places lookup blocked: Google Maps service is not enabled for this API key.",
+      );
       return [] as NearbyPlaceResult[];
     }
     console.warn("Google Places lookup blocked by Google Maps API configuration.", body);
@@ -233,10 +270,11 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    console.warn(`Google Places lookup failed [${response.status}] types=${includedTypes.join(",")}: ${body}`);
+    console.warn(
+      `Google Places lookup failed [${response.status}] types=${includedTypes.join(",")}: ${body}`,
+    );
     return [] as NearbyPlaceResult[];
   }
-
 
   const result = (await response.json()) as {
     places?: Array<{
@@ -259,7 +297,12 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
       address: place.formattedAddress ?? null,
       phone: place.nationalPhoneNumber ?? null,
       open_now: place.currentOpeningHours?.openNow ?? null,
-      distance_m: haversineMeters(latitude, longitude, place.location!.latitude!, place.location!.longitude!),
+      distance_m: haversineMeters(
+        latitude,
+        longitude,
+        place.location!.latitude!,
+        place.location!.longitude!,
+      ),
       latitude: place.location!.latitude!,
       longitude: place.location!.longitude!,
       source: "google" as const,
@@ -270,17 +313,21 @@ async function loadGooglePlaces(latitude: number, longitude: number, radiusMeter
 function cacheKey(latitude: number, longitude: number, radiusMeters: number, types: string[]) {
   const roundedLat = Math.round(latitude * 1000) / 1000;
   const roundedLng = Math.round(longitude * 1000) / 1000;
-  return [roundedLat, roundedLng, Math.round(radiusMeters / 100), [...types].sort().join("|")].join(":");
+  return [roundedLat, roundedLng, Math.round(radiusMeters / 100), [...types].sort().join("|")].join(
+    ":",
+  );
 }
 
 const placeCache = new Map<string, { expiresAt: number; data: NearbyPlaceResult[] }>();
 
 export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<NearbyPlaceResult[]> {
-  const latitude = Number(input.latitude);
-  const longitude = Number(input.longitude);
+  const gazetteerMatch = input.searchText ? resolveUgandaPlace(input.searchText) : null;
+  const latitude = gazetteerMatch?.lat ?? Number(input.latitude);
+  const longitude = gazetteerMatch?.lng ?? Number(input.longitude);
   const radiusMeters = Math.min(Number(input.radiusMeters ?? 2500), MAX_RADIUS_M);
   const limit = Math.min(Number(input.limit ?? 10), MAX_RESULTS);
-  const types = Array.isArray(input.types) && input.types.length ? input.types : ["hospital", "police", "fire_station", "doctor", "pharmacy"];
+  const types =
+    Array.isArray(input.types) && input.types.length ? input.types : DEFAULT_PLACE_TYPES;
 
   const cacheKeyValue = cacheKey(latitude, longitude, radiusMeters, types);
   const cached = placeCache.get(cacheKeyValue);

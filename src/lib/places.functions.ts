@@ -8,7 +8,11 @@ const nearbyPlacesInput = z.object({
   longitude: z.number().min(-180).max(180),
   radiusMeters: z.number().int().min(200).max(10000).default(2500),
   limit: z.number().int().min(1).max(20).default(10),
-  types: z.array(z.string()).max(5).default(["hospital", "police", "fire_station", "doctor", "pharmacy"]),
+  types: z
+    .array(z.string())
+    .max(8)
+    .default(["hospital", "medical_clinic", "doctor", "police", "fire_station", "pharmacy"]),
+  searchText: z.string().trim().max(160).optional(),
 });
 
 export const getNearbyPlaces = createServerFn({ method: "POST" })
@@ -21,6 +25,7 @@ export const getNearbyPlaces = createServerFn({ method: "POST" })
       radiusMeters: data.radiusMeters,
       limit: data.limit,
       types: data.types,
+      searchText: data.searchText,
     });
 
     return places as NearbyPlaceResult[];
@@ -79,7 +84,10 @@ export const upsertNearbyPresence = createServerFn({ method: "POST" })
 export const disableNearbyPresence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { error } = await context.supabase.from("member_presence").delete().eq("user_id", context.userId);
+    const { error } = await context.supabase
+      .from("member_presence")
+      .delete()
+      .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
