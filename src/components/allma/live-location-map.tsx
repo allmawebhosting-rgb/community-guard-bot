@@ -217,25 +217,79 @@ export function GoogleLocationCanvas({
     if (!mapReady || !maps || !map) return;
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = places.map((place) => {
-      const color = HELP_KIND_COLOR[helpKind(place.type)];
-      const marker = new maps.Marker({
-        map,
-        position: { lat: place.latitude, lng: place.longitude },
-        title: place.name,
-        icon: {
-          path: maps.SymbolPath.CIRCLE,
-          scale: selectedPlaceId === place.id ? 9 : 6.5,
-          fillColor: color,
-          fillOpacity: 1,
-          strokeColor: "#0d0f10",
-          strokeWeight: selectedPlaceId === place.id ? 3 : 1.5,
-        },
-      });
-      marker.addListener("click", () => selectRef.current?.(place.id));
+      const kind = helpKind(place.type);
+      const color = HELP_KIND_COLOR[kind];
+      const isHospital = kind === "hospital" || kind === "clinic";
+      let marker;
+      if (isHospital) {
+        // Animated SVG marker for hospital/clinic
+        let pulse = 0;
+        const getIcon = () => {
+          // Pulse between 0.7 and 1.15 scale
+          const scale = 1 + 0.15 * Math.sin(pulse);
+          pulse += 0.18;
+          return {
+            url:
+              `data:image/svg+xml;utf8,` +
+              encodeURIComponent(`
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="16" cy="16" r="12" fill="#34d399" fill-opacity="0.32"/>
+                  <circle cx="16" cy="16" r="7" fill="#34d399" filter="url(#glow)"/>
+                  <g>
+                    <rect x="14.2" y="8.5" width="3.6" height="15" rx="1.2" fill="#fff"/>
+                    <rect x="8.5" y="14.2" width="15" height="3.6" rx="1.2" fill="#fff"/>
+                  </g>
+                  <defs>
+                    <filter id="glow" x="0" y="0" width="32" height="32" filterUnits="userSpaceOnUse">
+                      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+                      <feMerge>
+                        <feMergeNode in="blur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  </defs>
+                </svg>
+              `),
+            scaledSize: new maps.Size(32 * scale, 32 * scale),
+            anchor: new maps.Point(16 * scale, 16 * scale),
+          };
+        };
+        marker = new maps.Marker({
+          map,
+          position: { lat: place.latitude, lng: place.longitude },
+          title: place.name,
+          icon: getIcon(),
+        });
+        marker.addListener("click", () => selectRef.current?.(place.id));
+        // Animate the marker icon
+        const interval = setInterval(() => {
+          marker.setIcon(getIcon());
+        }, 320);
+        marker._allmaPulseInterval = interval;
+      } else {
+        marker = new maps.Marker({
+          map,
+          position: { lat: place.latitude, lng: place.longitude },
+          title: place.name,
+          icon: {
+            path: maps.SymbolPath.CIRCLE,
+            scale: selectedPlaceId === place.id ? 9 : 6.5,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeColor: "#0d0f10",
+            strokeWeight: selectedPlaceId === place.id ? 3 : 1.5,
+          },
+        });
+        marker.addListener("click", () => selectRef.current?.(place.id));
+      }
       return marker;
     });
+    // Clean up animated intervals
     return () => {
-      markersRef.current.forEach((marker) => marker.setMap(null));
+      markersRef.current.forEach((marker) => {
+        if (marker._allmaPulseInterval) clearInterval(marker._allmaPulseInterval);
+        marker.setMap(null);
+      });
       markersRef.current = [];
     };
   }, [mapReady, places, selectedPlaceId]);
@@ -350,8 +404,10 @@ export function LiveLocationMap({
           <>
             <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
             {fallbackPins.map(({ place, dx, dy }) => {
-              const color = HELP_KIND_COLOR[helpKind(place.type)];
+              const kind = helpKind(place.type);
+              const color = HELP_KIND_COLOR[kind];
               const active = selectedPlaceId === place.id;
+              const isHospital = kind === "hospital" || kind === "clinic";
               return (
                 <button
                   key={place.id}
@@ -359,15 +415,43 @@ export function LiveLocationMap({
                   title={place.name}
                   aria-label={place.name}
                   onClick={() => onSelectPlace?.(place.id)}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background transition"
+                  className={cn(
+                    "absolute -translate-x-1/2 -translate-y-1/2 group focus:z-20",
+                    active ? "z-10" : "z-0"
+                  )}
                   style={{
                     left: `calc(50% + ${dx}px)`,
-                    top: `calc(50% + ${dy}px)`,
-                    height: active ? 18 : 13,
-                    width: active ? 18 : 13,
-                    backgroundColor: color,
+                    top: `calc(50% + ${dy}px)`
                   }}
-                />
+                >
+                  {isHospital ? (
+                    <>
+                      {/* Animated ping ring */}
+                      <span className="absolute left-1/2 top-1/2 -z-10 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/30 animate-ping" style={{animationDuration:'1.5s'}} />
+                      {/* Glowing emerald core */}
+                      <span className="block h-4 w-4 rounded-full bg-emerald-400 shadow-[0_0_0_2px_white,0_0_8px_2px_#34d399] flex items-center justify-center">
+                        {/* White cross icon */}
+                        <svg viewBox="0 0 20 20" fill="none" className="h-3 w-3" aria-hidden="true">
+                          <rect x="8.25" y="3.5" width="3.5" height="13" rx="1.2" fill="#fff" />
+                          <rect x="3.5" y="8.25" width="13" height="3.5" rx="1.2" fill="#fff" />
+                        </svg>
+                      </span>
+                    </>
+                  ) : (
+                    <span
+                      className="block h-3 w-3 rounded-full border-2 border-background"
+                      style={{ backgroundColor: color }}
+                    />
+                  )}
+                  {/* Tooltip/label on hover/focus */}
+                  <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-max -translate-x-1/2 scale-95 rounded bg-background/95 px-2 py-1 text-xs font-semibold text-foreground opacity-0 shadow transition group-hover:opacity-100 group-focus:opacity-100">
+                    {place.name}
+                    {place.distance_m ? (
+                      <span className="ml-2 text-muted-foreground font-normal">{Math.round(place.distance_m) < 1000 ? `${Math.round(place.distance_m)}m` : `${(place.distance_m/1000).toFixed(1)}km`}</span>
+                    ) : null}
+                    <span className="ml-2 text-muted-foreground font-normal capitalize">{kind}</span>
+                  </span>
+                </button>
               );
             })}
           </>
