@@ -29,7 +29,7 @@ export const ConversationContent = ({
   ...props
 }: ConversationContentProps) => (
   <StickToBottom.Content
-    className={cn("flex h-full min-h-0 flex-col gap-8 p-4", className)}
+    className={cn("flex min-h-full flex-col gap-8 p-4", className)}
     scrollClassName="overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]"
     {...props}
   />
