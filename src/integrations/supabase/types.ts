@@ -750,7 +750,8 @@ export type Database = {
         Row: {
           accepted_at: string | null
           call_type: string
-          caller_id: string
+          caller_display_name: string | null
+          caller_id: string | null
           connected_at: string | null
           created_at: string
           duration: number | null
@@ -759,7 +760,8 @@ export type Database = {
           id: string
           provider_confirmed: boolean
           provider_mode: string
-          recipient_id: string
+          recipient_display_name: string | null
+          recipient_id: string | null
           ringing_at: string | null
           sos_session_id: string | null
           started_at: string | null
@@ -772,6 +774,7 @@ export type Database = {
           accepted_at?: string | null
           call_type?: string
           caller_id: string
+          caller_display_name?: string | null
           connected_at?: string | null
           created_at?: string
           duration?: number | null
@@ -781,6 +784,7 @@ export type Database = {
           provider_confirmed?: boolean
           provider_mode?: string
           recipient_id: string
+          recipient_display_name?: string | null
           ringing_at?: string | null
           sos_session_id?: string | null
           started_at?: string | null
@@ -792,7 +796,8 @@ export type Database = {
         Update: {
           accepted_at?: string | null
           call_type?: string
-          caller_id?: string
+          caller_display_name?: string | null
+          caller_id?: string | null
           connected_at?: string | null
           created_at?: string
           duration?: number | null
@@ -801,7 +806,8 @@ export type Database = {
           id?: string
           provider_confirmed?: boolean
           provider_mode?: string
-          recipient_id?: string
+          recipient_display_name?: string | null
+          recipient_id?: string | null
           ringing_at?: string | null
           sos_session_id?: string | null
           started_at?: string | null
@@ -1397,12 +1403,13 @@ export type Database = {
       }
       lost_found_public_reports: {
         Row: {
-          contact_name: string
-          contact_phone: string
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
           description: string | null
           district: string | null
           id: string
+          is_anonymous: boolean
           item_type: string
           kind: string
           location_text: string | null
@@ -1410,15 +1417,17 @@ export type Database = {
           occurred_on: string | null
           photo_url: string | null
           status: string
+          submitted_by: string | null
           updated_at: string
         }
         Insert: {
-          contact_name: string
-          contact_phone: string
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
           district?: string | null
           id?: string
+          is_anonymous?: boolean
           item_type: string
           kind?: string
           location_text?: string | null
@@ -1426,15 +1435,17 @@ export type Database = {
           occurred_on?: string | null
           photo_url?: string | null
           status?: string
+          submitted_by?: string | null
           updated_at?: string
         }
         Update: {
-          contact_name?: string
-          contact_phone?: string
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
           district?: string | null
           id?: string
+          is_anonymous?: boolean
           item_type?: string
           kind?: string
           location_text?: string | null
@@ -1442,6 +1453,7 @@ export type Database = {
           occurred_on?: string | null
           photo_url?: string | null
           status?: string
+          submitted_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2170,7 +2182,7 @@ export type Database = {
           match_score: number | null
           notes: string | null
           priority: number
-          responder_id: string
+          responder_id: string | null
           responder_profile_id: string | null
           response_outcome: string | null
           sos_session_id: string | null
@@ -2210,7 +2222,7 @@ export type Database = {
           match_score?: number | null
           notes?: string | null
           priority?: number
-          responder_id?: string
+          responder_id?: string | null
           responder_profile_id?: string | null
           response_outcome?: string | null
           sos_session_id?: string | null
@@ -2864,6 +2876,13 @@ export type Database = {
         Args: { _sos_id: string; _user_id: string }
         Returns: boolean
       }
+      claim_sos_emergency_call: {
+        Args: { p_call_id: string }
+        Returns: {
+          accepted: boolean
+          call_session_id: string | null
+        }[]
+      }
       claim_due_health_reminders: {
         Args: { p_limit?: number }
         Returns: {
@@ -2912,6 +2931,10 @@ export type Database = {
           responder_id: string
           status: string
         }[]
+      }
+      finish_sos_call_round: {
+        Args: { p_call_ids: string[]; p_sos_activity_id: string }
+        Returns: boolean
       }
       deliver_due_health_reminders: { Args: never; Returns: number }
       escalate_smart_sos_check: {
@@ -3021,13 +3044,13 @@ export type Database = {
       list_my_calls: {
         Args: { p_limit?: number }
         Returns: {
-          avatar_url: string
+          avatar_url: string | null
           created_at: string
           direction: string
-          duration: number
+          duration: number | null
           full_name: string
           id: string
-          other_user_id: string
+          other_user_id: string | null
           status: string
         }[]
       }
@@ -3063,15 +3086,15 @@ export type Database = {
       list_sos_call_attempts: {
         Args: { p_sos_activity_id: string }
         Returns: {
-          accepted_at: string
-          avatar_url: string
+          accepted_at: string | null
+          avatar_url: string | null
           call_id: string
-          connected_at: string
+          connected_at: string | null
           created_at: string
-          duration: number
-          ended_at: string
+          duration: number | null
+          ended_at: string | null
           full_name: string
-          recipient_id: string
+          recipient_id: string | null
           safety_role: string
           status: string
         }[]
@@ -3203,7 +3226,7 @@ export type Database = {
           id: string
           provider_confirmed: boolean
           provider_mode: string
-          recipient_id: string
+          recipient_id: string | null
           ringing_at: string | null
           sos_session_id: string | null
           started_at: string | null

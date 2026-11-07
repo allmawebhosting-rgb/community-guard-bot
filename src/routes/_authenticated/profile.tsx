@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell, CalendarDays, ChevronRight, FileText, LogOut, MapPin, MessageSquare,
-  Moon, Shield, Sun, UserRound, Users, LocateFixed, Loader2, Check, X,
+  Moon, Shield, Sun, UserRound, Users, Loader2, Check, X,
   Navigation, CheckCircle2,
 } from "lucide-react";
 import { AppShell } from "@/components/allma/app-shell";
@@ -41,20 +41,10 @@ function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [responderAvailable, setResponderAvailable] = useState(false);
   const [nearbySharingEnabled, setNearbySharingEnabled] = useState(false);
   const [nearbySharingSaving, setNearbySharingSaving] = useState(false);
-  const [responderSaving, setResponderSaving] = useState(false);
   const [sosOffers, setSosOffers] = useState<SosOffer[]>([]);
   const [offerSaving, setOfferSaving] = useState<string | null>(null);
-  const responderWatch = useRef<number | null>(null);
-  const responderTable = supabase as unknown as {
-    from: (table: string) => {
-      select: (columns: string) => { eq: (column: string, value: string) => { maybeSingle: () => Promise<{ data: { is_available: boolean } | null }> } };
-      upsert: (values: Record<string, unknown>, options?: Record<string, unknown>) => Promise<{ error: unknown }>;
-      update: (values: Record<string, unknown>) => { eq: (column: string, value: string) => Promise<{ error: unknown }> };
-    };
-  };
   const offerClient = supabase as unknown as {
     rpc: (name: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
   };
@@ -111,29 +101,18 @@ function ProfileScreen() {
     if (!user) return;
     let cancelled = false;
 
-    void Promise.all([
-      responderTable.from("community_responder_locations")
-        .select("is_available")
-        .eq("user_id", user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (!cancelled) setResponderAvailable(Boolean(data?.is_available));
-        }),
-      (supabase as any)
-        .from("profiles")
-        .select("discoverable_nearby")
-        .eq("id", user.id)
-        .maybeSingle()
-        .then(({ data }: { data: { discoverable_nearby?: boolean | null } | null }) => {
-          if (!cancelled) setNearbySharingEnabled(Boolean(data?.discoverable_nearby));
-        }),
-    ]);
+    void supabase
+      .from("profiles")
+      .select("discoverable_nearby")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.error("Failed to load nearby sharing preference", error);
+        if (!cancelled) setNearbySharingEnabled(Boolean(data?.discoverable_nearby));
+      });
 
     return () => {
       cancelled = true;
-      if (responderWatch.current !== null && "geolocation" in navigator) {
-        navigator.geolocation.clearWatch(responderWatch.current);
-      }
     };
   }, [user]);
 
@@ -177,66 +156,18 @@ function ProfileScreen() {
     };
   }, [user]);
 
-  async function setResponderMode(enabled: boolean) {
-    if (!user) return;
-    setResponderSaving(true);
-    if (!enabled) {
-      if (responderWatch.current !== null) navigator.geolocation.clearWatch(responderWatch.current);
-      responderWatch.current = null;
-      const { error } = await responderTable.from("community_responder_locations")
-        .update({ is_available: false, last_seen_at: new Date().toISOString() })
-        .eq("user_id", user.id);
-      if (error) console.error("Failed to disable responder presence", error);
-      setResponderAvailable(false);
-      setResponderSaving(false);
-      return;
-    }
-
-    if (!("geolocation" in navigator)) {
-      setResponderSaving(false);
-      return;
-    }
-
-    responderWatch.current = navigator.geolocation.watchPosition(
-      async ({ coords }) => {
-        const { error } = await responderTable.from("community_responder_locations").upsert({
-          user_id: user.id,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          is_available: true,
-          last_seen_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" });
-        if (error) console.error("Failed to update responder presence", error);
-        setResponderAvailable(!error);
-        setResponderSaving(false);
-      },
-      () => {
-        setResponderAvailable(false);
-        setResponderSaving(false);
-      },
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
-    );
-  }
-
   async function setNearbySharing(enabled: boolean) {
     if (!user) return;
     setNearbySharingSaving(true);
 
     try {
       if (!enabled) {
-        if ("geolocation" in navigator) {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 });
-          });
-          await (supabase as any).rpc("upsert_member_presence", {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            sharing_enabled: false,
-          });
-        }
-        await (supabase as any).from("profiles").update({ discoverable_nearby: false }).eq("id", user.id);
-        await (supabase as any).from("member_presence").delete().eq("user_id", user.id);
+        const [profileUpdate, presenceRemoval] = await Promise.all([
+          supabase.from("profiles").update({ discoverable_nearby: false }).eq("id", user.id),
+          supabase.from("member_presence").delete().eq("user_id", user.id),
+        ]);
+        if (profileUpdate.error) throw profileUpdate.error;
+        if (presenceRemoval.error) throw presenceRemoval.error;
         setNearbySharingEnabled(false);
         return;
       }
@@ -249,16 +180,23 @@ function ProfileScreen() {
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 });
       });
 
-      await (supabase as any).rpc("upsert_member_presence", {
+      const { error: presenceError } = await supabase.rpc("upsert_member_presence", {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
         sharing_enabled: true,
       });
-      await (supabase as any).from("profiles").update({ discoverable_nearby: true }).eq("id", user.id);
+      if (presenceError) throw presenceError;
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ discoverable_nearby: true })
+        .eq("id", user.id);
+      if (profileError) {
+        await supabase.from("member_presence").delete().eq("user_id", user.id);
+        throw profileError;
+      }
       setNearbySharingEnabled(true);
     } catch (error) {
       console.error("Failed to update nearby presence", error);
-      setNearbySharingEnabled(false);
     } finally {
       setNearbySharingSaving(false);
     }
@@ -502,26 +440,6 @@ function ProfileScreen() {
             <div>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">Preferences</p>
               <div className="overflow-hidden rounded-[1.4rem] border border-border/60 bg-card/70">
-                <div className="flex items-center gap-4 border-b border-border/50 px-5 py-4">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500/10">
-                    <Users className="h-4 w-4 text-amber-500" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-[13.5px] font-semibold">Help neighbors nearby</span>
-                    <span className="mt-0.5 block text-[11.5px] leading-relaxed text-muted-foreground">
-                      Share your availability during SOS alerts. Your exact location is never shown.
-                    </span>
-                  </div>
-                  {responderSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : (
-                    <Switch
-                      checked={responderAvailable}
-                      onCheckedChange={setResponderMode}
-                      aria-label="Allow nearby SOS responder alerts"
-                    />
-                  )}
-                </div>
                 <div className="flex items-center gap-4 border-b border-border/50 px-5 py-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10">
                     <MapPin className="h-4 w-4 text-primary" />

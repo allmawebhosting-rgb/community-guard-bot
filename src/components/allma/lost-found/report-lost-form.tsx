@@ -695,7 +695,7 @@ function PhotoStep({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         className="sr-only"
         onChange={(event) => onPick(event.target.files?.[0])}
       />

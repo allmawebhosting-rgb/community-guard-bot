@@ -13,7 +13,7 @@ export type SosCallTarget = {
 
 export type SosCallAttempt = {
   call_id: string;
-  recipient_id: string;
+  recipient_id: string | null;
   full_name: string;
   avatar_url: string | null;
   safety_role: string | null;

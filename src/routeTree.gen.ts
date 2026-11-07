@@ -37,6 +37,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedResponderRouteImport } from './routes/_authenticated/responder'
 import { Route as AuthenticatedSafetyNetworkRouteImport } from './routes/_authenticated/safety-network'
+import { Route as ApiAccountDeletionRouteImport } from './routes/api/account-deletion'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiHealthRemindersDeliverRouteImport } from './routes/api/health-reminders-deliver'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
@@ -210,6 +211,11 @@ const AuthenticatedSafetyNetworkRoute =
     path: '/safety-network',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiAccountDeletionRoute = ApiAccountDeletionRouteImport.update({
+  id: '/api/account-deletion',
+  path: '/api/account-deletion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -402,6 +408,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/responder': typeof AuthenticatedResponderRoute
   '/safety-network': typeof AuthenticatedSafetyNetworkRoute
+  '/api/account-deletion': typeof ApiAccountDeletionRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -458,6 +465,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/responder': typeof AuthenticatedResponderRoute
   '/safety-network': typeof AuthenticatedSafetyNetworkRoute
+  '/api/account-deletion': typeof ApiAccountDeletionRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -518,6 +526,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/responder': typeof AuthenticatedResponderRoute
   '/_authenticated/safety-network': typeof AuthenticatedSafetyNetworkRoute
+  '/api/account-deletion': typeof ApiAccountDeletionRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -578,6 +587,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/responder'
     | '/safety-network'
+    | '/api/account-deletion'
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
@@ -634,6 +644,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/responder'
     | '/safety-network'
+    | '/api/account-deletion'
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
@@ -693,6 +704,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/responder'
     | '/_authenticated/safety-network'
+    | '/api/account-deletion'
     | '/api/chat'
     | '/api/health-reminders-deliver'
     | '/api/transcribe'
@@ -745,6 +757,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiAccountDeletionRoute: typeof ApiAccountDeletionRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiHealthRemindersDeliverRoute: typeof ApiHealthRemindersDeliverRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
@@ -952,6 +965,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/safety-network'
       preLoaderRoute: typeof AuthenticatedSafetyNetworkRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/account-deletion': {
+      id: '/api/account-deletion'
+      path: '/api/account-deletion'
+      fullPath: '/api/account-deletion'
+      preLoaderRoute: typeof ApiAccountDeletionRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
       id: '/api/chat'
@@ -1265,6 +1285,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiAccountDeletionRoute: ApiAccountDeletionRoute,
   ApiChatRoute: ApiChatRoute,
   ApiHealthRemindersDeliverRoute: ApiHealthRemindersDeliverRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,

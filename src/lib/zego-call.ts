@@ -52,7 +52,7 @@ export type CallStatus =
 export type CallHistoryEntry = {
   id: string;
   direction: "incoming" | "outgoing";
-  other_user_id: string;
+  other_user_id: string | null;
   full_name: string;
   avatar_url: string | null;
   status: string;

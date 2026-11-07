@@ -380,15 +380,20 @@ export function CallCenter() {
         (payload) => {
           const row = payload.new as {
             id: string;
-            caller_id: string;
+            caller_id: string | null;
+            caller_display_name?: string | null;
             status: string;
             sos_session_id?: string | null;
           };
           if (callIdRef.current || row.status === "ended") return;
-          const known = namesRef.current.get(row.caller_id);
+          const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
+          const callerPeer = known ?? {
+            id: row.caller_id ?? `former-member-${row.id}`,
+            name: row.caller_display_name ?? (row.caller_id ? "Allma member" : "Former Member"),
+          };
           callIdRef.current = row.id;
           setCallId(row.id);
-          setPeer(known ?? { id: row.caller_id, name: "Allma member" });
+          setPeer(callerPeer);
           setIsCaller(false);
           setEndedNote(null);
           setEmergency(null);
@@ -402,7 +407,7 @@ export function CallCenter() {
             if (context.is_emergency) {
               setEmergency(context);
               setPeer((current) => ({
-                ...(current ?? { id: row.caller_id }),
+                ...(current ?? callerPeer),
                 name: context.caller_name,
                 avatarUrl: context.caller_avatar_url,
               }));
@@ -489,16 +494,20 @@ export function CallCenter() {
     void (async () => {
       const { data: row } = await supabase
         .from("emergency_calls")
-        .select("id, caller_id, status, sos_session_id")
+        .select("id, caller_id, caller_display_name, status, sos_session_id")
         .eq("id", id)
         .eq("recipient_id", userId)
         .in("status", ["initiating", "ringing", "connecting"])
         .maybeSingle();
       if (!row || callIdRef.current) return;
-      const known = namesRef.current.get(row.caller_id);
+      const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
+      const callerPeer = known ?? {
+        id: row.caller_id ?? `former-member-${row.id}`,
+        name: row.caller_display_name ?? (row.caller_id ? "Allma member" : "Former Member"),
+      };
       callIdRef.current = row.id;
       setCallId(row.id);
-      setPeer(known ?? { id: row.caller_id, name: "Allma member" });
+      setPeer(callerPeer);
       setIsCaller(false);
       setEndedNote(null);
       setEmergency(null);
@@ -510,7 +519,7 @@ export function CallCenter() {
         if (context.is_emergency) {
           setEmergency(context);
           setPeer((current) => ({
-            ...(current ?? { id: row.caller_id }),
+            ...(current ?? callerPeer),
             name: context.caller_name,
             avatarUrl: context.caller_avatar_url,
           }));

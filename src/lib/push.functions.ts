@@ -98,7 +98,7 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
       .maybeSingle();
 
     // Only the caller of a live call may trigger a push to the recipient.
-    if (!call || call.caller_id !== context.userId) {
+    if (!call || call.caller_id !== context.userId || !call.recipient_id) {
       throw new Error("You cannot send alerts for this call.");
     }
     const recentSosCall = Boolean(
