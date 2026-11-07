@@ -77,12 +77,15 @@ export function CallCenter() {
   const [helpLoading, setHelpLoading] = useState(false);
   const [localPoint, setLocalPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [localLocationError, setLocalLocationError] = useState<string | null>(null);
+  const [receiverPoint, setReceiverPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [receiverLocationError, setReceiverLocationError] = useState<string | null>(null);
 
   // Where the caller is, when they chose to share it with this receiver.
   const callerPoint =
     emergency?.location_shared && emergency.latitude !== null && emergency.longitude !== null
       ? { lat: emergency.latitude, lng: emergency.longitude }
       : null;
+  const hasEmergency = Boolean(emergency);
   useEffect(() => {
     if (!isCaller || !peer?.sosActivityId || !peer.shareLocation || phase === "ended" || phase === "idle") {
       setLocalPoint(null);
@@ -111,18 +114,52 @@ export function CallCenter() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [isCaller, peer?.sosActivityId, peer?.shareLocation, phase]);
 
-  // Nearby destinations are only needed for the caller's own route to help.
-  const callerAreaKey = isCaller && localPoint
-    ? `${localPoint.lat.toFixed(3)},${localPoint.lng.toFixed(3)}`
+  // Ask the receiver for their location only after they accept and only if the
+  // caller has not shared theirs. This GPS is used only to search public help.
+  useEffect(() => {
+    if (isCaller || !hasEmergency || phase !== "active" || callerPoint) {
+      setReceiverPoint(null);
+      setReceiverLocationError(null);
+      return;
+    }
+    if (!navigator.geolocation) {
+      setReceiverLocationError("This device does not provide live location.");
+      return;
+    }
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setReceiverPoint({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setReceiverLocationError(null);
+      },
+      (error) => {
+        setReceiverLocationError(
+          error.code === 1
+            ? "Allow location access to find nearby help while caller GPS is unavailable."
+            : "Waiting for your current GPS position to find nearby help.",
+        );
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [callId, callerPoint?.lat, callerPoint?.lng, hasEmergency, isCaller, phase]);
+
+  const helpSearchPoint = isCaller
+    ? localPoint
+    : emergency
+      ? callerPoint ?? receiverPoint
+      : null;
+  // Three-decimal rounding only refreshes the search after roughly 100 m.
+  const helpAreaKey = helpSearchPoint
+    ? `${helpSearchPoint.lat.toFixed(3)},${helpSearchPoint.lng.toFixed(3)}`
     : null;
 
   useEffect(() => {
-    if (!callerAreaKey) {
+    if (!helpAreaKey) {
       setHelpPlaces([]);
       setHelpLoading(false);
       return;
     }
-    const [lat, lng] = callerAreaKey.split(",").map(Number);
+    const [lat, lng] = helpAreaKey.split(",").map(Number);
     let active = true;
     setHelpLoading(true);
     void getNearbyPlaces({
@@ -130,8 +167,8 @@ export function CallCenter() {
         latitude: lat,
         longitude: lng,
         radiusMeters: 8000,
-        limit: 8,
-        types: ["hospital", "police", "fire_station", "doctor", "pharmacy"],
+        limit: 20,
+        types: ["hospital", "medical_clinic", "doctor", "police", "fire_station", "pharmacy"],
       },
     })
       .then((results) => {
@@ -158,7 +195,7 @@ export function CallCenter() {
     return () => {
       active = false;
     };
-  }, [callerAreaKey]);
+  }, [helpAreaKey]);
   const engineRef = useRef<VoiceCallEngine | null>(null);
   const callIdRef = useRef<string | null>(null);
   const sosOutgoingRef = useRef(new Map<string, CallPeer>());
@@ -669,7 +706,7 @@ export function CallCenter() {
                     </div>}
                   </section>
 
-                  {emergency && phase !== "ended" && <>
+                  {emergency && !isCaller && phase !== "ended" && <>
                     <section className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Emergency quick actions">
                       <a
                         href={callerPoint ? `https://www.google.com/maps/dir/?api=1&destination=${callerPoint.lat},${callerPoint.lng}` : undefined}
@@ -699,12 +736,18 @@ export function CallCenter() {
                     </section>
 
                     <section id="receiver-map" className="receiver-surface" aria-label="Rescue navigation">
-                      {callerPoint ? (
+                      {helpSearchPoint ? (
                         <ResponderNavigation
-                          caller={{ lat: callerPoint.lat, lng: callerPoint.lng }}
+                          caller={callerPoint ?? helpSearchPoint}
                           callerName={peer?.name?.split(" ")[0] ?? "the caller"}
+                          searchCenter={helpSearchPoint}
+                          anchorLocation={callerPoint}
+                          helpPlaces={helpPlaces}
+                          helpLoading={helpLoading}
+                          currentLocation={receiverPoint ?? undefined}
+                          trackLocation={phase === "active" && Boolean(callerPoint)}
                         />
-                      ) : emergency.location_requested ? (
+                      ) : (
                         <div
                           role="status"
                           className="relative flex min-h-[22rem] flex-col items-center justify-center overflow-hidden rounded-2xl border border-gold/25 bg-gold/[0.06] px-5 text-center"
@@ -714,15 +757,20 @@ export function CallCenter() {
                             <Crosshair className="h-5 w-5" />
                           </span>
                           <p className="relative mt-4 text-sm font-bold text-foreground">
-                            Acquiring caller GPS…
+                            {receiverLocationError
+                              ? "Nearby help location unavailable"
+                              : phase === "active"
+                                ? "Getting responder GPS…"
+                                : emergency.location_requested
+                                  ? "Acquiring caller GPS…"
+                                  : "Caller location isn’t shared"}
                           </p>
                           <p className="relative mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
-                            Waiting for caller&apos;s live GPS coordinates. The route will appear as soon as they arrive.
+                            {receiverLocationError ??
+                              (phase === "active"
+                                ? "Nearby facilities will appear when your location is available."
+                                : "Answer the call to search nearby help using your location, or wait for the caller to share GPS.")}
                           </p>
-                        </div>
-                      ) : (
-                        <div className="flex min-h-[22rem] items-center justify-center rounded-2xl border border-border/60 bg-muted/20 px-5 text-center text-sm text-muted-foreground">
-                          The caller has not shared a location for this emergency.
                         </div>
                       )}
                     </section>
@@ -757,6 +805,8 @@ export function CallCenter() {
                         currentLocation={localPoint}
                         trackLocation={false}
                         helpPlaces={helpPlaces}
+                        searchCenter={localPoint}
+                        helpLoading={helpLoading}
                       />
                       {helpLoading && helpPlaces.length === 0 && <p className="mt-3 text-[11px] text-muted-foreground">Finding hospitals, police stations, and clinics nearby…</p>}
                     </section>

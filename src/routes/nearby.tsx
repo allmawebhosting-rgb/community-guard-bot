@@ -113,6 +113,15 @@ function matchesCategory(place: NearbyPlace, category: string) {
   return kind === category;
 }
 
+function mergeNearbyPlaces(...sources: NearbyPlace[][]) {
+  const unique = new Map<string, NearbyPlace>();
+  for (const place of sources.flat()) {
+    const key = `${place.name.trim().toLowerCase()}:${place.latitude.toFixed(5)}:${place.longitude.toFixed(5)}`;
+    if (!unique.has(key)) unique.set(key, place);
+  }
+  return [...unique.values()].sort((a, b) => a.distance_m - b.distance_m);
+}
+
 function directionsUrl(
   origin: { lat: number; lng: number } | null,
   place: NearbyPlace,
@@ -196,6 +205,16 @@ function NearbyScreen() {
     () => searchArea ?? (location ? { lat: location.lat, lng: location.lng } : DEFAULT_AREA),
     [location, searchArea],
   );
+  const placeLatitudeKey = location?.lat.toFixed(3) ?? null;
+  const placeLongitudeKey = location?.lng.toFixed(3) ?? null;
+  const placeSearchCenter = useMemo(
+    () =>
+      searchArea ??
+      (placeLatitudeKey !== null && placeLongitudeKey !== null
+        ? { lat: Number(placeLatitudeKey), lng: Number(placeLongitudeKey) }
+        : DEFAULT_AREA),
+    [placeLatitudeKey, placeLongitudeKey, searchArea],
+  );
   const nearestArea = useMemo(
     () => (location ? getNearestUgandaPlace(location) : null),
     [location],
@@ -216,6 +235,7 @@ function NearbyScreen() {
     isError,
   } = useQuery({
     queryKey: ["facilities"],
+    enabled: isAuthenticated,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("facilities")
@@ -230,17 +250,17 @@ function NearbyScreen() {
   const livePlacesQuery = useQuery({
     queryKey: [
       "nearby-places",
-      searchCenter?.lat.toFixed(3) ?? DEFAULT_LOCATION.lat,
-      searchCenter?.lng.toFixed(3) ?? DEFAULT_LOCATION.lng,
+      placeSearchCenter.lat,
+      placeSearchCenter.lng,
       searchArea?.name,
     ],
-    enabled: canShowMap && isAuthenticated,
+    enabled: canShowMap,
     queryFn: async () => {
       const data = await getNearbyPlaces({
         data: {
-          latitude: searchCenter!.lat,
-          longitude: searchCenter!.lng,
-          radiusMeters: 2500,
+          latitude: placeSearchCenter.lat,
+          longitude: placeSearchCenter.lng,
+          radiusMeters: 8000,
           limit: 20,
           types: ["hospital", "medical_clinic", "doctor", "police", "fire_station", "pharmacy"],
           ...(searchArea ? { searchText: searchArea.name } : {}),
@@ -294,19 +314,16 @@ function NearbyScreen() {
         },
       ];
     });
-  }, [facilities, searchCenter]);
+  }, [facilities, placeSearchCenter]);
   const localFallbackPlaces = useMemo(
-    () => (searchCenter ? getSeededNearbyFacilities(searchCenter) : []),
-    [searchCenter],
+    () => getSeededNearbyFacilities(placeSearchCenter),
+    [placeSearchCenter],
   );
 
-  const candidates = (
-    livePlacesQuery.data?.length
-      ? livePlacesQuery.data
-      : fallbackPlaces.length
-        ? fallbackPlaces
-        : localFallbackPlaces
-  ) as NearbyPlace[];
+  const candidates = useMemo(
+    () => mergeNearbyPlaces(livePlacesQuery.data ?? [], fallbackPlaces, localFallbackPlaces),
+    [fallbackPlaces, livePlacesQuery.data, localFallbackPlaces],
+  );
   const filteredPlaces = useMemo(() => {
     const query = searchArea ? "" : search.trim().toLowerCase();
     return candidates
@@ -319,10 +336,10 @@ function NearbyScreen() {
           ),
       )
       .map((place) =>
-        searchCenter
+        placeSearchCenter
           ? {
               ...place,
-              distance_m: distanceBetween(searchCenter, {
+              distance_m: distanceBetween(placeSearchCenter, {
                 lat: place.latitude,
                 lng: place.longitude,
               }),
@@ -330,7 +347,7 @@ function NearbyScreen() {
           : place,
       )
       .sort((a, b) => a.distance_m - b.distance_m);
-  }, [candidates, filter, search, searchArea, searchCenter]);
+  }, [candidates, filter, search, searchArea, placeSearchCenter]);
   const selectedPlace = filteredPlaces.find((place) => place.id === selectedPlaceId) ?? null;
 
   const placeSuggestions = useMemo(() => {

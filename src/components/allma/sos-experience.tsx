@@ -2226,6 +2226,9 @@ function MinimalEmergencyScreen({
                     currentLocation={{ lat: location.lat, lng: location.lng }}
                     trackLocation={false}
                     helpPlaces={nearbyHelp}
+                    selectedPlaceId={selectedHelpId}
+                    searchCenter={{ lat: location.lat, lng: location.lng }}
+                    helpLoading={nearbyHelpLoading}
                     onSelectDestination={setSelectedHelpId}
                   />
                 </div>

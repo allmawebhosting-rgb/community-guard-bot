@@ -8,6 +8,7 @@ import {
   CornerUpRight,
   ExternalLink,
   Flag,
+  Flame,
   Footprints,
   HeartPulse,
   LocateFixed,
@@ -19,8 +20,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OsmTileMap } from "@/components/allma/live-location-map";
-import { helpKind, type HelpKind, type HelpPlace } from "@/components/allma/nearby-help-list";
+import {
+  HELP_KIND_COLOR,
+  helpKind,
+  type HelpKind,
+  type HelpPlace,
+} from "@/components/allma/nearby-help-list";
 import { getGoogleMapsBrowserKey, googleMapsAuthFailed, loadGoogleMaps, onGoogleMapsAuthFailure } from "@/lib/google-maps-loader";
+import { nearbyMarkerDataUrl } from "@/lib/nearby-marker";
 
 type Pt = { lat: number; lng: number };
 type Mode = "drive" | "walk";
@@ -110,6 +117,11 @@ function GoogleRouteCanvas({
   callerName,
   medical,
   fallbackCenter,
+  searchCenter,
+  anchorLocation,
+  helpPlaces,
+  selectedPlaceId,
+  onSelectPlace,
 }: {
   me: Pt | null;
   caller: Pt | null;
@@ -118,20 +130,29 @@ function GoogleRouteCanvas({
   callerName: string;
   medical: boolean;
   fallbackCenter: Pt;
+  searchCenter: Pt;
+  anchorLocation: Pt | null;
+  helpPlaces?: HelpPlace[];
+  selectedPlaceId: string | null;
+  onSelectPlace: (id: string) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const mapsRef = useRef<any>(null);
-  const layers = useRef<any[]>([]);
+  const navigationLayers = useRef<any[]>([]);
+  const placeLayers = useRef<any[]>([]);
   const [ready, setReady] = useState(false);
   const fitted = useRef<string | null>(null);
+  const hasHelpPlaces = Boolean(helpPlaces);
+  const selectPlaceRef = useRef(onSelectPlace);
+  selectPlaceRef.current = onSelectPlace;
 
   useEffect(() => {
     let cancelled = false;
     const unsub = onGoogleMapsAuthFailure(() => !cancelled && onFail());
     loadGoogleMaps().then((maps) => {
       if (cancelled || !ref.current) return;
-      mapRef.current = new maps.Map(ref.current, { center: caller ?? me ?? fallbackCenter, zoom: 15, disableDefaultUI: true, zoomControl: true, gestureHandling: "greedy", clickableIcons: false });
+      mapRef.current = new maps.Map(ref.current, { center: searchCenter ?? anchorLocation ?? caller ?? me ?? fallbackCenter, zoom: 14, maxZoom: 15, disableDefaultUI: true, zoomControl: true, gestureHandling: "greedy", clickableIcons: false });
       mapsRef.current = maps;
       setReady(true);
     }).catch(() => !cancelled && onFail());
@@ -139,15 +160,29 @@ function GoogleRouteCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fitKey = [
+    searchCenter.lat.toFixed(3),
+    searchCenter.lng.toFixed(3),
+    anchorLocation ? `${anchorLocation.lat.toFixed(3)},${anchorLocation.lng.toFixed(3)}` : "",
+    me ? `${me.lat.toFixed(3)},${me.lng.toFixed(3)}` : "",
+    route
+      ? `${route.coords.length}:${route.coords[0]?.lat.toFixed(3)}:${route.coords[route.coords.length - 1]?.lng.toFixed(3)}`
+      : "",
+    (helpPlaces ?? [])
+      .map((place) => `${place.id}:${place.latitude.toFixed(3)},${place.longitude.toFixed(3)}`)
+      .join(","),
+    selectedPlaceId ?? "",
+  ].join("|");
+
   useEffect(() => {
     const maps = mapsRef.current, map = mapRef.current;
     if (!ready || !maps || !map) return;
-    layers.current.forEach((l) => l.setMap(null));
+    navigationLayers.current.forEach((layer) => layer.setMap(null));
     const next: any[] = [];
     if (route) {
       next.push(new maps.Polyline({ map, path: route.coords, strokeColor: "#1a73e8", strokeOpacity: 0.95, strokeWeight: 6 }));
     }
-    if (caller) {
+    if (caller && !hasHelpPlaces) {
       const marker = new maps.Marker({
         map,
         position: caller,
@@ -162,22 +197,65 @@ function GoogleRouteCanvas({
       });
       next.push(marker);
     }
-    if (me) next.push(new maps.Marker({ map, position: me, title: "You", icon: { path: maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#1a73e8", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 3 } }));
-    layers.current = next;
-    const destinationKey = caller ? `${caller.lat},${caller.lng}` : null;
-    if (destinationKey && me) {
-      if (fitted.current !== destinationKey) {
-        const b = new maps.LatLngBounds();
-        (route?.coords ?? [me, caller]).forEach((p) => b.extend(p));
-        b.extend(caller);
-        b.extend(me);
-        map.fitBounds(b, 40);
-        fitted.current = destinationKey;
-      } else {
-        map.panTo(me);
-      }
+    if (anchorLocation) {
+      next.push(new maps.Marker({
+        map,
+        position: anchorLocation,
+        title: callerName,
+        icon: { path: maps.SymbolPath.CIRCLE, scale: 9, fillColor: "#e5383b", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 3 },
+        zIndex: 5,
+      }));
     }
-  }, [ready, me, caller, route, callerName, medical]);
+    if (me) next.push(new maps.Marker({ map, position: me, title: "You", icon: { path: maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#1a73e8", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 3 } }));
+    navigationLayers.current = next;
+    return () => {
+      next.forEach((layer) => layer.setMap(null));
+    };
+  }, [ready, me, caller, route, callerName, medical, anchorLocation, hasHelpPlaces]);
+
+  useEffect(() => {
+    const maps = mapsRef.current, map = mapRef.current;
+    if (!ready || !maps || !map) return;
+    placeLayers.current.forEach((layer) => layer.setMap(null));
+    const next: any[] = [];
+    (helpPlaces ?? []).forEach((place) => {
+      const kind = helpKind(place.type);
+      const marker = new maps.Marker({
+        map,
+        position: { lat: place.latitude, lng: place.longitude },
+        title: `${place.name} · ${kind}`,
+        icon: {
+          url: nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind]),
+          scaledSize: new maps.Size(48, 48),
+          anchor: new maps.Point(24, 24),
+        },
+        zIndex: selectedPlaceId === place.id ? 10 : 2,
+      });
+      marker.addListener("click", () => selectPlaceRef.current(place.id));
+      next.push(marker);
+    });
+    placeLayers.current = next;
+    return () => {
+      next.forEach((layer) => layer.setMap(null));
+    };
+  }, [ready, helpPlaces, selectedPlaceId]);
+
+  useEffect(() => {
+    const maps = mapsRef.current, map = mapRef.current;
+    if (!ready || !maps || !map || fitted.current === fitKey) return;
+    const bounds = new maps.LatLngBounds();
+    const points = [
+      ...(route?.coords ?? []),
+      ...(me ? [me] : []),
+      ...(anchorLocation ? [anchorLocation] : []),
+      searchCenter,
+      ...(caller && !helpPlaces ? [caller] : []),
+      ...(helpPlaces ?? []).map((place) => ({ lat: place.latitude, lng: place.longitude })),
+    ];
+    points.forEach((point) => bounds.extend(point));
+    if (points.length > 1) map.fitBounds(bounds, 40);
+    fitted.current = fitKey;
+  }, [ready, fitKey, route, me, anchorLocation, searchCenter, caller, helpPlaces]);
 
   return <div ref={ref} className="absolute inset-0" />;
 }
@@ -188,12 +266,22 @@ function OsmRouteCanvas({
   route,
   medical,
   fallbackCenter,
+  searchCenter,
+  anchorLocation,
+  helpPlaces,
+  selectedPlaceId,
+  onSelectPlace,
 }: {
   me: Pt | null;
   caller: Pt | null;
   route: Route | null;
   medical: boolean;
   fallbackCenter: Pt;
+  searchCenter: Pt;
+  anchorLocation: Pt | null;
+  helpPlaces?: HelpPlace[];
+  selectedPlaceId: string | null;
+  onSelectPlace: (id: string) => void;
 }) {
   const wrap = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 640, h: 320 });
@@ -203,11 +291,19 @@ function OsmRouteCanvas({
     m(); const o = new ResizeObserver(m); o.observe(n); return () => o.disconnect();
   }, []);
   const pts = route?.coords ?? [me, ...(caller ? [caller] : [])].filter((point): point is Pt => Boolean(point));
-  const all = [...pts, ...(caller ? [caller] : []), ...(me ? [me] : []), fallbackCenter];
+  const all = [
+    ...pts,
+    ...(caller && !helpPlaces ? [caller] : []),
+    ...(me ? [me] : []),
+    ...(anchorLocation ? [anchorLocation] : []),
+    searchCenter,
+    ...(helpPlaces ?? []).map((place) => ({ lat: place.latitude, lng: place.longitude })),
+    fallbackCenter,
+  ];
   const minLat = Math.min(...all.map((p) => p.lat)), maxLat = Math.max(...all.map((p) => p.lat));
   const minLng = Math.min(...all.map((p) => p.lng)), maxLng = Math.max(...all.map((p) => p.lng));
   const center = { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 };
-  let z = 17;
+  let z = 15;
   while (z > 3) {
     const w = (tx(maxLng, z) - tx(minLng, z)) * TILE, h = (ty(minLat, z) - ty(maxLat, z)) * TILE;
     if (w < size.w - 60 && h < size.h - 60) break;
@@ -215,7 +311,9 @@ function OsmRouteCanvas({
   }
   const proj = (p: Pt) => ({ x: size.w / 2 + (tx(p.lng, z) - tx(center.lng, z)) * TILE, y: size.h / 2 + (ty(p.lat, z) - ty(center.lat, z)) * TILE });
   const path = route ? route.coords.map(proj).map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") : "";
-  const c = caller ? proj(caller) : null, m = me ? proj(me) : null;
+  const c = caller && !helpPlaces ? proj(caller) : null;
+  const m = me ? proj(me) : null;
+  const a = anchorLocation ? proj(anchorLocation) : null;
   return (
     <div ref={wrap} className="absolute inset-0">
       <OsmTileMap lat={center.lat} lng={center.lng} zoom={z} />
@@ -224,6 +322,7 @@ function OsmRouteCanvas({
         {path && <polyline points={path} fill="none" stroke="#1a73e8" strokeWidth={5.5} strokeLinejoin="round" strokeLinecap="round" />}
         {!route && m && c && <line x1={m.x} y1={m.y} x2={c.x} y2={c.y} stroke="#1a73e8" strokeWidth={3} strokeDasharray="6 6" />}
         {m && <circle cx={m.x} cy={m.y} r={8} fill="#1a73e8" stroke="#fff" strokeWidth={3} />}
+        {a && <circle cx={a.x} cy={a.y} r={9} fill="#e5383b" stroke="#fff" strokeWidth={3} />}
         {c && medical && <>
           <circle cx={c.x} cy={c.y} r={9} fill="#10b981" opacity={0.3}><animate attributeName="r" values="8;22" dur="1.6s" repeatCount="indefinite" /><animate attributeName="opacity" values=".35;0" dur="1.6s" repeatCount="indefinite" /></circle>
           <circle cx={c.x} cy={c.y} r={9} fill="#10b981" stroke="#fff" strokeWidth={3} />
@@ -234,6 +333,30 @@ function OsmRouteCanvas({
           <circle cx={c.x} cy={c.y} r={8} fill="#e5383b" stroke="#fff" strokeWidth={3} />
         </>}
       </svg>
+      {(helpPlaces ?? []).map((place) => {
+        const point = proj({ lat: place.latitude, lng: place.longitude });
+        const kind = helpKind(place.type);
+        const active = selectedPlaceId === place.id;
+        return (
+          <button
+            key={place.id}
+            type="button"
+            aria-label={`${place.name}, ${kind}`}
+            aria-pressed={active}
+            title={`${place.name} · ${kind}`}
+            onClick={() => onSelectPlace(place.id)}
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            style={{ left: point.x, top: point.y }}
+          >
+            <img
+              src={nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind])}
+              alt=""
+              aria-hidden="true"
+              className={cn("h-12 w-12 drop-shadow-sm", active && "scale-110")}
+            />
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -243,6 +366,10 @@ export function ResponderNavigation({
   caller,
   callerName = "the caller",
   helpPlaces,
+  selectedPlaceId,
+  searchCenter,
+  anchorLocation = null,
+  helpLoading = false,
   initialLocation,
   currentLocation,
   trackLocation = true,
@@ -251,15 +378,20 @@ export function ResponderNavigation({
   caller: Pt;
   callerName?: string;
   helpPlaces?: HelpPlace[];
+  selectedPlaceId?: string | null;
+  searchCenter?: Pt | null;
+  anchorLocation?: Pt | null;
+  helpLoading?: boolean;
   initialLocation?: Pt;
   currentLocation?: Pt;
   trackLocation?: boolean;
-  onSelectDestination?: (id: string) => void;
+  onSelectDestination?: (id: string | null) => void;
 }) {
   const [me, setMe] = useState<Pt | null>(initialLocation ?? null);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("drive");
-  const [helpKindSelected, setHelpKindSelected] = useState<Extract<HelpKind, "hospital" | "police" | "clinic">>("hospital");
+  const [helpKindSelected, setHelpKindSelected] = useState<HelpKind>("hospital");
+  const [localSelectedPlaceId, setLocalSelectedPlaceId] = useState<string | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [routeError, setRouteError] = useState<string | null>(null);
@@ -273,19 +405,23 @@ export function ResponderNavigation({
   const useGoogle = Boolean(getGoogleMapsBrowserKey()) && !googleFailed && !googleMapsAuthFailed();
   const currentLat = currentLocation?.lat;
   const currentLng = currentLocation?.lng;
-  const reference = me ?? initialLocation ?? caller;
+  const reference = searchCenter ?? me ?? initialLocation ?? caller;
+  const activeSelectedPlaceId =
+    selectedPlaceId === undefined ? localSelectedPlaceId : selectedPlaceId;
   const selectedPlaces = useMemo(
     () => (helpPlaces ?? []).filter((place) => helpKind(place.type) === helpKindSelected),
     [helpPlaces, helpKindSelected],
   );
   const destinationPlace = useMemo(
-    () =>
-      [...selectedPlaces].sort(
+    () => {
+      const explicit = helpPlaces?.find((place) => place.id === activeSelectedPlaceId);
+      return explicit ?? [...selectedPlaces].sort(
         (a, b) =>
           haversine(reference, { lat: a.latitude, lng: a.longitude }) -
           haversine(reference, { lat: b.latitude, lng: b.longitude }),
-      )[0] ?? null,
-    [selectedPlaces, reference],
+      )[0] ?? null;
+    },
+    [activeSelectedPlaceId, helpPlaces, reference, selectedPlaces],
   );
   const destination = useMemo(
     () =>
@@ -301,9 +437,22 @@ export function ResponderNavigation({
   const isMedical = destinationKind === "hospital" || destinationKind === "clinic";
   const destinationId = destinationPlace?.id;
 
+  const selectPlace = (id: string | null) => {
+    if (selectedPlaceId === undefined) setLocalSelectedPlaceId(id);
+    const place = helpPlaces?.find((item) => item.id === id);
+    if (place) setHelpKindSelected(helpKind(place.type));
+    onSelectDestination?.(id);
+  };
+
   useEffect(() => {
     if (destinationId) onSelectDestination?.(destinationId);
   }, [destinationId, onSelectDestination]);
+
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    const place = helpPlaces?.find((item) => item.id === selectedPlaceId);
+    if (place) setHelpKindSelected(helpKind(place.type));
+  }, [helpPlaces, selectedPlaceId]);
 
   useEffect(() => {
     if (currentLat !== undefined && currentLng !== undefined) {
@@ -381,10 +530,14 @@ export function ResponderNavigation({
     { kind: "hospital", label: "Nearest Hospital 🏥", Icon: Building2 },
     { kind: "police", label: "Nearest Police 🚓", Icon: Shield },
     { kind: "clinic", label: "Nearest Clinic 🩺", Icon: HeartPulse },
+    { kind: "fire", label: "Fire & Rescue 🚒", Icon: Flame },
+    { kind: "pharmacy", label: "Nearest Pharmacy", Icon: HeartPulse },
   ] as const;
   const noDestinationMessage =
     helpPlaces && !destinationPlace
-      ? `No nearby ${helpKindSelected} was found. Try another help type or use your local emergency number.`
+      ? helpLoading
+        ? "Finding nearby help facilities…"
+        : `No nearby ${helpKindSelected} was found. Try another help type or use your local emergency number.`
       : gpsError ?? (me ? (routeError ? `Route unavailable to ${destinationLabel}.` : "Finding the fastest route…") : "Getting your location…");
 
   return (
@@ -392,7 +545,7 @@ export function ResponderNavigation({
       {helpPlaces && (
         <div className="border-b border-border/60 p-3 sm:p-4">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Navigate to nearby help</p>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {helpCategories.map(({ kind, label, Icon }) => {
               const available = helpPlaces.some((place) => helpKind(place.type) === kind);
               const active = helpKindSelected === kind;
@@ -402,7 +555,10 @@ export function ResponderNavigation({
                   type="button"
                   disabled={!available}
                   aria-pressed={active}
-                  onClick={() => setHelpKindSelected(kind)}
+                  onClick={() => {
+                    setHelpKindSelected(kind);
+                    selectPlace(null);
+                  }}
                   className={cn(
                     "flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 text-center text-[10px] font-bold leading-tight transition sm:flex-row sm:text-[11px]",
                     active ? "border-success/50 bg-success/10 text-success" : "border-border/60 bg-background text-foreground",
@@ -448,9 +604,25 @@ export function ResponderNavigation({
             callerName={destinationLabel}
             medical={isMedical}
             fallbackCenter={reference}
+            searchCenter={searchCenter ?? caller}
+            anchorLocation={anchorLocation}
+            helpPlaces={helpPlaces}
+            selectedPlaceId={destinationId ?? activeSelectedPlaceId}
+            onSelectPlace={selectPlace}
           />
         ) : (
-          <OsmRouteCanvas me={me} caller={destination} route={route} medical={isMedical} fallbackCenter={reference} />
+          <OsmRouteCanvas
+            me={me}
+            caller={destination}
+            route={route}
+            medical={isMedical}
+            fallbackCenter={reference}
+            searchCenter={searchCenter ?? caller}
+            anchorLocation={anchorLocation}
+            helpPlaces={helpPlaces}
+            selectedPlaceId={destinationId ?? activeSelectedPlaceId}
+            onSelectPlace={selectPlace}
+          />
         )}
         <div className="absolute left-2.5 top-2.5 flex overflow-hidden rounded-full border border-border/60 bg-background/90 text-[11px] font-bold shadow-sm backdrop-blur">
           {(["drive", "walk"] as Mode[]).map((m) => (

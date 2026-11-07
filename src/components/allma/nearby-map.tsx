@@ -8,6 +8,7 @@ import {
 } from "@/lib/google-maps-loader";
 import { HELP_KIND_COLOR, helpKind } from "@/components/allma/nearby-help-list";
 import { OsmTileMap } from "@/components/allma/live-location-map";
+import { nearbyMarkerDataUrl } from "@/lib/nearby-marker";
 import { cn } from "@/lib/utils";
 
 export type NearbyRoute = {
@@ -90,7 +91,7 @@ function getFallbackCamera(points: LatLng[], width: number, height: number) {
       Math.max(140, width - 96) / (Math.max(spanX, 0.00001) * 256),
       Math.max(140, height - 96) / (Math.max(spanY, 0.00001) * 256),
     );
-    zoom = Math.floor(Math.max(11, Math.min(16, baseZoom + Math.log2(Math.max(scaleToFit, 0.01)))));
+    zoom = Math.floor(Math.max(12, Math.min(15, baseZoom + Math.log2(Math.max(scaleToFit, 0.01)))));
   }
 
   const centerX = (minX + maxX) / 2;
@@ -106,26 +107,6 @@ function getFallbackCamera(points: LatLng[], width: number, height: number) {
   };
 }
 
-function markerSvg(kind: ReturnType<typeof helpKind>) {
-  const color = HELP_KIND_COLOR[kind];
-  const symbol =
-    kind === "police"
-      ? '<path d="M24 11l8 3v6c0 6-3.5 10-8 12-4.5-2-8-6-8-12v-6l8-3z" fill="white"/><path d="M24 15v13m-5-6.5h10" stroke="#1d4ed8" stroke-width="2.4" stroke-linecap="round"/>'
-      : kind === "fire"
-        ? '<path d="M25 12c1 5-4 6-2 11 1-2 3-3 4-5 4 4 6 7 4 11a8 8 0 0 1-15-3c0-4 3-8 9-14z" fill="white"/>'
-        : '<path d="M22 16h4v6h6v4h-6v6h-4v-6h-6v-4h6z" fill="white"/>';
-  return `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="24" cy="24" r="8" fill="${color}" fill-opacity=".3">
-        <animate attributeName="r" values="8;22" dur="1.7s" repeatCount="indefinite"/>
-        <animate attributeName="fill-opacity" values=".35;0" dur="1.7s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="24" cy="24" r="10" fill="${color}" stroke="#fff" stroke-width="3"/>
-      ${symbol}
-    </svg>`,
-  )}`;
-}
-
 const USER_BEACON_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="22" cy="22" r="9" fill="#2563eb" fill-opacity=".28">
@@ -137,40 +118,13 @@ const USER_BEACON_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(
 )}`;
 
 function FallbackMarker({ kind }: { kind: ReturnType<typeof helpKind> }) {
-  if (kind === "police") {
-    return (
-      <span className="relative z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-blue-700 shadow-[0_0_12px_3px_rgba(29,78,216,.55)]">
-        <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
-          <path
-            d="M10 2.5 16 4.7v4.5c0 4.2-2.6 6.8-6 8.3-3.4-1.5-6-4.1-6-8.3V4.7L10 2.5Z"
-            fill="white"
-          />
-          <path d="M10 6v7m-3.5-3.5h7" stroke="#1d4ed8" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      </span>
-    );
-  }
-  if (kind === "fire") {
-    return (
-      <span className="relative z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-amber-500 shadow-[0_0_12px_3px_rgba(245,158,11,.5)]">
-        <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
-          <path
-            d="M10.7 2.5c.7 3.2-2.3 4.3-1.3 7 1.1-1 1.6-1.8 2.1-2.7 2.1 2.1 3.4 4.1 2.8 6.4a4.6 4.6 0 0 1-9 0c-.3-3.1 1.7-6.1 5.4-10.7Z"
-            fill="white"
-          />
-        </svg>
-      </span>
-    );
-  }
   return (
-    <span
-      className="relative z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-white shadow-[0_0_12px_3px_rgba(16,185,129,.45)]"
-      style={{ backgroundColor: HELP_KIND_COLOR[kind] }}
-    >
-      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden="true">
-        <path d="M8.25 3.5h3.5v4.75h4.75v3.5h-4.75v4.75h-3.5v-4.75H3.5v-3.5h4.75z" fill="white" />
-      </svg>
-    </span>
+    <img
+      src={nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind])}
+      alt=""
+      aria-hidden="true"
+      className="relative z-10 h-12 w-12 drop-shadow-sm"
+    />
   );
 }
 
@@ -187,6 +141,7 @@ export function NearbyMap({
   const mapRef = useRef<GoogleMap | null>(null);
   const mapsRef = useRef<GoogleMapsNamespace | null>(null);
   const overlaysRef = useRef<GoogleMapOverlay[]>([]);
+  const userOverlaysRef = useRef<GoogleMapOverlay[]>([]);
   const infoWindowRef = useRef<GoogleInfoWindow | null>(null);
   const centerRef = useRef(center);
   centerRef.current = center;
@@ -238,6 +193,7 @@ export function NearbyMap({
     const map = new maps.Map(containerRef.current, {
       center: centerRef.current,
       zoom: 14,
+      maxZoom: 15,
       mapTypeId: "roadmap",
       mapTypeControl: true,
       mapTypeControlOptions: { style: maps.MapTypeControlStyle.HORIZONTAL_BAR },
@@ -252,7 +208,9 @@ export function NearbyMap({
     return () => {
       infoWindowRef.current?.close();
       overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      userOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
       overlaysRef.current = [];
+      userOverlaysRef.current = [];
       mapRef.current = null;
       mapsRef.current = null;
     };
@@ -269,33 +227,6 @@ export function NearbyMap({
     if (!useGoogle || !map || !maps) return;
     overlaysRef.current.forEach((overlay) => overlay.setMap(null));
     overlaysRef.current = [];
-    if (userLocation) {
-      const userMarker = new maps.Marker({
-        map,
-        position: { lat: userLocation.lat, lng: userLocation.lng },
-        title: `Your location${userLocation.accuracy ? ` · accurate to ±${Math.round(userLocation.accuracy)} m` : ""}`,
-        icon: {
-          url: USER_BEACON_ICON,
-          scaledSize: new maps.Size(44, 44),
-          anchor: new maps.Point(22, 22),
-        },
-      });
-      overlaysRef.current.push(userMarker);
-      if (userLocation.accuracy && Number.isFinite(userLocation.accuracy)) {
-        overlaysRef.current.push(
-          new maps.Circle({
-            map,
-            center: { lat: userLocation.lat, lng: userLocation.lng },
-            radius: Math.max(5, userLocation.accuracy),
-            fillColor: "#2563eb",
-            fillOpacity: 0.1,
-            strokeColor: "#2563eb",
-            strokeOpacity: 0.45,
-            strokeWeight: 1,
-          }),
-        );
-      }
-    }
 
     places.slice(0, 30).forEach((place) => {
       const kind = helpKind(place.type);
@@ -319,10 +250,11 @@ export function NearbyMap({
         position: { lat: place.latitude, lng: place.longitude },
         title: [place.name, distanceLabel, kind].filter(Boolean).join(" · "),
         icon: {
-          url: markerSvg(kind),
-          scaledSize: new maps.Size(44, 44),
-          anchor: new maps.Point(22, 22),
+          url: nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind]),
+          scaledSize: new maps.Size(48, 48),
+          anchor: new maps.Point(24, 24),
         },
+        zIndex: selectedPlaceId === place.id ? 2 : 1,
       });
       marker.addListener("click", () => {
         selectPlaceRef.current(place.id);
@@ -344,9 +276,6 @@ export function NearbyMap({
           strokeWeight: 6,
         }),
       );
-      const bounds = new maps.LatLngBounds();
-      route.coordinates.forEach((coordinate) => bounds.extend(coordinate));
-      map.fitBounds(bounds, 36);
     } else if (selectedPlaceId) {
       const selected = places.find((place) => place.id === selectedPlaceId);
       if (selected) map.panTo({ lat: selected.latitude, lng: selected.longitude });
@@ -356,7 +285,71 @@ export function NearbyMap({
       overlaysRef.current.forEach((overlay) => overlay.setMap(null));
       overlaysRef.current = [];
     };
-  }, [places, route, selectedPlaceId, useGoogle, userLocation]);
+  }, [places, route, selectedPlaceId, useGoogle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const maps = mapsRef.current;
+    if (!useGoogle || !map || !maps || !userLocation) {
+      userOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      userOverlaysRef.current = [];
+      return;
+    }
+    userOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    const overlays: GoogleMapOverlay[] = [
+      new maps.Marker({
+        map,
+        position: { lat: userLocation.lat, lng: userLocation.lng },
+        title: `Your location${userLocation.accuracy ? ` · accurate to ±${Math.round(userLocation.accuracy)} m` : ""}`,
+        icon: {
+          url: USER_BEACON_ICON,
+          scaledSize: new maps.Size(44, 44),
+          anchor: new maps.Point(22, 22),
+        },
+      }),
+    ];
+    if (userLocation.accuracy && Number.isFinite(userLocation.accuracy)) {
+      overlays.push(
+        new maps.Circle({
+          map,
+          center: { lat: userLocation.lat, lng: userLocation.lng },
+          radius: Math.max(5, userLocation.accuracy),
+          fillColor: "#2563eb",
+          fillOpacity: 0.1,
+          strokeColor: "#2563eb",
+          strokeOpacity: 0.45,
+          strokeWeight: 1,
+        }),
+      );
+    }
+    userOverlaysRef.current = overlays;
+    return () => {
+      overlays.forEach((overlay) => overlay.setMap(null));
+    };
+  }, [useGoogle, userLocation]);
+
+  const userFitKey = userLocation
+    ? `${userLocation.lat.toFixed(3)},${userLocation.lng.toFixed(3)}`
+    : "";
+  const centerFitKey = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
+  useEffect(() => {
+    const map = mapRef.current;
+    const maps = mapsRef.current;
+    if (!useGoogle || !map || !maps) return;
+    const fitPoints: LatLng[] = [
+      center,
+      ...(userLocation ? [{ lat: userLocation.lat, lng: userLocation.lng }] : []),
+      ...places.slice(0, 30).map((place) => ({ lat: place.latitude, lng: place.longitude })),
+      ...(route?.coordinates ?? []),
+    ];
+    if (fitPoints.length > 1) {
+      const bounds = new maps.LatLngBounds();
+      fitPoints.forEach((point) => bounds.extend(point));
+      map.fitBounds(bounds, 48);
+    } else {
+      map.setCenter(center);
+    }
+  }, [centerFitKey, places, route, useGoogle, userFitKey]);
 
   useEffect(() => {
     if (useGoogle || !fallbackRef.current) return;
@@ -374,16 +367,17 @@ export function NearbyMap({
   }, [useGoogle]);
 
   const selectedPlace = places.find((place) => place.id === selectedPlaceId);
-  const cameraPoints = route?.coordinates.length
-    ? route.coordinates
-    : selectedPlace
-      ? [
-          userLocation
-            ? { lat: userLocation.lat, lng: userLocation.lng }
-            : { lat: center.lat, lng: center.lng },
-          { lat: selectedPlace.latitude, lng: selectedPlace.longitude },
-        ]
-      : [{ lat: center.lat, lng: center.lng }];
+  const closestPlaces = [...places]
+    .sort((a, b) => a.distance_m - b.distance_m)
+    .slice(0, 3)
+    .map((place) => ({ lat: place.latitude, lng: place.longitude }));
+  const cameraPoints = [
+    center,
+    ...(userLocation ? [{ lat: userLocation.lat, lng: userLocation.lng }] : []),
+    ...closestPlaces,
+    ...(selectedPlace ? [{ lat: selectedPlace.latitude, lng: selectedPlace.longitude }] : []),
+    ...(route?.coordinates ?? []),
+  ];
   const fallbackCamera = getFallbackCamera(cameraPoints, fallbackSize.width, fallbackSize.height);
   const fallbackZoom = fallbackCamera.zoom;
   const fallbackCenter = fallbackCamera.center;
@@ -514,10 +508,6 @@ export function NearbyMap({
                   className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-[left,top] duration-500 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   style={{ left: `calc(50% + ${dx}px)`, top: `calc(50% + ${dy}px)` }}
                 >
-                  <span
-                    className="absolute left-1/2 top-1/2 z-0 h-10 w-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full opacity-35 [animation-duration:1.7s]"
-                    style={{ backgroundColor: HELP_KIND_COLOR[kind] }}
-                  />
                   <FallbackMarker kind={kind} />
                   <span
                     className={cn(

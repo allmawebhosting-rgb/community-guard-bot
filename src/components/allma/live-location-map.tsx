@@ -17,6 +17,7 @@ import {
   loadGoogleMaps,
   onGoogleMapsAuthFailure,
 } from "@/lib/google-maps-loader";
+import { nearbyMarkerDataUrl } from "@/lib/nearby-marker";
 
 // ─── Live location map (shared by the SOS screen and the emergency call screen) ──
 
@@ -31,11 +32,13 @@ export type LiveLocationPoint = {
 export const MAP_ZOOM_LEVELS = [
   { label: "Street", span: 250 },
   { label: "Block", span: 700 },
-  { label: "Area", span: 2000 },
-  { label: "City", span: 6000 },
+  { label: "Nearby", span: 1300 },
+  { label: "Area", span: 2600 },
+  { label: "City", span: 10_000 },
 ] as const;
 
 const TILE_SIZE = 256;
+const MAP_TILE_ZOOMS = [18, 16, 15, 14, 12] as const;
 
 type GoogleInfoWindow = {
   close: () => void;
@@ -50,6 +53,33 @@ function lngToTileX(lng: number, z: number) {
 function latToTileY(lat: number, z: number) {
   const rad = (lat * Math.PI) / 180;
   return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z;
+}
+
+function getAutoFitZoomIndex(
+  center: { lat: number; lng: number },
+  places: HelpPlace[],
+  width: number,
+  height: number,
+) {
+  const points = [
+    center,
+    ...[...places]
+      .sort((a, b) => a.distance_m - b.distance_m)
+      .slice(0, 3)
+      .map((place) => ({ lat: place.latitude, lng: place.longitude })),
+  ];
+  for (const index of [2, 3, 4]) {
+    const zoom = MAP_TILE_ZOOMS[index];
+    const centerX = lngToTileX(center.lng, zoom);
+    const centerY = latToTileY(center.lat, zoom);
+    const fits = points.every((point) => {
+      const dx = Math.abs((lngToTileX(point.lng, zoom) - centerX) * TILE_SIZE);
+      const dy = Math.abs((latToTileY(point.lat, zoom) - centerY) * TILE_SIZE);
+      return dx <= width / 2 - 36 && dy <= height / 2 - 36;
+    });
+    if (fits) return index;
+  }
+  return 4;
 }
 
 /** Keyless OpenStreetMap raster tile map centred on the given coordinates. */
@@ -245,8 +275,6 @@ export function GoogleLocationCanvas({
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = places.map((place) => {
       const kind = helpKind(place.type);
-      const color = HELP_KIND_COLOR[kind];
-      const isHospital = kind === "hospital" || kind === "clinic";
       const distanceLabel = Number.isFinite(place.distance_m)
         ? place.distance_m < 950
           ? `${Math.round(place.distance_m)} m`
@@ -262,42 +290,17 @@ export function GoogleLocationCanvas({
       details.style.cssText = "display:block;margin-top:4px;color:#52616b;text-transform:capitalize";
       infoContent.append(name, details);
       if (!infoWindowRef.current) infoWindowRef.current = new maps.InfoWindow();
-      let marker;
-      if (isHospital) {
-        marker = new maps.Marker({
-          map,
-          position: { lat: place.latitude, lng: place.longitude },
-          title: [place.name, distanceLabel, kind].filter(Boolean).join(" · "),
-          icon: {
-            url: `data:image/svg+xml;utf8,${encodeURIComponent(`
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="24" cy="24" r="8" fill="#10b981" fill-opacity=".28">
-                  <animate attributeName="r" values="8;22" dur="1.6s" repeatCount="indefinite"/>
-                  <animate attributeName="fill-opacity" values=".35;0" dur="1.6s" repeatCount="indefinite"/>
-                </circle>
-                <circle cx="24" cy="24" r="10" fill="#10b981" stroke="#fff" stroke-width="3"/>
-                <path d="M22 16h4v6h6v4h-6v6h-4v-6h-6v-4h6z" fill="#fff"/>
-              </svg>
-            `)}`,
-            scaledSize: new maps.Size(44, 44),
-            anchor: new maps.Point(22, 22),
-          },
-        });
-      } else {
-        marker = new maps.Marker({
-          map,
-          position: { lat: place.latitude, lng: place.longitude },
-          title: place.name,
-          icon: {
-            path: maps.SymbolPath.CIRCLE,
-            scale: selectedPlaceId === place.id ? 9 : 6.5,
-            fillColor: color,
-            fillOpacity: 1,
-            strokeColor: "#0d0f10",
-            strokeWeight: selectedPlaceId === place.id ? 3 : 1.5,
-          },
-        });
-      }
+      const marker = new maps.Marker({
+        map,
+        position: { lat: place.latitude, lng: place.longitude },
+        title: [place.name, distanceLabel, kind].filter(Boolean).join(" · "),
+        icon: {
+          url: nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind]),
+          scaledSize: new maps.Size(48, 48),
+          anchor: new maps.Point(24, 24),
+        },
+        zIndex: selectedPlaceId === place.id ? 2 : 1,
+      });
       marker.addListener("click", () => {
         selectRef.current?.(place.id);
         infoWindowRef.current?.setContent(infoContent);
@@ -309,6 +312,11 @@ export function GoogleLocationCanvas({
       }
       return marker;
     });
+    const nearest = [...places].sort((a, b) => a.distance_m - b.distance_m).slice(0, 3);
+    const bounds = new maps.LatLngBounds();
+    bounds.extend({ lat, lng });
+    nearest.forEach((place) => bounds.extend({ lat: place.latitude, lng: place.longitude }));
+    if (nearest.length > 0) map.fitBounds(bounds, 40);
     return () => {
       markersRef.current.forEach((marker) => {
         marker.setMap(null);
@@ -352,10 +360,12 @@ export function LiveLocationMap({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasHeight, setCanvasHeight] = useState(208);
   const [canvasWidth, setCanvasWidth] = useState(640);
+  const manualZoomRef = useRef(false);
+  const autoFitKeyRef = useRef("");
   const level = MAP_ZOOM_LEVELS[zoom];
   const accuracy = typeof location.accuracy === "number" ? location.accuracy : null;
 
-  const tileZoom = [18, 16, 14, 12][zoom] ?? 16;
+  const tileZoom = MAP_TILE_ZOOMS[zoom] ?? 16;
   const useGoogle =
     Boolean(getGoogleMapsBrowserKey()) && !googleFailed && !googleMapsAuthFailed();
 
@@ -372,6 +382,28 @@ export function LiveLocationMap({
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (manualZoomRef.current) return;
+    const closest = [...places]
+      .sort((a, b) => a.distance_m - b.distance_m)
+      .slice(0, 3)
+      .map((place) => place.id)
+      .join(",");
+    const fitKey = `${location.lat.toFixed(3)},${location.lng.toFixed(3)}:${canvasWidth}x${canvasHeight}:${closest}`;
+    if (autoFitKeyRef.current === fitKey) return;
+    autoFitKeyRef.current = fitKey;
+    setZoom(getAutoFitZoomIndex(location, places, canvasWidth, canvasHeight));
+  }, [canvasHeight, canvasWidth, location.lat, location.lng, places]);
+
+  const changeZoom = (update: (current: number) => number) => {
+    manualZoomRef.current = true;
+    setZoom(update);
+  };
+  const resetZoom = () => {
+    manualZoomRef.current = false;
+    setZoom(getAutoFitZoomIndex(location, places, canvasWidth, canvasHeight));
+  };
 
   // Accuracy circle drawn to the same scale as the tiles.
   const metresPerPixel = level.span / canvasHeight;
@@ -430,7 +462,6 @@ export function LiveLocationMap({
             <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
             {fallbackPins.map(({ place, dx, dy }) => {
               const kind = helpKind(place.type);
-              const color = HELP_KIND_COLOR[kind];
               const distanceLabel = Number.isFinite(place.distance_m)
                 ? place.distance_m < 950
                   ? `${Math.round(place.distance_m)} m`
@@ -439,7 +470,6 @@ export function LiveLocationMap({
               const active =
                 selectedPlaceId === place.id ||
                 (selectedPlaceId == null && localSelectedPlaceId === place.id);
-              const isHospital = kind === "hospital" || kind === "clinic";
               return (
                 <button
                   key={place.id}
@@ -460,25 +490,12 @@ export function LiveLocationMap({
                     top: `calc(50% + ${dy}px)`
                   }}
                 >
-                  {isHospital ? (
-                    <>
-                      {/* Animated ping ring */}
-                      <span className="absolute left-1/2 top-1/2 z-0 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/30 animate-ping" style={{animationDuration:'1.5s'}} />
-                      {/* Glowing emerald core */}
-                      <span className="relative z-10 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400 shadow-[0_0_0_2px_white,0_0_8px_2px_#34d399]">
-                        {/* White cross icon */}
-                        <svg viewBox="0 0 20 20" fill="none" className="h-3 w-3" aria-hidden="true">
-                          <rect x="8.25" y="3.5" width="3.5" height="13" rx="1.2" fill="#fff" />
-                          <rect x="3.5" y="8.25" width="13" height="3.5" rx="1.2" fill="#fff" />
-                        </svg>
-                      </span>
-                    </>
-                  ) : (
-                    <span
-                      className="block h-3 w-3 rounded-full border-2 border-background"
-                      style={{ backgroundColor: color }}
-                    />
-                  )}
+                  <img
+                    src={nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind])}
+                    alt=""
+                    aria-hidden="true"
+                    className="relative z-10 h-12 w-12 drop-shadow-sm"
+                  />
                   {/* Tooltip/label on hover/focus */}
                   <span className={cn("pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-max max-w-52 -translate-x-1/2 rounded bg-background/95 px-2 py-1 text-xs font-semibold text-foreground shadow transition", active ? "opacity-100" : "scale-95 opacity-0 group-hover:opacity-100 group-focus:opacity-100")}>
                     {place.name}
@@ -512,7 +529,7 @@ export function LiveLocationMap({
           <button
             type="button"
             aria-label="Zoom in"
-            onClick={() => setZoom((z) => Math.max(0, z - 1))}
+            onClick={() => changeZoom((z) => Math.max(0, z - 1))}
             disabled={zoom === 0}
             className="grid h-9 w-9 place-items-center bg-background/90 text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
           >
@@ -522,7 +539,7 @@ export function LiveLocationMap({
           <button
             type="button"
             aria-label="Zoom out"
-            onClick={() => setZoom((z) => Math.min(MAP_ZOOM_LEVELS.length - 1, z + 1))}
+            onClick={() => changeZoom((z) => Math.min(MAP_ZOOM_LEVELS.length - 1, z + 1))}
             disabled={zoom === MAP_ZOOM_LEVELS.length - 1}
             className="grid h-9 w-9 place-items-center bg-background/90 text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
           >
@@ -532,7 +549,7 @@ export function LiveLocationMap({
           <button
             type="button"
             aria-label="Recenter"
-            onClick={() => setZoom(1)}
+            onClick={resetZoom}
             className="grid h-9 w-9 place-items-center bg-background/90 text-destructive transition hover:bg-accent"
           >
             <Crosshair className="h-3.5 w-3.5" />

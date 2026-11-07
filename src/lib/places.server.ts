@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
 
 const GOOGLE_API_URL = "https://connector-gateway.lovable.dev/google_maps/places/v1";
 const MAX_RADIUS_M = 10_000;
 const MAX_RESULTS = 20;
+const MAX_CACHE_ENTRIES = 1_000;
 
 /** Categories Google Places (New) accepts for a nearby search of help facilities. */
 const SUPPORTED_PLACE_TYPES = new Set([
@@ -310,12 +312,22 @@ async function loadGooglePlaces(
     .filter((item) => Number.isFinite(item.distance_m));
 }
 
-function cacheKey(latitude: number, longitude: number, radiusMeters: number, types: string[]) {
+function cacheKey(
+  latitude: number,
+  longitude: number,
+  radiusMeters: number,
+  types: string[],
+  limit: number,
+) {
   const roundedLat = Math.round(latitude * 1000) / 1000;
   const roundedLng = Math.round(longitude * 1000) / 1000;
-  return [roundedLat, roundedLng, Math.round(radiusMeters / 100), [...types].sort().join("|")].join(
-    ":",
-  );
+  return [
+    roundedLat,
+    roundedLng,
+    Math.round(radiusMeters / 100),
+    [...types].sort().join("|"),
+    limit,
+  ].join(":");
 }
 
 const placeCache = new Map<string, { expiresAt: number; data: NearbyPlaceResult[] }>();
@@ -329,7 +341,7 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
   const types =
     Array.isArray(input.types) && input.types.length ? input.types : DEFAULT_PLACE_TYPES;
 
-  const cacheKeyValue = cacheKey(latitude, longitude, radiusMeters, types);
+  const cacheKeyValue = cacheKey(latitude, longitude, radiusMeters, types, limit);
   const cached = placeCache.get(cacheKeyValue);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.data.slice(0, limit);
@@ -353,13 +365,39 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
     console.warn("A nearby-place source is unavailable; continuing with available listings.");
   }
 
-  const sorted = dedupePlaces([...googlePlaces, ...seeded, ...policeStations]).sort(
+  const availablePlaces = dedupePlaces([...googlePlaces, ...seeded, ...policeStations]).sort(
+    (a, b) => a.distance_m - b.distance_m,
+  );
+  const requestedCategories = new Set(normalizeGoogleTypes(types).map(placeCategory));
+  const availableCategories = new Set(availablePlaces.map((place) => placeCategory(place.type)));
+  const needsMoreResults = availablePlaces.length < Math.min(3, limit);
+  const localFallback = getSeededNearbyFacilities(
+    { lat: latitude, lng: longitude },
+    radiusMeters,
+  )
+    .filter((place) => {
+      const category = placeCategory(place.type);
+      return (
+        requestedCategories.has(category) &&
+        (needsMoreResults || !availableCategories.has(category))
+      );
+    })
+    .map((place) => ({ ...place, source: "seeded" as const }));
+  const sorted = dedupePlaces([...availablePlaces, ...localFallback]).sort(
     (a, b) => a.distance_m - b.distance_m,
   );
   const combined = diversifyPlaces(sorted, limit);
 
+  const now = Date.now();
+  for (const [key, value] of placeCache) {
+    if (value.expiresAt <= now) placeCache.delete(key);
+  }
+  if (placeCache.size >= MAX_CACHE_ENTRIES && !placeCache.has(cacheKeyValue)) {
+    const oldestKey = placeCache.keys().next().value;
+    if (oldestKey) placeCache.delete(oldestKey);
+  }
   placeCache.set(cacheKeyValue, {
-    expiresAt: Date.now() + 180_000,
+    expiresAt: now + 180_000,
     data: combined,
   });
 

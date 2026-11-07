@@ -16,7 +16,6 @@ const nearbyPlacesInput = z.object({
 });
 
 export const getNearbyPlaces = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .validator((input) => nearbyPlacesInput.parse(input))
   .handler(async ({ data }) => {
     const places = await lookupNearbyPlaces({
