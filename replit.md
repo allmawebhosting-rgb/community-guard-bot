@@ -3,6 +3,7 @@
 A community safety AI assistant built with React, TypeScript, Tailwind CSS, TanStack Router/Start, Supabase, and OpenAI.
 
 ## Stack
+- **Runtime**: Node.js 22
 - **Frontend**: React 19, TypeScript, Tailwind CSS v4
 - **Router/SSR**: TanStack Router + TanStack Start
 - **Backend/DB**: Supabase (auth + database)

@@ -229,7 +229,7 @@ export function NearbyMap({
     overlaysRef.current = [];
 
     places.slice(0, 30).forEach((place) => {
-      const kind = helpKind(place.type);
+      const kind = helpKind(place.type, place.name);
       const distanceLabel = Number.isFinite(place.distance_m)
         ? place.distance_m < 950
           ? `${Math.round(place.distance_m)} m`
@@ -488,7 +488,7 @@ export function NearbyMap({
                 Math.abs(dx) < fallbackSize.width / 2 && Math.abs(dy) < fallbackSize.height / 2,
             )
             .map(({ place, dx, dy }) => {
-              const kind = helpKind(place.type);
+              const kind = helpKind(place.type, place.name);
               const active = selectedPlaceId === place.id;
               const distance = Number.isFinite(place.distance_m)
                 ? place.distance_m < 950

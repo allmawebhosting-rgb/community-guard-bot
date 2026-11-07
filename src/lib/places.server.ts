@@ -2,9 +2,10 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
+import { facilityKind } from "@/lib/facility-kind";
 
 const GOOGLE_API_URL = "https://connector-gateway.lovable.dev/google_maps/places/v1";
-const MAX_RADIUS_M = 10_000;
+const MAX_RADIUS_M = 15_000;
 const MAX_RESULTS = 20;
 const MAX_CACHE_ENTRIES = 1_000;
 
@@ -110,22 +111,15 @@ function dedupePlaces(items: NearbyPlaceResult[]) {
   return [...seen.values()];
 }
 
-function placeCategory(type: string) {
-  const value = type.toLowerCase();
-  if (value.includes("police")) return "police";
-  if (value.includes("fire")) return "fire";
-  if (value.includes("hospital")) return "hospital";
-  if (value.includes("pharmac") || value.includes("chemist")) return "pharmacy";
-  if (value.includes("clinic") || value.includes("doctor") || value.includes("health"))
-    return "clinic";
-  return "other";
+function placeCategory(type: string, name = "") {
+  return facilityKind(type, name);
 }
 
 function diversifyPlaces(places: NearbyPlaceResult[], limit: number) {
   const selected: NearbyPlaceResult[] = [];
   const selectedCategories = new Set<string>();
   for (const place of places) {
-    const category = placeCategory(place.type);
+    const category = placeCategory(place.type, place.name);
     if (!selectedCategories.has(category)) {
       selected.push(place);
       selectedCategories.add(category);
@@ -368,15 +362,16 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
   const availablePlaces = dedupePlaces([...googlePlaces, ...seeded, ...policeStations]).sort(
     (a, b) => a.distance_m - b.distance_m,
   );
-  const requestedCategories = new Set(normalizeGoogleTypes(types).map(placeCategory));
-  const availableCategories = new Set(availablePlaces.map((place) => placeCategory(place.type)));
+  const requestedCategories = new Set(
+    normalizeGoogleTypes(types).map((type) => placeCategory(type)),
+  );
+  const availableCategories = new Set(
+    availablePlaces.map((place) => placeCategory(place.type, place.name)),
+  );
   const needsMoreResults = availablePlaces.length < Math.min(3, limit);
-  const localFallback = getSeededNearbyFacilities(
-    { lat: latitude, lng: longitude },
-    radiusMeters,
-  )
+  const localFallback = getSeededNearbyFacilities({ lat: latitude, lng: longitude }, radiusMeters)
     .filter((place) => {
-      const category = placeCategory(place.type);
+      const category = placeCategory(place.type, place.name);
       return (
         requestedCategories.has(category) &&
         (needsMoreResults || !availableCategories.has(category))

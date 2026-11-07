@@ -6,7 +6,7 @@ import { lookupNearbyPlaces, type NearbyPlaceResult } from "@/lib/places.server"
 const nearbyPlacesInput = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-  radiusMeters: z.number().int().min(200).max(10000).default(2500),
+  radiusMeters: z.number().int().min(200).max(15000).default(2500),
   limit: z.number().int().min(1).max(20).default(10),
   types: z
     .array(z.string())

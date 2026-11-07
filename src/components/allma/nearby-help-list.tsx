@@ -1,5 +1,15 @@
-import { Building2, HeartPulse, Navigation2, Phone, Shield, Flame, MapPin } from "lucide-react";
+import {
+  Building2,
+  HeartPulse,
+  Navigation2,
+  Phone,
+  Shield,
+  Flame,
+  MapPin,
+  Pill,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { facilityKind } from "@/lib/facility-kind";
 
 // ─── Shared "help near here" list (SOS screen + emergency call centre) ───────
 
@@ -16,17 +26,8 @@ export type HelpPlace = {
 
 export type HelpKind = "hospital" | "clinic" | "pharmacy" | "police" | "fire" | "other";
 
-export function helpKind(type: string): HelpKind {
-  const value = (type ?? "").toLowerCase();
-  if (value.includes("police")) return "police";
-  if (value.includes("fire")) return "fire";
-  if (value.includes("pharmac") || value.includes("chemist") || value.includes("drugstore"))
-    return "pharmacy";
-  if (value.includes("clinic") || value.includes("doctor") || value.includes("dispensary"))
-    return "clinic";
-  if (value.includes("hospital") || value.includes("ambulance") || value.includes("health"))
-    return "hospital";
-  return "other";
+export function helpKind(type: string, name = ""): HelpKind {
+  return facilityKind(type, name);
 }
 
 export const HELP_KIND_COLOR: Record<HelpKind, string> = {
@@ -50,7 +51,7 @@ const KIND_LABEL: Record<HelpKind, string> = {
 const KIND_ICON: Record<HelpKind, typeof Shield> = {
   hospital: Building2,
   clinic: HeartPulse,
-  pharmacy: HeartPulse,
+  pharmacy: Pill,
   police: Shield,
   fire: Flame,
   other: MapPin,
@@ -60,7 +61,7 @@ const GROUP_ORDER: HelpKind[] = ["police", "hospital", "clinic", "pharmacy", "fi
 const GROUP_LABEL: Record<HelpKind, string> = {
   police: "Police stations",
   hospital: "Hospitals & ambulance",
-  clinic: "Clinics & pharmacies",
+  clinic: "Clinics",
   pharmacy: "Pharmacies & first aid",
   fire: "Fire stations",
   other: "Other help",
@@ -155,7 +156,7 @@ export function NearbyHelpList({
         <div className="mt-4 space-y-5">
           {GROUP_ORDER.map((groupKind) => {
             const group = places
-              .filter((p) => helpKind(p.type) === groupKind)
+              .filter((p) => helpKind(p.type, p.name) === groupKind)
               .sort((a, b) => a.distance_m - b.distance_m);
             if (group.length === 0) return null;
             const GroupIcon = KIND_ICON[groupKind];
@@ -182,7 +183,7 @@ export function NearbyHelpList({
                 </div>
                 <ul className="grid min-w-0 grid-cols-1 gap-2.5 min-[1180px]:grid-cols-2">
                   {group.map((place) => {
-                    const kind = helpKind(place.type);
+                    const kind = helpKind(place.type, place.name);
                     const Icon = KIND_ICON[kind];
                     const selected = selectedId === place.id;
                     const tel = place.phone ? place.phone.replace(/[^\d+]/g, "") : null;

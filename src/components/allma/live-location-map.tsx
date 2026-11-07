@@ -274,7 +274,7 @@ export function GoogleLocationCanvas({
     if (!mapReady || !maps || !map) return;
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = places.map((place) => {
-      const kind = helpKind(place.type);
+      const kind = helpKind(place.type, place.name);
       const distanceLabel = Number.isFinite(place.distance_m)
         ? place.distance_m < 950
           ? `${Math.round(place.distance_m)} m`
@@ -461,7 +461,7 @@ export function LiveLocationMap({
           <>
             <OsmTileMap lat={location.lat} lng={location.lng} zoom={tileZoom} />
             {fallbackPins.map(({ place, dx, dy }) => {
-              const kind = helpKind(place.type);
+              const kind = helpKind(place.type, place.name);
               const distanceLabel = Number.isFinite(place.distance_m)
                 ? place.distance_m < 950
                   ? `${Math.round(place.distance_m)} m`

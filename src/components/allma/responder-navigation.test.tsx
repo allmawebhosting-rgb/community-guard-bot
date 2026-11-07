@@ -2,6 +2,9 @@ import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+const { getNearbyPlacesMock } = vi.hoisted(() => ({ getNearbyPlacesMock: vi.fn() }));
+vi.mock("@/lib/places.functions", () => ({ getNearbyPlaces: getNearbyPlacesMock }));
+vi.mock("@/lib/nearby-fallback", () => ({ getSeededNearbyFacilities: () => [] }));
 vi.mock("@/components/allma/live-location-map", () => ({ OsmTileMap: () => null }));
 vi.mock("@/lib/google-maps-loader", () => ({
   getGoogleMapsBrowserKey: () => null,
@@ -29,6 +32,7 @@ function fix(lat = 0.31) {
 
 beforeEach(() => {
   requests.length = 0;
+  getNearbyPlacesMock.mockReset();
   vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
   vi.stubGlobal("navigator", { geolocation: {
     watchPosition: vi.fn((callback: PositionCallback) => { gps = callback; return 1; }),
@@ -122,4 +126,51 @@ it("starts at the nearest hospital and reroutes when another help type is select
   fireEvent.click(screen.getByRole("button", { name: /Nearest Clinic/ }));
   expect(requests).toHaveLength(2);
   expect(requests[1].url).toContain("32.582,0.312");
+});
+
+it("keeps missing categories active and searches them out to 15 km", async () => {
+  getNearbyPlacesMock.mockResolvedValue([
+    {
+      id: "clinic-wide-search",
+      name: "Bugembe Health Centre IV",
+      type: "hospital",
+      address: "Bugembe, Jinja",
+      phone: null,
+      distance_m: 2600,
+      latitude: 0.33,
+      longitude: 32.59,
+      source: "google",
+      open_now: null,
+    },
+  ]);
+
+  render(
+    <ResponderNavigation
+      caller={caller}
+      initialLocation={caller}
+      searchCenter={caller}
+      trackLocation={false}
+      helpPlaces={[]}
+    />,
+  );
+
+  const pharmacyButton = screen.getByRole("button", { name: /Nearest Pharmacy/ });
+  expect(pharmacyButton.hasAttribute("disabled")).toBe(false);
+  expect(pharmacyButton.className).toContain("justify-self-center");
+
+  fireEvent.click(screen.getByRole("button", { name: /Nearest Clinic/ }));
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(getNearbyPlacesMock).toHaveBeenCalledWith({
+    data: {
+      latitude: caller.lat,
+      longitude: caller.lng,
+      radiusMeters: 15_000,
+      limit: 20,
+      types: ["medical_clinic", "doctor"],
+    },
+  });
+  expect(screen.getByText(/Routing to Bugembe Health Centre IV/)).toBeTruthy();
 });

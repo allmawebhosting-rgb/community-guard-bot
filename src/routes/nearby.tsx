@@ -107,7 +107,7 @@ function distanceBetween(a: { lat: number; lng: number }, b: { lat: number; lng:
 }
 
 function matchesCategory(place: NearbyPlace, category: string) {
-  const kind = helpKind(place.type);
+  const kind = helpKind(place.type, place.name);
   if (category === "all") return true;
   if (category === "medical") return kind === "hospital" || kind === "clinic";
   return kind === category;
@@ -136,8 +136,8 @@ function directionsUrl(
   return `https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin.lat},${origin.lng}` : ""}&destination=${destination}&travelmode=${travelMode}&dir_action=navigate`;
 }
 
-function FacilityIcon({ type }: { type: string }) {
-  const kind = helpKind(type);
+function FacilityIcon({ type, name }: { type: string; name?: string }) {
+  const kind = helpKind(type, name);
   const Icon =
     kind === "police" ? Shield : kind === "fire" ? Flame : kind === "pharmacy" ? Plus : Hospital;
   return <Icon className="h-5 w-5" aria-hidden="true" />;
@@ -621,7 +621,7 @@ function NearbyScreen() {
                             onClick={() => selectFacility(place)}
                             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-muted/70 ${activeSuggestionIndex === suggestionIndex ? "bg-muted/70" : ""}`}
                           >
-                            <FacilityIcon type={place.type} />
+                            <FacilityIcon type={place.type} name={place.name} />
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-[12px] font-bold">
                                 {place.name}
@@ -711,10 +711,10 @@ function NearbyScreen() {
                       <span
                         className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-foreground"
                         style={{
-                          backgroundColor: `${HELP_KIND_COLOR[helpKind(selectedPlace.type)]}22`,
+                          backgroundColor: `${HELP_KIND_COLOR[helpKind(selectedPlace.type, selectedPlace.name)]}22`,
                         }}
                       >
-                        <FacilityIcon type={selectedPlace.type} />
+                        <FacilityIcon type={selectedPlace.type} name={selectedPlace.name} />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[12px] font-black">{selectedPlace.name}</p>
@@ -858,9 +858,14 @@ function NearbyScreen() {
             ) : (
               <div className="max-h-[680px] space-y-2 overflow-y-auto pr-1">
                 {filteredPlaces.map((facility) => {
-                  const kind = helpKind(facility.type);
+                  const kind = helpKind(facility.type, facility.name);
                   const selected = selectedPlaceId === facility.id;
-                  const detail = TYPE_LABELS[facility.type] || facility.type.replace(/_/g, " ");
+                  const detail =
+                    kind === "clinic" || kind === "pharmacy"
+                      ? kind === "clinic"
+                        ? "Clinic"
+                        : "Pharmacy"
+                      : TYPE_LABELS[facility.type] || facility.type.replace(/_/g, " ");
                   const status =
                     facility.source === "seeded" && facility.open_now
                       ? "Open 24/7"
@@ -891,7 +896,7 @@ function NearbyScreen() {
                             color: HELP_KIND_COLOR[kind],
                           }}
                         >
-                          <FacilityIcon type={facility.type} />
+                          <FacilityIcon type={facility.type} name={facility.name} />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[12px] font-black">

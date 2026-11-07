@@ -15,6 +15,7 @@ import {
   Maximize2,
   Minimize2,
   Navigation,
+  Pill,
   RefreshCw,
   Shield,
 } from "lucide-react";
@@ -28,6 +29,8 @@ import {
 } from "@/components/allma/nearby-help-list";
 import { getGoogleMapsBrowserKey, googleMapsAuthFailed, loadGoogleMaps, onGoogleMapsAuthFailure } from "@/lib/google-maps-loader";
 import { nearbyMarkerDataUrl } from "@/lib/nearby-marker";
+import { getNearbyPlaces } from "@/lib/places.functions";
+import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 
 type Pt = { lat: number; lng: number };
 type Mode = "drive" | "walk";
@@ -35,6 +38,7 @@ type Step = { instruction: string; distance: number; type: string; modifier?: st
 type Route = { coords: Pt[]; distance: number; duration: number; steps: Step[] };
 
 const TILE = 256;
+const EMPTY_HELP_PLACES: HelpPlace[] = [];
 const tx = (lng: number, z: number) => ((lng + 180) / 360) * 2 ** z;
 const ty = (lat: number, z: number) => {
   const r = (lat * Math.PI) / 180;
@@ -219,7 +223,7 @@ function GoogleRouteCanvas({
     placeLayers.current.forEach((layer) => layer.setMap(null));
     const next: any[] = [];
     (helpPlaces ?? []).forEach((place) => {
-      const kind = helpKind(place.type);
+      const kind = helpKind(place.type, place.name);
       const marker = new maps.Marker({
         map,
         position: { lat: place.latitude, lng: place.longitude },
@@ -335,7 +339,7 @@ function OsmRouteCanvas({
       </svg>
       {(helpPlaces ?? []).map((place) => {
         const point = proj({ lat: place.latitude, lng: place.longitude });
-        const kind = helpKind(place.type);
+        const kind = helpKind(place.type, place.name);
         const active = selectedPlaceId === place.id;
         return (
           <button
@@ -391,6 +395,15 @@ export function ResponderNavigation({
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("drive");
   const [helpKindSelected, setHelpKindSelected] = useState<HelpKind>("hospital");
+  const [expandedResults, setExpandedResults] = useState<{
+    centerKey: string;
+    places: HelpPlace[];
+  } | null>(null);
+  const [searchingKind, setSearchingKind] = useState<HelpKind | null>(null);
+  const [categorySearchError, setCategorySearchError] = useState<{
+    kind: HelpKind;
+    message: string;
+  } | null>(null);
   const [localSelectedPlaceId, setLocalSelectedPlaceId] = useState<string | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -406,22 +419,37 @@ export function ResponderNavigation({
   const currentLat = currentLocation?.lat;
   const currentLng = currentLocation?.lng;
   const reference = searchCenter ?? me ?? initialLocation ?? caller;
+  const helpCenterKey = `${reference.lat.toFixed(3)},${reference.lng.toFixed(3)}`;
+  const categorySearchId = useRef(0);
+  const currentExpandedPlaces =
+    expandedResults?.centerKey === helpCenterKey
+      ? expandedResults.places
+      : EMPTY_HELP_PLACES;
+  const allHelpPlaces = useMemo(() => {
+    const byLocation = new Map<string, HelpPlace>();
+    [...(helpPlaces ?? []), ...currentExpandedPlaces].forEach((place) => {
+      const key = `${place.name.trim().toLowerCase()}:${place.latitude.toFixed(5)}:${place.longitude.toFixed(5)}`;
+      if (!byLocation.has(key)) byLocation.set(key, place);
+    });
+    return [...byLocation.values()].sort((a, b) => a.distance_m - b.distance_m);
+  }, [currentExpandedPlaces, helpPlaces]);
   const activeSelectedPlaceId =
     selectedPlaceId === undefined ? localSelectedPlaceId : selectedPlaceId;
   const selectedPlaces = useMemo(
-    () => (helpPlaces ?? []).filter((place) => helpKind(place.type) === helpKindSelected),
-    [helpPlaces, helpKindSelected],
+    () =>
+      allHelpPlaces.filter((place) => helpKind(place.type, place.name) === helpKindSelected),
+    [allHelpPlaces, helpKindSelected],
   );
   const destinationPlace = useMemo(
     () => {
-      const explicit = helpPlaces?.find((place) => place.id === activeSelectedPlaceId);
+      const explicit = allHelpPlaces.find((place) => place.id === activeSelectedPlaceId);
       return explicit ?? [...selectedPlaces].sort(
         (a, b) =>
           haversine(reference, { lat: a.latitude, lng: a.longitude }) -
           haversine(reference, { lat: b.latitude, lng: b.longitude }),
       )[0] ?? null;
     },
-    [activeSelectedPlaceId, helpPlaces, reference, selectedPlaces],
+    [activeSelectedPlaceId, allHelpPlaces, reference, selectedPlaces],
   );
   const destination = useMemo(
     () =>
@@ -433,14 +461,16 @@ export function ResponderNavigation({
     [caller, destinationPlace, helpPlaces],
   );
   const destinationLabel = destinationPlace?.name ?? callerName;
-  const destinationKind = destinationPlace ? helpKind(destinationPlace.type) : null;
+  const destinationKind = destinationPlace
+    ? helpKind(destinationPlace.type, destinationPlace.name)
+    : null;
   const isMedical = destinationKind === "hospital" || destinationKind === "clinic";
   const destinationId = destinationPlace?.id;
 
   const selectPlace = (id: string | null) => {
     if (selectedPlaceId === undefined) setLocalSelectedPlaceId(id);
-    const place = helpPlaces?.find((item) => item.id === id);
-    if (place) setHelpKindSelected(helpKind(place.type));
+    const place = allHelpPlaces.find((item) => item.id === id);
+    if (place) setHelpKindSelected(helpKind(place.type, place.name));
     onSelectDestination?.(id);
   };
 
@@ -450,9 +480,9 @@ export function ResponderNavigation({
 
   useEffect(() => {
     if (!selectedPlaceId) return;
-    const place = helpPlaces?.find((item) => item.id === selectedPlaceId);
-    if (place) setHelpKindSelected(helpKind(place.type));
-  }, [helpPlaces, selectedPlaceId]);
+    const place = allHelpPlaces.find((item) => item.id === selectedPlaceId);
+    if (place) setHelpKindSelected(helpKind(place.type, place.name));
+  }, [allHelpPlaces, selectedPlaceId]);
 
   useEffect(() => {
     if (currentLat !== undefined && currentLng !== undefined) {
@@ -531,13 +561,82 @@ export function ResponderNavigation({
     { kind: "police", label: "Nearest Police 🚓", Icon: Shield },
     { kind: "clinic", label: "Nearest Clinic 🩺", Icon: HeartPulse },
     { kind: "fire", label: "Fire & Rescue 🚒", Icon: Flame },
-    { kind: "pharmacy", label: "Nearest Pharmacy", Icon: HeartPulse },
+    { kind: "pharmacy", label: "Nearest Pharmacy 💊", Icon: Pill },
   ] as const;
+  const searchTypes: Record<HelpKind, string[]> = {
+    hospital: ["hospital"],
+    clinic: ["medical_clinic", "doctor"],
+    pharmacy: ["pharmacy"],
+    police: ["police"],
+    fire: ["fire_station"],
+    other: [],
+  };
+  const searchForCategory = async (kind: HelpKind) => {
+    const requestId = ++categorySearchId.current;
+    const types = searchTypes[kind];
+    setSearchingKind(kind);
+    setCategorySearchError(null);
+    try {
+      const results = await getNearbyPlaces({
+        data: {
+          latitude: reference.lat,
+          longitude: reference.lng,
+          radiusMeters: 15_000,
+          limit: 20,
+          types,
+        },
+      });
+      const seeded = getSeededNearbyFacilities(reference, 15_000);
+      const resultsForKind = [...(results ?? []), ...seeded]
+        .filter((place) => helpKind(place.type, place.name) === kind)
+        .map((place) => ({
+          id: place.id,
+          name: place.name,
+          type: place.type,
+          address: place.address,
+          phone: place.phone,
+          distance_m: place.distance_m,
+          latitude: place.latitude,
+          longitude: place.longitude,
+        }));
+      setExpandedResults((current) => {
+        const previous = current?.centerKey === helpCenterKey ? current.places : [];
+        const unique = new Map<string, HelpPlace>();
+        [...previous, ...resultsForKind].forEach((place) => {
+          const key = `${place.name.trim().toLowerCase()}:${place.latitude.toFixed(5)}:${place.longitude.toFixed(5)}`;
+          if (!unique.has(key)) unique.set(key, place);
+        });
+        return {
+          centerKey: helpCenterKey,
+          places: [...unique.values()].sort((a, b) => a.distance_m - b.distance_m),
+        };
+      });
+      if (requestId === categorySearchId.current && resultsForKind.length === 0) {
+        setCategorySearchError({
+          kind,
+          message: `No ${kind} was found within 15 km. Try another category or use your local emergency number.`,
+        });
+      }
+    } catch {
+      if (requestId === categorySearchId.current) {
+        setCategorySearchError({
+          kind,
+          message: `Could not search for ${kind} right now. Try again or use your local emergency number.`,
+        });
+      }
+    } finally {
+      if (requestId === categorySearchId.current) setSearchingKind(null);
+    }
+  };
   const noDestinationMessage =
     helpPlaces && !destinationPlace
       ? helpLoading
         ? "Finding nearby help facilities…"
-        : `No nearby ${helpKindSelected} was found. Try another help type or use your local emergency number.`
+        : searchingKind === helpKindSelected
+          ? `Searching for ${helpKindSelected} within 15 km…`
+          : categorySearchError?.kind === helpKindSelected
+            ? categorySearchError.message
+            : `No nearby ${helpKindSelected} yet. Select it to search up to 15 km.`
       : gpsError ?? (me ? (routeError ? `Route unavailable to ${destinationLabel}.` : "Finding the fastest route…") : "Getting your location…");
 
   return (
@@ -547,26 +646,34 @@ export function ResponderNavigation({
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Navigate to nearby help</p>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {helpCategories.map(({ kind, label, Icon }) => {
-              const available = helpPlaces.some((place) => helpKind(place.type) === kind);
+              const available = allHelpPlaces.some(
+                (place) => helpKind(place.type, place.name) === kind,
+              );
               const active = helpKindSelected === kind;
               return (
                 <button
                   key={kind}
                   type="button"
-                  disabled={!available}
                   aria-pressed={active}
+                  aria-busy={searchingKind === kind}
                   onClick={() => {
                     setHelpKindSelected(kind);
                     selectPlace(null);
+                    if (!available) void searchForCategory(kind);
                   }}
                   className={cn(
                     "flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 text-center text-[10px] font-bold leading-tight transition sm:flex-row sm:text-[11px]",
+                    kind === "pharmacy" &&
+                      "col-span-2 w-1/2 justify-self-center sm:col-span-1 sm:w-full sm:justify-self-stretch",
                     active ? "border-success/50 bg-success/10 text-success" : "border-border/60 bg-background text-foreground",
-                    !available && "cursor-not-allowed opacity-45",
                   )}
-                  title={available ? label : `No nearby ${kind} found`}
+                  title={available ? label : `Search for nearby ${kind} up to 15 km`}
                 >
-                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  {searchingKind === kind ? (
+                    <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                  ) : (
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                  )}
                   <span>{label}</span>
                 </button>
               );
@@ -606,7 +713,7 @@ export function ResponderNavigation({
             fallbackCenter={reference}
             searchCenter={searchCenter ?? caller}
             anchorLocation={anchorLocation}
-            helpPlaces={helpPlaces}
+            helpPlaces={allHelpPlaces}
             selectedPlaceId={destinationId ?? activeSelectedPlaceId}
             onSelectPlace={selectPlace}
           />
@@ -619,7 +726,7 @@ export function ResponderNavigation({
             fallbackCenter={reference}
             searchCenter={searchCenter ?? caller}
             anchorLocation={anchorLocation}
-            helpPlaces={helpPlaces}
+            helpPlaces={allHelpPlaces}
             selectedPlaceId={destinationId ?? activeSelectedPlaceId}
             onSelectPlace={selectPlace}
           />
