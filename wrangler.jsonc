@@ -8,7 +8,7 @@
     "binding": "ASSETS"
   },
   "vars": {
-    "GOOGLE_MAPS_API_KEY": "AIzaSyAm84pqghVJphkkaqyWyDxGXsJRmvKTh-I"
+    "ACCOUNT_DELETION_ENABLED": "false"
   },
   "ai": {
     "binding": "AI"

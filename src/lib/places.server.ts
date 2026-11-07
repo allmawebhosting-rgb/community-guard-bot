@@ -214,8 +214,12 @@ async function loadGooglePlaces(
   // Read credentials at call time — env injection happens per request, not at module load.
   const googleMapsKey =
     process.env["GOOGLE_MAPS_API_KEY"] ||
-    process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"] ||
-    "AIzaSyAm84pqghVJphkkaqyWyDxGXsJRmvKTh-I";
+    process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
+
+  if (!googleMapsKey) {
+    console.warn("Google Places lookup skipped: GOOGLE_MAPS_API_KEY is not configured.");
+    return [] as NearbyPlaceResult[];
+  }
 
   const includedTypes = normalizeGoogleTypes(types);
   const response = await fetch(`${GOOGLE_API_URL}/places:searchNearby`, {

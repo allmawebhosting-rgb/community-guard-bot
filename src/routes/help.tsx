@@ -83,7 +83,8 @@ const SECTIONS: InfoSection[] = [
     title: "How do I delete my account?",
     body: (
       <p>
-        Follow the steps on our <a href="/data-requests">data and account deletion page</a>.
+        Account deletion is not currently available. Check our{" "}
+        <a href="/data-requests">data and account deletion page</a> for current availability.
       </p>
     ),
   },

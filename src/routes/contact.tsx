@@ -48,8 +48,8 @@ const SECTIONS: InfoSection[] = [
     title: "Privacy and data requests",
     body: (
       <p>
-        For a copy of your data or account deletion, follow the steps on our{" "}
-        <a href="/data-requests">data and deletion page</a>.
+        Account deletion is not currently available in the app or by email. See our{" "}
+        <a href="/data-requests">data and deletion page</a> for current availability.
       </p>
     ),
   },

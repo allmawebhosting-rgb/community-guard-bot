@@ -3,67 +3,34 @@ import { InfoPage, type InfoSection } from "@/components/allma/legal-page";
 
 const SECTIONS: InfoSection[] = [
   {
-    id: "request",
-    title: "How to make a request",
+    id: "availability",
+    title: "Current availability",
     body: (
       <p>
-        Email <a href="mailto:allmawebhosting@gmail.com">allmawebhosting@gmail.com</a> from the address
-        on your Allma account and tell us whether you want a copy of your data, a correction, or full
-        deletion. We may ask you to confirm it is really you before we act.
+        Account deletion is not currently available in the app, and we are not yet able to fulfill
+        deletion requests by email. Please do not submit a request expecting it to be completed. We
+        will update this page when a tested request process is available.
       </p>
     ),
   },
   {
-    id: "export",
-    title: "Getting a copy of your data",
+    id: "data-requests",
+    title: "Data requests",
     body: (
       <p>
-        We send a file containing your profile, Safety Network connections, preferences, your own
-        reports and your emergency history. We do not include other people's private information.
+        There is no self-service data-request form. Account-deletion requests are not currently
+        processed by email. For general questions only, contact{" "}
+        <a href="mailto:allmawebhosting@gmail.com">allmawebhosting@gmail.com</a>.
       </p>
     ),
   },
   {
-    id: "deletion",
-    title: "What deletion removes",
-    body: (
-      <ul>
-        <li>Your profile, photo, phone number and email.</li>
-        <li>Your Safety Network connections and invitations, in both directions.</li>
-        <li>Your preferences, permissions and notification registrations.</li>
-        <li>Your chats with the assistant and your saved location settings.</li>
-      </ul>
-    ),
-  },
-  {
-    id: "what-stays",
-    title: "What may remain",
-    body: (
-      <ul>
-        <li>Emergency records shared with other people may be kept in a de-identified form so their own history stays intact.</li>
-        <li>Content you published publicly may remain if others rely on it, unless you ask us to remove it too.</li>
-        <li>Records we are required to keep by law.</li>
-      </ul>
-    ),
-  },
-  {
-    id: "timing",
-    title: "How long it takes",
+    id: "while-unavailable",
+    title: "If you no longer want to use Allma",
     body: (
       <p>
-        We aim to confirm within two working days and complete the request within 30 days. Deletion is
-        permanent and cannot be undone, so you will need a new account to use Allma again.
-      </p>
-    ),
-  },
-  {
-    id: "before-you-delete",
-    title: "Before you delete",
-    body: (
-      <p>
-        Deleting your account removes you from other people's Safety Networks, so they can no longer
-        reach you through Allma in an emergency. If you only want a break, turn availability and
-        emergency calls off in your settings instead.
+        You can sign out, turn off availability and emergency calls in settings, and stop using the
+        app. These actions do not delete your account or its associated data.
       </p>
     ),
   },
@@ -75,13 +42,12 @@ export const Route = createFileRoute("/data-requests")({
       { title: "Data & Account Deletion | Allma Safety AI" },
       {
         name: "description",
-        content:
-          "How to request a copy of your Allma Safety AI data, correct it, or permanently delete your account and what that removes.",
+        content: "Current availability of Allma Safety AI data requests and account deletion.",
       },
       { property: "og:title", content: "Data & Account Deletion | Allma Safety AI" },
       {
         property: "og:description",
-        content: "Request an export, a correction or full deletion of your Allma Safety AI account.",
+        content: "Account deletion and data-request fulfillment are not currently available.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://allmasafetyai.online/data-requests" },
@@ -97,7 +63,7 @@ function DataRequestsPage() {
     <InfoPage
       eyebrow="Legal"
       title="Data & account deletion"
-      intro="You can ask for a copy of everything Allma holds about you, correct it, or have your account removed for good."
+      intro="Account deletion is not currently available in the app, and requests sent by email cannot yet be processed. This page will be updated when a tested process is available."
       sections={SECTIONS}
     />
   );

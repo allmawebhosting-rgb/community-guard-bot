@@ -70,8 +70,9 @@ const SECTIONS: InfoSection[] = [
       <p>
         Account and Safety Network data is kept while your account is active. Emergency records and
         reports are kept so you and the people involved can review what happened. Temporary
-        location fixes and responder presence entries expire shortly after they are created. When you
-        delete your account, we remove your personal data except where we must keep records by law.
+        location fixes and responder presence entries expire shortly after they are created. Account
+        deletion is not currently available; see our{" "}
+        <a href="/data-requests">data and deletion page</a> for current availability.
       </p>
     ),
   },
@@ -83,7 +84,7 @@ const SECTIONS: InfoSection[] = [
         <li>Turn location off, or continue without it — SOS still works, but with less precision.</li>
         <li>Turn emergency calls or notifications off at any time in your settings.</li>
         <li>Remove, disable or reorder anyone in your Safety Network.</li>
-        <li>Ask for a copy of your data, or ask us to delete your account, on our <a href="/data-requests">data and deletion page</a>.</li>
+        <li>Account deletion is not currently available in the app or by email; see our <a href="/data-requests">data and deletion page</a> for current availability.</li>
       </ul>
     ),
   },
