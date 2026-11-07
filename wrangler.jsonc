@@ -7,6 +7,9 @@
     "directory": "dist/client",
     "binding": "ASSETS"
   },
+  "vars": {
+    "GOOGLE_MAPS_API_KEY": "AIzaSyAm84pqghVJphkkaqyWyDxGXsJRmvKTh-I"
+  },
   "ai": {
     "binding": "AI"
   }

@@ -4,7 +4,7 @@ import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { facilityKind } from "@/lib/facility-kind";
 
-const GOOGLE_API_URL = "https://connector-gateway.lovable.dev/google_maps/places/v1";
+const GOOGLE_API_URL = "https://places.googleapis.com/v1";
 const MAX_RADIUS_M = 15_000;
 const MAX_RESULTS = 20;
 const MAX_CACHE_ENTRIES = 1_000;
@@ -212,26 +212,18 @@ async function loadGooglePlaces(
   types: string[],
 ) {
   // Read credentials at call time — env injection happens per request, not at module load.
-  const lovableApiKey = process.env["LOVABLE_API_KEY"];
   const googleMapsKey =
     process.env["GOOGLE_MAPS_API_KEY"] ||
-    process.env["GOOGLE_MAPS_API_KEY_1"] ||
-    process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
-
-  if (!lovableApiKey || !googleMapsKey) {
-    console.warn(
-      "Google Places lookup skipped: Google Maps credentials are not available on the server.",
-    );
-    return [] as NearbyPlaceResult[];
-  }
+    process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"] ||
+    "AIzaSyAm84pqghVJphkkaqyWyDxGXsJRmvKTh-I";
 
   const includedTypes = normalizeGoogleTypes(types);
   const response = await fetch(`${GOOGLE_API_URL}/places:searchNearby`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${lovableApiKey}`,
-      "X-Connection-Api-Key": googleMapsKey,
+      "X-Goog-Api-Key": googleMapsKey,
+      Referer: "https://allmasafetyai.online/",
       "X-Goog-FieldMask":
         "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType",
     },
