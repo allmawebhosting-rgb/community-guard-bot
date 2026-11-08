@@ -7,9 +7,10 @@ const SECTIONS: InfoSection[] = [
     title: "Current availability",
     body: (
       <p>
-        Account deletion is not currently available in the app, and we are not yet able to fulfill
-        deletion requests by email. Please do not submit a request expecting it to be completed. We
-        will update this page when a tested request process is available.
+        You can delete your account yourself in the app: open Profile, tap "Delete my account",
+        confirm with your PIN or password (or a recent Google sign-in), and type DELETE. Your login,
+        profile, contacts and devices are removed. Shared call history and public safety reports are
+        kept without your name or phone number.
       </p>
     ),
   },
@@ -18,8 +19,7 @@ const SECTIONS: InfoSection[] = [
     title: "Data requests",
     body: (
       <p>
-        There is no self-service data-request form. Account-deletion requests are not currently
-        processed by email. For general questions only, contact{" "}
+        For other data questions, contact{" "}
         <a href="mailto:allmawebhosting@gmail.com">allmawebhosting@gmail.com</a>.
       </p>
     ),
@@ -42,12 +42,12 @@ export const Route = createFileRoute("/data-requests")({
       { title: "Data & Account Deletion | Allma Safety AI" },
       {
         name: "description",
-        content: "Current availability of Allma Safety AI data requests and account deletion.",
+        content: "How to delete your Allma Safety AI account and personal data.",
       },
       { property: "og:title", content: "Data & Account Deletion | Allma Safety AI" },
       {
         property: "og:description",
-        content: "Account deletion and data-request fulfillment are not currently available.",
+        content: "Delete your Allma Safety AI account and personal data from inside the app.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://allmasafetyai.online/data-requests" },
