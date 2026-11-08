@@ -119,12 +119,19 @@ const USER_BEACON_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(
 
 function FallbackMarker({ kind }: { kind: ReturnType<typeof helpKind> }) {
   return (
-    <img
-      src={nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind])}
-      alt=""
-      aria-hidden="true"
-      className="relative z-10 h-12 w-12 drop-shadow-sm"
-    />
+    <>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-9 w-9 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full opacity-40 [animation-duration:1.6s]"
+        style={{ backgroundColor: HELP_KIND_COLOR[kind] }}
+      />
+      <img
+        src={nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind])}
+        alt=""
+        aria-hidden="true"
+        className="relative z-10 h-12 w-12 drop-shadow-sm"
+      />
+    </>
   );
 }
 

@@ -52,3 +52,15 @@ BEGIN
     RAISE EXCEPTION 'public lost-and-found anonymization field is missing';
   END IF;
 END $$;
+
+-- Item 6: the responder-offer RPC must not reference the removed table.
+DO $$
+BEGIN
+  IF pg_get_functiondef('public.create_sos_responder_offers(uuid, double precision)'::regprocedure)
+     LIKE '%community_responder_locations%' THEN
+    RAISE EXCEPTION 'create_sos_responder_offers still references community_responder_locations';
+  END IF;
+  IF has_function_privilege('anon', 'public.create_sos_responder_offers(uuid, double precision)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'anon can execute create_sos_responder_offers';
+  END IF;
+END $$;
