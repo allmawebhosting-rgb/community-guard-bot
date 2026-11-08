@@ -74,8 +74,7 @@ export function AllmaVoice({
   useEffect(() => {
     if (!activityId) return;
     const controller = getSosEscalation(activityId, "other");
-    let prev = { priority: -1, round: 0, answered: false, noTargets: false, failed: 0, wait: false };
-    const roleName = (p: number) => (p === 1 ? "primary" : p === 2 ? "backup" : "additional");
+    let prev = { round: 0, answered: false, noTargets: false, failed: 0, wait: false };
     const sync = () => {
       const s = controller.state;
       const connected = Boolean(s.answered);
@@ -91,21 +90,17 @@ export function AllmaVoice({
         prev.noTargets = true;
         announce("You have no reachable Safety Network contacts right now. Your alert is still active. If you are in danger, call Police on 999 or Emergency on 112.");
       }
-      if (s.priority > 0 && s.priority !== prev.priority) {
-        const names = s.targets
-          .filter((t) => !t.ineligible_reason && Math.min(Math.max(t.priority || 3, 1), 3) === s.priority)
-          .map((t) => t.full_name)
-          .slice(0, 3);
-        const who = names.length ? names.join(" and ") : `your ${roleName(s.priority)} contacts`;
-        const lead = prev.priority > 0 ? `No answer yet. Moving to your ${roleName(s.priority)} contacts. ` : "";
-        announce(`${lead}I am calling ${who} now. Stay with me, help from your network is being reached.`);
+      if (s.round > 0 && s.round !== prev.round && s.waitSeconds == null) {
+        const names = s.targets.filter((t) => !t.ineligible_reason).map((t) => t.full_name).slice(0, 3);
+        const who = names.length ? names.join(" and ") : "your Safety Network";
+        announce(`I am calling ${who} now, all at once. Stay with me.`);
       }
-      const waiting = s.priority === 0 && s.round > 0 && s.waitSeconds != null;
+      const waiting = s.round > 0 && s.waitSeconds != null;
       if (waiting && !prev.wait) {
         announce(`Nobody has answered yet, but I am not giving up. I will call everyone again in ${s.waitSeconds} seconds. Your alert and location stay active.`);
       }
       const failed = s.attempts.filter((a) => ["missed", "declined", "rejected", "unanswered"].includes(a.status)).length;
-      prev = { ...prev, priority: s.priority, round: s.round, failed, wait: waiting };
+      prev = { ...prev, round: s.round, failed, wait: waiting };
     };
     sync();
     return controller.subscribe(sync);

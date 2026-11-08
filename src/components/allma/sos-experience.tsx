@@ -34,6 +34,7 @@ import {
   ExternalLink,
   Send,
   WifiOff,
+  Mic,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
