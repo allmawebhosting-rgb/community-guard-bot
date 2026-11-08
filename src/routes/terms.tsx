@@ -99,9 +99,9 @@ const SECTIONS: InfoSection[] = [
     title: "Changes and ending use",
     body: (
       <p>
-        You can stop using Allma at any time. Account deletion is not currently available; see our{" "}
-        <a href="/data-requests">data and deletion page</a> for current availability. We may update
-        these terms and will notify you in the app when the change is significant.
+        You can stop using Allma at any time or delete your account directly in the app from Profile
+        settings. See our <a href="/data-requests">data and deletion page</a> for details. We may
+        update these terms and will notify you in the app when the change is significant.
       </p>
     ),
   },

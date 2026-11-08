@@ -25,8 +25,9 @@ Already configured in `.env`:
 AI features (chat, incident reporting) require an OpenAI-compatible API key if not already set.
 
 Cloudflare Worker deployments must provide `GOOGLE_MAPS_API_KEY` as a Wrangler secret; do not
-commit Google API keys in source or `wrangler.jsonc`. Account deletion is not operational and must
-remain unavailable until the isolated staging tests and rollout approval are complete.
+commit Google API keys in source or `wrangler.jsonc`. Account deletion is enabled in-app from Profile
+settings. Apply `supabase/migrations/20261108000200_account_deletion_safety.sql` to the production
+database before deploying the updated Worker.
 
 ## User preferences
 - Keep existing project structure and stack (TanStack Start + Supabase + Lovable conventions).

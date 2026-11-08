@@ -20,7 +20,7 @@ export function InfoPage({
 }: {
   eyebrow: string;
   title: string;
-  intro: string;
+  intro?: string;
   updated?: string;
   sections: InfoSection[];
   footnote?: ReactNode;
@@ -51,7 +51,9 @@ export function InfoPage({
             <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
               {title}
             </h1>
-            <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">{intro}</p>
+            {intro && (
+              <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">{intro}</p>
+            )}
             {updated && (
               <p className="mt-5 inline-flex rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
                 Last updated {updated}

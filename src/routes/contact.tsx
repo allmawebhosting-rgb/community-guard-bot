@@ -48,8 +48,8 @@ const SECTIONS: InfoSection[] = [
     title: "Privacy and data requests",
     body: (
       <p>
-        Account deletion is not currently available in the app or by email. See our{" "}
-        <a href="/data-requests">data and deletion page</a> for current availability.
+        You can delete your account directly in the app from Profile settings. See our{" "}
+        <a href="/data-requests">data and deletion page</a> for details.
       </p>
     ),
   },

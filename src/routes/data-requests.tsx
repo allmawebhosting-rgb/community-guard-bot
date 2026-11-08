@@ -63,7 +63,6 @@ function DataRequestsPage() {
     <InfoPage
       eyebrow="Legal"
       title="Data & account deletion"
-      intro="Account deletion is not currently available in the app, and requests sent by email cannot yet be processed. This page will be updated when a tested process is available."
       sections={SECTIONS}
     />
   );

@@ -83,8 +83,9 @@ const SECTIONS: InfoSection[] = [
     title: "How do I delete my account?",
     body: (
       <p>
-        Account deletion is not currently available. Check our{" "}
-        <a href="/data-requests">data and account deletion page</a> for current availability.
+        Open Profile and choose Delete my account. Confirm with your PIN or password (Google users
+        can leave it blank), type DELETE, and follow the prompts. See our{" "}
+        <a href="/data-requests">data and account deletion page</a> for details.
       </p>
     ),
   },

@@ -187,9 +187,15 @@ class SosEscalation {
 
   stop() {
     this.generation += 1;
-    const activeAttempts = this.state.attempts.filter((attempt) => !isTerminal(attempt.status));
+    // Stop only calls that are still pending or ringing. A call in `connecting`
+    // has already been accepted, so navigating away from SOS must not end it.
+    const pendingAttempts = this.state.attempts.filter((attempt) =>
+      ["queued", "initiating", "calling", "ringing"].includes(attempt.status),
+    );
     void Promise.all(
-      activeAttempts.map((attempt) => setCallStatus(attempt.call_id, "ended").catch(() => undefined)),
+      pendingAttempts.map((attempt) =>
+        setCallStatus(attempt.call_id, "ended").catch(() => undefined),
+      ),
     );
     this.patch({ running: false, waitSeconds: null });
   }

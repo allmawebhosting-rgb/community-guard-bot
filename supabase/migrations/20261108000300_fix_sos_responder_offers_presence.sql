@@ -1,6 +1,6 @@
--- PENDING REVIEW: not applied. Apply to staging first, then production after approval.
--- community_responder_locations was removed; opted-in presence now lives in
--- member_presence + profiles.discoverable_nearby. Creates no data.
+-- Use opted-in member presence for nearby responder offers.
+-- community_responder_locations was removed; presence now lives in
+-- member_presence + profiles.discoverable_nearby.
 CREATE OR REPLACE FUNCTION public.create_sos_responder_offers(
   p_sos_activity_id uuid,
   p_radius_meters double precision DEFAULT 1000

@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "python-3.12"]
+modules = ["web", "python-3.12", "nodejs-22"]
 
 [nix]
 channel = "stable-25_05"
@@ -41,4 +41,4 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-ACCOUNT_DELETION_ENABLED = "false"
+ACCOUNT_DELETION_ENABLED = "true"

@@ -8,7 +8,7 @@
     "binding": "ASSETS"
   },
   "vars": {
-    "ACCOUNT_DELETION_ENABLED": "false"
+    "ACCOUNT_DELETION_ENABLED": "true"
   },
   "ai": {
     "binding": "AI"
