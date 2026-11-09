@@ -1,8 +1,27 @@
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { createClient } from "@supabase/supabase-js";
 import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { facilityKind } from "@/lib/facility-kind";
+
+/** Public (anon) client for the public emergency directory; works without the admin key. */
+function publicDirectoryClient() {
+  const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
+  const key =
+    process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+  if (!url || !key) throw new Error("Directory lookup unavailable: backend URL/key missing.");
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+/** Picks a real Google key (AIza...), ignoring connector placeholders such as lovc_... */
+export function resolveGoogleMapsKey(env: Record<string, string | undefined>) {
+  const candidates = [
+    env["GOOGLE_MAPS_API_KEY"],
+    env["GOOGLE_PLACES_API_KEY"],
+    env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"],
+  ];
+  return candidates.find((k) => typeof k === "string" && k.trim().startsWith("AIza"))?.trim();
+}
 
 const GOOGLE_API_URL = "https://places.googleapis.com/v1";
 const MAX_RADIUS_M = 15_000;
@@ -133,7 +152,7 @@ function diversifyPlaces(places: NearbyPlaceResult[], limit: number) {
 }
 
 async function loadSeededFacilities(latitude: number, longitude: number, radiusMeters: number) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await publicDirectoryClient()
     .from("facilities")
     .select("id, name, facility_type, address, district, phone, is_24_7, latitude, longitude")
     .not("latitude", "is", null)
@@ -170,7 +189,7 @@ async function loadSeededFacilities(latitude: number, longitude: number, radiusM
 }
 
 async function loadPoliceStations(latitude: number, longitude: number, radiusMeters: number) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await publicDirectoryClient()
     .from("police_stations")
     .select("id, name, district, parish, phone, latitude, longitude")
     .not("latitude", "is", null)
@@ -212,9 +231,10 @@ async function loadGooglePlaces(
   types: string[],
 ) {
   // Read credentials at call time — env injection happens per request, not at module load.
-  const googleMapsKey =
-    process.env["GOOGLE_MAPS_API_KEY"] ||
-    process.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
+  const googleMapsKey = resolveGoogleMapsKey({
+    ...(import.meta.env as Record<string, string | undefined>),
+    ...process.env,
+  });
 
   if (!googleMapsKey) {
     console.warn("Google Places lookup skipped: GOOGLE_MAPS_API_KEY is not configured.");
