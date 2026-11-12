@@ -40,6 +40,8 @@ type ChatRequestBody = {
   threadId?: string | null;
   /** Storage paths of evidence uploaded during this conversation. */
   evidence?: unknown;
+  /** Device GPS the browser attached to this request, if permitted. */
+  coords?: { latitude?: unknown; longitude?: unknown } | null;
 };
 
 function parseEvidence(value: unknown): Array<{ path: string; mediaType: string | null }> {
@@ -249,9 +251,15 @@ export const Route = createFileRoute("/api/chat")({
 
         // ---- Coordinates the user already shared (from "My current location is: lat, lng")
         const coordMatch = /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/.exec(intakeText);
+        const deviceLat = Number(body.coords?.latitude);
+        const deviceLng = Number(body.coords?.longitude);
+        const deviceCoords =
+          body.coords && Number.isFinite(deviceLat) && Number.isFinite(deviceLng) && Math.abs(deviceLat) <= 90 && Math.abs(deviceLng) <= 180
+            ? { latitude: deviceLat, longitude: deviceLng }
+            : null;
         const sharedCoords = coordMatch
           ? { latitude: Number(coordMatch[1]), longitude: Number(coordMatch[2]) }
-          : null;
+          : deviceCoords;
         const coordBlock = sharedCoords
           ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. Call location_intelligence immediately with these latitude and longitude values. Do NOT ask them for an area, landmark or district again.`
           : "";
@@ -557,6 +565,47 @@ export const Route = createFileRoute("/api/chat")({
                 area: z.string().nullable().describe("Optional district or area name"),
               }),
               execute: async ({ facility_type, area }) => {
+                // Real device GPS first: Google Places + local directory, nearest first,
+                // including clinics, health centres and pharmacies — not only big hospitals.
+                if (sharedCoords) {
+                  const typesFor: Record<string, string[]> = {
+                    hospital: ["hospital", "medical_clinic", "doctor", "pharmacy"],
+                    ambulance: ["hospital", "medical_clinic", "doctor"],
+                    police: ["police"],
+                    fire: ["fire_station"],
+                    shelter: ["police", "hospital"],
+                  };
+                  try {
+                    const { lookupNearbyPlaces } = await import("@/lib/places.server");
+                    const near = await lookupNearbyPlaces({
+                      latitude: sharedCoords.latitude,
+                      longitude: sharedCoords.longitude,
+                      radiusMeters: 8000,
+                      limit: 8,
+                      types: typesFor[facility_type] ?? [facility_type],
+                    });
+                    if (near.length) {
+                      return {
+                        ok: true,
+                        resolved_area: "your current GPS location",
+                        emergency_type: facility_type,
+                        facilities: near.map((p) => ({
+                          name: p.name,
+                          facility_type: p.type,
+                          phone: p.phone,
+                          address: p.address,
+                          latitude: p.latitude,
+                          longitude: p.longitude,
+                          open_now: p.open_now,
+                          distance_km: Math.round(p.distance_m / 100) / 10,
+                        })),
+                        note: "Sorted by straight-line distance from the user's GPS. Name the closest one first; never state travel time.",
+                      };
+                    }
+                  } catch (err) {
+                    console.warn("Nearby places lookup failed; using directory.", err);
+                  }
+                }
                 const place = area ? resolveUgandaPlace(area) : null;
                 if (place) {
                   const { data, error } = await supabase

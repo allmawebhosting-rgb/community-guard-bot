@@ -371,6 +371,85 @@ const ACTION_ICONS: Record<string, typeof FileText> = {
   sim: CreditCard,
 };
 
+const FACILITY_LABEL: Record<string, string> = {
+  hospital: "Hospital", medical_clinic: "Clinic", doctor: "Clinic / Health centre", pharmacy: "Pharmacy",
+  police: "Police", fire_station: "Fire & Rescue", fire: "Fire & Rescue", ambulance: "Ambulance",
+};
+
+function FacilityResults({ output }: { output: Record<string, unknown> }) {
+  const navigate = useNavigate();
+  const facilities = output.facilities as Array<Record<string, unknown>>;
+  const t = String(output.emergency_type ?? facilities[0]?.facility_type ?? "");
+  const kind = t === "police" ? "violence" : t === "fire" || t === "fire_station" ? "fire" : t ? "medical" : null;
+  return (
+    <div className="w-full space-y-3">
+      {kind ? (
+        <div className="rounded-2xl border border-destructive/25 bg-destructive/5 p-3">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/sos", search: { instant: true } })}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-[15px] font-bold text-destructive-foreground shadow-soft active:scale-[0.98]"
+          >
+            <ShieldAlert className="h-5 w-5" /> Getting worse? Activate SOS
+          </button>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {UGANDA_HOTLINES[kind].map((h) => (
+              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex items-center justify-center gap-1.5 rounded-xl border border-destructive/30 bg-card px-2 py-2 text-[13px] font-semibold text-destructive">
+                <Phone className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{h.label} {h.number}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {facilities.length === 0 ? (
+        <p className="rounded-2xl border border-border/60 bg-card p-3 text-sm text-muted-foreground">No places found nearby. Share your location or try another area name.</p>
+      ) : (
+        <>
+          {output.resolved_area ? (
+            <p className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground"><MapPin className="h-3.5 w-3.5 text-chat-accent" />Nearest to {String(output.resolved_area)}</p>
+          ) : null}
+          <div className="grid gap-2 lg:grid-cols-2">
+            {facilities.map((facility, index) => {
+              const lat = Number(facility.lat ?? facility.latitude);
+              const lng = Number(facility.lng ?? facility.longitude);
+              const dest = Number.isFinite(lat) && Number.isFinite(lng) && facility.latitude != null ? `${lat},${lng}` : encodeURIComponent(String(facility.name) + " " + String(facility.district ?? ""));
+              const km = facility.distance_km != null && Number.isFinite(Number(facility.distance_km)) ? Number(facility.distance_km) : null;
+              const label = FACILITY_LABEL[String(facility.facility_type ?? "")] ?? null;
+              const phone = typeof facility.phone === "string" && facility.phone ? facility.phone : null;
+              return (
+                <div key={index} className={cn("rounded-2xl border bg-card p-3 shadow-soft", index === 0 ? "border-chat-accent/50" : "border-border/60")}>
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-chat-user text-chat-accent"><Hospital className="h-5 w-5" /></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {index === 0 ? <span className="rounded-full bg-chat-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">Nearest</span> : null}
+                        {label ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{label}</span> : null}
+                        {facility.open_now === true ? <span className="text-[10px] font-semibold text-chat-accent">Open now</span> : null}
+                      </div>
+                      <p className="mt-1 text-[15px] font-bold leading-snug text-foreground">{String(facility.name)}</p>
+                      <p className="mt-0.5 line-clamp-1 text-[12.5px] text-muted-foreground">{km != null ? <strong className="text-chat-accent">{km} km · </strong> : null}{String(facility.address ?? facility.district ?? "")}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-chat-accent px-3 py-2 text-[13px] font-semibold text-primary-foreground">
+                      <MapPin className="h-4 w-4" /> Directions
+                    </a>
+                    {phone ? (
+                      <a href={`tel:${phone.replace(/\s+/g, "")}`} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-[13px] font-semibold text-foreground">
+                        <Phone className="h-4 w-4" /> Call
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ToolCard({
   part,
   onSend,
@@ -833,54 +912,7 @@ function ToolCard({
           </div>
         </div>
       ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
-        <div className="grid gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 lg:grid-cols-2">
-          {(() => {
-            const t = String((output.facilities as Array<Record<string, unknown>>)[0]?.facility_type ?? "");
-            const kind = t === "police" ? "violence" : t === "fire" ? "fire" : t === "hospital" || t === "ambulance" ? "medical" : null;
-            if (!kind) return null;
-            return (
-              <div className="flex flex-wrap items-center gap-2 bg-destructive/10 p-3 lg:col-span-2">
-                <span className="text-[13px] font-semibold text-destructive">Emergency lines:</span>
-                {UGANDA_HOTLINES[kind].map((h) => (
-                  <a key={h.number + h.label} href={`tel:${h.number}`} className="rounded-full bg-destructive px-3 py-1.5 text-[13px] font-bold text-destructive-foreground">
-                    {h.label} {h.number}
-                  </a>
-                ))}
-              </div>
-            );
-          })()}
-          {(output.facilities as Array<Record<string, unknown>>).map((facility, index) => {
-            const lat = Number(facility.lat ?? facility.latitude);
-            const lng = Number(facility.lng ?? facility.longitude);
-            const dest = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat},${lng}` : encodeURIComponent(String(facility.name) + " " + String(facility.district ?? ""));
-            const rating = Number(facility.rating);
-            const photo = typeof facility.photo_url === "string" ? facility.photo_url : null;
-            return (
-              <a key={index} href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-card p-3 transition-colors hover:bg-chat-user/50">
-                {photo ? (
-                  <img src={photo} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" />
-                ) : (
-                  <span className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-chat-user text-chat-accent"><Hospital className="h-8 w-8" /></span>
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-bold leading-snug text-foreground">{String(facility.name)}</span>
-                  <span className="mt-1 flex items-center gap-1 text-[13px] text-chat-accent"><MapPin className="h-3.5 w-3.5" />{Number.isFinite(Number(facility.distance_km)) && facility.distance_km != null ? `${Number(facility.distance_km)} km · ` : ""}{String(facility.district ?? facility.address ?? "")}</span>
-                  {Number.isFinite(rating) && rating > 0 ? (
-                    <span className="mt-1 flex items-center gap-1 text-[12px] text-muted-foreground"><Star className="h-3.5 w-3.5 fill-gold text-gold" />{rating.toFixed(1)}{facility.reviews ? ` (${String(facility.reviews)} reviews)` : ""}</span>
-                  ) : facility.phone ? (
-                    <span className="mt-1 block font-mono text-[12px] text-muted-foreground">{String(facility.phone)}</span>
-                  ) : null}
-                </span>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-chat-user text-chat-accent"><ChevronRight className="h-5 w-5" /></span>
-              </a>
-            );
-          })}
-          {(output.facilities as unknown[]).length === 0 ? (
-            <p className="bg-card p-3 text-sm text-muted-foreground lg:col-span-2">No facilities found for this area. Try a different area name.</p>
-          ) : (
-            <p className="flex items-center gap-2 bg-card p-3 text-[14px] text-foreground lg:col-span-2"><MapPin className="h-4 w-4 shrink-0 text-chat-accent" />Tap a place for directions.</p>
-          )}
-        </div>
+        <FacilityResults output={output as Record<string, unknown>} />
       ) : name === "list_alerts" && Array.isArray(output?.alerts) ? (
         <ul className="space-y-2 text-sm">
           {(output.alerts as Array<Record<string, unknown>>).map((alert, index) => (
@@ -1004,6 +1036,25 @@ export function AllmaChat({
   // later in the same conversation can be linked to the real evidence objects.
   const evidencePathsRef = useRef<Array<{ path: string; mediaType: string }>>([]);
 
+  // Latest device GPS, only when the user already granted location permission.
+  const coordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    let watchId: number | null = null;
+    const start = () => {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => { coordsRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }; },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 60000, timeout: 20000 },
+      );
+    };
+    const perms = (navigator as Navigator & { permissions?: Permissions }).permissions;
+    if (perms?.query) {
+      perms.query({ name: "geolocation" as PermissionName }).then((r) => { if (r.state === "granted") start(); }).catch(() => {});
+    }
+    return () => { if (watchId != null) navigator.geolocation.clearWatch(watchId); };
+  }, []);
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -1014,7 +1065,7 @@ export function AllmaChat({
           const headers: Record<string, string> = {};
           if (token) headers.Authorization = `Bearer ${token}`;
           return {
-            body: { ...body, messages, threadId, evidence: evidencePathsRef.current },
+            body: { ...body, messages, threadId, evidence: evidencePathsRef.current, coords: coordsRef.current },
             headers,
           };
         },
@@ -1374,6 +1425,7 @@ export function AllmaChat({
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        coordsRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
         send(
           `My current location is: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`,
         );
@@ -1417,7 +1469,7 @@ export function AllmaChat({
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1 overscroll-contain">
-          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6 lg:max-w-4xl lg:px-8">
+          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-40 lg:pb-10 lg:max-w-4xl lg:px-8">
             <div className="flex flex-col gap-7 pt-16 lg:pt-8">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-3 sm:max-w-full" : "max-w-full sm:max-w-full"}>
