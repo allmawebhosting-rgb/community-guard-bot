@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, Check, Copy, Loader2, Lock, MessageCircle, PhoneCall, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { SAFETY_ROLES, createSafetyInvite, inviteText, inviteUrl } from "@/lib/safety-network";
+import { SAFETY_ROLES, createSafetyInvite, getSafetyInvite, inviteText, inviteUrl } from "@/lib/safety-network";
+
+type SentInvite = { token: string; role: string; priority: number; via: "wa" | "share" | "copy"; status: "pending" | "accepted" | "declined" | "cancelled"; name?: string };
+const SENT_KEY = "allma-sent-invites";
+function readSent(): SentInvite[] {
+  try { return JSON.parse(sessionStorage.getItem(SENT_KEY) || "[]") as SentInvite[]; } catch { return []; }
+}
 
 const PRIORITIES = [
   { value: 1, label: "Primary", hint: "Called first, the moment you press SOS", icon: PhoneCall },
@@ -25,11 +31,49 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
   const [role, setRole] = useState<string>("Family");
   const [priority, setPriority] = useState(1);
   const [busy, setBusy] = useState<"wa" | "share" | "copy" | null>(null);
+  const [sent, setSent] = useState<SentInvite[]>([]);
+  const [composing, setComposing] = useState(true);
+
+  useEffect(() => {
+    if (!flat) return;
+    const saved = readSent();
+    setSent(saved);
+    if (saved.length) setComposing(false);
+  }, [flat]);
+
+  useEffect(() => {
+    if (flat) sessionStorage.setItem(SENT_KEY, JSON.stringify(sent));
+  }, [flat, sent]);
+
+  // Check real invite status from the backend so "Connected" only shows once they accept.
+  useEffect(() => {
+    if (!flat || !sent.some((i) => i.status === "pending")) return;
+    let alive = true;
+    const check = async () => {
+      const next = await Promise.all(
+        sent.map(async (i) => {
+          if (i.status !== "pending") return i;
+          try {
+            const row = await getSafetyInvite(i.token);
+            if (!row) return i;
+            if (row.status !== i.status && row.status === "accepted") toast.success("Your contact accepted — they're in your Safety Circle");
+            return { ...i, status: row.status };
+          } catch { return i; }
+        }),
+      );
+      if (alive && next.some((n, k) => n.status !== sent[k].status)) setSent(next);
+    };
+    const id = window.setInterval(check, 6000);
+    const onFocus = () => void check();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => { alive = false; window.clearInterval(id); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onFocus); };
+  }, [flat, sent]);
 
   async function makeLink() {
     const token = await createSafetyInvite(role, priority);
     const url = inviteUrl(token);
-    return { url, text: inviteText(url, role) };
+    return { token, url, text: inviteText(url, role) };
   }
 
   async function run(kind: "wa" | "share" | "copy") {
@@ -37,7 +81,7 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
     // Open the window synchronously so iOS doesn't block it as a popup.
     const win = kind === "wa" ? window.open("about:blank", "_blank") : null;
     try {
-      const { url, text } = await makeLink();
+      const { token, url, text } = await makeLink();
       if (kind === "wa") {
         const target = `https://wa.me/?text=${encodeURIComponent(text)}`;
         if (win) win.location.href = target;
@@ -48,13 +92,22 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
         await navigator.clipboard.writeText(text);
         toast.success("Invite copied — paste it in any chat");
       }
-      toast.message("Invite ready. You'll be notified when they accept.");
+      if (flat) {
+        setSent((prev) => [{ token, role, priority, via: kind, status: "pending" }, ...prev]);
+        setComposing(false);
+      } else {
+        toast.message("Invite ready. You'll be notified when they accept.");
+      }
     } catch (error) {
       win?.close();
       toast.error(error instanceof Error ? error.message : "Could not create invite");
     } finally {
       setBusy(null);
     }
+  }
+
+  if (flat && !composing && sent.length > 0) {
+    return <SentReceipt sent={sent} onAnother={() => { setComposing(true); setPriority(2); }} />;
   }
 
   return (
@@ -181,6 +234,47 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
       <p className="mt-3 flex items-center justify-center gap-2 text-center text-[12px] text-muted-foreground">
         <Lock className="size-4 shrink-0" /> Each link works once and expires in 14 days.
       </p>
+    </div>
+  );
+}
+
+const PRIORITY_NAME: Record<number, string> = { 1: "Primary", 2: "Backup", 3: "Additional" };
+const VIA_NAME = { wa: "WhatsApp", share: "your chat app", copy: "a copied link" } as const;
+
+function SentReceipt({ sent, onAnother }: { sent: SentInvite[]; onAnother: () => void }) {
+  const pending = sent.filter((i) => i.status === "pending").length;
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <span className="grid size-8 place-items-center rounded-full bg-success/15 text-success"><Check className="size-4" /></span>
+        <p className="text-[15px] font-bold">
+          {sent.length === 1 ? "Invite sent" : `${sent.length} invites sent`}
+        </p>
+      </div>
+      <ul className="mt-3 space-y-2">
+        {sent.map((i) => (
+          <li key={i.token} className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-[14px] font-semibold">{i.role} · {PRIORITY_NAME[i.priority] ?? "Contact"}</p>
+              <p className="text-[12px] text-muted-foreground">Sent on {VIA_NAME[i.via]}</p>
+            </div>
+            <span className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+              i.status === "accepted" ? "bg-success/15 text-success" : i.status === "pending" ? "bg-gold/15 text-gold" : "bg-muted text-muted-foreground",
+            )}>
+              {i.status === "accepted" ? "Connected" : i.status === "pending" ? "Waiting to accept" : i.status === "declined" ? "Declined" : "Cancelled"}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {pending > 0 && (
+        <p className="mt-3 rounded-xl bg-primary/5 px-3 py-2 text-[12px] leading-relaxed text-foreground/80">
+          You don't need to wait. Finish setup now — when they tap your link and accept, they join your Safety Circle automatically.
+        </p>
+      )}
+      <Button type="button" variant="outline" onClick={onAnother} className="mt-3 h-10 w-full rounded-full text-[13px] font-semibold">
+        + Invite another person
+      </Button>
     </div>
   );
 }
