@@ -364,9 +364,9 @@ function OnboardingPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-col px-4 pb-6 pt-4 sm:px-5 sm:pt-10">
+      <main className="mx-auto flex w-full max-w-5xl flex-col px-4 pb-4 pt-2 sm:px-5 sm:pt-10">
         <div className="mx-auto w-full max-w-2xl">
-          <div className="mb-5 flex items-center gap-3">
+          <div className="mb-3 flex items-center gap-3 sm:mb-5">
             {FLOW_LABELS.map((label, index) => (
               <button
                 key={label}
@@ -398,7 +398,7 @@ function OnboardingPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.22 }}
-              className="glass-panel relative rounded-3xl p-5 sm:p-8"
+              className="glass-panel relative rounded-[28px] border border-border/40 p-4 sm:p-8"
             >
               {step === 0 && <WelcomeStep onNext={next} />}
               {step === 1 && (
@@ -472,17 +472,17 @@ function StepIntro({
   icon?: typeof Sparkles;
 }) {
   return (
-    <div className="relative mb-5">
-      <div className="relative flex items-center gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl aurora-fill text-primary-foreground shadow-soft">
-          <Icon className="h-5 w-5" />
+    <div className="relative mb-4">
+      <div className="relative flex items-center gap-2.5">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl aurora-fill text-primary-foreground shadow-soft">
+          <Icon className="h-4 w-4" />
         </div>
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
       </div>
-      <h1 className="relative mt-4 font-display text-[1.6rem] font-black leading-[1.08] tracking-[-0.04em] sm:text-[2.6rem]">
+      <h1 className="relative mt-3 font-display text-[1.3rem] font-black leading-[1.08] tracking-[-0.04em] sm:text-[2.6rem]">
         {title}
       </h1>
-      <p className="relative mt-2 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
+      <p className="relative mt-1.5 max-w-xl text-[13px] leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>
@@ -501,7 +501,7 @@ function FooterActions({
   disabled?: boolean;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-5 -mb-5 mt-6 flex items-center gap-3 rounded-b-3xl bg-card/80 px-5 py-4 backdrop-blur-xl sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5">
+    <div className="sticky bottom-0 -mx-4 -mb-4 mt-4 flex items-center gap-3 rounded-b-[28px] bg-card/80 px-4 py-3 backdrop-blur-xl sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5">
       {onBack && (
         <Button
           variant="outline"
@@ -590,7 +590,7 @@ function ProfileStep({
       <StepIntro
         eyebrow="Step 1 · You"
         title="Let’s start with you."
-        description="Just the essentials Allma needs in an emergency."
+        description="Your name and photo are shown to your trusted contacts when you press SOS, so they know it is really you."
         icon={UserRound}
       />
       <div className="mb-4 flex items-center gap-4">
@@ -609,7 +609,7 @@ function ProfileStep({
           </p>
         </div>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div>
           <Label htmlFor="onboarding-name">Full name</Label>
           <Input
@@ -617,7 +617,7 @@ function ProfileStep({
             value={draft.name}
             onChange={(e) => onChange({ name: e.target.value })}
             placeholder="What should we call you?"
-            className="mt-2 h-12 rounded-xl bg-background/50"
+            className="mt-1.5 h-11 rounded-xl bg-background/50"
             autoFocus
           />
         </div>
@@ -631,8 +631,9 @@ function ProfileStep({
             value={draft.phone}
             onChange={(e) => onChange({ phone: e.target.value })}
             placeholder="+256 700 000 000"
-            className="mt-2 h-12 rounded-xl bg-background/50"
+            className="mt-1.5 h-11 rounded-xl bg-background/50"
           />
+          <p className="mt-1 text-[11px] text-muted-foreground">Helps people you invite recognise you. Never shown publicly.</p>
         </div>
         <div>
           <Label htmlFor="onboarding-language">Preferred language</Label>
@@ -677,7 +678,7 @@ function LocationStep({
       <StepIntro
         eyebrow="Step 3 · SOS ready"
         title="Help Allma find you when it matters."
-        description="Your precise location can help Allma identify nearby assistance during an active emergency."
+        description="Your location is only used during an SOS, to guide your contacts to you and show the nearest hospitals and police."
         icon={LocateFixed}
       />
       <div
@@ -705,6 +706,11 @@ function LocationStep({
               other users by default. During an active SOS, it can be shared according to your
               emergency permissions.
             </p>
+            <ul className="mt-3 grid gap-1.5 text-[12px]">
+              {["Shared only while an SOS is active", "No background tracking", "Turn it off anytime in settings"].map((t) => (
+                <li key={t} className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />{t}</li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>
@@ -713,7 +719,7 @@ function LocationStep({
           No problem — you can continue. You can enable location later in your Emergency Plan.
         </p>
       )}
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <Button
           onClick={onAllow}
           disabled={busy || allowed}
@@ -773,7 +779,7 @@ function CircleStep({
       <StepIntro
         eyebrow="Step 2 · Safety circle"
         title="Who should Allma contact in an emergency?"
-        description="Add the people Allma should reach during an SOS. You can skip and add them later."
+        description="Send a link on WhatsApp. When they tap it and accept, Allma calls and alerts them the moment you press SOS. No app download needed."
         icon={Users}
       />
       {signedIn ? <CircleTabs /> : <>
@@ -1167,7 +1173,7 @@ function CircleTabs() {
           </button>
         ))}
       </div>
-      <div className="mt-5">
+      <div className="mt-4">
         {tab === "whatsapp" && <WhatsAppInvite flat />}
         {tab === "contacts" && <ImportContacts />}
         {tab === "network" && <SafetyNetworkPanel />}

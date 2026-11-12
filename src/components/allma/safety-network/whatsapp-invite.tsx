@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 import { SAFETY_ROLES, createSafetyInvite, inviteText, inviteUrl } from "@/lib/safety-network";
 
 const PRIORITIES = [
-  { value: 1, label: "Primary", hint: "Called first when you press SOS", icon: PhoneCall },
-  { value: 2, label: "Backup", hint: "Called next if Primary doesn't answer", icon: PhoneCall },
-  { value: 3, label: "Additional", hint: "Gets an alert and your location", icon: Bell },
+  { value: 1, label: "Primary", hint: "Called first, the moment you press SOS", icon: PhoneCall },
+  { value: 2, label: "Backup", hint: "Called at the same time — whoever answers first helps", icon: PhoneCall },
+  { value: 3, label: "Additional", hint: "Gets an alert with your live location, no call", icon: Bell },
 ];
 
 function StepLabel({ n, children }: { n: number; children: React.ReactNode }) {
@@ -81,7 +81,7 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
             onClick={() => setRole(r)}
             aria-pressed={role === r}
             className={cn(
-              "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-[15px] font-semibold transition",
+              flat ? "inline-flex min-h-9 items-center gap-1 rounded-full border px-3 text-[13px] font-semibold transition" : "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-[15px] font-semibold transition",
               role === r
                 ? "border-primary bg-primary text-primary-foreground shadow-md"
                 : "border-border bg-background hover:border-primary/40 hover:bg-muted",
@@ -95,7 +95,7 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
 
       {flat ? (
         <>
-          <p className="mt-4 text-[13px] font-semibold text-muted-foreground">During an SOS</p>
+          <p className="mt-3 text-[13px] font-semibold text-muted-foreground">What should Allma do in an SOS?</p>
           <div role="radiogroup" className="mt-2 grid grid-cols-3 gap-1 rounded-full bg-muted/60 p-1">
             {PRIORITIES.map((p) => (
               <button
@@ -113,7 +113,7 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-[12px] text-muted-foreground">{PRIORITIES.find((p) => p.value === priority)?.hint}</p>
+          <p className="mt-2 rounded-xl bg-primary/5 px-3 py-2 text-[12px] text-foreground/80">{PRIORITIES.find((p) => p.value === priority)?.hint}</p>
         </>
       ) : (
         <>
@@ -165,7 +165,7 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
         type="button"
         onClick={() => void run("wa")}
         disabled={!!busy}
-        className={cn(flat ? "mt-5" : "mt-3", "h-14 w-full rounded-2xl bg-success text-[17px] font-bold text-success-foreground shadow-lg hover:bg-success/90")}
+        className={cn(flat ? "mt-4 h-12" : "mt-3 h-14", " w-full rounded-2xl bg-success text-[17px] font-bold text-success-foreground shadow-lg hover:bg-success/90")}
       >
         {busy === "wa" ? <Loader2 className="mr-2 size-6 animate-spin" /> : <MessageCircle className="mr-2 size-6" />}
         Invite via WhatsApp
