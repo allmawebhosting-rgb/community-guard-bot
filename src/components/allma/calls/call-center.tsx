@@ -498,7 +498,13 @@ export function CallCenter() {
         .eq("id", id)
         .eq("recipient_id", userId)
         .in("status", ["initiating", "ringing", "connecting"])
-        .maybeSingle();
+        .maybeSingle<{
+          id: string;
+          caller_id: string;
+          caller_display_name: string | null;
+          status: string;
+          sos_session_id: string | null;
+        }>();
       if (!row || callIdRef.current) return;
       const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
       const callerPeer = known ?? {

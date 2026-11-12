@@ -145,9 +145,12 @@ export async function listSosCallAttempts(sosActivityId: string): Promise<SosCal
   return (data ?? []) as SosCallAttempt[];
 }
 
+// These SOS functions exist on the live database but are missing from generated types.
+type UntypedRpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
+
 /** Atomically reserves one responder and closes every sibling SOS call. */
 export async function claimSosEmergencyCall(callId: string) {
-  const { data, error } = await supabase.rpc("claim_sos_emergency_call", {
+  const { data, error } = await (supabase.rpc.bind(supabase) as unknown as UntypedRpc)("claim_sos_emergency_call", {
     p_call_id: callId,
   });
   if (error) throw new Error(friendly(error.message));
@@ -162,7 +165,7 @@ export async function claimSosEmergencyCall(callId: string) {
 
 /** Ends a no-answer round unless a responder claimed a call at the same time. */
 export async function finishSosCallRound(sosActivityId: string, callIds: string[]) {
-  const { data, error } = await supabase.rpc("finish_sos_call_round", {
+  const { data, error } = await (supabase.rpc.bind(supabase) as unknown as UntypedRpc)("finish_sos_call_round", {
     p_sos_activity_id: sosActivityId,
     p_call_ids: callIds,
   });
