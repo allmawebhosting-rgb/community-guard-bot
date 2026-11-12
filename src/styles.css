@@ -1415,3 +1415,33 @@
 .voice-bar { background: linear-gradient(180deg,var(--vc),var(--vb),var(--vp)); }
 .voice-card { background: color-mix(in oklab,var(--card) 80%,transparent); border: 1px solid color-mix(in oklab,var(--vb) 15%,var(--border)); box-shadow: 0 8px 24px -16px color-mix(in oklab,var(--vb) 40%,transparent); }
 @media (prefers-reduced-motion: reduce) { .voice-deck * { animation: none !important; } }
+
+/* Modern animated aurora backdrop + glass surfaces (auth & onboarding) */
+@keyframes aurora-shift {
+  0%, 100% { background-position: 0% 50%, 100% 0%, 50% 100%; }
+  50% { background-position: 100% 50%, 0% 100%, 30% 0%; }
+}
+@utility aurora-bg {
+  background:
+    radial-gradient(60% 50% at 15% 20%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 70%),
+    radial-gradient(50% 45% at 85% 15%, color-mix(in oklab, var(--info) 20%, transparent), transparent 70%),
+    radial-gradient(55% 50% at 60% 90%, color-mix(in oklab, var(--trusted) 18%, transparent), transparent 70%),
+    var(--background);
+  background-size: 180% 180%, 180% 180%, 180% 180%, auto;
+  animation: aurora-shift 18s ease-in-out infinite;
+}
+@utility aurora-fill {
+  background-image: linear-gradient(110deg, var(--primary), var(--primary-glow), var(--info), var(--primary));
+  background-size: 250% 100%;
+  color: var(--primary-foreground);
+  animation: aurora-shift 6s ease-in-out infinite;
+}
+@utility glass-panel {
+  background: color-mix(in oklab, var(--card) 68%, transparent);
+  border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+  backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: 0 30px 80px -40px color-mix(in oklab, var(--primary) 35%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora-bg, .aurora-fill { animation: none; }
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Loader2, Shield, Siren, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { BrandLockup } from "@/components/allma/brand";
 import { Mascot } from "@/components/allma/mascot";
@@ -76,13 +76,6 @@ const credentials = z.object({
   email: z.string().trim().email("Enter a valid email address").max(255),
   password: z.string().min(8, "Password must be at least 8 characters").max(72),
 });
-
-const TRUST_POINTS = [
-  { icon: Shield, text: "100% free — no payment required" },
-  { icon: Check, text: "Reports encrypted and stored securely" },
-  { icon: Siren, text: "Emergency SOS with one press" },
-  { icon: Sparkles, text: "AI guides you step by step" },
-];
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -227,13 +220,13 @@ function AuthPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
-      <div className="signal-streak pointer-events-none fixed inset-0 -z-10 opacity-60" />
+    <div className="relative min-h-[100dvh] overflow-hidden bg-background">
+      <div className="aurora-bg pointer-events-none fixed inset-0 -z-10" />
 
       {/* ── Desktop split layout ─────────────────────────────────────── */}
-      <div className="flex min-h-screen lg:flex-row">
+      <div className="flex min-h-[100dvh] lg:flex-row">
         {/* Left hero panel — desktop only */}
-        <div className="relative hidden flex-col items-center justify-center overflow-hidden border-r border-border/40 bg-card/40 px-12 py-16 lg:flex lg:w-[52%] xl:w-[55%]">
+        <div className="relative hidden flex-col items-center justify-center overflow-hidden px-12 py-16 lg:flex lg:w-[52%] xl:w-[55%]">
           <div className="pointer-events-none absolute inset-0 hero-glow opacity-70" />
           <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-primary-glow/10 blur-3xl" />
@@ -257,26 +250,16 @@ function AuthPage() {
               when it counts.
             </p>
 
-            <div className="mt-8 w-full space-y-3">
-              {TRUST_POINTS.map(({ icon: Icon, text }) => (
-                <div
-                  key={text}
-                  className="flex items-center gap-3 rounded-2xl border border-border/50 bg-background/30 px-4 py-3 backdrop-blur-sm"
-                >
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/15">
-                    <Icon className="h-3.5 w-3.5 text-primary" />
-                  </span>
-                  <span className="text-[13px] font-medium text-foreground/80">{text}</span>
-                </div>
-              ))}
-            </div>
+            <p className="mt-8 text-[12px] font-medium tracking-wide text-muted-foreground">
+              100% free · Encrypted · One-press SOS
+            </p>
           </div>
         </div>
 
         {/* Right form panel */}
-        <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 lg:px-12">
+        <div className="flex flex-1 flex-col items-center justify-center px-5 py-6 lg:px-12">
           {/* Mobile back link */}
-          <div className="mb-6 w-full max-w-sm lg:hidden">
+          <div className="mb-4 w-full max-w-sm lg:hidden">
             <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground">
               <ArrowLeft className="h-4 w-4" /> Back to assistant
             </Link>
@@ -291,9 +274,9 @@ function AuthPage() {
               <ArrowLeft className="h-3.5 w-3.5" /> Back to home
             </Link>
 
-            <div className="rounded-3xl border border-border bg-card p-7 shadow-lift lg:shadow-2xl">
+            <div className="glass-panel rounded-3xl p-6 sm:p-7">
               {/* Mobile brand */}
-              <BrandLockup className="mb-6 lg:hidden" />
+              <BrandLockup className="mb-5 lg:hidden" />
 
               <h2 className="hidden font-display text-2xl font-black tracking-[-0.03em] lg:block">
                 Welcome back
@@ -349,7 +332,7 @@ function AuthPage() {
                         onChange={(e) => setPassword(e.target.value)}
                       />
                     </div>
-                    <Button className="w-full rounded-full" disabled={loading} onClick={signIn}>
+                    <Button className="aurora-fill h-12 w-full rounded-full" disabled={loading} onClick={signIn}>
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Sign in <ArrowRight className="ml-1.5 h-4 w-4" />
                     </Button>
@@ -385,7 +368,7 @@ function AuthPage() {
                         onChange={(e) => setPassword(e.target.value)}
                       />
                     </div>
-                    <Button className="w-full rounded-full" disabled={loading} onClick={signUp}>
+                    <Button className="aurora-fill h-12 w-full rounded-full" disabled={loading} onClick={signUp}>
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Create account <ArrowRight className="ml-1.5 h-4 w-4" />
                     </Button>
@@ -433,7 +416,7 @@ function AuthPage() {
                       />
                     </div>
                     <Button
-                      className="w-full rounded-full"
+                      className="aurora-fill h-12 w-full rounded-full"
                       disabled={loading}
                       onClick={phoneSignUp}
                     >
@@ -454,7 +437,7 @@ function AuthPage() {
                       />
                     </div>
                     <Button
-                      className="w-full rounded-full"
+                      className="aurora-fill h-12 w-full rounded-full"
                       disabled={loading}
                       onClick={phoneSignIn}
                     >
@@ -472,12 +455,13 @@ function AuthPage() {
                 </Tabs>
               )}
 
-              <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="h-px flex-1 bg-border" /> or{" "}
                 <span className="h-px flex-1 bg-border" />
               </div>
 
-              <Button variant="outline" className="w-full rounded-full" disabled={loading} onClick={google}>
+              <Button variant="outline" className="h-12 w-full rounded-full bg-background/60" disabled={loading} onClick={google}>
+                <svg viewBox="0 0 24 24" className="mr-2 h-4 w-4" aria-hidden><path fill="currentColor" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3zM12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22zM6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14zM12 5.9c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10c.8-2.3 3-4.1 5.6-4.1z"/></svg>
                 Continue with Google
               </Button>
               <Button variant="ghost" className="mt-2 w-full rounded-full" asChild>
@@ -485,7 +469,7 @@ function AuthPage() {
               </Button>
             </div>
 
-            <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">{DISCLAIMER}</p>
+            <p className="mt-4 text-center text-[10px] leading-relaxed text-muted-foreground/80">{DISCLAIMER}</p>
           </div>
         </div>
       </div>

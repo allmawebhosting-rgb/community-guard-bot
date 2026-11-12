@@ -8,8 +8,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
-  HeartHandshake,
-  ImagePlus,
+    ImagePlus,
   LocateFixed,
   LockKeyhole,
   MapPin,
@@ -59,6 +58,9 @@ type CircleMember = {
   status: "pending" | "connected";
 };
 
+// Streamlined flow: Profile → Safety Circle → SOS location, then into the app.
+const FLOW: Step[] = [1, 3, 2];
+const FLOW_LABELS = ["You", "Safety circle", "SOS ready"];
 const STEP_LABELS = ["Welcome", "Profile", "Location", "Circle", "Plan", "Health", "Ready"];
 const RELATIONSHIPS = [
   "Family",
@@ -257,7 +259,8 @@ function OnboardingPage() {
     );
   }
 
-  const step = draft.step;
+  const step: Step = FLOW.includes(draft.step) ? draft.step : 1;
+  const flowIndex = FLOW.indexOf(step);
   const progress = Math.round((step / (STEP_LABELS.length - 1)) * 100);
   const canContinue = step !== 1 || draft.name.trim().length > 1;
 
@@ -267,11 +270,12 @@ function OnboardingPage() {
 
   function next() {
     if (!canContinue) return;
-    update({ step: Math.min(6, step + 1) as Step });
+    if (flowIndex >= FLOW.length - 1) return void finish();
+    update({ step: FLOW[flowIndex + 1] });
   }
 
   function back() {
-    update({ step: Math.max(0, step - 1) as Step });
+    if (flowIndex > 0) update({ step: FLOW[flowIndex - 1] });
   }
 
   function addMember() {
@@ -345,11 +349,9 @@ function OnboardingPage() {
 
   const minutesLeft = Math.max(1, Math.ceil((6 - step) * 0.35));
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background">
-      <div className="signal-streak pointer-events-none fixed inset-0 -z-10 opacity-60" />
-      <div className="pointer-events-none fixed -left-32 top-24 -z-10 h-80 w-80 rounded-full bg-primary/15 blur-3xl" />
-      <div className="pointer-events-none fixed -right-32 bottom-10 -z-10 h-80 w-80 rounded-full bg-gold/10 blur-3xl" />
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-background">
+      <div className="aurora-bg pointer-events-none fixed inset-0 -z-10" />
+      <header className="sticky top-0 z-30 bg-background/40 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5">
           <Link to="/">
             <BrandLockup />
@@ -362,58 +364,31 @@ function OnboardingPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-col px-4 pb-16 pt-6 sm:px-5 sm:pt-10">
+      <main className="mx-auto flex w-full max-w-5xl flex-col px-4 pb-6 pt-4 sm:px-5 sm:pt-10">
         <div className="mx-auto w-full max-w-2xl">
-          <div className="mb-6 rounded-3xl border border-border/50 bg-card/50 p-4 shadow-soft backdrop-blur-xl sm:p-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-                  Step {step + 1} of {STEP_LABELS.length}
-                </p>
-                <p className="mt-0.5 font-display text-base font-bold">{STEP_LABELS[step]}</p>
-              </div>
-              <span className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[11px] font-semibold text-muted-foreground">
-                <Clock3 className="h-3.5 w-3.5" />
-                {step === 6 ? "Done" : `~${minutesLeft} min left`}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {STEP_LABELS.map((label, index) => (
-                <button
-                  key={label}
-                  type="button"
-                  aria-label={`Go to ${label}`}
-                  disabled={index > step}
-                  onClick={() => index < step && update({ step: index as Step })}
-                  className="group h-2 flex-1 overflow-hidden rounded-full bg-muted disabled:cursor-default"
-                >
+          <div className="mb-5 flex items-center gap-3">
+            {FLOW_LABELS.map((label, index) => (
+              <button
+                key={label}
+                type="button"
+                aria-label={`Go to ${label}`}
+                disabled={index > flowIndex}
+                onClick={() => index < flowIndex && update({ step: FLOW[index] })}
+                className="flex flex-1 flex-col gap-1.5 text-left disabled:cursor-default"
+              >
+                <span className="h-1 overflow-hidden rounded-full bg-muted">
                   <motion.span
-                    className="block h-full rounded-full bg-gradient-to-r from-primary to-primary-glow"
+                    className="block h-full rounded-full aurora-fill"
                     initial={false}
-                    animate={{ width: index < step ? "100%" : index === step ? "55%" : "0%" }}
-                    transition={{ duration: 0.35 }}
+                    animate={{ width: index <= flowIndex ? "100%" : "0%" }}
+                    transition={{ duration: 0.4 }}
                   />
-                </button>
-              ))}
-            </div>
-            <div className="mt-2.5 hidden grid-cols-7 gap-1.5 sm:grid">
-              {STEP_LABELS.map((label, index) => (
-                <span
-                  key={label}
-                  className={cn(
-                    "flex items-center gap-1 text-[10px] font-semibold",
-                    index < step
-                      ? "text-success"
-                      : index === step
-                        ? "text-foreground"
-                        : "text-muted-foreground/50",
-                  )}
-                >
-                  {index < step && <Check className="h-3 w-3" />}
+                </span>
+                <span className={cn("text-[11px] font-semibold", index <= flowIndex ? "text-foreground" : "text-muted-foreground/60")}>
                   {label}
                 </span>
-              ))}
-            </div>
+              </button>
+            ))}
           </div>
 
           <AnimatePresence mode="wait" initial={false}>
@@ -423,7 +398,7 @@ function OnboardingPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.22 }}
-              className="relative overflow-hidden rounded-[2rem] border border-border/60 bg-card/75 p-5 shadow-lift ring-1 ring-primary/5 backdrop-blur-xl sm:p-9"
+              className="glass-panel relative rounded-3xl p-5 sm:p-8"
             >
               {step === 0 && <WelcomeStep onNext={next} />}
               {step === 1 && (
@@ -432,7 +407,7 @@ function OnboardingPage() {
                   onChange={update}
                   onNext={next}
                   canContinue={canContinue}
-                  onBack={back}
+                  onBack={undefined}
                 />
               )}
               {step === 2 && (
@@ -497,18 +472,17 @@ function StepIntro({
   icon?: typeof Sparkles;
 }) {
   return (
-    <div className="relative mb-8">
-      <div className="pointer-events-none absolute -right-20 -top-20 h-44 w-44 rounded-full bg-primary/10 blur-3xl" />
+    <div className="relative mb-5">
       <div className="relative flex items-center gap-3">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-soft">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl aurora-fill text-primary-foreground shadow-soft">
           <Icon className="h-5 w-5" />
         </div>
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
       </div>
-      <h1 className="relative mt-5 font-display text-[1.9rem] font-black leading-[1.08] tracking-[-0.04em] sm:text-[2.6rem]">
+      <h1 className="relative mt-4 font-display text-[1.6rem] font-black leading-[1.08] tracking-[-0.04em] sm:text-[2.6rem]">
         {title}
       </h1>
-      <p className="relative mt-3 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
+      <p className="relative mt-2 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>
@@ -527,7 +501,7 @@ function FooterActions({
   disabled?: boolean;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-5 -mb-5 mt-9 flex items-center gap-3 border-t border-border/50 bg-card/90 px-5 py-4 backdrop-blur-xl sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5">
+    <div className="sticky bottom-0 -mx-5 -mb-5 mt-6 flex items-center gap-3 rounded-b-3xl bg-card/80 px-5 py-4 backdrop-blur-xl sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5">
       {onBack && (
         <Button
           variant="outline"
@@ -541,7 +515,7 @@ function FooterActions({
       <Button
         onClick={onNext}
         disabled={disabled}
-        className="h-12 flex-1 rounded-full bg-gradient-to-r from-primary to-primary-glow px-7 text-[15px] font-semibold text-primary-foreground shadow-lift sm:ml-auto sm:flex-none"
+        className="aurora-fill h-12 flex-1 rounded-full px-7 text-[15px] font-semibold text-primary-foreground shadow-lift sm:ml-auto sm:flex-none"
       >
         {nextLabel} <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
@@ -604,7 +578,7 @@ function ProfileStep({
   draft: OnboardingDraft;
   onChange: (v: Partial<OnboardingDraft>) => void;
   onNext: () => void;
-  onBack: () => void;
+  onBack?: () => void;
   canContinue: boolean;
 }) {
   function avatar(event: React.ChangeEvent<HTMLInputElement>) {
@@ -614,13 +588,13 @@ function ProfileStep({
   return (
     <>
       <StepIntro
-        eyebrow="01 · Your account"
+        eyebrow="Step 1 · You"
         title="Let’s start with you."
-        description="A little context helps Allma guide you quickly. We only ask for what matters in an emergency."
+        description="Just the essentials Allma needs in an emergency."
         icon={UserRound}
       />
-      <div className="mb-6 flex items-center gap-4 rounded-2xl border border-border/50 bg-background/40 p-4">
-        <label className="relative grid h-16 w-16 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-2xl border border-dashed border-primary/40 bg-primary/10">
+      <div className="mb-4 flex items-center gap-4">
+        <label className="relative grid h-14 w-14 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full border border-dashed border-primary/40 bg-primary/10">
           {draft.avatar ? (
             <img src={draft.avatar} alt="Profile preview" className="h-full w-full object-cover" />
           ) : (
@@ -633,12 +607,9 @@ function ProfileStep({
             Add a profile photo{" "}
             <span className="font-normal text-muted-foreground">(optional)</span>
           </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            It helps your trusted circle recognise your requests.
-          </p>
         </div>
       </div>
-      <div className="space-y-5">
+      <div className="space-y-4">
         <div>
           <Label htmlFor="onboarding-name">Full name</Label>
           <Input
@@ -649,9 +620,6 @@ function ProfileStep({
             className="mt-2 h-12 rounded-xl bg-background/50"
             autoFocus
           />
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Shown to people you intentionally invite.
-          </p>
         </div>
         <div>
           <Label htmlFor="onboarding-phone">
@@ -665,9 +633,6 @@ function ProfileStep({
             placeholder="+256 700 000 000"
             className="mt-2 h-12 rounded-xl bg-background/50"
           />
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Used only for account recovery and emergency settings you approve.
-          </p>
         </div>
         <div>
           <Label htmlFor="onboarding-language">Preferred language</Label>
@@ -710,7 +675,7 @@ function LocationStep({
   return (
     <>
       <StepIntro
-        eyebrow="02 · Location"
+        eyebrow="Step 3 · SOS ready"
         title="Help Allma find you when it matters."
         description="Your precise location can help Allma identify nearby assistance during an active emergency."
         icon={LocateFixed}
@@ -763,7 +728,7 @@ function LocationStep({
           </Button>
         )}
       </div>
-      <FooterActions onBack={onBack} onNext={onNext} />
+      <FooterActions onBack={onBack} onNext={onNext} nextLabel="Enter Allma" />
     </>
   );
 }
@@ -806,17 +771,11 @@ function CircleStep({
   return (
     <>
       <StepIntro
-        eyebrow="03 · Safety Network"
+        eyebrow="Step 2 · Safety circle"
         title="Who should Allma contact in an emergency?"
-        description="Pick people from your phone. For each one, choose who they are to you and whether they’re called first, as backup, or just alerted."
+        description="Add the people Allma should reach during an SOS. You can skip and add them later."
         icon={Users}
       />
-      <div className="mb-5 flex items-start gap-3 rounded-2xl border border-trusted/20 bg-trusted/5 p-4">
-        <HeartHandshake className="mt-0.5 h-5 w-5 shrink-0 text-trusted" />
-        <p className="text-[12px] leading-relaxed text-muted-foreground">
-          If you activate SOS, Allma contacts only accepted people whose emergency-call permissions are enabled. You control location sharing for each connection.
-        </p>
-      </div>
       {signedIn && <CircleTabs />}
       <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
         <span>
