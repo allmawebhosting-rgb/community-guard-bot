@@ -66,6 +66,7 @@ import { AssistantHero } from "@/components/allma/assistant-hero";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { UGANDA_HOTLINES } from "@/lib/emergency-triage";
 import { parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
 
 
@@ -833,6 +834,21 @@ function ToolCard({
         </div>
       ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
         <div className="grid gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 lg:grid-cols-2">
+          {(() => {
+            const t = String((output.facilities as Array<Record<string, unknown>>)[0]?.facility_type ?? "");
+            const kind = t === "police" ? "violence" : t === "fire" ? "fire" : t === "hospital" || t === "ambulance" ? "medical" : null;
+            if (!kind) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-2 bg-destructive/10 p-3 lg:col-span-2">
+                <span className="text-[13px] font-semibold text-destructive">Emergency lines:</span>
+                {UGANDA_HOTLINES[kind].map((h) => (
+                  <a key={h.number + h.label} href={`tel:${h.number}`} className="rounded-full bg-destructive px-3 py-1.5 text-[13px] font-bold text-destructive-foreground">
+                    {h.label} {h.number}
+                  </a>
+                ))}
+              </div>
+            );
+          })()}
           {(output.facilities as Array<Record<string, unknown>>).map((facility, index) => {
             const lat = Number(facility.lat ?? facility.latitude);
             const lng = Number(facility.lng ?? facility.longitude);
@@ -848,7 +864,7 @@ function ToolCard({
                 )}
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-bold leading-snug text-foreground">{String(facility.name)}</span>
-                  <span className="mt-1 flex items-center gap-1 text-[13px] text-chat-accent"><MapPin className="h-3.5 w-3.5" />{String(facility.district ?? facility.address ?? "")}</span>
+                  <span className="mt-1 flex items-center gap-1 text-[13px] text-chat-accent"><MapPin className="h-3.5 w-3.5" />{Number.isFinite(Number(facility.distance_km)) && facility.distance_km != null ? `${Number(facility.distance_km)} km · ` : ""}{String(facility.district ?? facility.address ?? "")}</span>
                   {Number.isFinite(rating) && rating > 0 ? (
                     <span className="mt-1 flex items-center gap-1 text-[12px] text-muted-foreground"><Star className="h-3.5 w-3.5 fill-gold text-gold" />{rating.toFixed(1)}{facility.reviews ? ` (${String(facility.reviews)} reviews)` : ""}</span>
                   ) : facility.phone ? (

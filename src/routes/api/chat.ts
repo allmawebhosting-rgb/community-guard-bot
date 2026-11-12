@@ -1,3 +1,4 @@
+import { classifyEmergency, emergencyPromptBlock } from "@/lib/emergency-triage";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
@@ -264,12 +265,14 @@ export const Route = createFileRoute("/api/chat")({
           { matches: /find help|near me|nearest|police station|hospital|ambulance|fire station/i, flow: "Find help", opener: 'Which service do you need? Options: "Police station", "Hospital", "Fire station".' },
         ];
         const directService = /hospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null;
-        const matchedIntent = INTENTS.find((i) => i.matches.test(intakeText));
+        const emergencyKind = flowState.flowLabel ? null : classifyEmergency(intakeText);
+        const emergencyBlock = emergencyPromptBlock(emergencyKind, Boolean(sharedCoords));
+        const matchedIntent = emergencyKind ? undefined : INTENTS.find((i) => i.matches.test(intakeText));
         const intent = matchedIntent?.flow === "Find help" && directService ? undefined : matchedIntent;
         const directHelpBlock = matchedIntent?.flow === "Find help" && directService
           ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directService}. Do NOT open a flow, do NOT ask which service they need. Call find_facilities right away for that service (use their shared location if any; otherwise search near their stated area or ask only for their location in one short line). Then answer with a short friendly line and finish with "Would you like directions to any of these?"`
           : "";
-        const intentBlock = directHelpBlock + (intent
+        const intentBlock = emergencyBlock + directHelpBlock + (intent
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
                 ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
@@ -306,6 +309,7 @@ export const Route = createFileRoute("/api/chat")({
         const needsProcedures =
           fullMode ||
           Boolean(intent) ||
+          Boolean(emergencyKind) ||
           /steal|stole|stolen|thief|theft|snatch|rob|assault|beat|attack|hurt|injur|missing|lost|found|violence|abuse|rape|defile|threaten|accident|crash|knock(ed)? (me|him|her)|fire|burn|smoke|bleed|unconscious|not breathing|choking|stroke|snake bite|burn|fraud|scam|conned|mobile money|momo|suspicious|kidnap|abduct/i.test(
             intakeText,
           );
