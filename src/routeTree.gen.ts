@@ -66,6 +66,7 @@ import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authe
 import { Route as AuthenticatedPolicePersonsRouteImport } from './routes/_authenticated/police.persons'
 import { Route as AuthenticatedPoliceSearchRouteImport } from './routes/_authenticated/police.search'
 import { Route as AuthenticatedPoliceSettingsRouteImport } from './routes/_authenticated/police.settings'
+import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -373,6 +374,11 @@ const AuthenticatedPoliceSettingsRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
+  id: '/api/public/place-photo',
+  path: '/api/public/place-photo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedPoliceCasesCaseIdRoute =
   AuthenticatedPoliceCasesCaseIdRouteImport.update({
     id: '/cases/$caseId',
@@ -435,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/police/search': typeof AuthenticatedPoliceSearchRoute
   '/police/settings': typeof AuthenticatedPoliceSettingsRoute
+  '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -492,6 +499,7 @@ export interface FileRoutesByTo {
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/police/search': typeof AuthenticatedPoliceSearchRoute
   '/police/settings': typeof AuthenticatedPoliceSettingsRoute
+  '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -553,6 +561,7 @@ export interface FileRoutesById {
   '/_authenticated/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/_authenticated/police/search': typeof AuthenticatedPoliceSearchRoute
   '/_authenticated/police/settings': typeof AuthenticatedPoliceSettingsRoute
+  '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
   '/_authenticated/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -614,6 +623,7 @@ export interface FileRouteTypes {
     | '/police/persons'
     | '/police/search'
     | '/police/settings'
+    | '/api/public/place-photo'
     | '/chat/'
     | '/police/'
     | '/police/cases/$caseId'
@@ -671,6 +681,7 @@ export interface FileRouteTypes {
     | '/police/persons'
     | '/police/search'
     | '/police/settings'
+    | '/api/public/place-photo'
     | '/chat'
     | '/police'
     | '/police/cases/$caseId'
@@ -731,6 +742,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police/persons'
     | '/_authenticated/police/search'
     | '/_authenticated/police/settings'
+    | '/api/public/place-photo'
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
     | '/_authenticated/police/cases/$caseId'
@@ -766,6 +778,7 @@ export interface RootRouteChildren {
   InviteTokenRoute: typeof InviteTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1169,6 +1182,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceSettingsRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/api/public/place-photo': {
+      id: '/api/public/place-photo'
+      path: '/api/public/place-photo'
+      fullPath: '/api/public/place-photo'
+      preLoaderRoute: typeof ApiPublicPlacePhotoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/police/cases/$caseId': {
       id: '/_authenticated/police/cases/$caseId'
       path: '/cases/$caseId'
@@ -1294,6 +1314,7 @@ const rootRouteChildren: RootRouteChildren = {
   InviteTokenRoute: InviteTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

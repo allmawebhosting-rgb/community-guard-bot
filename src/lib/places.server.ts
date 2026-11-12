@@ -90,6 +90,7 @@ const NearbyPlaceSchema = z.object({
   latitude: z.number(),
   longitude: z.number(),
   source: z.enum(["google", "seeded"]),
+  photo_name: z.string().nullable().optional(),
 });
 
 export type NearbyPlaceResult = z.infer<typeof NearbyPlaceSchema>;
@@ -249,7 +250,7 @@ async function loadGooglePlaces(
       "X-Goog-Api-Key": googleMapsKey,
       Referer: "https://allmasafetyai.online/",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType",
+        "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType,places.photos",
     },
     body: JSON.stringify({
       locationRestriction: {
@@ -297,6 +298,7 @@ async function loadGooglePlaces(
       nationalPhoneNumber?: string;
       currentOpeningHours?: { openNow?: boolean };
       primaryType?: string;
+      photos?: Array<{ name?: string }>;
     }>;
   };
 
@@ -318,6 +320,7 @@ async function loadGooglePlaces(
       latitude: place.location!.latitude!,
       longitude: place.location!.longitude!,
       source: "google" as const,
+      photo_name: place.photos?.[0]?.name ?? null,
     }))
     .filter((item) => Number.isFinite(item.distance_m));
 }

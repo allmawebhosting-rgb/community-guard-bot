@@ -597,6 +597,7 @@ export const Route = createFileRoute("/api/chat")({
                           latitude: p.latitude,
                           longitude: p.longitude,
                           open_now: p.open_now,
+                          photo_url: p.photo_name ? `/api/public/place-photo?name=${encodeURIComponent(p.photo_name)}` : null,
                           distance_km: Math.round(p.distance_m / 100) / 10,
                         })),
                         note: "Sorted by straight-line distance from the user's GPS. Name the closest one first; never state travel time.",

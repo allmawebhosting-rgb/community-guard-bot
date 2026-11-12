@@ -384,31 +384,31 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
   return (
     <div className="w-full space-y-3">
       {kind ? (
-        <div className="rounded-2xl border border-destructive/25 bg-destructive/5 p-3">
+        <div className="space-y-2">
           <button
             type="button"
             onClick={() => navigate({ to: "/sos", search: { instant: true } })}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-[15px] font-bold text-destructive-foreground shadow-soft active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive px-4 py-3.5 text-[15px] font-bold text-destructive-foreground shadow-soft active:scale-[0.98]"
           >
-            <ShieldAlert className="h-5 w-5" /> Getting worse? Activate SOS
+            <ShieldAlert className="h-5 w-5 shrink-0" /> Getting worse? Activate SOS
           </button>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="flex gap-2">
             {UGANDA_HOTLINES[kind].map((h) => (
-              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex items-center justify-center gap-1.5 rounded-xl border border-destructive/30 bg-card px-2 py-2 text-[13px] font-semibold text-destructive">
-                <Phone className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{h.label} {h.number}</span>
+              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-destructive/30 px-3 py-2 text-[13px] font-semibold text-destructive">
+                <Phone className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Call {h.number}</span>
               </a>
             ))}
           </div>
         </div>
       ) : null}
       {facilities.length === 0 ? (
-        <p className="rounded-2xl border border-border/60 bg-card p-3 text-sm text-muted-foreground">No places found nearby. Share your location or try another area name.</p>
+        <p className="text-sm text-muted-foreground">No places found nearby. Share your location or try another area name.</p>
       ) : (
         <>
           {output.resolved_area ? (
             <p className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground"><MapPin className="h-3.5 w-3.5 text-chat-accent" />Nearest to {String(output.resolved_area)}</p>
           ) : null}
-          <div className="grid gap-2 lg:grid-cols-2">
+          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/60 bg-card lg:grid lg:grid-cols-2 lg:divide-y-0">
             {facilities.map((facility, index) => {
               const lat = Number(facility.lat ?? facility.latitude);
               const lng = Number(facility.lng ?? facility.longitude);
@@ -416,29 +416,32 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
               const km = facility.distance_km != null && Number.isFinite(Number(facility.distance_km)) ? Number(facility.distance_km) : null;
               const label = FACILITY_LABEL[String(facility.facility_type ?? "")] ?? null;
               const phone = typeof facility.phone === "string" && facility.phone ? facility.phone : null;
+              const photo = typeof facility.photo_url === "string" && facility.photo_url ? facility.photo_url : null;
               return (
-                <div key={index} className={cn("rounded-2xl border bg-card p-3 shadow-soft", index === 0 ? "border-chat-accent/50" : "border-border/60")}>
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-chat-user text-chat-accent"><Hospital className="h-5 w-5" /></span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {index === 0 ? <span className="rounded-full bg-chat-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">Nearest</span> : null}
-                        {label ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{label}</span> : null}
-                        {facility.open_now === true ? <span className="text-[10px] font-semibold text-chat-accent">Open now</span> : null}
-                      </div>
-                      <p className="mt-1 text-[15px] font-bold leading-snug text-foreground">{String(facility.name)}</p>
-                      <p className="mt-0.5 line-clamp-1 text-[12.5px] text-muted-foreground">{km != null ? <strong className="text-chat-accent">{km} km · </strong> : null}{String(facility.address ?? facility.district ?? "")}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-chat-accent px-3 py-2 text-[13px] font-semibold text-primary-foreground">
-                      <MapPin className="h-4 w-4" /> Directions
-                    </a>
-                    {phone ? (
-                      <a href={`tel:${phone.replace(/\s+/g, "")}`} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-[13px] font-semibold text-foreground">
-                        <Phone className="h-4 w-4" /> Call
+                <div key={index} className="flex items-center gap-3 p-3">
+                  {photo ? (
+                    <img src={photo} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-xl bg-muted object-cover" />
+                  ) : (
+                    <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-chat-user text-chat-accent"><Hospital className="h-6 w-6" /></span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-[14.5px] font-bold leading-snug text-foreground">{String(facility.name)}</p>
+                    <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
+                      {km != null ? <strong className="text-chat-accent">{km} km</strong> : null}
+                      {km != null && (label || index === 0) ? " · " : null}
+                      {index === 0 ? <span className="font-semibold text-chat-accent">Nearest</span> : label}
+                      {facility.open_now === true ? " · Open now" : null}
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <a href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-chat-accent px-3 py-1.5 text-[12.5px] font-semibold text-primary-foreground">
+                        <MapPin className="h-3.5 w-3.5" /> Directions
                       </a>
-                    ) : null}
+                      {phone ? (
+                        <a href={`tel:${phone.replace(/\s+/g, "")}`} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-[12.5px] font-semibold text-foreground">
+                          <Phone className="h-3.5 w-3.5" /> Call
+                        </a>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               );
@@ -859,6 +862,10 @@ function ToolCard({
         </div>
       </div>
     );
+  }
+
+  if (name === "find_facilities" && Array.isArray(output?.facilities)) {
+    return <FacilityResults output={output as Record<string, unknown>} />;
   }
 
   return (
@@ -1469,7 +1476,7 @@ export function AllmaChat({
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1 overscroll-contain">
-          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-40 lg:pb-10 lg:max-w-4xl lg:px-8">
+          <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", fixedComposer ? "pb-32" : "pb-6")}>
             <div className="flex flex-col gap-7 pt-16 lg:pt-8">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-3 sm:max-w-full" : "max-w-full sm:max-w-full"}>
@@ -1480,7 +1487,9 @@ export function AllmaChat({
                   <MessageContent
                     className={
                       message.role === "assistant"
-                        ? "max-w-[92%] rounded-[1.4rem] rounded-tl-md border border-border/60 bg-card px-4 py-3.5 shadow-soft"
+                        ? message.parts.some((p) => p.type === "tool-find_facilities")
+                          ? "w-full max-w-full bg-transparent p-0 shadow-none"
+                          : "max-w-[92%] rounded-[1.4rem] rounded-tl-md border border-border/60 bg-card px-4 py-3.5 shadow-soft"
                         : "ml-auto max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[75%]"
                     }
                   >
@@ -1649,7 +1658,7 @@ export function AllmaChat({
 
       <div
         className={cn(
-          "no-print z-20 shrink-0 rounded-t-[2rem] bg-gradient-to-t from-background via-background/95 to-background/0 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4",
+          "no-print z-20 shrink-0 rounded-t-[2rem] bg-gradient-to-t from-background via-background/95 to-background/0 px-3 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1.5 sm:px-4",
           fixedComposer
             ? "fixed inset-x-0 bottom-0 lg:sticky"
             : "sticky bottom-0",
@@ -1802,7 +1811,7 @@ export function AllmaChat({
           </div>
           </div>
 
-          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          <p className="mt-1 hidden text-center text-[11px] text-muted-foreground lg:block">
             <span className="hidden lg:inline">Enter to send · Shift + Enter for new line · </span>Allma can make mistakes. Not officially connected to police — in danger, press SOS.
           </p>
         </div>
