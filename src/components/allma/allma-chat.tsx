@@ -39,6 +39,8 @@ import {
   Copy,
   RotateCcw,
   Square,
+  Volume2,
+  SendHorizontal,
 } from "lucide-react";
 
 import { motion, AnimatePresence } from "motion/react";
@@ -49,6 +51,7 @@ import {
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import robotAvatar from "@/assets/allma-robot.png";
 import {
   PromptInput,
   PromptInputSubmit,
@@ -1359,7 +1362,7 @@ export function AllmaChat({
   }, [send]);
 
   return (
-    <div className={cn("flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
+    <div className={cn("chat-canvas flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
       {/* Hidden file input for attachment sheet */}
       <input
         ref={attachInputRef}
@@ -1397,13 +1400,13 @@ export function AllmaChat({
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-3 sm:max-w-full" : "max-w-full sm:max-w-full"}>
                   {message.role === "assistant" ? (
-                    <span aria-hidden className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-chat-accent text-chat-accent-foreground shadow-soft"><Shield className="h-3.5 w-3.5" /></span>
+                    <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-10 w-10 shrink-0 rounded-full border border-border/60 bg-card object-cover shadow-soft" />
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-2", message.role === "user" && "items-end")}>
                   <MessageContent
                     className={
                       message.role === "assistant"
-                        ? "rounded-none bg-transparent px-0 py-0"
+                        ? "max-w-[92%] rounded-[1.4rem] rounded-tl-md border border-border/60 bg-card px-4 py-3.5 shadow-soft"
                         : "ml-auto max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[75%]"
                     }
                   >
@@ -1413,7 +1416,7 @@ export function AllmaChat({
                           return (
                             <p
                               key={index}
-                              className="whitespace-pre-wrap rounded-[20px] rounded-br-md border border-chat-accent/10 bg-chat-user px-4 py-2.5 text-[15px] leading-relaxed text-foreground"
+                              className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md border border-chat-accent/15 bg-chat-user px-4 py-3 text-[16px] leading-relaxed text-foreground shadow-soft"
                             >
                               {part.text}
                             </p>
@@ -1544,8 +1547,8 @@ export function AllmaChat({
               ))}
               {status === "submitted" ? (
                 <div className="flex items-center gap-3" role="status" aria-label="Allma is typing">
-                  <span aria-hidden className="grid h-7 w-7 place-items-center rounded-full bg-chat-accent text-chat-accent-foreground"><Shield className="h-3.5 w-3.5" /></span>
-                  <span className="flex items-center gap-1 rounded-full bg-muted px-3 py-2.5">
+                  <img aria-hidden src={robotAvatar} alt="" className="h-10 w-10 rounded-full border border-border/60 bg-card object-cover" />
+                  <span className="flex items-center gap-1 rounded-full border border-border/60 bg-card px-3.5 py-3 shadow-soft">
                     {[0, 1, 2].map((d) => (
                       <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-chat-accent/70" style={{ animationDelay: `${d * 0.15}s` }} />
                     ))}
@@ -1568,7 +1571,7 @@ export function AllmaChat({
 
       <div
         className={cn(
-          "no-print z-20 shrink-0 bg-gradient-to-t from-background via-background to-background/0 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4",
+          "no-print z-20 shrink-0 rounded-t-[2rem] bg-gradient-to-t from-background via-background/95 to-background/0 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4",
           fixedComposer
             ? "fixed inset-x-0 bottom-0 lg:sticky"
             : "sticky bottom-0",
@@ -1614,9 +1617,19 @@ export function AllmaChat({
             </div>
           ) : null}
 
+          <div className="flex items-end gap-2">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setAttachSheetOpen(true)}
+            className="mb-1 grid h-12 w-12 shrink-0 place-items-center rounded-full border border-border/70 bg-card text-foreground/80 shadow-soft hover:bg-muted"
+            aria-label="Attach files"
+          >
+            <Paperclip className="h-5 w-5" />
+          </motion.button>
           <div
             className={cn(
-              "composer-shell focus-within:composer-shell-focused",
+              "composer-shell min-w-0 flex-1 focus-within:composer-shell-focused",
               recording && "composer-shell-recording",
             )}
           >
@@ -1632,24 +1645,14 @@ export function AllmaChat({
                 }}
                 className="rounded-[inherit] border-0 bg-transparent shadow-none ring-0 outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent"
               >
-                <InputGroupAddon align="inline-start" className="pl-2">
-                  {/* Attachment menu trigger */}
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setAttachSheetOpen(true)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110"
-                    aria-label="Attach files"
-                  >
-                    <Plus className="h-[17px] w-[17px]" />
-                  </motion.button>
-                </InputGroupAddon>
+                
 
                 <PromptInputTextarea
                   ref={textareaRef}
                   placeholder="Message Allma..."
+                  aria-label="Message Allma"
                   enterKeyHint="send"
-                  className="max-h-48 min-h-[3rem] bg-transparent px-1 py-3.5 text-base leading-6 sm:text-[15px]"
+                  className="max-h-48 min-h-[3rem] bg-transparent px-4 py-3.5 text-base leading-6 sm:text-[15px]"
                   onChange={(event) => setComposerText(event.target.value)}
                 />
 
@@ -1712,12 +1715,13 @@ export function AllmaChat({
                       <Square className="h-3.5 w-3.5 fill-current" />
                     </button>
                   ) : (
-                    <PromptInputSubmit status={status} disabled={composerText.trim().length === 0} size="icon-sm" aria-label="Send message" className="h-9 w-9 rounded-full bg-chat-accent text-chat-accent-foreground hover:bg-chat-accent/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100" />
+                    <PromptInputSubmit status={status} disabled={composerText.trim().length === 0} size="icon-sm" aria-label="Send message" className="h-10 w-10 rounded-full bg-chat-accent text-chat-accent-foreground shadow-md hover:bg-chat-accent/90 disabled:bg-chat-accent/40 disabled:text-chat-accent-foreground disabled:text-muted-foreground disabled:opacity-100" ><SendHorizontal className="h-5 w-5" /></PromptInputSubmit>
                   )
                   ) : null}
                 </InputGroupAddon>
               </PromptInput>
             </div>
+          </div>
           </div>
 
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -1786,10 +1790,21 @@ export function AllmaChat({
 
 function ResponseActions({ text, onRetry }: { text: string; onRetry?: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   if (!text) return null;
-  const btn = "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40";
+  const btn = "inline-flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-card px-3.5 text-[13px] font-medium text-foreground/85 shadow-soft transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40";
+  const listen = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
+    const u = new SpeechSynthesisUtterance(text.replace(/[*#_`>]/g, ""));
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+    setSpeaking(true);
+  };
   return (
-    <div className="-ml-1.5 flex items-center gap-0.5">
+    <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
         className={btn}
@@ -1804,13 +1819,16 @@ function ResponseActions({ text, onRetry }: { text: string; onRetry?: () => void
           }
         }}
       >
-        {copied ? <Check className="h-3.5 w-3.5 text-chat-accent" /> : <Copy className="h-3.5 w-3.5" />}
+        {copied ? <Check className="h-4 w-4 text-chat-accent" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
       </button>
       {onRetry ? (
         <button type="button" className={btn} aria-label="Retry response" onClick={onRetry}>
-          <RotateCcw className="h-3.5 w-3.5" />
+          <RotateCcw className="h-4 w-4" /> Retry
         </button>
       ) : null}
+      <button type="button" className={btn} aria-label={speaking ? "Stop reading" : "Listen to response"} onClick={listen}>
+        {speaking ? <Square className="h-3.5 w-3.5 fill-current" /> : <Volume2 className="h-4 w-4" />} {speaking ? "Stop" : "Listen"}
+      </button>
     </div>
   );
 }
