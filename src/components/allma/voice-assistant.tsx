@@ -390,7 +390,7 @@ export function VoiceAssistant() {
         data-allma-voice-dot
         aria-label="Start Allma voice mode"
         onClick={() => startLoop(false)}
-        className="fixed bottom-20 right-4 z-[60] grid size-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 md:bottom-6"
+        className="fixed bottom-40 right-4 z-[60] grid size-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 md:bottom-6"
       >
         <Mic className="size-5" />
       </button>

@@ -1306,7 +1306,7 @@ export function AllmaChat({
       }
       return [];
     }
-    return flowActive ? [] : IDLE_CHIPS;
+    return flowActive || isEmpty ? [] : IDLE_CHIPS;
 
 
   }, [busy, isEmpty, status, lastMsg, messages]);
@@ -1382,7 +1382,7 @@ export function AllmaChat({
 
       {isEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
-          <div className={cn("mx-auto w-full px-0 pb-24 lg:px-0", fixedComposer && "pb-52")}>
+          <div className={cn("mx-auto w-full px-0 pb-24 lg:px-0", fixedComposer && "pb-40")}>
             <AssistantHero onSelect={send} />
           </div>
         </div>
@@ -1642,7 +1642,7 @@ export function AllmaChat({
 
                 <PromptInputTextarea
                   ref={textareaRef}
-                  placeholder="Ask Allma to help, report, or find help…"
+                  placeholder="Message Allma…"
                   className="min-h-[2.75rem] bg-transparent py-3 text-base leading-6 sm:text-[14px]"
                   onChange={(event) => setComposerText(event.target.value)}
                 />
@@ -1709,7 +1709,7 @@ export function AllmaChat({
           </div>
 
           <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">
-            Police Integration Ready — not officially connected to police or emergency services
+            Allma can make mistakes. Not officially connected to police — in danger, press SOS.
           </p>
         </div>
       </div>
