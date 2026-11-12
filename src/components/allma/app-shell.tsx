@@ -606,7 +606,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       >
         {/* Mobile-only header */}
         <header className="no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl lg:hidden">
-          <div className="mx-auto grid h-14 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4">
+          <div className="mx-auto grid h-16 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -617,17 +617,19 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             </button>
 
             <div className="flex min-w-0 items-center justify-center gap-2.5">
-              <MascotAvatar className="h-8 w-8" />
+              <MascotAvatar className="h-11 w-11" />
               <div className="min-w-0 leading-tight">
-                <p className="truncate text-[13px] font-semibold">{title ?? "Allma Safety AI"}</p>
-                <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span className="online-pulse inline-block h-1.5 w-1.5 rounded-full bg-success" />{" "}
+                <p className="truncate text-[16px] font-bold">{title ?? "Allma Safety AI"}</p>
+                <p className="flex items-center gap-1.5 text-[12px] text-chat-accent">
+                  <span className="online-pulse inline-block h-2 w-2 rounded-full bg-success" />{" "}
                   Online
                 </p>
               </div>
             </div>
 
-            {isAuthenticated ? (
+            {isChat ? (
+              <SosButton inline />
+            ) : isAuthenticated ? (
               <NotificationsBell />
             ) : (
               <span className="h-9 w-9" aria-hidden="true" />
@@ -671,7 +673,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       {/* One emergency control shared by every app-shell screen. */}
-      <SosButton />
+      {!isChat && <SosButton />}
 
       {/* The call overlay + ZEGOCLOUD RTC session is mounted once in __root. */}
 

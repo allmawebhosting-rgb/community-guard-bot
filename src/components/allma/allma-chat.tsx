@@ -41,6 +41,9 @@ import {
   Square,
   Volume2,
   SendHorizontal,
+  CheckCheck,
+  ChevronRight,
+  Star,
 } from "lucide-react";
 
 import { motion, AnimatePresence } from "motion/react";
@@ -829,35 +832,38 @@ function ToolCard({
           </div>
         </div>
       ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
-        <div className="space-y-2.5">
-          {(output.facilities as Array<Record<string, unknown>>).map((facility, index) => (
-            <div key={index} className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{String(facility.name)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {String(facility.address ?? facility.district ?? "")}
-                  </p>
-                </div>
-                {facility.phone ? (
-                  <a
-                    href={`tel:${facility.phone}`}
-                    className="flex shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90"
-                  >
-                    <Phone className="h-3 w-3" /> Call
-                  </a>
-                ) : null}
-              </div>
-              {facility.phone ? (
-                <p className="text-xs text-muted-foreground font-mono">{String(facility.phone)}</p>
-              ) : null}
-            </div>
-          ))}
+        <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/60 bg-card">
+          {(output.facilities as Array<Record<string, unknown>>).map((facility, index) => {
+            const lat = Number(facility.lat ?? facility.latitude);
+            const lng = Number(facility.lng ?? facility.longitude);
+            const dest = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat},${lng}` : encodeURIComponent(String(facility.name) + " " + String(facility.district ?? ""));
+            const rating = Number(facility.rating);
+            const photo = typeof facility.photo_url === "string" ? facility.photo_url : null;
+            return (
+              <a key={index} href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 transition-colors hover:bg-chat-user/50">
+                {photo ? (
+                  <img src={photo} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" />
+                ) : (
+                  <span className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-chat-user text-chat-accent"><Hospital className="h-8 w-8" /></span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-bold leading-snug text-foreground">{String(facility.name)}</span>
+                  <span className="mt-1 flex items-center gap-1 text-[13px] text-chat-accent"><MapPin className="h-3.5 w-3.5" />{String(facility.district ?? facility.address ?? "")}</span>
+                  {Number.isFinite(rating) && rating > 0 ? (
+                    <span className="mt-1 flex items-center gap-1 text-[12px] text-muted-foreground"><Star className="h-3.5 w-3.5 fill-gold text-gold" />{rating.toFixed(1)}{facility.reviews ? ` (${String(facility.reviews)} reviews)` : ""}</span>
+                  ) : facility.phone ? (
+                    <span className="mt-1 block font-mono text-[12px] text-muted-foreground">{String(facility.phone)}</span>
+                  ) : null}
+                </span>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-chat-user text-chat-accent"><ChevronRight className="h-5 w-5" /></span>
+              </a>
+            );
+          })}
           {(output.facilities as unknown[]).length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No facilities found for this area. Try a different area name.
-            </p>
-          ) : null}
+            <p className="p-3 text-sm text-muted-foreground">No facilities found for this area. Try a different area name.</p>
+          ) : (
+            <p className="flex items-center gap-2 p-3 text-[14px] text-foreground"><MapPin className="h-4 w-4 shrink-0 text-chat-accent" />Tap a place for directions.</p>
+          )}
         </div>
       ) : name === "list_alerts" && Array.isArray(output?.alerts) ? (
         <ul className="space-y-2 text-sm">
@@ -1419,6 +1425,9 @@ export function AllmaChat({
                               className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md border border-chat-accent/15 bg-chat-user px-4 py-3 text-[16px] leading-relaxed text-foreground shadow-soft"
                             >
                               {part.text}
+                              <span className="mt-1 flex justify-end text-chat-accent" aria-label="Sent">
+                                <CheckCheck className="h-4 w-4" />
+                              </span>
                             </p>
                           );
                         }
@@ -1438,7 +1447,7 @@ export function AllmaChat({
                               />
                             ) : null}
                             {text ? (
-                              <MessageResponse className="px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95">
+                              <MessageResponse className="chat-checklist px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95">
                                 {text}
                               </MessageResponse>
                             ) : null}
