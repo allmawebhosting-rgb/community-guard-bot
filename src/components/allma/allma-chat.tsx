@@ -1395,7 +1395,7 @@ export function AllmaChat({
 
       {isEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
-          <div className={cn("mx-auto w-full px-0 pb-24 lg:px-0", fixedComposer && "pb-40")}>
+          <div className={cn("mx-auto w-full px-0 pb-24 lg:px-0", fixedComposer && "pb-28")}>
             <AssistantHero onSelect={send} />
           </div>
         </div>
