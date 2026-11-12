@@ -263,14 +263,19 @@ export const Route = createFileRoute("/api/chat")({
           { matches: /report (a )?(crime|theft|robbery|assault|burglar|fraud)|stolen|theft|robb|assault/i, flow: "Reporting", opener: 'What kind of incident is this? Options: "Theft", "Robbery", "Assault", "Something else".' },
           { matches: /find help|near me|nearest|police station|hospital|ambulance|fire station/i, flow: "Find help", opener: 'Which service do you need? Options: "Police station", "Hospital", "Fire station".' },
         ];
-        const intent = INTENTS.find((i) => i.matches.test(intakeText));
-        const intentBlock = intent
+        const directService = /hospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null;
+        const matchedIntent = INTENTS.find((i) => i.matches.test(intakeText));
+        const intent = matchedIntent?.flow === "Find help" && directService ? undefined : matchedIntent;
+        const directHelpBlock = matchedIntent?.flow === "Find help" && directService
+          ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directService}. Do NOT open a flow, do NOT ask which service they need. Call find_facilities right away for that service (use their shared location if any; otherwise search near their stated area or ask only for their location in one short line). Then answer with a short friendly line and finish with "Would you like directions to any of these?"`
+          : "";
+        const intentBlock = directHelpBlock + (intent
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
                 ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
                 : `Open the "${intent.flow}" flow in THIS reply: first line ::flow{type=${intent.flow}, step=1, total=4, title="…"}, then this opening question: ${intent.opener} and end with a ::suggest[…] line carrying exactly those options.`
             } Do NOT ask this as plain prose without a ::suggest line, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
-          : "";
+          : "");
 
 
         // ---- Anti-repeat guard: the model must not restate its previous message.

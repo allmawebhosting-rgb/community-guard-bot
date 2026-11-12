@@ -385,7 +385,7 @@ export function VoiceAssistant() {
   // Standard mode: only a launcher button.
   if (pref === "off" || !active) {
     // Chat has its own mic inside the message box.
-    if (path === "/chat" || path.startsWith("/chat/")) return null;
+    if (path === "/" || path === "/chat" || path.startsWith("/chat/")) return null;
     return (
       <button
         type="button"

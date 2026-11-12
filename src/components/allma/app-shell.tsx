@@ -656,6 +656,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                 🔒 End-to-end encrypted
               </span>
               {isAuthenticated && <NotificationsBell />}
+              {isChat && <SosButton inline />}
             </div>
           </div>
         </header>

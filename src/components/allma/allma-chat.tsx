@@ -1425,7 +1425,8 @@ export function AllmaChat({
                               className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md border border-chat-accent/15 bg-chat-user px-4 py-3 text-[16px] leading-relaxed text-foreground shadow-soft"
                             >
                               {part.text}
-                              <span className="mt-1 flex justify-end text-chat-accent" aria-label="Sent">
+                              <span className="mt-1 flex items-center justify-end gap-1 text-chat-accent" aria-label="Sent">
+                                <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>{new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
                                 <CheckCheck className="h-4 w-4" />
                               </span>
                             </p>
