@@ -1057,7 +1057,9 @@ export function AllmaChat({
     };
     const perms = (navigator as Navigator & { permissions?: Permissions }).permissions;
     if (perms?.query) {
-      perms.query({ name: "geolocation" as PermissionName }).then((r) => { if (r.state === "granted") start(); }).catch(() => {});
+      perms.query({ name: "geolocation" as PermissionName }).then((r) => { if (r.state !== "denied") start(); }).catch(start);
+    } else {
+      start();
     }
     return () => { if (watchId != null) navigator.geolocation.clearWatch(watchId); };
   }, []);

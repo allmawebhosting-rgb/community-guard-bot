@@ -278,7 +278,7 @@ export const Route = createFileRoute("/api/chat")({
         const matchedIntent = emergencyKind ? undefined : INTENTS.find((i) => i.matches.test(intakeText));
         const intent = matchedIntent?.flow === "Find help" && directService ? undefined : matchedIntent;
         const directHelpBlock = matchedIntent?.flow === "Find help" && directService
-          ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directService}. Do NOT open a flow, do NOT ask which service they need. Call find_facilities right away for that service (use their shared location if any; otherwise search near their stated area or ask only for their location in one short line). Then answer with a short friendly line and finish with "Would you like directions to any of these?"`
+          ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directService}. Do NOT open a flow, do NOT ask which service they need. Call find_facilities right away for that service in THIS reply — never wait for a location first. ${sharedCoords ? "Use their shared GPS location." : "No GPS is shared: call find_facilities with area set to the area they named, or \"Kampala\" if none, and after the results say in one short line they can tap Share my location for places closest to them."} Never add a ::media card or ask for photos or files for this request. Then answer with a short friendly line and finish with "Would you like directions to any of these?"`
           : "";
         const intentBlock = emergencyBlock + directHelpBlock + (intent
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
