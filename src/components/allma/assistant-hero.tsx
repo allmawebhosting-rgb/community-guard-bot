@@ -22,25 +22,25 @@ export function AssistantHero({ onSelect, className }: { onSelect: (prompt: stri
     (a): a is (typeof QUICK_ACTIONS)[number] => Boolean(a),
   );
   return (
-    <div className={cn("mx-auto w-full max-w-2xl", className)}>
+    <div className={cn("mx-auto w-full max-w-2xl lg:max-w-5xl lg:pt-6", className)}>
       <div className="relative -mb-10 overflow-hidden sm:mx-4 sm:mt-4 sm:rounded-[2rem]">
-        <img src={heroImg} alt="Allma, your safety assistant" width={1024} height={768} className="h-[22dvh] max-h-60 [@media(max-height:700px)]:h-[14dvh] w-full object-cover object-[center_30%]" />
+        <img src={heroImg} alt="Allma, your safety assistant" width={1024} height={768} className="h-[22dvh] max-h-60 lg:h-56 lg:max-h-none [@media(max-height:700px)]:h-[14dvh] w-full object-cover object-[center_30%]" />
       </div>
       <div className="relative rounded-t-[2.25rem] bg-background px-4 pb-3 pt-5 sm:mx-4 sm:rounded-[2rem]">
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center font-display text-[1.75rem] font-bold leading-[1.08] tracking-tight text-chat-accent sm:text-3xl"
+          className="text-center font-display text-[1.75rem] font-bold leading-[1.08] tracking-tight text-chat-accent sm:text-3xl lg:text-4xl"
         >
           How can I help
-          <br />
+          <br className="lg:hidden" />{" "}
           you today?
         </motion.h1>
-        <p className="mx-auto [@media(max-height:700px)]:hidden mt-1.5 max-w-xs text-center text-[13px] leading-snug text-foreground/80">
+        <p className="mx-auto [@media(max-height:700px)]:hidden mt-1.5 max-w-xs lg:max-w-md text-center text-[13px] lg:text-[15px] leading-snug text-foreground/80">
           Your intelligent companion for safety, emergencies and everyday guidance.
         </p>
 
-        <div className="mt-3 grid grid-cols-2 gap-2.5">
+        <div className="mt-3 grid grid-cols-2 gap-2.5 lg:mt-6 lg:grid-cols-4 lg:gap-4">
           {suggestions.map((action, i) => {
             const m = META[action.id];
             const Icon = m?.Icon ?? Siren;
@@ -53,10 +53,10 @@ export function AssistantHero({ onSelect, className }: { onSelect: (prompt: stri
                 transition={{ delay: 0.08 + i * 0.04 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => onSelect(action.prompt)}
-                className="group flex flex-col rounded-[1.4rem] border border-border/60 bg-card p-3 text-left shadow-soft transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40"
+                className="group flex flex-col rounded-[1.4rem] border border-border/60 bg-card p-3 text-left shadow-soft transition-all hover:shadow-md lg:p-4 lg:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40"
               >
                 {IMGS[action.id] ? (
-                  <img src={IMGS[action.id]} alt="" aria-hidden className="h-10 w-auto self-start object-contain mix-blend-multiply sm:h-12" />
+                  <img src={IMGS[action.id]} alt="" aria-hidden className="h-10 w-auto self-start object-contain mix-blend-multiply sm:h-12 lg:h-16" />
                 ) : (
                   <span aria-hidden className={cn("grid h-10 w-10 place-items-center rounded-2xl", m?.tone)}><Icon className="h-6 w-6" /></span>
                 )}
@@ -72,7 +72,7 @@ export function AssistantHero({ onSelect, className }: { onSelect: (prompt: stri
           })}
         </div>
 
-        <div className="mt-2.5 flex items-center gap-3 rounded-[1.4rem] border border-chat-accent/15 bg-chat-user px-4 py-2">
+        <div className="mt-2.5 lg:mt-5 flex items-center gap-3 rounded-[1.4rem] border border-chat-accent/15 bg-chat-user px-4 py-2">
           <ShieldCheck aria-hidden className="h-7 w-7 shrink-0 text-chat-accent" />
           <div className="min-w-0">
             <p className="text-sm font-bold text-foreground">Together for a safer Uganda</p>

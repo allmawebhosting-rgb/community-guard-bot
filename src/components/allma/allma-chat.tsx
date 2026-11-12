@@ -832,7 +832,7 @@ function ToolCard({
           </div>
         </div>
       ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
-        <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/60 bg-card">
+        <div className="grid gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 lg:grid-cols-2">
           {(output.facilities as Array<Record<string, unknown>>).map((facility, index) => {
             const lat = Number(facility.lat ?? facility.latitude);
             const lng = Number(facility.lng ?? facility.longitude);
@@ -840,7 +840,7 @@ function ToolCard({
             const rating = Number(facility.rating);
             const photo = typeof facility.photo_url === "string" ? facility.photo_url : null;
             return (
-              <a key={index} href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 transition-colors hover:bg-chat-user/50">
+              <a key={index} href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-card p-3 transition-colors hover:bg-chat-user/50">
                 {photo ? (
                   <img src={photo} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" />
                 ) : (
@@ -860,9 +860,9 @@ function ToolCard({
             );
           })}
           {(output.facilities as unknown[]).length === 0 ? (
-            <p className="p-3 text-sm text-muted-foreground">No facilities found for this area. Try a different area name.</p>
+            <p className="bg-card p-3 text-sm text-muted-foreground lg:col-span-2">No facilities found for this area. Try a different area name.</p>
           ) : (
-            <p className="flex items-center gap-2 p-3 text-[14px] text-foreground"><MapPin className="h-4 w-4 shrink-0 text-chat-accent" />Tap a place for directions.</p>
+            <p className="flex items-center gap-2 bg-card p-3 text-[14px] text-foreground lg:col-span-2"><MapPin className="h-4 w-4 shrink-0 text-chat-accent" />Tap a place for directions.</p>
           )}
         </div>
       ) : name === "list_alerts" && Array.isArray(output?.alerts) ? (
@@ -1401,7 +1401,7 @@ export function AllmaChat({
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1 overscroll-contain">
-          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6 lg:px-8">
+          <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6 lg:max-w-4xl lg:px-8">
             <div className="flex flex-col gap-7 pt-16 lg:pt-8">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-3 sm:max-w-full" : "max-w-full sm:max-w-full"}>
@@ -1587,7 +1587,7 @@ export function AllmaChat({
             : "sticky bottom-0",
         )}
       >
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {attachments.map((attachment) => (
@@ -1735,7 +1735,7 @@ export function AllmaChat({
           </div>
 
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Allma can make mistakes. Not officially connected to police — in danger, press SOS.
+            <span className="hidden lg:inline">Enter to send · Shift + Enter for new line · </span>Allma can make mistakes. Not officially connected to police — in danger, press SOS.
           </p>
         </div>
       </div>
