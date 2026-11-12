@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { FileWarning, Hospital, Siren, Users, ChevronRight, ShieldCheck } from "lucide-react";
+import { FileWarning, Hospital, Siren, Users, ChevronRight } from "lucide-react";
 import heroImg from "@/assets/chat-hero-robot.jpg";
 import sosImg from "@/assets/card-sos.png";
 import crimeImg from "@/assets/card-crime.png";
@@ -53,32 +53,25 @@ export function AssistantHero({ onSelect, className }: { onSelect: (prompt: stri
                 transition={{ delay: 0.08 + i * 0.04 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => onSelect(action.prompt)}
-                className="group flex flex-col rounded-[1.4rem] border border-border/60 bg-card p-3 text-left shadow-soft transition-all hover:shadow-md lg:p-4 lg:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40"
+                className="group flex h-full flex-col items-start rounded-[1.25rem] border border-border/60 bg-card p-3 text-left shadow-soft transition-all hover:shadow-md lg:p-4 lg:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40"
               >
-                {IMGS[action.id] ? (
-                  <img src={IMGS[action.id]} alt="" aria-hidden className="h-10 w-auto self-start object-contain mix-blend-multiply sm:h-12 lg:h-16" />
-                ) : (
-                  <span aria-hidden className={cn("grid h-10 w-10 place-items-center rounded-2xl", m?.tone)}><Icon className="h-6 w-6" /></span>
-                )}
-                <span className="mt-1.5 flex items-center gap-1">
-                  <span className="min-w-0 flex-1 text-[15px] font-bold leading-tight text-foreground">{m?.title ?? action.label}</span>
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-chat-user text-chat-accent">
-                    <ChevronRight className="h-4 w-4" />
+                <span className="flex w-full items-start justify-between">
+                  <span aria-hidden className={cn("grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl lg:h-14 lg:w-14", m?.tone)}>
+                    {IMGS[action.id] ? (
+                      <img src={IMGS[action.id]} alt="" className="h-9 w-9 object-contain mix-blend-multiply lg:h-11 lg:w-11" />
+                    ) : (
+                      <Icon className="h-6 w-6" />
+                    )}
                   </span>
+                  <ChevronRight aria-hidden className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </span>
-                <span className="mt-1 text-xs leading-snug text-muted-foreground [@media(max-height:700px)]:hidden">{m?.desc ?? action.description}</span>
+                <span className="mt-2.5 text-[15px] font-bold leading-tight text-foreground">{m?.title ?? action.label}</span>
+                <span className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-muted-foreground [@media(max-height:700px)]:hidden">{m?.desc ?? action.description}</span>
               </motion.button>
             );
           })}
         </div>
 
-        <div className="mt-2.5 lg:mt-5 flex items-center gap-3 rounded-[1.4rem] border border-chat-accent/15 bg-chat-user px-4 py-2">
-          <ShieldCheck aria-hidden className="h-7 w-7 shrink-0 text-chat-accent" />
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">Together for a safer Uganda</p>
-            <p className="text-xs text-muted-foreground">Be alert. Stay safe. Look out for others.</p>
-          </div>
-        </div>
       </div>
     </div>
   );
