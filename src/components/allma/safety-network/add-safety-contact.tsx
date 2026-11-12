@@ -78,7 +78,7 @@ export function AddSafetyContactDialog({
       void navigator.share({ title: "Join me on Allma", text }).catch(() => undefined);
       return;
     }
-    window.open(`https://wa.me/${target}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+    window.location.href = `https://wa.me/${target}?text=${encodeURIComponent(text)}`;
   }
 
   return (

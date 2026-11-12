@@ -78,7 +78,7 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
 
   async function run(kind: "wa" | "share" | "copy") {
     setBusy(kind);
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints ?? 0) > 1 || window.matchMedia?.("(pointer: coarse)").matches;
     // Desktop only: pre-open a tab synchronously so the popup isn't blocked.
     // On phones we navigate the current tab, which hands off to WhatsApp and
     // leaves Allma in place (no orphaned about:blank tab on return).
