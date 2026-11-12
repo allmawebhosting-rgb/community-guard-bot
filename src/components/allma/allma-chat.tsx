@@ -233,11 +233,11 @@ function FlowBanner({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="chat-card relative overflow-hidden p-3.5"
+      className="relative overflow-hidden rounded-2xl border border-border bg-card/60 px-3.5 py-3"
     >
       <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-gold shadow-soft">
-          <FlowIcon className="h-4.5 w-4.5 text-primary-foreground" />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <FlowIcon className="h-4 w-4 text-primary" />
         </span>
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -1389,14 +1389,18 @@ export function AllmaChat({
       ) : (
         <Conversation className="min-h-0 flex-1 overscroll-contain">
           <ConversationContent className="mx-auto w-full max-w-3xl px-4 pb-6 lg:px-8">
-            <div className="flex flex-col gap-6 pt-6">
+            <div className="flex flex-col gap-7 pt-16 lg:pt-8">
               {messages.map((message, msgIndex) => (
-                <Message key={message.id} from={message.role}>
+                <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-3 sm:max-w-full" : "max-w-full sm:max-w-full"}>
+                  {message.role === "assistant" ? (
+                    <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-card"><Shield className="h-3.5 w-3.5 text-primary" /></span>
+                  ) : null}
+                  <div className={cn("flex min-w-0 flex-1 flex-col gap-2", message.role === "user" && "items-end")}>
                   <MessageContent
                     className={
                       message.role === "assistant"
                         ? "rounded-none bg-transparent px-0 py-0"
-                        : "rounded-[1.4rem] rounded-br-sm"
+                        : "ml-auto max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[75%]"
                     }
                   >
                     {message.parts.map((part, index) => {
@@ -1405,7 +1409,7 @@ export function AllmaChat({
                           return (
                             <p
                               key={index}
-                              className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md bg-gradient-to-br from-primary to-primary-glow px-4 py-3 text-[15px] leading-relaxed text-primary-foreground shadow-lift"
+                              className="whitespace-pre-wrap rounded-3xl bg-muted px-4 py-2.5 text-[15px] leading-relaxed text-foreground"
                             >
                               {part.text}
                             </p>
@@ -1486,7 +1490,7 @@ export function AllmaChat({
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.15, duration: 0.35 }}
-                          className="mt-3 flex flex-wrap gap-2"
+                          className="mt-1 flex flex-wrap gap-2"
                         >
                           {contextualChips.map((chip, chipIndex) => (
                             <motion.button
@@ -1516,15 +1520,15 @@ export function AllmaChat({
                               }}
 
 
-                              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/30 bg-card/70 px-3.5 py-2 text-[12.5px] font-medium text-foreground/85 shadow-soft backdrop-blur-md transition-colors hover:border-primary/60 hover:bg-primary/[0.06] hover:text-foreground"
+                              className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-border bg-background px-3.5 py-1.5 text-[13px] font-medium text-foreground/85 transition-colors hover:bg-muted hover:text-foreground"
                             >
-                              <Sparkles className="h-3.5 w-3.5 text-primary/70" />
-                              {chip.label}
+                                                            {chip.label}
                             </motion.button>
                           ))}
                         </motion.div>
                       </AnimatePresence>
                     )}
+                  </div>
                 </Message>
               ))}
               {status === "submitted" ? (
@@ -1547,29 +1551,13 @@ export function AllmaChat({
 
       <div
         className={cn(
-          "no-print z-20 shrink-0 glass border-t border-border/60 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-4",
+          "no-print z-20 shrink-0 bg-gradient-to-t from-background via-background to-background/0 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4",
           fixedComposer
             ? "fixed inset-x-0 bottom-0 lg:sticky"
             : "sticky bottom-0",
         )}
       >
         <div className="mx-auto w-full max-w-3xl">
-          <div className="chip-scroll -mx-1 mb-2 flex gap-2 overflow-x-auto px-1 pb-1">
-            {QUICK_ACTIONS.map((action) => {
-              const ActionIcon = action.icon;
-              return (
-                <button
-                  key={action.label}
-                  type="button"
-                  onClick={() => send(action.prompt)}
-                  className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground"
-                >
-                  <ActionIcon className="h-3.5 w-3.5 text-primary" />
-                  {action.label}
-                </button>
-              );
-            })}
-          </div>
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {attachments.map((attachment) => (
@@ -1643,7 +1631,7 @@ export function AllmaChat({
                 <PromptInputTextarea
                   ref={textareaRef}
                   placeholder="Message Allma…"
-                  className="min-h-[2.75rem] bg-transparent py-3 text-base leading-6 sm:text-[14px]"
+                  className="max-h-48 min-h-[3rem] bg-transparent px-1 py-3.5 text-base leading-6 sm:text-[15px]"
                   onChange={(event) => setComposerText(event.target.value)}
                 />
 
@@ -1688,7 +1676,7 @@ export function AllmaChat({
                     onClick={toggleVoice}
                     disabled={transcribing}
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60",
+                      "flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60",
                       recording &&
                         "mic-recording bg-destructive text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground",
                     )}
@@ -1700,15 +1688,15 @@ export function AllmaChat({
                       <Mic className="h-[17px] w-[17px]" />
                     )}
                   </motion.button>
-                  {composerText.trim().length > 0 && !recording ? (
-                    <PromptInputSubmit status={status} disabled={busy} size="icon-sm" />
+                  {!recording ? (
+                    <PromptInputSubmit status={status} disabled={busy || composerText.trim().length === 0} size="icon-sm" className="h-9 w-9 rounded-full bg-foreground text-background hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100" />
                   ) : null}
                 </InputGroupAddon>
               </PromptInput>
             </div>
           </div>
 
-          <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
             Allma can make mistakes. Not officially connected to police — in danger, press SOS.
           </p>
         </div>
