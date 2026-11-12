@@ -78,14 +78,21 @@ export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
 
   async function run(kind: "wa" | "share" | "copy") {
     setBusy(kind);
-    // Open the window synchronously so iOS doesn't block it as a popup.
-    const win = kind === "wa" ? window.open("about:blank", "_blank") : null;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // Desktop only: pre-open a tab synchronously so the popup isn't blocked.
+    // On phones we navigate the current tab, which hands off to WhatsApp and
+    // leaves Allma in place (no orphaned about:blank tab on return).
+    const win = kind === "wa" && !isMobile ? window.open("", "_blank") : null;
     try {
       const { token, url, text } = await makeLink();
       if (kind === "wa") {
         const target = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        if (win) win.location.href = target;
-        else window.location.href = target;
+        if (win) {
+          win.opener = null;
+          win.location.href = target;
+        } else {
+          window.location.href = isMobile ? `whatsapp://send?text=${encodeURIComponent(text)}` : target;
+        }
       } else if (kind === "share" && navigator.share) {
         await navigator.share({ title: "ALLMA Safety AI", text, url }).catch(() => undefined);
       } else {
