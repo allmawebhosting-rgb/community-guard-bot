@@ -21,7 +21,7 @@ function StepLabel({ n, children }: { n: number; children: React.ReactNode }) {
 }
 
 /** Sends a personal Safety Network invite link through WhatsApp (or any app). */
-export function WhatsAppInvite() {
+export function WhatsAppInvite({ flat = false }: { flat?: boolean } = {}) {
   const [role, setRole] = useState<string>("Family");
   const [priority, setPriority] = useState(1);
   const [busy, setBusy] = useState<"wa" | "share" | "copy" | null>(null);
@@ -58,9 +58,9 @@ export function WhatsAppInvite() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card p-5 shadow-lg sm:p-6">
-      <div className="pointer-events-none absolute -right-16 -top-16 size-44 rounded-full bg-success/15 blur-3xl" />
-      <div className="relative flex items-start gap-4">
+    <div className={cn("relative", !flat && "overflow-hidden rounded-3xl border border-border/60 bg-card p-5 shadow-lg sm:p-6")}>
+      {!flat && <div className="pointer-events-none absolute -right-16 -top-16 size-44 rounded-full bg-success/15 blur-3xl" />}
+      {!flat && <div className="relative flex items-start gap-4">
         <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-success text-success-foreground shadow-md">
           <MessageCircle className="size-7" />
         </span>
@@ -70,9 +70,9 @@ export function WhatsAppInvite() {
             Send them a link. They tap it and accept — that's it. Works on every phone.
           </p>
         </div>
-      </div>
+      </div>}
 
-      <StepLabel n={1}>Who are they to you?</StepLabel>
+      {flat ? <p className="text-[13px] font-semibold text-muted-foreground">Who are they to you?</p> : <StepLabel n={1}>Who are they to you?</StepLabel>}
       <div className="mt-3 flex flex-wrap gap-2">
         {SAFETY_ROLES.map((r) => (
           <button
@@ -93,6 +93,30 @@ export function WhatsAppInvite() {
         ))}
       </div>
 
+      {flat ? (
+        <>
+          <p className="mt-4 text-[13px] font-semibold text-muted-foreground">During an SOS</p>
+          <div role="radiogroup" className="mt-2 grid grid-cols-3 gap-1 rounded-full bg-muted/60 p-1">
+            {PRIORITIES.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                role="radio"
+                aria-checked={priority === p.value}
+                onClick={() => setPriority(p.value)}
+                className={cn(
+                  "h-9 rounded-full text-[13px] font-semibold transition",
+                  priority === p.value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[12px] text-muted-foreground">{PRIORITIES.find((p) => p.value === priority)?.hint}</p>
+        </>
+      ) : (
+        <>
       <StepLabel n={2}>What happens in an emergency?</StepLabel>
       <div className="mt-3 space-y-2.5">
         {PRIORITIES.map((p) => {
@@ -133,25 +157,28 @@ export function WhatsAppInvite() {
         })}
       </div>
 
-      <StepLabel n={3}>Send the invite</StepLabel>
+        </>
+      )}
+
+      {!flat && <StepLabel n={3}>Send the invite</StepLabel>}
       <Button
         type="button"
         onClick={() => void run("wa")}
         disabled={!!busy}
-        className="mt-3 h-14 w-full rounded-2xl bg-success text-[17px] font-bold text-success-foreground shadow-lg hover:bg-success/90"
+        className={cn(flat ? "mt-5" : "mt-3", "h-14 w-full rounded-2xl bg-success text-[17px] font-bold text-success-foreground shadow-lg hover:bg-success/90")}
       >
         {busy === "wa" ? <Loader2 className="mr-2 size-6 animate-spin" /> : <MessageCircle className="mr-2 size-6" />}
         Invite via WhatsApp
       </Button>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <Button type="button" variant="outline" disabled={!!busy} onClick={() => void run("share")} className="h-12 rounded-2xl text-[15px] font-semibold">
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <Button type="button" variant="ghost" disabled={!!busy} onClick={() => void run("share")} className="h-11 rounded-2xl text-[15px] font-semibold">
           {busy === "share" ? <Loader2 className="mr-2 size-5 animate-spin" /> : <Share2 className="mr-2 size-5" />} Other apps
         </Button>
-        <Button type="button" variant="outline" disabled={!!busy} onClick={() => void run("copy")} className="h-12 rounded-2xl text-[15px] font-semibold">
+        <Button type="button" variant="ghost" disabled={!!busy} onClick={() => void run("copy")} className="h-11 rounded-2xl text-[15px] font-semibold">
           {busy === "copy" ? <Loader2 className="mr-2 size-5 animate-spin" /> : <Copy className="mr-2 size-5" />} Copy link
         </Button>
       </div>
-      <p className="mt-4 flex items-center justify-center gap-2 text-center text-[13px] text-muted-foreground">
+      <p className="mt-3 flex items-center justify-center gap-2 text-center text-[12px] text-muted-foreground">
         <Lock className="size-4 shrink-0" /> Each link works once and expires in 14 days.
       </p>
     </div>

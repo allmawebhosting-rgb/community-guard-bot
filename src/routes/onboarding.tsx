@@ -776,7 +776,7 @@ function CircleStep({
         description="Add the people Allma should reach during an SOS. You can skip and add them later."
         icon={Users}
       />
-      {signedIn && <CircleTabs />}
+      {signedIn ? <CircleTabs /> : <>
       <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
         <span>
           {members.length
@@ -910,6 +910,7 @@ function CircleStep({
           You can skip this and add people later from your Safety Network.
         </p>
       )}
+      </>}
       <FooterActions onBack={onBack} onNext={onNext} />
     </>
   );
@@ -1145,9 +1146,9 @@ const CIRCLE_TABS = [
 function CircleTabs() {
   const [tab, setTab] = useState<(typeof CIRCLE_TABS)[number]["id"]>("whatsapp");
   return (
-    <div className="mb-6">
-      <div role="tablist" className="grid grid-cols-3 gap-1.5 rounded-2xl border border-border/60 bg-muted/50 p-1.5">
-        {CIRCLE_TABS.map(({ id, label, hint, icon: Icon }) => (
+    <div className="mb-2">
+      <div role="tablist" className="grid grid-cols-3 gap-1 rounded-full bg-muted/60 p-1">
+        {CIRCLE_TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             role="tab"
@@ -1155,20 +1156,19 @@ function CircleTabs() {
             aria-selected={tab === id}
             onClick={() => setTab(id)}
             className={cn(
-              "flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-center transition-all",
+              "flex h-10 items-center justify-center gap-1.5 rounded-full px-2 text-center transition-all",
               tab === id
-                ? "bg-card text-foreground shadow-soft ring-1 ring-primary/20"
+                ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Icon className={cn("h-4 w-4", tab === id && "text-primary")} />
-            <span className="text-[13px] font-bold leading-none">{label}</span>
-            <span className="text-[10px] leading-none opacity-70">{hint}</span>
+            <span className="text-[13px] font-semibold leading-none">{label}</span>
           </button>
         ))}
       </div>
-      <div className="mt-4">
-        {tab === "whatsapp" && <WhatsAppInvite />}
+      <div className="mt-5">
+        {tab === "whatsapp" && <WhatsAppInvite flat />}
         {tab === "contacts" && <ImportContacts />}
         {tab === "network" && <SafetyNetworkPanel />}
       </div>
