@@ -15,8 +15,29 @@ import {
 export type CheckPhase = "idle" | "checking" | "elevated";
 
 /** Final cancellable countdown before automatic hand-off to SOS. */
-const AUTO_ACTIVATION_SECONDS = 10;
-const SAFE_RECHECK_DELAY_MS = 5 * 60 * 1000;
+const AUTO_ACTIVATION_SECONDS = 30;
+const SAFE_RECHECK_DELAY_MS = 30 * 60 * 1000;
+/** Never ask sooner than this, whatever is stored. */
+export const MIN_INACTIVITY_SECONDS = 5 * 60;
+/** Always give at least this long to answer before any auto-SOS. */
+export const MIN_GRACE_SECONDS = 30;
+export const DESKTOP_CHECKIN_KEY = "allma-checkin-desktop";
+
+export function isDesktopBrowser(): boolean {
+  if (typeof window === "undefined") return false;
+  const coarse = window.matchMedia?.("(pointer: coarse)").matches;
+  const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  return !coarse && !mobileUa && (navigator.maxTouchPoints ?? 0) < 2;
+}
+
+/** True while the user is typing or waiting for an Allma reply. */
+function userIsBusy(): boolean {
+  if (typeof document === "undefined") return false;
+  if (document.body?.dataset.allmaBusy === "1") return true;
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  return el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.isContentEditable;
+}
 
 const ACTIVITY_EVENTS = [
   "pointerdown",
@@ -25,6 +46,8 @@ const ACTIVITY_EVENTS = [
   "touchstart",
   "scroll",
   "focus",
+  "mousemove",
+  "input",
 ] as const;
 
 type Options = {
@@ -56,6 +79,8 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   const signalsRef = useRef<SignalKey[]>([]);
   const checkIdRef = useRef<string | null>(null);
   const safetyConfirmedRef = useRef(false);
+  /** Bumped whenever a check is cancelled; stale async steps compare against it. */
+  const generationRef = useRef(0);
   const motionRef = useRef<{ lastSpikeAt: number; stillSince: number }>({
     lastSpikeAt: 0,
     stillSince: Date.now(),
@@ -168,6 +193,8 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   }, [userId]);
 
   const reset = useCallback(() => {
+    generationRef.current += 1;
+    phaseRef.current = "idle";
     setPhase("idle");
     setSignals([]);
     setCheckId(null);
@@ -179,12 +206,20 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
   const beginCheck = useCallback(async () => {
     if (!userId || phaseRef.current !== "idle") return;
+    if (userIsBusy()) return;
     safetyConfirmedRef.current = false;
+    const generation = ++generationRef.current;
     const initial: SignalKey[] = ["prolonged_inactivity"];
     setSignals(initial);
+    phaseRef.current = "checking";
     setPhase("checking");
-    setSecondsLeft(settings.grace_seconds);
+    setSecondsLeft(Math.max(MIN_GRACE_SECONDS, settings.grace_seconds));
     const id = await openSafetyCheck(userId, initial, "low");
+    if (generation !== generationRef.current || safetyConfirmedRef.current) {
+      if (id) await resolveSafetyCheck(id, "safe", { source: "user_confirmed" });
+      return;
+    }
+    checkIdRef.current = id;
     setCheckId(id);
     if (id) await logCheckEvent(id, "inactivity_detected", { seconds: settings.inactivity_seconds });
     if (settings.audio_detection) void startAudio();
@@ -194,6 +229,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   useEffect(() => {
     if (!userId || !settings.enabled || paused) return;
     if (phase !== "idle") return;
+    if (isDesktopBrowser() && localStorage.getItem(DESKTOP_CHECKIN_KEY) !== "1") return;
 
     const schedule = () => {
       if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
@@ -201,9 +237,9 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
         ? Math.max(0, safeRecheckAt.current - Date.now())
         : 0;
       idleTimer.current = window.setTimeout(() => {
-        if (document.visibilityState === "visible") void beginCheck();
+        if (document.visibilityState === "visible" && !userIsBusy()) void beginCheck();
         else schedule();
-      }, Math.max(Math.max(5, settings.inactivity_seconds) * 1000, cooldownRemaining));
+      }, Math.max(Math.max(MIN_INACTIVITY_SECONDS, settings.inactivity_seconds) * 1000, cooldownRemaining));
     };
 
     const onActivity = () => schedule();
@@ -233,6 +269,8 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
   useEffect(() => {
     if (phase !== "checking" || secondsLeft > 0) return;
     const id = checkIdRef.current;
+    const generation = generationRef.current;
+    const stale = () => safetyConfirmedRef.current || generation !== generationRef.current;
     const nextSignals = signalsRef.current.includes("no_response_to_check")
       ? signalsRef.current
       : [...signalsRef.current, "no_response_to_check" as SignalKey];
@@ -242,7 +280,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
     void (async () => {
       if (id) await logCheckEvent(id, "no_user_response", { confidence: scored.confidence });
-      if (safetyConfirmedRef.current) return;
+      if (stale()) return;
       const eligible = scored.confidence === "high" || scored.confidence === "medium";
       if (!id || !eligible || !settings.auto_escalation) {
         if (id && eligible && !settings.auto_escalation) {
@@ -252,7 +290,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
         return;
       }
       const result = await requestAutoEscalation(id, scored.confidence, nextSignals);
-      if (safetyConfirmedRef.current) return;
+      if (stale()) return;
       if (result.allowed) {
         setAutoSecondsLeft(AUTO_ACTIVATION_SECONDS);
         await logCheckEvent(id, "auto_sos_countdown_started", {
@@ -273,8 +311,8 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
     if (autoSecondsLeft <= 0) {
       const id = checkIdRef.current;
       const current = signalsRef.current;
-      if (safetyConfirmedRef.current || !id) return;
       setAutoSecondsLeft(null);
+      if (safetyConfirmedRef.current || !id || phaseRef.current !== "elevated") return;
       stopAudio();
       void logCheckEvent(id, "auto_sos_activated", { signals: current });
       onEscalate({ checkId: id, signals: current, confidence: scoreSignals(current).confidence });
@@ -289,6 +327,7 @@ export function useSmartSosDetection({ userId, paused, onEscalate }: Options) {
 
   const confirmSafe = useCallback(async () => {
     safetyConfirmedRef.current = true;
+    if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
     safeRecheckAt.current = Date.now() + SAFE_RECHECK_DELAY_MS;
     const id = checkIdRef.current;
     reset();

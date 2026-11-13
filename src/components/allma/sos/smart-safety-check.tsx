@@ -49,7 +49,7 @@ export function SmartSafetyCheck({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-end justify-center bg-background/80 p-4 backdrop-blur-md sm:items-center"
+          className="fixed inset-0 z-[200] flex items-end justify-center bg-foreground/70 p-4 backdrop-blur-sm sm:items-center"
           role="alertdialog"
           aria-modal="true"
           aria-label={copy.title}
@@ -124,7 +124,7 @@ export function SmartSafetyCheck({
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-destructive/20">
                   <motion.div
                     className="h-full rounded-full bg-destructive"
-                    animate={{ width: `${((autoSecondsLeft ?? 0) / 10) * 100}%` }}
+                    animate={{ width: `${((autoSecondsLeft ?? 0) / 30) * 100}%` }}
                     transition={{ ease: "linear", duration: 0.9 }}
                   />
                 </div>

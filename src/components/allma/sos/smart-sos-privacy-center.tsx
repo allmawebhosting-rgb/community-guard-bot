@@ -11,6 +11,7 @@ import {
   type SmartSosCheck,
   type SmartSosSettings,
 } from "@/lib/smart-sos";
+import { DESKTOP_CHECKIN_KEY } from "@/hooks/useSmartSosDetection";
 
 const CHECK_STATUS_LABELS: Record<string, string> = {
   open: "Awaiting response",
@@ -27,6 +28,8 @@ export function SmartSosPrivacyCenter() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [checks, setChecks] = useState<SmartSosCheck[]>([]);
+  const [desktopOn, setDesktopOn] = useState(false);
+  useEffect(() => setDesktopOn(localStorage.getItem(DESKTOP_CHECKIN_KEY) === "1"), []);
   const [motionPermission, setMotionPermission] = useState<"unknown" | "granted" | "denied">("unknown");
 
   const needsMotionPermission =
@@ -52,7 +55,7 @@ export function SmartSosPrivacyCenter() {
     };
   }, [user]);
 
-  async function update(key: keyof SmartSosSettings, value: boolean) {
+  async function update(key: keyof SmartSosSettings, value: boolean | number) {
     if (!user) return;
     setSaving(key);
     setSettings((current) => ({ ...current, [key]: value }));
@@ -87,7 +90,7 @@ export function SmartSosPrivacyCenter() {
       key: "inactivity_seconds" as keyof SmartSosSettings,
       icon: Activity,
       label: "Inactivity check-in",
-      desc: `If you don't touch the screen for ${settings.inactivity_seconds}s while Allma is open, we ask if you're okay. Always on with the master switch.`,
+      desc: `If Allma is open and you haven't touched the screen for ${Math.round(Math.max(300, settings.inactivity_seconds) / 60)} minutes, we ask if you're okay. Never while you're typing or waiting for a reply.`,
       disabled: true,
     },
     {
@@ -180,6 +183,34 @@ export function SmartSosPrivacyCenter() {
           </div>
         ))}
       </div>
+
+      {settings.enabled && (
+        <div className="space-y-3 rounded-xl border border-border/50 px-3 py-3">
+          <label className="flex items-center justify-between gap-3 text-[12.5px] font-semibold">
+            Ask after
+            <select
+              value={String(Math.max(300, settings.inactivity_seconds))}
+              onChange={(e) => void update("inactivity_seconds", Number(e.target.value) as never)}
+              className="rounded-lg border border-border bg-background px-2 py-1 text-[12px]"
+            >
+              {[5, 10, 15, 30, 60].map((m) => (
+                <option key={m} value={m * 60}>{m} minutes</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center justify-between gap-3 text-[12.5px] font-semibold">
+            Also check in on computers
+            <Switch
+              checked={desktopOn}
+              onCheckedChange={(v) => {
+                setDesktopOn(v);
+                localStorage.setItem(DESKTOP_CHECKIN_KEY, v ? "1" : "0");
+              }}
+              aria-label="Also check in on computers"
+            />
+          </label>
+        </div>
+      )}
 
       <div>
         <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">

@@ -46,6 +46,58 @@ function parseAttrs(body: string): Record<string, string> {
   return attrs;
 }
 
+const INLINE_CHOICE_RE = /\[([A-Z][A-Z' ]{0,20}(?:\s*[/|]\s*[A-Z][A-Z' ]{0,20})+)\]/g;
+
+/**
+ * Repairs common model formatting slips so markdown renders cleanly:
+ * inline bullets get their own lines, glued words are spaced, and each
+ * emergency number sits on its own line.
+ */
+export function normalizeChatMarkdown(input: string): string {
+  // "yourAI-powered" → "your AI-powered"
+  const spaced = input.replace(/([a-z])(AI\b)/g, "$1 $2");
+  const out: string[] = [];
+  for (const rawLine of spaced.split("\n")) {
+    let line = rawLine.replace(/\s+[•●▪]\s+/g, " - ");
+    const numbers = line.match(/\b(?:999|112|911|0800\d{6})\b/g) ?? [];
+    if (numbers.length >= 2 && !/^\s*[-*\d]/.test(line)) {
+      // One emergency number per line.
+      const parts = line.split(/\s*[,;·|]\s*|\s+(?:and|or)\s+(?=[A-Z])/).map((p) => p.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const lead = /\d/.test(parts[0]) ? null : parts.shift()!;
+        if (lead) out.push(lead);
+        out.push("", ...parts.map((p) => `- ${p.replace(/[.]$/, "")}`), "");
+        continue;
+      }
+    }
+    // Inline bullets: "Intro: - one - two" → list.
+    const inline = line.split(/\s+-\s+(?=[A-Z*])/);
+    if (inline.length >= 2 && !/^\s*-\s/.test(line)) {
+      const [head, ...items] = inline;
+      out.push(head.trim(), "", ...items.map((i) => `- ${i.trim()}`), "");
+      continue;
+    }
+    if (inline.length >= 2) {
+      out.push(...inline.map((i, n) => (n === 0 ? i : `- ${i.trim()}`)));
+      continue;
+    }
+    // Numbered steps glued after a sentence.
+    line = line.replace(/([.!?])\s+(\d{1,2})\.\s+(?=[A-Z*])/g, "$1\n$2. ");
+    out.push(line);
+  }
+  // Lists need a blank line before them (and none between items) to render tightly.
+  const lines = out;
+  const fixed: string[] = [];
+  const isItem = (l: string) => /^\s*(?:- |\d+\. )/.test(l);
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l === "" && isItem(lines[i + 1] ?? "") && isItem(fixed[fixed.length - 1] ?? "")) continue;
+    if (isItem(l) && fixed.length && fixed[fixed.length - 1] !== "" && !isItem(fixed[fixed.length - 1])) fixed.push("");
+    fixed.push(l);
+  }
+  return fixed.join("\n");
+}
+
 export function parseAllmaMarkers(raw: string): ParsedMarkers {
   let flow: MarkerFlow | null = null;
   let media: MarkerMedia | null = null;
@@ -78,20 +130,38 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
   }
 
   for (const match of raw.matchAll(SUGGEST_RE)) {
-    for (const piece of match[1].split("|")) {
+    for (const piece of match[1].split(/\s*\|\s*|\s+\/\s+/)) {
       const label = piece.trim();
       if (!label) continue;
       if (suggestions.some((s) => s.label === label)) continue;
-      suggestions.push({ label: label.length > 26 ? `${label.slice(0, 25)}…` : label, prompt: label });
+      suggestions.push({ label, prompt: label });
     }
   }
 
-  const text = raw
+  let text = raw
     .replace(FLOW_RE, "")
     .replace(MEDIA_RE, "")
-    .replace(SUGGEST_RE, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .replace(SUGGEST_RE, "");
+
+  // Inline choice brackets like "[YES / SKIP]" become real buttons.
+  const inlineChoices: MarkerSuggestion[] = [];
+  text = text.replace(INLINE_CHOICE_RE, (_m, body: string) => {
+    for (const piece of body.split(/\s*[/|]\s*/)) {
+      const label = piece.trim();
+      if (!label) continue;
+      const pretty = label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
+      inlineChoices.push({ label: pretty, prompt: pretty });
+    }
+    return "";
+  });
+  if (inlineChoices.length) {
+    const rest = suggestions.filter(
+      (s) => !inlineChoices.some((c) => c.label.toLowerCase() === s.label.toLowerCase()),
+    );
+    suggestions.splice(0, suggestions.length, ...inlineChoices, ...rest);
+  }
+
+  text = normalizeChatMarkdown(text).replace(/\n{3,}/g, "\n\n").trim();
 
   return { text, flow, suggestions: suggestions.slice(0, 5), media };
 }

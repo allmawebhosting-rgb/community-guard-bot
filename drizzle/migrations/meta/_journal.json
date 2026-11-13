@@ -15,6 +15,13 @@
       "when": 1791788973449,
       "tag": "0001_restrict_missing_persons_stations_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794607511829,
+      "tag": "0002_sos_status_columns",
+      "breakpoints": true
     }
   ]
 }

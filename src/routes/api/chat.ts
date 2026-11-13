@@ -268,6 +268,7 @@ export const Route = createFileRoute("/api/chat")({
         const INTENTS: Array<{ matches: RegExp; flow: string; opener: string }> = [
           { matches: /\blost\b|\bfound\b|misplac/i, flow: "Lost & found", opener: 'Did you lose something or find something? Options: "I lost something", "I found something".' },
           { matches: /missing person|missing child|can'?t find (my|our)\s+\w+|disappeared/i, flow: "Missing person", opener: 'Is the missing person an adult or a child? Options: "An adult", "A child".' },
+          { matches: /feel(ing)? (unsafe|scared|afraid|followed)|walking (home )?alone|being (followed|watched)|unsafe at night/i, flow: "Safety check", opener: 'FIRST give 4-6 practical safety tips as a bullet list, each on its own line (stay on lit, busy roads; share your live location with a trusted contact; keep your phone ready; avoid shortcuts and earphones; go into an open shop or police post if followed), then the numbers on their own lines (Police 999, Toll-free 112), THEN ask: Are you safe right now? Options: "Yes, I\'m safe", "No, I\'m in danger", "I\'m not sure".' },
           { matches: /sos|immediate danger|being attacked|help me now/i, flow: "Safety check", opener: 'Are you safe right now? Options: "Yes, I\'m safe", "No, I\'m in danger", "I\'m not sure".' },
           { matches: /report (a )?(crime|theft|robbery|assault|burglar|fraud)|stolen|theft|robb|assault/i, flow: "Reporting", opener: 'What kind of incident is this? Options: "Theft", "Robbery", "Assault", "Something else".' },
           { matches: /find help|near me|nearest|police station|hospital|ambulance|fire station/i, flow: "Find help", opener: 'Which service do you need? Options: "Police station", "Hospital", "Fire station".' },
@@ -278,7 +279,7 @@ export const Route = createFileRoute("/api/chat")({
         const matchedIntent = emergencyKind ? undefined : INTENTS.find((i) => i.matches.test(intakeText));
         const intent = matchedIntent?.flow === "Find help" && directService ? undefined : matchedIntent;
         const directHelpBlock = matchedIntent?.flow === "Find help" && directService
-          ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directService}. Do NOT open a flow, do NOT ask which service they need. Call find_facilities right away for that service in THIS reply — never wait for a location first. ${sharedCoords ? "Use their shared GPS location." : "No GPS is shared: call find_facilities with area set to the area they named, or \"Kampala\" if none, and after the results say in one short line they can tap Share my location for places closest to them."} Never add a ::media card or ask for photos or files for this request. Then answer with a short friendly line and finish with "Would you like directions to any of these?"`
+          ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directService}. Do NOT open a flow, do NOT ask which service they need. Call find_facilities right away for that service in THIS reply — never wait for a location first. ${sharedCoords ? "Use their shared GPS location — unless they named a town or area (e.g. Jinja); then pass that as area, it overrides GPS." : "If the user named a town or area anywhere in the conversation, ALWAYS pass it as area (it overrides GPS). No GPS is shared: call find_facilities with area set to the area they named, or \"Kampala\" if none, and after the results say in one short line they can tap Share my location for places closest to them."} Never add a ::media card or ask for photos or files for this request. Then answer with a short friendly line and finish with "Would you like directions to any of these?"`
           : "";
         const intentBlock = emergencyBlock + directHelpBlock + (intent
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
@@ -559,35 +560,53 @@ export const Route = createFileRoute("/api/chat")({
             }),
             find_facilities: tool({
               description:
-                "Find nearby help: police stations, hospitals, fire stations, ambulance services or safe shelters.",
+                "Find nearby help: police stations, hospitals, fire stations, ambulance services or safe shelters. If the user named a town/area, pass it as area — it overrides GPS. If the result has location_unconfirmed, say you couldn't confirm their location and ask them to share or type it; never list far-away places.",
               inputSchema: z.object({
                 facility_type: z.enum(["police", "hospital", "fire", "ambulance", "shelter"]),
                 area: z.string().nullable().describe("Optional district or area name"),
               }),
               execute: async ({ facility_type, area }) => {
-                // Real device GPS first: Google Places + local directory, nearest first,
-                // including clinics, health centres and pharmacies — not only big hospitals.
-                if (sharedCoords) {
-                  const typesFor: Record<string, string[]> = {
-                    hospital: ["hospital", "medical_clinic", "doctor", "pharmacy"],
-                    ambulance: ["hospital", "medical_clinic", "doctor"],
-                    police: ["police"],
-                    fire: ["fire_station"],
-                    shelter: ["police", "hospital"],
-                  };
+                const { inUganda, MAX_NEARBY_KM, haversineKm } = await import("@/lib/nearby-guard");
+                const typesFor: Record<string, string[]> = {
+                  hospital: ["hospital", "medical_clinic", "doctor", "pharmacy"],
+                  ambulance: ["hospital", "medical_clinic", "doctor"],
+                  police: ["police"],
+                  fire: ["fire_station"],
+                  shelter: ["police", "hospital"],
+                };
+                const unconfirmed = {
+                  ok: false,
+                  location_unconfirmed: true,
+                  emergency_type: facility_type,
+                  facilities: [],
+                  message:
+                    "I couldn't confirm your location, so I won't guess. Tell the user plainly, give the emergency numbers (999 police, 112 toll-free, 911 ambulance), and ask them to tap Share my location or type their town or area.",
+                };
+                // A place the user named wins over GPS. GPS outside Uganda is ignored.
+                const named = area ? resolveUgandaPlace(area) : null;
+                const gps = sharedCoords && inUganda(sharedCoords.latitude, sharedCoords.longitude) ? sharedCoords : null;
+                const origin = named
+                  ? { lat: named.lat, lng: named.lng, label: `${named.name}, ${named.district}` }
+                  : gps
+                    ? { lat: gps.latitude, lng: gps.longitude, label: "your current GPS location" }
+                    : null;
+                if (!origin) {
+                  if (area || sharedCoords) return unconfirmed;
+                }
+                if (origin) {
                   try {
                     const { lookupNearbyPlaces } = await import("@/lib/places.server");
-                    const near = await lookupNearbyPlaces({
-                      latitude: sharedCoords.latitude,
-                      longitude: sharedCoords.longitude,
-                      radiusMeters: 8000,
+                    const near = (await lookupNearbyPlaces({
+                      latitude: origin.lat,
+                      longitude: origin.lng,
+                      radiusMeters: named ? 15000 : 8000,
                       limit: 8,
                       types: typesFor[facility_type] ?? [facility_type],
-                    });
+                    })).filter((p) => inUganda(p.latitude, p.longitude) && p.distance_m / 1000 <= MAX_NEARBY_KM);
                     if (near.length) {
                       return {
                         ok: true,
-                        resolved_area: "your current GPS location",
+                        resolved_area: origin.label,
                         emergency_type: facility_type,
                         facilities: near.map((p) => ({
                           name: p.name,
@@ -600,15 +619,12 @@ export const Route = createFileRoute("/api/chat")({
                           photo_url: p.photo_name ? `/api/public/place-photo?name=${encodeURIComponent(p.photo_name)}` : null,
                           distance_km: Math.round(p.distance_m / 100) / 10,
                         })),
-                        note: "Sorted by straight-line distance from the user's GPS. Name the closest one first; never state travel time.",
+                        note: "Sorted by straight-line distance. Name the closest one first; never state travel time.",
                       };
                     }
                   } catch (err) {
                     console.warn("Nearby places lookup failed; using directory.", err);
                   }
-                }
-                const place = area ? resolveUgandaPlace(area) : null;
-                if (place) {
                   const { data, error } = await supabase
                     .from("facilities")
                     .select("name, facility_type, phone, address, district, latitude, longitude")
@@ -616,32 +632,29 @@ export const Route = createFileRoute("/api/chat")({
                     .not("latitude", "is", null)
                     .not("longitude", "is", null);
                   if (error) return { ok: false, message: "Directory lookup failed." };
-                  const toRad = (v: number) => (v * Math.PI) / 180;
                   const ranked = (data ?? [])
-                    .map((row) => {
-                      const dLat = toRad(Number(row.latitude) - place.lat);
-                      const dLng = toRad(Number(row.longitude) - place.lng);
-                      const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(place.lat)) * Math.cos(toRad(Number(row.latitude))) * Math.sin(dLng / 2) ** 2;
-                      return { ...row, distance_km: Math.round(2 * 6371 * Math.asin(Math.min(1, Math.sqrt(s))) * 10) / 10 };
-                    })
+                    .filter((row) => inUganda(Number(row.latitude), Number(row.longitude)))
+                    .map((row) => ({
+                      ...row,
+                      distance_km: Math.round(haversineKm(origin.lat, origin.lng, Number(row.latitude), Number(row.longitude)) * 10) / 10,
+                    }))
+                    .filter((row) => row.distance_km <= MAX_NEARBY_KM)
                     .sort((a, b) => a.distance_km - b.distance_km)
                     .slice(0, 5);
                   if (ranked.length) {
-                    return { ok: true, resolved_area: `${place.name}, ${place.district}`, facilities: ranked, note: "distance_km is straight-line from the centre of the named area; never state travel time." };
+                    return { ok: true, resolved_area: origin.label, emergency_type: facility_type, facilities: ranked, note: "distance_km is straight-line; never state travel time." };
                   }
+                  return unconfirmed;
                 }
-                let query = supabase
+                // No area and no GPS: national directory list, no distances.
+                const { data, error } = await supabase
                   .from("facilities")
-                  .select("name, facility_type, phone, address, district, latitude, longitude")
+                  .select("name, facility_type, phone, address, district")
                   .eq("facility_type", facility_type)
+                  .ilike("district", "%Kampala%")
                   .limit(5);
-                if (area) {
-                  const p = `%${area.replace(/[,()%]/g, " ").trim()}%`;
-                  query = query.or(`district.ilike.${p},name.ilike.${p},address.ilike.${p}`);
-                }
-                const { data, error } = await query;
                 if (error) return { ok: false, message: "Directory lookup failed." };
-                return { ok: true, facilities: data ?? [] };
+                return { ok: true, resolved_area: "Kampala (share your location for closer places)", emergency_type: facility_type, facilities: data ?? [] };
               },
             }),
             list_alerts: tool({
@@ -846,8 +859,13 @@ export const Route = createFileRoute("/api/chat")({
                 let latitude = inLat;
                 let longitude = inLng;
                 let resolvedFrom: string | null = null;
-                if (!(Number.isFinite(latitude) && Number.isFinite(longitude))) {
-                  const place = resolveUgandaPlace(cleaned);
+                const { inUganda: inUg, MAX_NEARBY_KM: maxKm } = await import("@/lib/nearby-guard");
+                const namedPlace = cleaned ? resolveUgandaPlace(cleaned) : null;
+                // A named place wins; coordinates outside Uganda (or 0,0) are ignored.
+                if (namedPlace || !(Number.isFinite(latitude) && Number.isFinite(longitude) && inUg(latitude!, longitude!))) {
+                  latitude = undefined;
+                  longitude = undefined;
+                  const place = namedPlace;
                   if (place) {
                     latitude = place.lat;
                     longitude = place.lng;
@@ -901,6 +919,7 @@ export const Route = createFileRoute("/api/chat")({
                             10,
                         ) / 10,
                     }))
+                    .filter((row) => inUg(Number(row.latitude), Number(row.longitude)) && row.distance_km <= maxKm)
                     .sort((a, b) => a.distance_km - b.distance_km);
 
                   const nearest = (type: string) =>

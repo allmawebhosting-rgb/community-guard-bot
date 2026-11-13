@@ -15,6 +15,7 @@ import {
   ExternalLink,
   FileText,
   Flame,
+  Pill,
   HelpCircle,
   Hospital,
   Loader2,
@@ -377,6 +378,20 @@ const FACILITY_LABEL: Record<string, string> = {
   police: "Police", fire_station: "Fire & Rescue", fire: "Fire & Rescue", ambulance: "Ambulance",
 };
 
+function PlaceThumb({ photo, type }: { photo: string | null; type: string }) {
+  const [failed, setFailed] = useState(false);
+  if (photo && !failed) {
+    return <img src={photo} alt="" loading="lazy" onError={() => setFailed(true)} className="h-16 w-16 shrink-0 rounded-xl bg-muted object-cover" />;
+  }
+  const Icon = /police/.test(type) ? Shield : /fire/.test(type) ? Flame : /pharmacy/.test(type) ? Pill : /ambulance/.test(type) ? Ambulance : Hospital;
+  const tone = /police/.test(type) ? "bg-primary/10 text-primary" : /fire/.test(type) ? "bg-destructive/10 text-destructive" : "bg-chat-user text-chat-accent";
+  return (
+    <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-xl ${tone}`} aria-hidden>
+      <Icon className="h-7 w-7" />
+    </span>
+  );
+}
+
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const navigate = useNavigate();
   const facilities = output.facilities as Array<Record<string, unknown>>;
@@ -395,7 +410,7 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
           </button>
           <div className="flex gap-2">
             {UGANDA_HOTLINES[kind].map((h) => (
-              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-destructive/30 px-3 py-2 text-[13px] font-semibold text-destructive">
+              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-destructive/30 px-3 py-2.5 text-[13.5px] font-semibold text-destructive">
                 <Phone className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Call {h.number}</span>
               </a>
             ))}
@@ -403,7 +418,7 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
         </div>
       ) : null}
       {facilities.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No places found nearby. Share your location or try another area name.</p>
+        <p className="rounded-2xl border border-border/60 bg-card p-3.5 text-[14px] leading-relaxed text-foreground">{output.location_unconfirmed ? "I couldn't confirm where you are, so I won't show places that may be far away. Tap Share my location or type your town or area." : "No places found nearby. Share your location or type your town or area."}</p>
       ) : (
         <>
           {output.resolved_area ? (
@@ -419,27 +434,26 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
               const phone = typeof facility.phone === "string" && facility.phone ? facility.phone : null;
               const photo = typeof facility.photo_url === "string" && facility.photo_url ? facility.photo_url : null;
               return (
-                <div key={index} className="flex items-center gap-3 p-3">
-                  {photo ? (
-                    <img src={photo} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-xl bg-muted object-cover" />
-                  ) : (
-                    <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-chat-user text-chat-accent"><Hospital className="h-6 w-6" /></span>
-                  )}
+                <div key={index} className="flex items-start gap-3 p-3.5">
+                  <PlaceThumb photo={photo} type={String(facility.facility_type ?? t)} />
                   <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 text-[14.5px] font-bold leading-snug text-foreground">{String(facility.name)}</p>
-                    <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
-                      {km != null ? <strong className="text-chat-accent">{km} km</strong> : null}
-                      {km != null && (label || index === 0) ? " · " : null}
-                      {index === 0 ? <span className="font-semibold text-chat-accent">Nearest</span> : label}
-                      {facility.open_now === true ? " · Open now" : null}
+                    <p className="text-[15px] font-bold leading-snug text-foreground [overflow-wrap:anywhere]">{String(facility.name)}</p>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] leading-snug text-muted-foreground">
+                      {km != null ? <strong className="whitespace-nowrap text-chat-accent">{km} km</strong> : null}
+                      {index === 0 ? <span className="whitespace-nowrap font-semibold text-chat-accent">· Nearest</span> : null}
+                      {label ? <span className="whitespace-nowrap">· {label}</span> : null}
+                      {facility.open_now === true ? <span className="whitespace-nowrap text-success">· Open now</span> : null}
                     </p>
-                    <div className="mt-2 flex gap-2">
-                      <a href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-chat-accent px-3 py-1.5 text-[12.5px] font-semibold text-primary-foreground">
-                        <MapPin className="h-3.5 w-3.5" /> Directions
+                    {typeof facility.address === "string" && facility.address ? (
+                      <p className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground/80">{facility.address}</p>
+                    ) : null}
+                    <div className="mt-2.5 flex flex-wrap gap-2">
+                      <a href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-chat-accent px-3.5 py-2 text-[13px] font-semibold text-primary-foreground">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" /> Directions
                       </a>
                       {phone ? (
-                        <a href={`tel:${phone.replace(/\s+/g, "")}`} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-[12.5px] font-semibold text-foreground">
-                          <Phone className="h-3.5 w-3.5" /> Call
+                        <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3.5 py-2 text-[13px] font-semibold text-foreground">
+                          <Phone className="h-3.5 w-3.5 shrink-0" /> Call
                         </a>
                       ) : null}
                     </div>
@@ -1624,7 +1638,7 @@ export function AllmaChat({
                               }}
 
 
-                              className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-border bg-background px-3.5 py-1.5 text-[13px] font-medium text-foreground/85 transition-colors hover:bg-muted hover:text-foreground"
+                              className="inline-flex max-w-full items-center whitespace-normal break-words rounded-2xl border border-border bg-background px-3.5 py-2 text-left text-[13.5px] font-medium leading-snug text-foreground/85 transition-colors hover:bg-muted hover:text-foreground"
                             >
                                                             {chip.label}
                             </motion.button>

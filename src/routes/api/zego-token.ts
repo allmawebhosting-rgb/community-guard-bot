@@ -55,7 +55,7 @@ export const Route = createFileRoute("/api/zego-token")({
             appIdConfigured: Number.isSafeInteger(appId) && appId > 0,
             secretConfigured: Boolean(serverSecret),
           });
-          return jsonError("Unable to configure voice calling.", 503, "MISSING_ZEGO_CONFIG");
+          return jsonError("Calling is not available right now.", 503, "MISSING_ZEGO_CONFIG");
         }
 
         const admin = createAdmin();

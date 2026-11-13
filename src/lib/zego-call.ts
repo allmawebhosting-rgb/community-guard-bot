@@ -148,9 +148,9 @@ async function getZegoToken(callId: string): Promise<ZegoTokenResponse> {
       callId,
       status: response.status,
       code: payload.code ?? "TOKEN_REQUEST_FAILED",
-      message: payload.error ?? "ZEGOCLOUD is not available.",
+      message: payload.error ?? "Calling is not available right now.",
     });
-    throw new Error(payload.error ?? "Unable to authenticate voice session.");
+    throw new Error("Calling is not available right now. Please try again shortly.");
   }
   return payload;
 }
@@ -249,9 +249,9 @@ export class VoiceCallEngine {
         userId: token.userId,
         message: error instanceof Error ? error.message : "unknown",
       });
-      throw new Error("Unable to join the ZEGOCLOUD voice room.");
+      throw new Error("Couldn't connect the call. Please try again.");
     }
-    if (!loggedIn) throw new Error("Unable to join the ZEGOCLOUD voice room.");
+    if (!loggedIn) throw new Error("Couldn't connect the call. Please try again.");
     let microphone: MediaStream;
     try {
       microphone = this.prewarmedStream ?? await engine.createStream({ camera: { video: false }, microphone: true });

@@ -1,3 +1,4 @@
+import { markOnboardedLocally } from "@/lib/onboarding";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -333,7 +334,7 @@ function OnboardingPage() {
       navigate({ to: "/auth", search: { next: "/onboarding" } });
       return;
     }
-    await supabase.from("profiles").upsert({
+    const { error: saveError } = await supabase.from("profiles").upsert({
       id: userId,
       full_name: draft.name.trim() || null,
       phone: draft.phone.trim() || null,
@@ -344,6 +345,12 @@ function OnboardingPage() {
       safety_plan: draft.plan,
       onboarding_completed: true,
     });
+    if (saveError) {
+      console.error("Onboarding save failed", saveError);
+      // Retry with just the completion flag so the user isn't sent back here.
+      await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", userId);
+    }
+    markOnboardedLocally(userId);
     navigate({ to: draft.healthSetup ? "/health-reminders" : "/chat" });
   }
 

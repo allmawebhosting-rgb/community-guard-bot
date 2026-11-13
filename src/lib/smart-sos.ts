@@ -20,8 +20,8 @@ export type SmartSosSettings = {
 
 export const DEFAULT_SMART_SOS_SETTINGS: SmartSosSettings = {
   enabled: false,
-  inactivity_seconds: 15,
-  grace_seconds: 20,
+  inactivity_seconds: 600,
+  grace_seconds: 45,
   motion_detection: false,
   audio_detection: false,
   auto_escalation: true,

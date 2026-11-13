@@ -19,11 +19,15 @@ export function ThreadList({
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuth();
-  const { data: threads = [], isLoading } = useQuery({
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const { data: threads = [], isPending, isFetching } = useQuery({
     ...threadsQueryOptions(),
+    queryKey: ["threads", user?.id ?? "anon"] as unknown as ["threads"],
     enabled: isAuthenticated,
+    // A list cached before the session was ready may be empty; always refresh.
+    refetchOnMount: "always",
   });
+  const isLoading = isPending || (isFetching && threads.length === 0);
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
@@ -56,7 +60,9 @@ export function ThreadList({
       </div>
 
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-4">
-        {!isAuthenticated ? (
+        {authLoading ? (
+          <p className="px-2 text-xs text-muted-foreground">Loading…</p>
+        ) : !isAuthenticated ? (
           <p className="px-2 text-xs text-muted-foreground">
             Sign in to save and revisit your conversations.
           </p>

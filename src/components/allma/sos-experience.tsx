@@ -556,7 +556,7 @@ async function createResponderOffers(
   });
   if (error) {
     console.warn("Responder offer creation unavailable", error);
-    toast.error("SOS was activated, but responder notifications could not be sent.");
+    // Contacts are alerted separately; this only affects nearby volunteer responders.
     return [];
   }
   const offers = (rawOffers as Omit<ResponderOffer, "phone">[] | null) ?? [];
@@ -1045,6 +1045,8 @@ export function SOSExperience({
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("idle");
+  const phaseRef = useRef<Phase>(phase);
+  phaseRef.current = phase;
   const [responderSearch, setResponderSearch] = useState<"idle" | "searching" | "done" | "timeout">("idle");
 
   const [emergencyType, setEmergencyType] = useState("other");
@@ -1210,6 +1212,8 @@ export function SOSExperience({
         title: "Emergency SOS activated",
         summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
         severity: "critical",
+        sos_status: "active",
+        activated_at: new Date().toISOString(),
         location_text: initialLocation
           ? `${initialLocation.address}, ${initialLocation.district}`.replace(/(^, )|(, $)/g, "")
           : "Location pending",
@@ -1408,8 +1412,13 @@ export function SOSExperience({
         {phase === "countdown" && (
           <CountdownScreen
             key="countdown"
-            onDone={startAfterCountdown}
-            onCancel={() => setPhase("idle")}
+            onDone={() => {
+              if (phaseRef.current === "countdown") startAfterCountdown();
+            }}
+            onCancel={() => {
+              phaseRef.current = "idle";
+              setPhase("idle");
+            }}
           />
         )}
         {phase === "loading" && (
@@ -1481,6 +1490,8 @@ export function SOSExperience({
                     title: "Emergency SOS ended",
                     severity: "info",
                     summary: "SOS was stopped by the user.",
+                    sos_status: "resolved",
+                    ended_at: new Date().toISOString(),
                   })
                   .eq("id", endedId)
                   .then(({ error }) => {
@@ -1928,14 +1939,30 @@ function CountdownScreen({ onDone, onCancel }: { onDone: () => void; onCancel: (
   const [left, setLeft] = useState(3);
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
+  // Once cancelled (or finished) this screen can never fire, even while it is
+  // still mounted for its exit animation.
+  const settledRef = useRef(false);
   useEffect(() => {
-    if (left <= 0) {
-      doneRef.current();
-      return;
-    }
-    const t = setTimeout(() => setLeft((n) => n - 1), 1000);
-    return () => clearTimeout(t);
-  }, [left]);
+    const startedAt = Date.now();
+    const t = setInterval(() => {
+      if (settledRef.current) return;
+      const remaining = 3 - Math.floor((Date.now() - startedAt) / 1000);
+      setLeft(Math.max(remaining, 0));
+      if (remaining <= 0) {
+        settledRef.current = true;
+        clearInterval(t);
+        doneRef.current();
+      }
+    }, 100);
+    return () => {
+      settledRef.current = true;
+      clearInterval(t);
+    };
+  }, []);
+  const cancel = () => {
+    settledRef.current = true;
+    onCancel();
+  };
   return (
     <motion.div
       className="relative z-10 flex h-full flex-col items-center justify-center gap-8 px-8 text-center"
@@ -1950,7 +1977,7 @@ function CountdownScreen({ onDone, onCancel }: { onDone: () => void; onCancel: (
       <p className="max-w-xs text-[14px] text-muted-foreground">No alert has been sent yet. Tap Cancel if this was a mistake.</p>
       <button
         type="button"
-        onClick={onCancel}
+        onClick={cancel}
         className="min-h-16 w-full max-w-xs rounded-2xl border-2 border-foreground/20 bg-card text-xl font-black text-foreground shadow-lg transition active:scale-[0.98]"
       >
         Cancel

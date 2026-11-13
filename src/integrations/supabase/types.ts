@@ -2397,43 +2397,52 @@ export type Database = {
       }
       safety_activity: {
         Row: {
+          activated_at: string | null
           activity_type: string
           created_at: string
           details: Json
+          ended_at: string | null
           id: string
           latitude: number | null
           location_text: string | null
           longitude: number | null
           report_id: string | null
           severity: string
+          sos_status: string | null
           summary: string | null
           title: string
           user_id: string | null
         }
         Insert: {
+          activated_at?: string | null
           activity_type: string
           created_at?: string
           details?: Json
+          ended_at?: string | null
           id?: string
           latitude?: number | null
           location_text?: string | null
           longitude?: number | null
           report_id?: string | null
           severity?: string
+          sos_status?: string | null
           summary?: string | null
           title: string
           user_id?: string | null
         }
         Update: {
+          activated_at?: string | null
           activity_type?: string
           created_at?: string
           details?: Json
+          ended_at?: string | null
           id?: string
           latitude?: number | null
           location_text?: string | null
           longitude?: number | null
           report_id?: string | null
           severity?: string
+          sos_status?: string | null
           summary?: string | null
           title?: string
           user_id?: string | null
