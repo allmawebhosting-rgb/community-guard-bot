@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "@/components/allma/app-shell";
 
 export const Route = createFileRoute("/blog")({
   head: () => ({
@@ -15,5 +16,9 @@ export const Route = createFileRoute("/blog")({
     ],
     links: [{ rel: "canonical", href: "https://allmasafetyai.online/blog" }],
   }),
-  component: () => <Outlet />,
+  component: () => (
+    <AppShell title="Safety Journal">
+      <Outlet />
+    </AppShell>
+  ),
 });

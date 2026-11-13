@@ -28,17 +28,7 @@ function BlogIndex() {
   const featured = BLOG_POSTS[0];
 
   return (
-    <main className="journal-page min-h-screen">
-      <header className="journal-header">
-        <div className="journal-container flex items-center justify-between gap-4 py-4 sm:py-5">
-          <Link to="/" className="journal-wordmark">ALLMA <span>/</span> SAFETY AI</Link>
-          <nav className="hidden items-center gap-6 journal-label sm:flex" aria-label="Journal navigation">
-            <Link to="/blog" className="journal-nav-link">Journal</Link>
-            <Link to="/" className="journal-nav-link">Allma home</Link>
-          </nav>
-          <Link to="/" className="journal-outline-button">Back to Allma</Link>
-        </div>
-      </header>
+    <main className="journal-page min-h-full">
 
       <section className="journal-container grid gap-8 py-12 lg:grid-cols-[1fr_1.12fr] lg:items-end lg:py-20">
         <div className="max-w-xl">

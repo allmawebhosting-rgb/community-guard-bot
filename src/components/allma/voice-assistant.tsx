@@ -1,3 +1,4 @@
+import { markSosIntent } from "@/lib/sos-intent";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { AudioLines, ChevronRight, Flame, Map as MapIcon, ShieldAlert, FileText, Heart, Home, Hospital, Keyboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Mic, Package, RotateCcw, Send, ShieldCheck, Siren, Square, UserRound, X, Zap } from "lucide-react";
@@ -181,7 +182,8 @@ export function VoiceAssistant() {
           if (a.type === "request_location") navigator.geolocation?.getCurrentPosition(() => {}, () => {});
           if (a.type === "sos") {
             stopLoopRef.current();
-            void navigate({ to: "/sos", search: { instant: 1 } as never });
+            markSosIntent();
+            void navigate({ to: "/sos", search: { instant: true } });
             return;
           }
           if (a.type === "exit") exit = true;
@@ -392,9 +394,9 @@ export function VoiceAssistant() {
         data-allma-voice-dot
         aria-label="Start Allma voice mode"
         onClick={() => startLoop(false)}
-        className="fixed bottom-40 right-4 z-[60] grid size-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 md:bottom-6"
+        className="fixed bottom-40 right-4 z-[60] grid size-11 place-items-center rounded-full bg-info text-info-foreground shadow-xl transition-transform hover:scale-105 md:bottom-6"
       >
-        <Mic className="size-5" />
+        <AudioLines className="size-5" />
       </button>
     );
   }

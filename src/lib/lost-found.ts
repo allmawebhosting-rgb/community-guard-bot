@@ -65,6 +65,8 @@ export const publicLostFoundQuery = queryOptions({
       .from("lost_found_items")
       .select("*")
       .eq("kind", "found")
+      // Never show seeded demo rows (identifier DEMO-…), even if a database still has them.
+      .or("identifier.is.null,identifier.not.ilike.DEMO%")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;

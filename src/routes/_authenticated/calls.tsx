@@ -90,7 +90,7 @@ function CallsRoute() {
             Voice history
           </h2>
           <p className="mb-3 text-[12px] text-muted-foreground">
-            Calls are authorized through your Safety Network and carried by ZEGOCLOUD RTC.
+            Calls are limited to people in your Safety Network.
           </p>
           <CallHistory />
         </section>

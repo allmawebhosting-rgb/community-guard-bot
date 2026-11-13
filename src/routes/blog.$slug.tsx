@@ -64,12 +64,11 @@ function BlogArticle() {
   const showcase = post.slug === "allma-safety-ai" ? features[0] : post.slug === "uganda-safety-app" ? features[2] : features[1];
 
   return (
-    <main className="journal-page journal-article min-h-screen">
+    <main className="journal-page journal-article min-h-full">
       <ArticleProgress />
       <header className="journal-header">
         <div className="journal-container flex items-center justify-between gap-4 py-4 sm:py-5">
           <Link to="/blog" className="journal-text-link"><ArrowLeft className="h-4 w-4" /> Safety Journal</Link>
-          <Link to="/" className="journal-wordmark">ALLMA <span>/</span> SAFETY AI</Link>
         </div>
       </header>
       <section className="mx-auto min-w-0 max-w-7xl px-4 pb-10 pt-12 sm:px-8 sm:pb-14 sm:pt-20">

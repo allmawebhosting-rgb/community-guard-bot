@@ -193,6 +193,17 @@ function NearbyScreen() {
       { minimumIntervalMs: 6000, minimumMovementMeters: 15 },
     );
   };
+  // Never stay on "Locating…" forever.
+  useEffect(() => {
+    if (!locating) return;
+    const t = window.setTimeout(() => {
+      setLocating(false);
+      setLocationError(
+        "Your location is unavailable right now. Distances are from Kampala Central — turn on Location Services or search for your area.",
+      );
+    }, 12_000);
+    return () => window.clearTimeout(t);
+  }, [locating]);
   useEffect(() => {
     locate();
     return () => {
@@ -214,6 +225,11 @@ function NearbyScreen() {
         ? { lat: Number(placeLatitudeKey), lng: Number(placeLongitudeKey) }
         : DEFAULT_AREA),
     [placeLatitudeKey, placeLongitudeKey, searchArea],
+  );
+  // Distances use the precise GPS fix (or the chosen area), never a rounded key.
+  const distanceOrigin = useMemo(
+    () => searchArea ?? (location ? { lat: location.lat, lng: location.lng } : DEFAULT_AREA),
+    [searchArea, location?.lat, location?.lng],
   );
   const nearestArea = useMemo(
     () => (location ? getNearestUgandaPlace(location) : null),
@@ -336,10 +352,10 @@ function NearbyScreen() {
           ),
       )
       .map((place) =>
-        placeSearchCenter
+        distanceOrigin
           ? {
               ...place,
-              distance_m: distanceBetween(placeSearchCenter, {
+              distance_m: distanceBetween(distanceOrigin, {
                 lat: place.latitude,
                 lng: place.longitude,
               }),
@@ -347,7 +363,7 @@ function NearbyScreen() {
           : place,
       )
       .sort((a, b) => a.distance_m - b.distance_m);
-  }, [candidates, filter, search, searchArea, placeSearchCenter]);
+  }, [candidates, filter, search, searchArea, distanceOrigin]);
   const selectedPlace = filteredPlaces.find((place) => place.id === selectedPlaceId) ?? null;
 
   const placeSuggestions = useMemo(() => {

@@ -34,6 +34,16 @@ import { useTheme } from "@/lib/theme";
 import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { QUICK_ACTIONS } from "@/lib/allma";
 import { cn } from "@/lib/utils";
+import { myAdminRoleQuery, myOfficerQuery } from "@/lib/police";
+
+// Police command is only for officers and admins, never ordinary citizens.
+function useCanSeePolice() {
+  const { user } = useAuth();
+  const enabled = Boolean(user?.id);
+  const { data: officer } = useQuery({ ...myOfficerQuery, enabled });
+  const { data: isAdmin = false } = useQuery({ ...myAdminRoleQuery, enabled });
+  return enabled && (Boolean(officer) || isAdmin);
+}
 
 type TabPath = "/chat" | "/alerts" | "/reports" | "/safety-network" | "/profile" | "/calls" | "/lost-found" | "/blog";
 
@@ -50,6 +60,7 @@ const NAV_ITEMS: { label: string; to: TabPath; icon: typeof Home }[] = [
 
 /* ─── Desktop Sidebar ──────────────────────────────────────────────────── */
 function DesktopSidebar() {
+  const canSeePolice = useCanSeePolice();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -143,7 +154,8 @@ function DesktopSidebar() {
           Community responder
           {pathname === "/responder" && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
         </Link>
-        <Link
+        {canSeePolice && (
+<Link
           to="/police"
           className={cn(
             "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-all",
@@ -158,6 +170,7 @@ function DesktopSidebar() {
             <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
           )}
         </Link>
+)}
       </nav>
 
       {/* New chat + thread list */}
@@ -283,6 +296,7 @@ function DesktopSidebar() {
 
 /* ─── Mobile side drawer ───────────────────────────────────────────────── */
 function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const canSeePolice = useCanSeePolice();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, isAuthenticated, signOut } = useAuth();
@@ -448,7 +462,8 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                     </Link>
                   );
                 })}
-                <Link
+                {canSeePolice && (
+<Link
                   to="/police"
                   onClick={onClose}
                   className={cn(
@@ -464,6 +479,7 @@ function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                   <span className="flex-1 text-[13px] font-medium">Police command</span>
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
                 </Link>
+)}
                 <Link
                   to="/nearby"
                   onClick={onClose}
@@ -652,9 +668,6 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               <span className="flex items-center gap-1.5 rounded-full border border-border/50 bg-card/50 px-3 py-1">
                 🇺🇬 Uganda Coverage
               </span>
-              <span className="flex items-center gap-1.5 rounded-full border border-border/50 bg-card/50 px-3 py-1">
-                🔒 End-to-end encrypted
-              </span>
               {isAuthenticated && <NotificationsBell />}
               {isChat && <SosButton inline />}
             </div>
@@ -676,7 +689,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       {/* One emergency control shared by every app-shell screen. */}
       {!isChat && <SosButton />}
 
-      {/* The call overlay + ZEGOCLOUD RTC session is mounted once in __root. */}
+      {/* The call overlay is mounted once in __root. */}
 
     </div>
   );

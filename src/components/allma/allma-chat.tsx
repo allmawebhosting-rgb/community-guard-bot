@@ -1,3 +1,4 @@
+import { markSosIntent } from "@/lib/sos-intent";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
@@ -387,7 +388,7 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
         <div className="space-y-2">
           <button
             type="button"
-            onClick={() => navigate({ to: "/sos", search: { instant: true } })}
+            onClick={() => { markSosIntent(); void navigate({ to: "/sos", search: { instant: true } }); }}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive px-4 py-3.5 text-[15px] font-bold text-destructive-foreground shadow-soft active:scale-[0.98]"
           >
             <ShieldAlert className="h-5 w-5 shrink-0" /> Getting worse? Activate SOS
@@ -1788,7 +1789,7 @@ export function AllmaChat({
                     className={cn(
                       "flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60",
                       recording &&
-                        "mic-recording bg-destructive text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground",
+                        "mic-recording bg-info text-info-foreground hover:bg-info hover:text-info-foreground",
                     )}
                     aria-label={recording ? "Stop recording" : "Voice input"}
                   >

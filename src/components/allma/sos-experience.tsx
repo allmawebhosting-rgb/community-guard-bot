@@ -50,10 +50,11 @@ import { primeMicrophone } from "@/lib/zego-call";
 import { getNearbyPlaces } from "@/lib/places.functions";
 import type { NearbyPlace } from "@/lib/places.types";
 import { toast } from "sonner";
+import { consumeSosIntent, withTimeout } from "@/lib/sos-intent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = "idle" | "type-select" | "consent" | "loading" | "help" | "report" | "submitted";
+type Phase = "idle" | "countdown" | "type-select" | "consent" | "loading" | "help" | "report" | "submitted";
 type LocationState = "finding" | "found" | "approximate" | "denied" | "unavailable" | "skipped";
 type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
 
@@ -511,7 +512,7 @@ function getLocation(): Promise<LocationInfo> {
         if (watchId !== null) navigator.geolocation.clearWatch(watchId);
         reject(new Error("location timeout"));
       }
-    }, 15000);
+    }, 10000);
     watchId = navigator.geolocation.watchPosition(
       (position) => {
         if (!best || position.coords.accuracy < best.coords.accuracy) best = position;
@@ -534,7 +535,7 @@ function getLocation(): Promise<LocationInfo> {
           reject(error);
         }
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
     );
   });
 }
@@ -1043,7 +1044,8 @@ export function SOSExperience({
 }: { instant?: boolean; smartCheckId?: string } = {}) {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<Phase>(instant ? "loading" : "idle");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [responderSearch, setResponderSearch] = useState<"idle" | "searching" | "done" | "timeout">("idle");
 
   const [emergencyType, setEmergencyType] = useState("other");
   const [pendingEmergencyType, setPendingEmergencyType] = useState("other");
@@ -1146,7 +1148,9 @@ export function SOSExperience({
   // and never placed a call.
   useEffect(() => {
     if (!instant || authLoading || activated.current) return;
-    void activateEmergency();
+    // Strip ?instant so reloads/back never restart SOS.
+    void navigate({ to: "/sos", search: smartCheckId ? { check: smartCheckId } : {}, replace: true });
+    if (consumeSosIntent()) setPhase("countdown");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instant, authLoading]);
 
@@ -1168,6 +1172,10 @@ export function SOSExperience({
   }, [user, sosActivityId, emergencyType]);
 
   function handleSosPress() {
+    setPhase("countdown");
+  }
+
+  function startAfterCountdown() {
     setPendingEmergencyType("other");
     setShareLocation(true);
     setNotifyResponders(true);
@@ -1242,17 +1250,18 @@ export function SOSExperience({
     const notificationConsent = options?.notifyResponders ?? notifyResponders;
     if (activated.current) return;
     activated.current = true;
-    try {
-      setMicrophoneStream(await primeMicrophone());
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Microphone access is required for SOS calls.");
-    }
+    // Show the active SOS screen (Stop + Call) immediately; nothing below may block it.
+    setPhase("help");
+    void primeMicrophone()
+      .then(setMicrophoneStream)
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : "Microphone access is required for SOS calls.");
+      });
     setEmergencyId(createEmergencyId());
     setActivatedAt(Date.now());
     setSosActivityId(null);
     setResponderOffers([]);
     setEmergencyType(type);
-    setPhase("loading");
     setLocationState(locationConsent ? "finding" : "skipped");
 
     let activityId: string | null = null;
@@ -1267,9 +1276,6 @@ export function SOSExperience({
       setSosActivityId(activityId);
     }
 
-    // Make the emergency screen and responder calling available as soon as the
-    // SOS record exists. GPS and nearby-resource lookups continue below.
-    setPhase("help");
     if (activityId && notificationConsent) {
       void notifySosActivity({ data: { activityId } }).catch((error) => {
         console.error("[ALLMA PUSH] SOS activity notification failed", error);
@@ -1304,13 +1310,18 @@ export function SOSExperience({
         });
     }
 
-    const offersPromise = activityId && notificationConsent
-      ? createResponderOffers(activityId, COMMUNITY_RADIUS[type] ?? 1000)
-      : Promise.resolve([] as ResponderOffer[]);
+    setResponderSearch(activityId && notificationConsent ? "searching" : "idle");
+    const offersPromise = (activityId && notificationConsent
+      ? withTimeout(createResponderOffers(activityId, COMMUNITY_RADIUS[type] ?? 1000), 20_000, [] as ResponderOffer[])
+      : Promise.resolve({ value: [] as ResponderOffer[], timedOut: false })
+    ).then(({ value, timedOut }) => {
+      setResponderSearch(timedOut || value.length === 0 ? "timeout" : "done");
+      return value;
+    });
 
     if (loc && locationConsent) {
       const [nearby, offers] = await Promise.all([
-        loadNearbyFacilities(loc.lat, loc.lng),
+        withTimeout(loadNearbyFacilities(loc.lat, loc.lng), 20_000, { hospitals: [], police: [] } as Awaited<ReturnType<typeof loadNearbyFacilities>>).then((r) => r.value),
         offersPromise,
       ]);
       setHospitals(nearby.hospitals.slice(0, 4));
@@ -1394,6 +1405,13 @@ export function SOSExperience({
             onBack={() => setPhase("type-select")}
           />
         )}
+        {phase === "countdown" && (
+          <CountdownScreen
+            key="countdown"
+            onDone={startAfterCountdown}
+            onCancel={() => setPhase("idle")}
+          />
+        )}
         {phase === "loading" && (
           <LoadingScreen key="loading" emergencyId={emergencyId} />
         )}
@@ -1428,6 +1446,7 @@ export function SOSExperience({
             shareLocation={shareLocation}
             activityId={sosActivityId}
             microphoneStream={microphoneStream}
+            responderSearch={responderSearch}
             onEnableLocation={async () => {
               setLocationState("finding");
               try {
@@ -1453,6 +1472,27 @@ export function SOSExperience({
               }
             }}
             onClose={() => {
+              const endedId = sosActivityId;
+              if (endedId) {
+                void supabase
+                  .from("safety_activity")
+                  .update({
+                    activity_type: "sos_resolved",
+                    title: "Emergency SOS ended",
+                    severity: "info",
+                    summary: "SOS was stopped by the user.",
+                  })
+                  .eq("id", endedId)
+                  .then(({ error }) => {
+                    if (error) {
+                      console.error("Failed to end SOS session", error);
+                      toast.error("SOS stopped here, but the server could not be updated.");
+                    }
+                  });
+              }
+              if (smartCheckId) void resolveSafetyCheck(smartCheckId, "cancelled", { source: "sos_stop" });
+              activityRecording.current = false;
+              setResponderSearch("idle");
               activated.current = false;
               setSosActivityId(null);
               setResponderOffers([]);
@@ -1882,6 +1922,43 @@ function ConsentOption({
   );
 }
 
+// ─── Countdown ────────────────────────────────────────────────────────────────
+
+function CountdownScreen({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [left, setLeft] = useState(3);
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+  useEffect(() => {
+    if (left <= 0) {
+      doneRef.current();
+      return;
+    }
+    const t = setTimeout(() => setLeft((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [left]);
+  return (
+    <motion.div
+      className="relative z-10 flex h-full flex-col items-center justify-center gap-8 px-8 text-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-destructive">Starting SOS</p>
+      <div className="grid h-40 w-40 place-items-center rounded-full border-4 border-destructive bg-destructive/15">
+        <span className="font-display text-7xl font-black text-destructive" aria-live="assertive">{Math.max(left, 0)}</span>
+      </div>
+      <p className="max-w-xs text-[14px] text-muted-foreground">No alert has been sent yet. Tap Cancel if this was a mistake.</p>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="min-h-16 w-full max-w-xs rounded-2xl border-2 border-foreground/20 bg-card text-xl font-black text-foreground shadow-lg transition active:scale-[0.98]"
+      >
+        Cancel
+      </button>
+    </motion.div>
+  );
+}
+
 // ─── Loading ──────────────────────────────────────────────────────────────────
 
 function LoadingScreen({ emergencyId }: { emergencyId: string | null }) {
@@ -2001,9 +2078,11 @@ function MinimalEmergencyScreen({
   shareLocation,
   activityId,
   microphoneStream,
+  responderSearch = "idle",
   onEnableLocation,
   onClose,
 }: {
+  responderSearch?: "idle" | "searching" | "done" | "timeout";
   emergencyType: string;
   emergencyId: string | null;
   location: LocationInfo | null;
@@ -2168,6 +2247,12 @@ function MinimalEmergencyScreen({
 
             <section id="deck-actions" aria-labelledby="actions-heading" className="deck-panel cmd-rise min-w-0 p-4 sm:p-5" style={{ animationDelay: "130ms" }}>
               <p id="actions-heading" className="deck-label">Immediate actions</p>
+              {responderSearch === "searching" && (
+                <p className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching for opted-in responders…</p>
+              )}
+              {responderSearch === "timeout" && (
+                <p className="mt-2 text-[12px] text-muted-foreground">No nearby responders found yet – your contacts have been alerted.</p>
+              )}
               <div className="mt-3.5 grid gap-2.5">
                 <button type="button" onClick={() => setServicesOpen(true)} className="group flex min-h-14 items-center justify-between rounded-xl bg-gradient-to-r from-destructive via-primary to-primary-glow px-4 text-left text-[13.5px] font-bold text-destructive-foreground shadow-lg shadow-destructive/25 transition duration-200 hover:brightness-105 active:scale-[0.99]">
                   <span className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-destructive-foreground/15"><Phone className="h-4 w-4" /></span><span className="min-w-0"><span className="block">Call Emergency Services</span><span className="block text-[10.5px] font-semibold opacity-80">Get immediate help from emergency services</span></span></span><ChevronRight className="h-4 w-4 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
@@ -2185,11 +2270,14 @@ function MinimalEmergencyScreen({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="inline-flex items-center gap-2 rounded-full border border-success/35 bg-success/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-success">
                   <span className={cn("h-2 w-2 rounded-full", locationReady ? "bg-success" : "bg-gold")} />
-                  {locationReady ? "Live · Shared" : "Location unavailable"}
+                  {locationReady ? "Live · Shared" : locationState === "finding" ? "Finding location…" : "Location unavailable – tap to retry"}
                   {locationReady && location?.accuracy ? ` · ±${Math.round(location.accuracy)} m` : ""}
                 </span>
-                {!locationReady && (
-                  <button type="button" onClick={onEnableLocation} className="min-h-10 shrink-0 rounded-xl border border-gold/45 bg-gold/15 px-3 text-[12px] font-bold text-foreground transition hover:bg-gold/25">Enable Location</button>
+                {!locationReady && locationState !== "finding" && (
+                  <span className="flex shrink-0 gap-2">
+                    <button type="button" onClick={onEnableLocation} className="min-h-10 rounded-xl border border-gold/45 bg-gold/15 px-3 text-[12px] font-bold text-foreground transition hover:bg-gold/25">Retry location</button>
+                    <button type="button" onClick={() => toast.info("Open your phone Settings → Privacy → Location, turn it on and allow it for this browser, then tap Retry.", { duration: 9000 })} className="min-h-10 rounded-xl border border-border px-3 text-[12px] font-bold text-foreground transition hover:bg-muted">Location settings</button>
+                  </span>
                 )}
               </div>
               <div className="mt-3 flex items-start gap-3">

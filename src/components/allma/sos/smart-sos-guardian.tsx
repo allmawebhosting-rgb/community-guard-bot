@@ -1,3 +1,4 @@
+import { markSosIntent } from "@/lib/sos-intent";
 import { useCallback } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +18,7 @@ export function SmartSosGuardian() {
 
   const onEscalate = useCallback(
     ({ checkId }: { checkId: string }) => {
+      markSosIntent();
       void navigate({ to: "/sos", search: { instant: true, check: checkId } });
     },
     [navigate],
