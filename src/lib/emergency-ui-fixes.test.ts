@@ -51,6 +51,7 @@ describe("nosebleed and other incidents always get the playbook", () => {
   it("fallback steps appear only when the reply has no numbered steps", () => {
     const incident = matchIncident("my nose is bleeding");
     expect(firstAidFallback(incident, "Here are hospitals near Jinja.")).not.toBeNull();
+    expect(firstAidFallback(incident, "")).not.toBeNull();
     expect(firstAidFallback(incident, "1. Sit up\n2. Lean forward")).toBeNull();
     expect(firstAidFallback(null, "Here are hospitals.")).toBeNull();
   });

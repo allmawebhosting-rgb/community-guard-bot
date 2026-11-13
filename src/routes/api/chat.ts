@@ -5,6 +5,7 @@ import { chooseSearchOrigin } from "@/lib/location-origin";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
 import { createFileRoute } from "@tanstack/react-router";
+import { withTimeoutFallback } from "@/lib/async-timeout";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -99,6 +100,15 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const t0 = Date.now();
+        const stages: Record<string, number> = {};
+        const mark = (name: string) => {
+          stages[name] = Date.now() - t0;
+        };
+        const logTiming = (model?: string) => {
+          console.log(`chat-timing ${JSON.stringify({ ...stages, total: Date.now() - t0, ...(model ? { model } : {}) })}`);
+        };
+
         const body = (await request.json()) as ChatRequestBody;
         const messages = body.messages;
         if (!Array.isArray(messages)) {
@@ -191,7 +201,7 @@ export const Route = createFileRoute("/api/chat")({
               : /robbery|missing|stolen|theft|crime/.test(normalized)
                 ? "high"
                 : "info";
-          const { error: activityError } = await supabase.from("safety_activity").insert({
+          void supabase.from("safety_activity").insert({
             user_id: userId,
             activity_type: "ai_intake",
             title: "AI safety intake received",
@@ -203,24 +213,33 @@ export const Route = createFileRoute("/api/chat")({
               thread_id: threadId,
               has_attachments: lastUserMessage?.parts.some((part) => part.type === "file") ?? false,
             } as never,
+          }).then(({ error: activityError }) => {
+            if (activityError) console.error("Failed to record AI intake activity", activityError);
           });
-          if (activityError) console.error("Failed to record AI intake activity", activityError);
         }
+        mark("intake");
 
         let memoryBlock = "";
         if (userId) {
-          const { data: memoryRows } = await supabase
-            .from("ai_user_memory")
-            .select("kind, key, value")
-            .eq("user_id", userId)
-            .order("updated_at", { ascending: false })
-            .limit(30);
+          const memoryRows = await withTimeoutFallback(
+            supabase
+              .from("ai_user_memory")
+              .select("kind, key, value")
+              .eq("user_id", userId)
+              .order("updated_at", { ascending: false })
+              .limit(30)
+              .then((res) => res.data ?? null),
+            2000,
+            null,
+            "user-memory",
+          );
           if (memoryRows && memoryRows.length > 0) {
             memoryBlock = `\n\nWHAT YOU ALREADY KNOW ABOUT THIS USER (do not re-ask these):\n${memoryRows
               .map((row) => `- ${row.key} (${row.kind}): ${row.value}`)
               .join("\n")}`;
           }
         }
+        mark("memory");
 
         // ---- Guided flow state, derived from the thread (not from the model) ----
         // The model writes ::flow{...} markers inline; we keep the authoritative
@@ -334,6 +353,7 @@ export const Route = createFileRoute("/api/chat")({
         if (fullMode || memoryBlock) promptBlocks.push(ALLMA_MEMORY_BLOCK);
         if (fullMode) promptBlocks.push(ALLMA_DETAIL_BLOCK);
         const systemPrompt = promptBlocks.join("\n\n");
+        mark("prompt");
 
         // ---- Tool budget: greetings and general chat only need the light set.
         const LIGHT_TOOL_NAMES = new Set([
@@ -373,6 +393,12 @@ export const Route = createFileRoute("/api/chat")({
           return {};
         };
 
+        type ProgressStep = "understanding" | "finding" | "phones" | "writing";
+        let progressSink: ((step: ProgressStep) => void) | undefined;
+        const reportProgress = (step: ProgressStep) => {
+          progressSink?.(step);
+        };
+
         const buildStream = (modelId: string) => streamText({
           model: resolveModel(modelId),
           maxRetries: 0,
@@ -385,6 +411,11 @@ export const Route = createFileRoute("/api/chat")({
           messages: modelMessages,
           stopWhen: stepCountIs(2),
           ...providerOptionsFor(modelId),
+          onChunk: ({ chunk }) => {
+            if (chunk.type === "text-delta" || chunk.type === "text-start") {
+              reportProgress("writing");
+            }
+          },
 
 
 
@@ -572,6 +603,8 @@ export const Route = createFileRoute("/api/chat")({
                 area: z.string().nullable().describe("Optional district or area name"),
               }),
               execute: async ({ facility_type, area }) => {
+                reportProgress("finding");
+                const searchStarted = Date.now();
                 const { inUganda, MAX_NEARBY_KM, haversineKm } = await import("@/lib/nearby-guard");
                 // A described medical emergency needs real care, not a pharmacy.
                 const medicalEmergency = emergencyIncident?.helpTypes.includes("hospital") ?? false;
@@ -599,27 +632,44 @@ export const Route = createFileRoute("/api/chat")({
                 }
                 if (origin) {
                   try {
-                    const { lookupNearbyPlaces } = await import("@/lib/places.server");
-                    const near = (await lookupNearbyPlaces({
-                      latitude: origin.lat,
-                      longitude: origin.lng,
-                      radiusMeters: named ? 15000 : 8000,
-                      limit: 8,
-                      types: typesFor[facility_type] ?? [facility_type],
-                    })).filter((p) => inUganda(p.latitude, p.longitude) && p.distance_m / 1000 <= MAX_NEARBY_KM);
+                    const { lookupNearbyPlaces, phoneLookupBudgetLeft } = await import("@/lib/places.server");
+                    const near = (await withTimeoutFallback(
+                      lookupNearbyPlaces({
+                        latitude: origin.lat,
+                        longitude: origin.lng,
+                        radiusMeters: named ? 15000 : 8000,
+                        limit: 8,
+                        types: typesFor[facility_type] ?? [facility_type],
+                      }),
+                      6000,
+                      [],
+                      "lookup-nearby-places",
+                    )).filter((p) => inUganda(p.latitude, p.longitude) && p.distance_m / 1000 <= MAX_NEARBY_KM);
+                    mark("places_search");
                     const { refineFacilities } = await import("@/lib/facility-results");
                     const refined = await refineFacilities(near, facility_type, async (missing) => {
+                      if (phoneLookupBudgetLeft(searchStarted, Date.now(), 6000) <= 0) return {};
+                      reportProgress("phones");
                       const { fetchPlacePhones } = await import("@/lib/places.server");
-                      const phones = await fetchPlacePhones(missing.filter((m) => m.id.startsWith("google:")).map((m) => m.id));
+                      const phones = await fetchPlacePhones(
+                        missing.filter((m) => m.id.startsWith("google:")).map((m) => m.id),
+                        { startedAt: searchStarted, budgetMs: 6000 },
+                      );
                       const names = missing.filter((m) => !phones[m.id]).map((m) => m.name.split(/\s+/).slice(0, 2).join(" "));
-                      if (names.length) {
-                        const { data: rows } = await supabase.from("facilities").select("name, phone").not("phone", "is", null).or(names.map((n) => `name.ilike.%${n.replace(/[,%()]/g, "")}%`).join(",")).limit(40);
+                      if (names.length && phoneLookupBudgetLeft(searchStarted, Date.now(), 6000) > 0) {
+                        const rows = await withTimeoutFallback(
+                          supabase.from("facilities").select("name, phone").not("phone", "is", null).or(names.map((n) => `name.ilike.%${n.replace(/[,%()]/g, "")}%`).join(",")).limit(40).then((res) => res.data ?? null),
+                          2000,
+                          null,
+                          "facility-phones",
+                        );
                         for (const m of missing) {
                           if (phones[m.id]) continue;
                           const hit = (rows ?? []).find((r) => r.phone && r.name.toLowerCase().includes(m.name.split(/\s+/).slice(0, 2).join(" ").toLowerCase()));
                           if (hit?.phone) phones[m.id] = hit.phone;
                         }
                       }
+                      mark("place_phones");
                       return phones;
                     }, { emergency: medicalEmergency });
                     if (refined.length) {
@@ -895,7 +945,9 @@ export const Route = createFileRoute("/api/chat")({
 
 
         const selected = await selectChatStream(CHAT_MODELS, buildStream);
+        mark("model_ready");
         if ("failure" in selected) {
+          logTiming();
           return new Response(selected.failure.message, {
             status: selected.failure.status,
             headers: { "Cache-Control": "no-store" },
@@ -903,16 +955,28 @@ export const Route = createFileRoute("/api/chat")({
         }
         const { result, model: usedModel } = selected;
 
-        const response = result.toUIMessageStreamResponse({
-          sendReasoning: false,
-          // Plain-language surface for gateway failures, instead of a silent stall.
-          onError: (error) => {
-            console.error("Chat stream error", error);
-            return getGatewayFailure(error).message;
-          },
-
+        const stream = createUIMessageStream({
           originalMessages: uiMessages,
+          execute: async ({ writer }) => {
+            const emit = (step: ProgressStep) => {
+              writer.write({ type: "data-chat-progress", data: { step } });
+            };
+            emit("understanding");
+            progressSink = emit;
+            writer.merge(
+              result.toUIMessageStream({
+                sendReasoning: false,
+                // Plain-language surface for gateway failures, instead of a silent stall.
+                onError: (error) => {
+                  console.error("Chat stream error", error);
+                  return getGatewayFailure(error).message;
+                },
+              }),
+            );
+          },
           onFinish: async ({ responseMessage }) => {
+            mark("stream_finish");
+            logTiming(usedModel);
             if (!userId || !threadId) return;
 
             const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
@@ -951,11 +1015,14 @@ export const Route = createFileRoute("/api/chat")({
               .eq("id", threadId);
             if (touchError) console.error("Failed to touch thread", touchError);
           },
+        });
+
+        const response = createUIMessageStreamResponse({
+          stream,
           headers: getLovableAiGatewayResponseHeaders(undefined, {
             ...(initialRunId ? { "X-Lovable-AIG-Run-ID": initialRunId } : {}),
             "X-Allma-Model": usedModel,
           }),
-
         });
 
         // Workers AI never calls the Lovable gateway, so there is no run ID to wait for.

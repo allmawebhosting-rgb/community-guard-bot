@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
+import { withTimeoutFallback } from "@/lib/async-timeout";
 import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { facilityKind } from "@/lib/facility-kind";
@@ -27,6 +28,12 @@ const GOOGLE_API_URL = "https://places.googleapis.com/v1";
 const MAX_RADIUS_M = 15_000;
 const MAX_RESULTS = 20;
 const MAX_CACHE_ENTRIES = 1_000;
+/** Hard caps so one slow Google/directory call cannot stall a chat reply. */
+export const GOOGLE_PLACES_TIMEOUT_MS = 4_500;
+export const DIRECTORY_LOOKUP_TIMEOUT_MS = 2_500;
+export const PLACE_PHONE_TIMEOUT_MS = 2_000;
+export const PLACE_PHONE_MAX = 5;
+export const PLACE_PHONE_BUDGET_MS = 2_500;
 
 /** Categories Google Places (New) accepts for a nearby search of help facilities. */
 const SUPPORTED_PLACE_TYPES = new Set([
@@ -252,6 +259,7 @@ async function loadGooglePlaces(
       "X-Goog-FieldMask":
         "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.internationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType,places.photos",
     },
+    signal: AbortSignal.timeout(GOOGLE_PLACES_TIMEOUT_MS),
     body: JSON.stringify({
       locationRestriction: {
         circle: {
@@ -362,10 +370,25 @@ export async function lookupNearbyPlaces(input: NearbyPlacesInput): Promise<Near
   }
 
   const [googleResult, seededResult, policeResult] = await Promise.allSettled([
-    loadGooglePlaces(latitude, longitude, radiusMeters, types),
-    loadSeededFacilities(latitude, longitude, radiusMeters),
+    withTimeoutFallback<NearbyPlaceResult[]>(
+      loadGooglePlaces(latitude, longitude, radiusMeters, types),
+      GOOGLE_PLACES_TIMEOUT_MS,
+      [],
+      "google-places",
+    ),
+    withTimeoutFallback<NearbyPlaceResult[]>(
+      loadSeededFacilities(latitude, longitude, radiusMeters),
+      DIRECTORY_LOOKUP_TIMEOUT_MS,
+      [],
+      "seeded-facilities",
+    ),
     normalizeGoogleTypes(types).includes("police")
-      ? loadPoliceStations(latitude, longitude, radiusMeters)
+      ? withTimeoutFallback<NearbyPlaceResult[]>(
+          loadPoliceStations(latitude, longitude, radiusMeters),
+          DIRECTORY_LOOKUP_TIMEOUT_MS,
+          [],
+          "police-stations",
+        )
       : Promise.resolve([] as NearbyPlaceResult[]),
   ]);
   const googlePlaces = googleResult.status === "fulfilled" ? googleResult.value : [];
@@ -425,18 +448,45 @@ export function getNearbyPlacesClientSafe() {
   };
 }
 
+/** Valid Google place ids to look up, capped so the extra round-trips stay short. */
+export function placeIdsForPhoneLookup(ids: string[], max = PLACE_PHONE_MAX): string[] {
+  const out: string[] = [];
+  for (const id of ids) {
+    const placeId = id.replace(/^google:/, "");
+    if (!/^[A-Za-z0-9_-]+$/.test(placeId)) continue;
+    out.push(id);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/** Remaining time in the phone-lookup budget; 0 means skip the extra calls. */
+export function phoneLookupBudgetLeft(
+  startedAt: number,
+  now = Date.now(),
+  budgetMs = PLACE_PHONE_BUDGET_MS,
+): number {
+  return Math.max(0, budgetMs - (now - startedAt));
+}
+
 /** Phone numbers from Google Place Details for places the nearby search returned without one. */
-export async function fetchPlacePhones(ids: string[]): Promise<Record<string, string>> {
+export async function fetchPlacePhones(
+  ids: string[],
+  opts?: { startedAt?: number; budgetMs?: number },
+): Promise<Record<string, string>> {
   const key = resolveGoogleMapsKey({
     ...(import.meta.env as Record<string, string | undefined>),
     ...process.env,
   });
   const out: Record<string, string> = {};
   if (!key) return out;
+  const startedAt = opts?.startedAt ?? Date.now();
+  const budgetMs = opts?.budgetMs ?? PLACE_PHONE_BUDGET_MS;
+  if (phoneLookupBudgetLeft(startedAt, Date.now(), budgetMs) <= 0) return out;
   await Promise.all(
-    ids.slice(0, 6).map(async (id) => {
+    placeIdsForPhoneLookup(ids).map(async (id) => {
+      if (phoneLookupBudgetLeft(startedAt, Date.now(), budgetMs) <= 0) return;
       const placeId = id.replace(/^google:/, "");
-      if (!/^[A-Za-z0-9_-]+$/.test(placeId)) return;
       try {
         const res = await fetch(`${GOOGLE_API_URL}/places/${placeId}`, {
           headers: {
@@ -444,7 +494,7 @@ export async function fetchPlacePhones(ids: string[]): Promise<Record<string, st
             Referer: "https://allmasafetyai.online/",
             "X-Goog-FieldMask": "nationalPhoneNumber,internationalPhoneNumber",
           },
-          signal: AbortSignal.timeout(3500),
+          signal: AbortSignal.timeout(PLACE_PHONE_TIMEOUT_MS),
         });
         if (!res.ok) return;
         const body = (await res.json()) as { nationalPhoneNumber?: string; internationalPhoneNumber?: string };

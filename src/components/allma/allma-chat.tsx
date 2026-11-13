@@ -71,6 +71,15 @@ import { cn } from "@/lib/utils";
 import { EMERGENCY_BLOCK_LINES } from "@/lib/emergency-triage";
 import type { FirstAid, Incident } from "@/lib/allma-emergency-playbook";
 import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, stripFillerSentences } from "@/lib/chat-emergency-view";
+import {
+  assistantHasVisibleText,
+  chatProgressSteps,
+  findFacilitiesProgress,
+  isChatProgressStepId,
+  progressStepsFromParts,
+  type ChatProgressStep,
+  type ChatProgressStepId,
+} from "@/lib/chat-progress";
 import { KIND_LABEL } from "@/lib/facility-results";
 import { facilityKind } from "@/lib/facility-kind";
 import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
@@ -540,6 +549,39 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
   );
 }
 
+function ChatProgressChecklist({ steps }: { steps: ChatProgressStep[] }) {
+  return (
+    <ul
+      role="status"
+      aria-live="polite"
+      aria-label="Allma is preparing a reply"
+      className="m-0 list-none space-y-1.5 p-0"
+    >
+      {steps.map((step) => (
+        <li
+          key={step.id}
+          aria-current={step.state === "active" ? "step" : undefined}
+          className={cn(
+            "flex items-center gap-2.5 text-[13.5px] leading-snug",
+            step.state === "done" && "text-muted-foreground",
+            step.state === "active" && "font-medium text-foreground",
+            step.state === "pending" && "text-muted-foreground/65",
+          )}
+        >
+          {step.state === "done" ? (
+            <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
+          ) : step.state === "active" ? (
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-chat-accent" aria-hidden />
+          ) : (
+            <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-border/80" aria-hidden />
+          )}
+          <span>{step.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function ToolCard({
   part,
   onSend,
@@ -598,6 +640,8 @@ function ToolCard({
   }
 
   if (running) {
+    // The live checklist already covers find_facilities; other tools keep a short busy line.
+    if (name === "find_facilities") return null;
     return (
       <div className="chat-card p-3">
         <Shimmer className="text-sm">{entry.busy}</Shimmer>
@@ -1047,10 +1091,20 @@ export function AllmaChat({
   );
 
 
+  const [serverProgress, setServerProgress] = useState<ChatProgressStepId[]>([]);
+
   const { messages, sendMessage, status, error, stop, regenerate } = useChat({
     id: threadId ?? "guest",
     messages: initialMessages,
     transport,
+    onData: (part) => {
+      const step =
+        part.type === "data-chat-progress" && part.data && typeof part.data === "object"
+          ? (part.data as { step?: unknown }).step
+          : undefined;
+      if (!isChatProgressStepId(step)) return;
+      setServerProgress((current) => (current.includes(step) ? current : [...current, step]));
+    },
     onError: (chatError) => {
       console.error(chatError);
       // The server sends a plain-language reason (busy, credits, blocked); show it.
@@ -1061,6 +1115,10 @@ export function AllmaChat({
   });
 
   const busy = status === "submitted" || status === "streaming";
+
+  useEffect(() => {
+    if (status === "ready" || status === "error") setServerProgress([]);
+  }, [status]);
 
   const focusInput = useCallback(() => {
     requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }));
@@ -1375,6 +1433,23 @@ export function AllmaChat({
 
   const showChips = contextualChips.length > 0;
 
+  const lastMessage = messages[messages.length - 1];
+  const streamingParts =
+    lastMessage?.role === "assistant" ? (lastMessage.parts as Array<{ type: string; state?: string; text?: string; data?: unknown }>) : undefined;
+  const progressSteps = chatProgressSteps({
+    status,
+    hasVisibleText: assistantHasVisibleText(streamingParts),
+    serverSteps: [
+      ...serverProgress,
+      ...progressStepsFromParts(streamingParts),
+    ].filter((step, index, all) => all.indexOf(step) === index),
+    findFacilities: findFacilitiesProgress(streamingParts),
+  });
+  const pendingIncident =
+    status === "submitted" ? incidentForReply([...messages, { role: "assistant", parts: [] }], messages.length) : null;
+  const pendingAid = pendingIncident ? firstAidFallback(pendingIncident, "") : null;
+  const pendingEmergencyType = pendingIncident?.lifeThreatening ? pendingIncident.marker : null;
+
   // If the user opened with a concrete request, drop any "I'm Allma Safety AI"
   // lead-in from replies so the answer starts on topic.
   const suppressGreeting = useMemo(() => {
@@ -1475,13 +1550,19 @@ export function AllmaChat({
                       const type = em?.type ?? (incident?.lifeThreatening ? incident.marker : null);
                       const streaming = busy && msgIndex === messages.length - 1;
                       const allText = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : "")).join("\n");
-                      const aid = streaming ? null : firstAidFallback(incident, allText);
-                      const followUp = aid && incident && !/\?/.test(allText) ? incident.followUp : null;
+                      // Show first aid as soon as the incident is known, not after the model finishes.
+                      const aid = firstAidFallback(incident, allText);
+                      const followUp = !streaming && aid && incident && !/\?/.test(allText) ? incident.followUp : null;
                       if (aid && hasNotDoctorLine(allText)) aid.notDoctor = null;
-                      return type || aid ? (
+                      const showProgress =
+                        streaming &&
+                        progressSteps &&
+                        !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>);
+                      return type || aid || showProgress ? (
                         <div className="mb-3 space-y-3">
                           {type ? <EmergencyActions type={type} /> : null}
                           {aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
+                          {showProgress && progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : null}
                         </div>
                       ) : null;
                     })()}
@@ -1637,13 +1718,21 @@ export function AllmaChat({
                 </Message>
               ))}
               {status === "submitted" ? (
-                <div className="flex items-center gap-3" role="status" aria-label="Allma is typing">
-                  <img aria-hidden src={robotAvatar} alt="" className="h-10 w-10 rounded-full border border-border/60 bg-card object-cover" />
-                  <span className="flex items-center gap-1 rounded-full border border-border/60 bg-card px-3.5 py-3 shadow-soft">
-                    {[0, 1, 2].map((d) => (
-                      <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-chat-accent/70" style={{ animationDelay: `${d * 0.15}s` }} />
-                    ))}
-                  </span>
+                <div className="flex max-w-full flex-row items-start gap-3">
+                  <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-10 w-10 shrink-0 rounded-full border border-border/60 bg-card object-cover shadow-soft" />
+                  <div className="min-w-0 max-w-[92%] flex-1 rounded-[1.4rem] rounded-tl-md border border-border/60 bg-card px-4 py-3.5 shadow-soft">
+                    <div className="space-y-3">
+                      {pendingEmergencyType ? <EmergencyActions type={pendingEmergencyType} /> : null}
+                      {pendingAid ? <FirstAidCard aid={pendingAid} followUp={null} /> : null}
+                      {progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : (
+                        <span className="flex items-center gap-1" role="status" aria-label="Allma is typing">
+                          {[0, 1, 2].map((d) => (
+                            <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-chat-accent/70" style={{ animationDelay: `${d * 0.15}s` }} />
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : null}
               {error ? (
