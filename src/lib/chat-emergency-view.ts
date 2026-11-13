@@ -48,3 +48,20 @@ export function messageHasPlaces(parts: LooseMessage["parts"]): boolean {
     return Array.isArray(facilities) && facilities.length > 0;
   });
 }
+
+// Model narration that leaks into replies ("Let me arrange the local help details.").
+const FILLER_SENTENCE =
+  /(?:^|(?<=[.!?…]\s+))(?:(?:ok(?:ay)?|alright|now),?\s+)?(?:let me|i'?ll now|i will now)\s+(?:quickly\s+)?(?:arrange|gather|pull up|look up|find|search for|check|get|fetch|organi[sz]e|prepare)\b[^.!?:\n]{0,80}[.!…]+\s*/gi;
+
+/** Drop "Let me arrange the local help details."-style filler, plus a dangling "Now," it leaves behind. */
+export function stripFillerSentences(text: string): string {
+  if (!text) return text;
+  let changed = false;
+  const lines = text.split("\n").map((line) => {
+    const cleaned = line.replace(FILLER_SENTENCE, "");
+    if (cleaned === line) return line;
+    changed = true;
+    return cleaned.replace(/^(\s*)Now,\s+(\S)/, (_m, sp: string, ch: string) => sp + ch.toUpperCase()).trimEnd();
+  });
+  return changed ? lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() : text;
+}

@@ -696,6 +696,82 @@
   overflow: hidden;
 }
 
+/* ── Docked chat composer ───────────────────────────────────────────── */
+.chat-composer-dock {
+  padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(16px);
+  backdrop-filter: saturate(1.4) blur(16px);
+  border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+}
+@media (min-width: 1024px) {
+  .chat-composer-dock {
+    border-top-color: transparent;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+.composer-pill {
+  --composer-radius: 1.625rem;
+  width: 100%;
+  max-width: 100%;
+  background: var(--card);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 10px 30px -16px color-mix(in oklab, var(--foreground) 30%, transparent);
+}
+.composer-pill [data-slot="input-group"] {
+  align-items: flex-end;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+  background: transparent;
+  min-height: 56px;
+}
+.composer-pill .composer-textarea {
+  max-height: 140px;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+}
+.composer-icon-btn {
+  display: inline-flex;
+  height: 44px;
+  width: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--muted-foreground);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.composer-icon-btn:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.composer-icon-btn.mic-recording {
+  background: var(--info);
+  color: var(--info-foreground);
+}
+.composer-send-btn {
+  display: inline-flex;
+  height: 44px !important;
+  width: 44px !important;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px !important;
+  background: var(--chat-accent) !important;
+  color: var(--chat-accent-foreground) !important;
+  box-shadow: 0 4px 14px -6px color-mix(in oklab, var(--chat-accent) 70%, transparent);
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+.composer-send-btn:hover:not(:disabled) { transform: scale(1.04); }
+.composer-send-btn:disabled {
+  background: var(--muted) !important;
+  color: var(--muted-foreground) !important;
+  box-shadow: none;
+  opacity: 1 !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .composer-shell {
     animation: none;

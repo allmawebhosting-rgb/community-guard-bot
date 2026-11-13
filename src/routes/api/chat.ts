@@ -1,7 +1,7 @@
 import { classifyEmergency, classifyIncident, emergencyPromptBlock } from "@/lib/emergency-triage";
 import { facilityKind } from "@/lib/facility-kind";
 import { cleanAddress } from "@/lib/facility-results";
-import { resolveUgandaPlace } from "@/lib/uganda-places";
+import { chooseSearchOrigin } from "@/lib/location-origin";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
 import { createFileRoute } from "@tanstack/react-router";
@@ -132,6 +132,8 @@ export const Route = createFileRoute("/api/chat")({
         const uiMessages = messages as UIMessage[];
         const lastUserMessage = [...uiMessages].reverse().find((m) => m.role === "user");
         const intakeText = lastUserMessage ? textOf(lastUserMessage) : "";
+        // Everything the user typed in this conversation — a place counts as "named" only if it's here.
+        const userConversationText = uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)).join("\n");
 
         // ---- Greeting-only opener: answered locally, no model call, no credits.
         const isGreetingOnly =
@@ -263,7 +265,11 @@ export const Route = createFileRoute("/api/chat")({
           ? { latitude: Number(coordMatch[1]), longitude: Number(coordMatch[2]) }
           : deviceCoords;
         const coordBlock = sharedCoords
-          ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. Call location_intelligence immediately with these latitude and longitude values. Do NOT ask them for an area, landmark or district again.`
+          ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. ${
+              classifyIncident(intakeText) || /hospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.test(intakeText)
+                ? "find_facilities already uses this GPS automatically — call find_facilities (leave area empty unless the user named a town) and do NOT call location_intelligence for this reply."
+                : "Call location_intelligence immediately with these latitude and longitude values."
+            } Do NOT ask them for an area, landmark or district again, and never assume Kampala.`
           : "";
 
         // ---- Named intent: the reply must open that flow with a step card.
@@ -589,14 +595,10 @@ export const Route = createFileRoute("/api/chat")({
                   message:
                     "I couldn't confirm your location, so I won't guess. Tell the user plainly, give the emergency numbers (999 police, 112 toll-free), and ask them to tap Share my location or type their town or area.",
                 };
-                // A place the user named wins over GPS. GPS outside Uganda is ignored.
-                const named = area ? resolveUgandaPlace(area) : null;
-                const gps = sharedCoords && inUganda(sharedCoords.latitude, sharedCoords.longitude) ? sharedCoords : null;
-                const origin = named
-                  ? { lat: named.lat, lng: named.lng, label: `${named.name}, ${named.district}` }
-                  : gps
-                    ? { lat: gps.latitude, lng: gps.longitude, label: "your current GPS location" }
-                    : null;
+                // A place the USER named wins over GPS; a model-filled default never does. GPS outside Uganda is ignored.
+                const picked = chooseSearchOrigin({ area, userText: userConversationText, gps: sharedCoords });
+                const named = picked.kind === "named";
+                const origin = picked.kind === "none" ? null : { lat: picked.lat, lng: picked.lng, label: picked.label };
                 if (!origin) {
                   if (area || sharedCoords) return unconfirmed;
                 }
@@ -643,7 +645,7 @@ export const Route = createFileRoute("/api/chat")({
                           photo_url: p.photo_name ? `/api/public/place-photo?name=${encodeURIComponent(p.photo_name)}` : null,
                           distance_km: Math.round(p.distance_m / 100) / 10,
                         })),
-                        note: `Showing exactly ${refined.length} ${facility_type} place(s), sorted by straight-line distance. If you state a number, it MUST be ${refined.length}. Name the closest one first; never state travel time.`,
+                        note: `Showing exactly ${refined.length} ${facility_type} place(s), sorted by straight-line distance from ${origin.label}. The cards already show them. If you state a number, it MUST be ${refined.length}. If you name a place in text, use ONLY a name from this list with its exact distance_km — never any other place, city or distance; never state travel time.`,
                       };
                     }
                   } catch (err) {
@@ -885,18 +887,16 @@ export const Route = createFileRoute("/api/chat")({
                 let longitude = inLng;
                 let resolvedFrom: string | null = null;
                 const { inUganda: inUg, MAX_NEARBY_KM: maxKm } = await import("@/lib/nearby-guard");
-                const namedPlace = cleaned ? resolveUgandaPlace(cleaned) : null;
-                // A named place wins; coordinates outside Uganda (or 0,0) are ignored.
-                if (namedPlace || !(Number.isFinite(latitude) && Number.isFinite(longitude) && inUg(latitude!, longitude!))) {
-                  latitude = undefined;
-                  longitude = undefined;
-                  const place = namedPlace;
-                  if (place) {
-                    latitude = place.lat;
-                    longitude = place.lng;
-                    resolvedFrom = `${place.name}, ${place.district}`;
-                  }
-                }
+                // The device GPS the server already knows beats coordinates the model typed;
+                // a place wins only when the USER named it. Coordinates outside Uganda (or 0,0) are ignored.
+                const modelCoords =
+                  Number.isFinite(latitude) && Number.isFinite(longitude) && inUg(latitude!, longitude!)
+                    ? { latitude: latitude!, longitude: longitude! }
+                    : null;
+                const picked = chooseSearchOrigin({ area: cleaned, userText: userConversationText, gps: sharedCoords ?? modelCoords });
+                latitude = picked.kind === "none" ? undefined : picked.lat;
+                longitude = picked.kind === "none" ? undefined : picked.lng;
+                if (picked.kind === "named") resolvedFrom = picked.label;
                 const hasCoords =
                   typeof latitude === "number" &&
                   typeof longitude === "number" &&
@@ -957,7 +957,7 @@ export const Route = createFileRoute("/api/chat")({
 
                   return {
                     ok: true,
-                    area: cleaned || "your shared location",
+                    area: picked.kind === "gps" ? "your shared GPS location" : cleaned || "your shared location",
                     resolved_from_area_name: resolvedFrom,
                     incident_type,
                     coordinates: { latitude, longitude },

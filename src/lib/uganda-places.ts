@@ -131,3 +131,12 @@ export function getNearestUgandaPlace(
 
   return nearest && nearest.distance <= maxDistanceMeters ? nearest.place : null;
 }
+
+/** True when the user's own words mention this gazetteer place (by name or alias). */
+export function mentionsUgandaPlace(text: string, place: Pick<UgandaPlace, "name">): boolean {
+  const q = ` ${norm(text)} `;
+  if (!q.trim()) return false;
+  const entry = PLACES.find((p) => p.name === place.name);
+  const keys = [place.name, ...(entry?.aliases ?? [])];
+  return keys.some((key) => q.includes(` ${norm(key)} `));
+}

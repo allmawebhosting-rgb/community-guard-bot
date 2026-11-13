@@ -70,7 +70,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { EMERGENCY_BLOCK_LINES } from "@/lib/emergency-triage";
 import type { FirstAid, Incident } from "@/lib/allma-emergency-playbook";
-import { firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces } from "@/lib/chat-emergency-view";
+import { firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, stripFillerSentences } from "@/lib/chat-emergency-view";
 import { KIND_LABEL } from "@/lib/facility-results";
 import { facilityKind } from "@/lib/facility-kind";
 import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
@@ -109,6 +109,15 @@ const FLOW_ICONS: Record<string, typeof ShieldAlert> = {
 };
 
 // Sentinel prompt: this chip opens the attachment picker instead of sending text.
+/** Grow the composer textarea with its content, capped at ~5 lines (then it scrolls). */
+const COMPOSER_MAX_HEIGHT_PX = 6 * 24 - 4; // 5 lines of 24px + vertical padding
+function autoGrowTextarea(field: HTMLTextAreaElement | null) {
+  if (!field) return;
+  field.style.height = "auto";
+  field.style.height = `${Math.min(field.scrollHeight, COMPOSER_MAX_HEIGHT_PX)}px`;
+  field.style.overflowY = field.scrollHeight > COMPOSER_MAX_HEIGHT_PX ? "auto" : "hidden";
+}
+
 const ATTACH_CHIP = "__attach__";
 const LOCATION_CHIP = "__share_location__";
 /** Assistant prose that is asking where the user is. */
@@ -1240,6 +1249,8 @@ export function AllmaChat({
       if (!field) return;
       field.value = field.value ? `${field.value} ${text}` : text;
       field.dispatchEvent(new Event("input", { bubbles: true }));
+      setComposerText(field.value);
+      autoGrowTextarea(field);
       focusInput();
     },
     onError: (message) => toast.error(message),
@@ -1559,13 +1570,13 @@ export function AllmaChat({
 
       {isEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
-          <div className={cn("mx-auto w-full px-0 pb-24 lg:px-0", fixedComposer && "pb-28")}>
+          <div className="mx-auto w-full px-0 pb-6 lg:px-0">
             <AssistantHero onSelect={send} />
           </div>
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1 overscroll-contain">
-          <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", fixedComposer ? "pb-32" : "pb-6")}>
+          <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", "pb-6")}>
             <div className="flex flex-col gap-7 pt-16 lg:pt-8">
               {messages.map((message, msgIndex) => (
                 <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-3 sm:max-w-full" : "max-w-full sm:max-w-full"}>
@@ -1606,7 +1617,7 @@ export function AllmaChat({
                     {(() => {
                       // Text parts with a repeated block (steps written before AND after the place cards) render it once.
                       const raw = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : ""));
-                      const deduped = message.role === "assistant" ? dedupeRepeatedParts(raw) : raw;
+                      const deduped = message.role === "assistant" ? dedupeRepeatedParts(raw).map(stripFillerSentences) : raw;
                       return message.parts.map((part, index) => {
                       if (part.type === "text") {
                         if (message.role !== "assistant") {
@@ -1777,11 +1788,11 @@ export function AllmaChat({
 
       <div
         className={cn(
-          "no-print z-20 shrink-0 rounded-t-[2rem] bg-gradient-to-t from-background via-background/95 to-background/0 px-3 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1.5 sm:px-4",
-          fixedComposer
-            ? "fixed inset-x-0 bottom-0 lg:sticky"
-            : "sticky bottom-0",
+          // Docked as the last flex child of the full-height chat column, so it
+          // never floats over (and hides) the end of the conversation.
+          "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 px-3 pt-2 sm:px-4",
         )}
+        data-fixed-composer={fixedComposer ? "true" : undefined}
       >
         <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
           {attachments.length > 0 || uploading ? (
@@ -1823,19 +1834,9 @@ export function AllmaChat({
             </div>
           ) : null}
 
-          <div className="flex items-end gap-2">
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setAttachSheetOpen(true)}
-            className="mb-1 grid h-12 w-12 shrink-0 place-items-center rounded-full border border-border/70 bg-card text-foreground/80 shadow-soft hover:bg-muted"
-            aria-label="Attach files"
-          >
-            <Paperclip className="h-5 w-5" />
-          </motion.button>
           <div
             className={cn(
-              "composer-shell min-w-0 flex-1 focus-within:composer-shell-focused",
+              "composer-shell composer-pill min-w-0 focus-within:composer-shell-focused",
               recording && "composer-shell-recording",
             )}
           >
@@ -1848,21 +1849,37 @@ export function AllmaChat({
                   send(text);
                   setComposerText("");
                   event.currentTarget.reset();
+                  const field = textareaRef.current;
+                  if (field) field.style.height = "";
                 }}
                 className="rounded-[inherit] border-0 bg-transparent shadow-none ring-0 outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent"
               >
-                
+                <InputGroupAddon align="inline-start" className="self-end py-1.5 pl-1.5 has-[>button]:ml-0">
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setAttachSheetOpen(true)}
+                    className="composer-icon-btn"
+                    aria-label="Attach files"
+                  >
+                    <Paperclip className="h-5 w-5" />
+                  </motion.button>
+                </InputGroupAddon>
 
                 <PromptInputTextarea
                   ref={textareaRef}
                   placeholder="Message Allma..."
                   aria-label="Message Allma"
                   enterKeyHint="send"
-                  className="max-h-48 min-h-[3rem] bg-transparent px-4 py-3.5 text-base leading-6 sm:text-[15px]"
-                  onChange={(event) => setComposerText(event.target.value)}
+                  rows={1}
+                  className="composer-textarea min-h-[44px] bg-transparent px-1.5 py-[10px] text-base leading-6 sm:text-[15px]"
+                  onChange={(event) => {
+                    setComposerText(event.target.value);
+                    autoGrowTextarea(event.currentTarget);
+                  }}
                 />
 
-                <InputGroupAddon align="inline-end" className="gap-1 pr-2">
+                <InputGroupAddon align="inline-end" className="self-end gap-1 py-1.5 pr-1.5 has-[>button]:mr-0">
                   {recording ? (
                     <>
                       <span className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-1">
@@ -1903,7 +1920,7 @@ export function AllmaChat({
                     onClick={toggleVoice}
                     disabled={transcribing}
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60",
+                      "composer-icon-btn disabled:opacity-60",
                       recording &&
                         "mic-recording bg-info text-info-foreground hover:bg-info hover:text-info-foreground",
                     )}
@@ -1912,25 +1929,24 @@ export function AllmaChat({
                     {transcribing ? (
                       <Loader2 className="h-[17px] w-[17px] animate-spin" />
                     ) : (
-                      <Mic className="h-[17px] w-[17px]" />
+                      <Mic className="h-5 w-5" />
                     )}
                   </motion.button>
                   {!recording ? (
                     busy ? (
-                    <button type="button" onClick={() => void stop()} aria-label="Stop generating" className="flex h-9 w-9 items-center justify-center rounded-full bg-chat-accent text-chat-accent-foreground transition-transform hover:scale-105">
+                    <button type="button" onClick={() => void stop()} aria-label="Stop generating" className="composer-send-btn">
                       <Square className="h-3.5 w-3.5 fill-current" />
                     </button>
                   ) : (
-                    <PromptInputSubmit status={status} disabled={composerText.trim().length === 0} size="icon-sm" aria-label="Send message" className="h-10 w-10 rounded-full bg-chat-accent text-chat-accent-foreground shadow-md hover:bg-chat-accent/90 disabled:bg-chat-accent/40 disabled:text-chat-accent-foreground disabled:text-muted-foreground disabled:opacity-100" ><SendHorizontal className="h-5 w-5" /></PromptInputSubmit>
+                    <PromptInputSubmit status={status} disabled={composerText.trim().length === 0} size="icon-sm" aria-label="Send message" className="composer-send-btn" ><SendHorizontal className="h-5 w-5" /></PromptInputSubmit>
                   )
                   ) : null}
                 </InputGroupAddon>
               </PromptInput>
             </div>
           </div>
-          </div>
 
-          <p className="mt-1 hidden text-center text-[11px] text-muted-foreground lg:block">
+          <p className="mt-1.5 hidden text-center text-[11px] leading-4 text-muted-foreground/80 lg:block">
             <span className="hidden lg:inline">Enter to send · Shift + Enter for new line · </span>Allma can make mistakes. Not officially connected to police — in danger, press SOS.
           </p>
         </div>
