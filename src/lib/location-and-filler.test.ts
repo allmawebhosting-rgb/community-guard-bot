@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { chooseSearchOrigin } from "./location-origin";
 import { mentionsUgandaPlace } from "./uganda-places";
-import { stripFillerSentences } from "./chat-emergency-view";
+import { facilitiesFromLocationIntel, stripFillerSentences } from "./chat-emergency-view";
 import { ALLMA_EMERGENCY_PLAYBOOK } from "./allma-emergency-playbook";
+import { ALLMA_LOCATION_BLOCK, ALLMA_SYSTEM_PROMPT } from "./allma-prompt";
 
 const BUGEMBE = { latitude: 0.4686, longitude: 33.2416 };
 
@@ -59,5 +60,43 @@ describe("filler narration is removed from replies", () => {
     expect(ALLMA_EMERGENCY_PLAYBOOK).toMatch(/never assume Kampala/);
     expect(ALLMA_EMERGENCY_PLAYBOOK).toMatch(/ONLY a name from that find_facilities result/);
     expect(ALLMA_EMERGENCY_PLAYBOOK).toMatch(/Let me arrange the local help details/);
+  });
+});
+
+describe("retired Location Intelligence card does not leak into chat", () => {
+  it("the prompt no longer asks the model for that card or tool", () => {
+    expect(ALLMA_SYSTEM_PROMPT).not.toMatch(/location_intelligence/);
+    expect(ALLMA_LOCATION_BLOCK).not.toMatch(/Display: "This incident falls under/);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/find_facilities/);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/do not describe, invent or ask for a Location Intelligence card/);
+  });
+
+  it("strips leftover Location Intelligence headings and 'falls under' lines", () => {
+    const raw = "Stay in a locked room.\n\nLOCATION INTELLIGENCE · YOUR SHARED GPS LOCATION\nThis incident falls under Bugembe Police Post.\nResponsible Station\nCall 999 if you can.";
+    const out = stripFillerSentences(raw);
+    expect(out).not.toMatch(/Location Intelligence/i);
+    expect(out).not.toMatch(/falls under/i);
+    expect(out).not.toMatch(/Responsible Station/);
+    expect(out).toMatch(/Stay in a locked room/);
+    expect(out).toMatch(/Call 999 if you can/);
+  });
+
+  it("strips a mid-paragraph 'falls under' sentence", () => {
+    expect(stripFillerSentences("Stay quiet. This incident falls under Bugembe Police Post. Call 999.")).toBe("Stay quiet. Call 999.");
+  });
+
+  it("turns a leftover location_intelligence result into normal facility cards", () => {
+    const cards = facilitiesFromLocationIntel({
+      ok: true,
+      area: "your shared GPS location",
+      police_station: { name: "Bugembe Police Post", facility_type: "police", phone: "+256414120844", address: "Bugembe", is_24_7: true, distance_km: 0.8 },
+      hospital: { name: "Jinja Regional Referral Hospital", facility_type: "hospital", phone: null, address: "Jinja", distance_km: 4.2 },
+      fire_station: null,
+    });
+    expect(cards.map((c) => c.name)).toEqual(["Bugembe Police Post", "Jinja Regional Referral Hospital"]);
+    expect(cards[0].type_label).toBe("Police");
+    expect(cards[0].open_now).toBe(true);
+    expect(cards[1].phone).toBeNull();
+    expect(facilitiesFromLocationIntel({ ok: true })).toEqual([]);
   });
 });

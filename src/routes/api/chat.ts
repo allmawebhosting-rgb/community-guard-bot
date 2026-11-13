@@ -265,11 +265,7 @@ export const Route = createFileRoute("/api/chat")({
           ? { latitude: Number(coordMatch[1]), longitude: Number(coordMatch[2]) }
           : deviceCoords;
         const coordBlock = sharedCoords
-          ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. ${
-              classifyIncident(intakeText) || /hospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.test(intakeText)
-                ? "find_facilities already uses this GPS automatically — call find_facilities (leave area empty unless the user named a town) and do NOT call location_intelligence for this reply."
-                : "Call location_intelligence immediately with these latitude and longitude values."
-            } Do NOT ask them for an area, landmark or district again, and never assume Kampala.`
+          ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. find_facilities already uses this GPS automatically — call find_facilities (leave area empty unless the user named a town) when they need nearby help. Do NOT ask them for an area, landmark or district again, and never assume Kampala.`
           : "";
 
         // ---- Named intent: the reply must open that flow with a step card.
@@ -341,7 +337,6 @@ export const Route = createFileRoute("/api/chat")({
 
         // ---- Tool budget: greetings and general chat only need the light set.
         const LIGHT_TOOL_NAMES = new Set([
-          "location_intelligence",
           "find_facilities",
           "list_alerts",
         ]);
@@ -872,154 +867,6 @@ export const Route = createFileRoute("/api/chat")({
                 return { ok: true, matches: data ?? [] };
               },
             }),
-            location_intelligence: tool({
-              description:
-                "Use the moment a location, area, district or GPS coordinate pair is known. With latitude/longitude it returns the CLOSEST police station, hospital and fire station ranked by real straight-line distance from Allma's facility directory. Without coordinates it matches the area name. Returns only real directory data — never estimated arrival times.",
-              inputSchema: z.object({
-                area: z.string().describe("The area, district, landmark, or location mentioned by the user. Use 'shared GPS location' when only coordinates are known."),
-                incident_type: z.string().describe("Type of incident: crime, emergency, fire, medical, missing_person, etc."),
-                latitude: z.number().optional().describe("Latitude the user shared, if any."),
-                longitude: z.number().optional().describe("Longitude the user shared, if any."),
-              }),
-              execute: async ({ area, incident_type, latitude: inLat, longitude: inLng }) => {
-                const cleaned = area.trim();
-                let latitude = inLat;
-                let longitude = inLng;
-                let resolvedFrom: string | null = null;
-                const { inUganda: inUg, MAX_NEARBY_KM: maxKm } = await import("@/lib/nearby-guard");
-                // The device GPS the server already knows beats coordinates the model typed;
-                // a place wins only when the USER named it. Coordinates outside Uganda (or 0,0) are ignored.
-                const modelCoords =
-                  Number.isFinite(latitude) && Number.isFinite(longitude) && inUg(latitude!, longitude!)
-                    ? { latitude: latitude!, longitude: longitude! }
-                    : null;
-                const picked = chooseSearchOrigin({ area: cleaned, userText: userConversationText, gps: sharedCoords ?? modelCoords });
-                latitude = picked.kind === "none" ? undefined : picked.lat;
-                longitude = picked.kind === "none" ? undefined : picked.lng;
-                if (picked.kind === "named") resolvedFrom = picked.label;
-                const hasCoords =
-                  typeof latitude === "number" &&
-                  typeof longitude === "number" &&
-                  Number.isFinite(latitude) &&
-                  Number.isFinite(longitude);
-
-                type Facility = {
-                  name: string;
-                  facility_type: string;
-                  phone: string | null;
-                  address: string | null;
-                  district: string | null;
-                  is_24_7: boolean;
-                  latitude?: number | null;
-                  longitude?: number | null;
-                  distance_km?: number;
-                  matched_on?: string;
-                };
-
-                if (hasCoords) {
-                  const { data } = await supabase
-                    .from("facilities")
-                    .select("name, facility_type, phone, address, district, is_24_7, latitude, longitude")
-                    .not("latitude", "is", null)
-                    .not("longitude", "is", null);
-
-                  const km = (aLat: number, aLng: number, bLat: number, bLng: number) => {
-                    const R = 6371;
-                    const dLat = ((bLat - aLat) * Math.PI) / 180;
-                    const dLng = ((bLng - aLng) * Math.PI) / 180;
-                    const s =
-                      Math.sin(dLat / 2) ** 2 +
-                      Math.cos((aLat * Math.PI) / 180) *
-                        Math.cos((bLat * Math.PI) / 180) *
-                        Math.sin(dLng / 2) ** 2;
-                    return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
-                  };
-
-                  const ranked = (data ?? [])
-                    .map((row) => ({
-                      ...(row as Facility),
-                      distance_km:
-                        Math.round(
-                          km(latitude!, longitude!, row.latitude as number, row.longitude as number) *
-                            10,
-                        ) / 10,
-                    }))
-                    .filter((row) => inUg(Number(row.latitude), Number(row.longitude)) && row.distance_km <= maxKm)
-                    .sort((a, b) => a.distance_km - b.distance_km);
-
-                  const nearest = (type: string) =>
-                    ranked.find((row) => row.facility_type === type) ?? null;
-
-                  const policeStation = nearest("police");
-                  const hospital = nearest("hospital");
-                  const fireStation = nearest("fire");
-                  const found = [policeStation, hospital, fireStation].filter(Boolean).length;
-
-                  return {
-                    ok: true,
-                    area: picked.kind === "gps" ? "your shared GPS location" : cleaned || "your shared location",
-                    resolved_from_area_name: resolvedFrom,
-                    incident_type,
-                    coordinates: { latitude, longitude },
-                    police_station: policeStation,
-                    hospital,
-                    fire_station: fireStation,
-                    nearby_police: ranked.filter((r) => r.facility_type === "police").slice(0, 3),
-                    directory_note:
-                      found === 0
-                        ? "Allma's directory has no facilities with coordinates yet. Tell the user honestly and give the national numbers (Police 999, Toll-free emergency 112)."
-                        : "distance_km is a real straight-line distance in kilometres — you may state it. Never state travel or arrival time.",
-                  };
-                }
-
-                const terms = Array.from(
-                  new Set(
-                    [cleaned, ...cleaned.split(/[,/·]|\s+near\s+|\s+/i)]
-                      .map((t) => t.replace(/[^\p{L}\p{N}\s'-]/gu, "").trim())
-                      .filter((t) => t.length >= 3),
-                  ),
-                ).slice(0, 6);
-
-                const lookup = async (facilityType: string): Promise<Facility | null> => {
-                  for (const term of terms) {
-                    const pattern = `%${term}%`;
-                    const { data } = await supabase
-                      .from("facilities")
-                      .select("name, facility_type, phone, address, district, is_24_7")
-                      .eq("facility_type", facilityType)
-                      .or(
-                        `district.ilike.${pattern},name.ilike.${pattern},address.ilike.${pattern}`,
-                      )
-                      .limit(1);
-                    if (data && data.length > 0) return { ...(data[0] as Facility), matched_on: term };
-                  }
-                  return null;
-                };
-
-                const [policeStation, hospital, fireStation] = await Promise.all([
-                  lookup("police"),
-                  lookup("hospital"),
-                  lookup("fire"),
-                ]);
-
-                const found = [policeStation, hospital, fireStation].filter(Boolean).length;
-
-                return {
-                  ok: true,
-                  area: cleaned,
-                  incident_type,
-                  police_station: policeStation,
-                  hospital,
-                  fire_station: fireStation,
-                  directory_note:
-                    found === 0
-                      ? `No facilities for "${cleaned}" are in Allma's directory yet. Tell the user honestly, give the national numbers (Police 999, Toll-free emergency 112), and continue helping. If they can share their GPS location, call location_intelligence again with latitude and longitude for the closest station.`
-                      : "Only share the facility details returned here. Do not state distances or arrival times — they are not known.",
-                };
-              },
-            }),
-
-
             case_timeline: tool({
               description:
                 "Show a timestamped case progress timeline after major milestones — location received, evidence uploaded, AI summary generated, report submitted. Call this to give the user a sense of progress. Pass ALL events collected so far each time.",

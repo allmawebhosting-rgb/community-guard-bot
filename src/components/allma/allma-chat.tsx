@@ -70,7 +70,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { EMERGENCY_BLOCK_LINES } from "@/lib/emergency-triage";
 import type { FirstAid, Incident } from "@/lib/allma-emergency-playbook";
-import { firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, stripFillerSentences } from "@/lib/chat-emergency-view";
+import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, stripFillerSentences } from "@/lib/chat-emergency-view";
 import { KIND_LABEL } from "@/lib/facility-results";
 import { facilityKind } from "@/lib/facility-kind";
 import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
@@ -580,8 +580,8 @@ function ToolCard({
     get_draft: { icon: FileText, label: "Saved draft", busy: "Loading your draft…" },
     location_intelligence: {
       icon: MapPin,
-      label: "Location intelligence",
-      busy: "Identifying responsible station…",
+      label: "Nearby help",
+      busy: "Searching the directory…",
     },
     case_timeline: { icon: Clock, label: "Case timeline", busy: "Building timeline…" },
   };
@@ -752,148 +752,22 @@ function ToolCard({
     );
   }
 
-  // ── location_intelligence card ──────────────────────────────
-  if (name === "location_intelligence" && output?.ok) {
-    const area = String(output.area ?? "");
-    const policeStation = output.police_station as Record<string, unknown> | null;
-    const hospital = output.hospital as Record<string, unknown> | null;
-    const fireStation = output.fire_station as Record<string, unknown> | null;
-    // Nearby results already listed places: an empty directory card would contradict them.
-    if (!policeStation && !hospital && !fireStation && hasPlaces) return null;
-    const distanceOf = (facility: Record<string, unknown>) =>
-      typeof facility.distance_km === "number" ? (facility.distance_km as number) : undefined;
-
-
-    type FacilityCardProps = {
-      icon: typeof MapPin;
-      iconColor: string;
-      iconBg: string;
-      label: string;
-      name: string;
-      address: string;
-      openAlways?: boolean;
-      phone?: string;
-      distanceKm?: number;
-    };
-    const FacilityCard = ({
-      icon: FIcon,
-      iconColor,
-      iconBg,
-      label,
-      name: facName,
-      address,
-      openAlways,
-      phone,
-      distanceKm,
-    }: FacilityCardProps) => (
-
-      <div className="rounded-2xl border border-border/50 bg-background/40 p-3.5">
-        <div className="mb-2.5 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}
-            >
-              <FIcon className={`h-4 w-4 ${iconColor}`} />
-            </span>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                {label}
-              </p>
-              <p className="text-sm font-semibold text-foreground leading-tight">{facName}</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {typeof distanceKm === "number" ? (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                {distanceKm} km away
-              </span>
-            ) : null}
-            {openAlways ? (
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                Open 24/7
-              </span>
-            ) : null}
-          </div>
-        </div>
-        {address ? <p className="mb-2.5 text-xs text-muted-foreground">{address}</p> : null}
-
-        {phone ? (
-          <a
-            href={`tel:${phone}`}
-            className="flex items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90"
-          >
-            <Phone className="h-3.5 w-3.5" /> Call {facName}
-          </a>
-        ) : null}
-      </div>
-    );
-
-
+  // Retired Location Intelligence card: never render that UI. If a past
+  // reply still has the tool result and no find_facilities cards, show the
+  // same stations as normal FacilityResults so the responsible station is not lost.
+  if (name === "location_intelligence") {
+    if (hasPlaces) return null;
+    const facilities = facilitiesFromLocationIntel(output);
+    if (!facilities.length) return null;
+    const area = output?.area ? String(output.area) : "";
     return (
-      <div className="chat-card p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-primary" />
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Location Intelligence · {area}
-          </p>
-        </div>
-        {policeStation ? (
-          <p className="mb-3 text-sm text-foreground">
-            This incident falls under{" "}
-            <span className="font-semibold">{String(policeStation.name ?? "a local station")}</span>
-            .
-          </p>
-        ) : null}
-        <div className="space-y-2">
-          {policeStation ? (
-            <FacilityCard
-              icon={Siren}
-              iconColor="text-blue-600 dark:text-blue-400"
-              iconBg="bg-blue-500/10"
-              label="Responsible Station"
-              name={String(policeStation.name ?? "Police Station")}
-              address={String(policeStation.address ?? policeStation.district ?? "")}
-              openAlways={Boolean(policeStation.is_24_7)}
-              phone={policeStation.phone ? String(policeStation.phone) : undefined}
-              distanceKm={distanceOf(policeStation)}
-            />
-          ) : null}
-          {hospital ? (
-            <FacilityCard
-              icon={Hospital}
-              iconColor="text-emerald-600 dark:text-emerald-400"
-              iconBg="bg-emerald-500/10"
-              label="Nearest Hospital"
-              name={String(hospital.name ?? "Hospital")}
-              address={String(hospital.address ?? hospital.district ?? "")}
-              openAlways={Boolean(hospital.is_24_7)}
-              phone={hospital.phone ? String(hospital.phone) : undefined}
-              distanceKm={distanceOf(hospital)}
-            />
-          ) : null}
-          {fireStation ? (
-            <FacilityCard
-              icon={Flame}
-              iconColor="text-orange-600 dark:text-orange-400"
-              iconBg="bg-orange-500/10"
-              label="Nearest Fire Station"
-              name={String(fireStation.name ?? "Fire Station")}
-              address={String(fireStation.address ?? fireStation.district ?? "")}
-              openAlways={Boolean(fireStation.is_24_7)}
-              phone={fireStation.phone ? String(fireStation.phone) : undefined}
-              distanceKm={distanceOf(fireStation)}
-            />
-          ) : null}
-
-
-          {!policeStation && !hospital && !fireStation ? (
-            <p className="text-sm text-muted-foreground">
-              No facilities found for this area yet. You can search by a different area or call the
-              national emergency line: 999 / 112.
-            </p>
-          ) : null}
-        </div>
-      </div>
+      <FacilityResults
+        output={{
+          facilities,
+          resolved_area: area && !/^your shared/i.test(area) ? area : undefined,
+          emergency_type: facilities[0]?.facility_type,
+        }}
+      />
     );
   }
 

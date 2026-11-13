@@ -49,19 +49,88 @@ export function messageHasPlaces(parts: LooseMessage["parts"]): boolean {
   });
 }
 
+/** Map a retired location_intelligence tool result to FacilityResults cards. */
+export type IntelFacility = {
+  name: string;
+  facility_type: string;
+  type_label: string;
+  phone: string | null;
+  address: string | null;
+  district: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distance_km?: number;
+  open_now?: boolean;
+};
+
+function asFacility(raw: unknown, fallbackType: string, label: string): IntelFacility | null {
+  if (!raw || typeof raw !== "object") return null;
+  const f = raw as Record<string, unknown>;
+  const name = String(f.name ?? "").trim();
+  if (!name) return null;
+  const lat = Number(f.latitude ?? f.lat);
+  const lng = Number(f.longitude ?? f.lng);
+  const km = Number(f.distance_km);
+  const phone = typeof f.phone === "string" && f.phone.trim() ? f.phone.trim() : null;
+  const address = typeof f.address === "string" && f.address.trim() ? f.address.trim() : null;
+  const district = typeof f.district === "string" && f.district.trim() ? f.district.trim() : null;
+  return {
+    name,
+    facility_type: String(f.facility_type ?? fallbackType),
+    type_label: label,
+    phone,
+    address: address ?? district,
+    district,
+    latitude: Number.isFinite(lat) ? lat : null,
+    longitude: Number.isFinite(lng) ? lng : null,
+    ...(Number.isFinite(km) ? { distance_km: km } : {}),
+    open_now: f.is_24_7 === true || f.open_now === true,
+  };
+}
+
+/** Police, then hospital, then fire — the slots the old card used to show. */
+export function facilitiesFromLocationIntel(output: Record<string, unknown> | null | undefined): IntelFacility[] {
+  if (!output) return [];
+  const slots: Array<[unknown, string, string]> = [
+    [output.police_station, "police", "Police"],
+    [output.hospital, "hospital", "Hospital"],
+    [output.fire_station, "fire", "Fire & Rescue"],
+  ];
+  const out: IntelFacility[] = [];
+  const seen = new Set<string>();
+  for (const [raw, type, label] of slots) {
+    const facility = asFacility(raw, type, label);
+    if (!facility) continue;
+    const key = facility.name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(facility);
+  }
+  return out;
+}
+
 // Model narration that leaks into replies ("Let me arrange the local help details.").
 const FILLER_SENTENCE =
   /(?:^|(?<=[.!?…]\s+))(?:(?:ok(?:ay)?|alright|now),?\s+)?(?:let me|i'?ll now|i will now)\s+(?:quickly\s+)?(?:arrange|gather|pull up|look up|find|search for|check|get|fetch|organi[sz]e|prepare)\b[^.!?:\n]{0,80}[.!…]+\s*/gi;
 
-/** Drop "Let me arrange the local help details."-style filler, plus a dangling "Now," it leaves behind. */
+// Leftover prose from the retired Location Intelligence card / prompt.
+const LOCATION_INTEL_LEAK =
+  /(?:^|\n|(?<=[.!?…]\s+))\s*(?:Location Intelligence\s*[·•][^\n]+|This incident falls under [^\n.!?]+[.!?]?\s*|Responsible Station\s*)/gi;
+
+/** Drop "Let me arrange the local help details."-style filler, leftover Location Intelligence lines, and a dangling "Now,". */
 export function stripFillerSentences(text: string): string {
   if (!text) return text;
   let changed = false;
-  const lines = text.split("\n").map((line) => {
+  const withoutIntel = text.replace(LOCATION_INTEL_LEAK, (match, offset, src: string) => {
+    const atLineStart = offset === 0 || src[offset - 1] === "\n";
+    return atLineStart ? "\n" : " ";
+  });
+  if (withoutIntel !== text) changed = true;
+  const lines = withoutIntel.split("\n").map((line) => {
     const cleaned = line.replace(FILLER_SENTENCE, "");
     if (cleaned === line) return line;
     changed = true;
     return cleaned.replace(/^(\s*)Now,\s+(\S)/, (_m, sp: string, ch: string) => sp + ch.toUpperCase()).trimEnd();
   });
-  return changed ? lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() : text;
+  return changed ? lines.join("\n").replace(/[ \t]+\n/g, "\n").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim() : text;
 }
