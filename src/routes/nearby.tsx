@@ -32,6 +32,7 @@ import { describeAccuracy, watchLiveLocation, type LiveLocationFix } from "@/lib
 import {
   getNearestUgandaPlace,
   getUgandaPlaceSuggestions,
+  resolveUgandaPlace,
   type UgandaPlace,
 } from "@/lib/uganda-places";
 import { getNearbyRoute, type RouteMode } from "@/lib/nearby-routing";
@@ -92,7 +93,10 @@ const DEFAULT_AREA: UgandaPlace = {
   ...DEFAULT_LOCATION,
 };
 
+// Distances under ~50 m (or from an unknown origin) are noise, not information.
+let distanceOriginKnown = false;
 function formatDistance(meters: number) {
+  if (!distanceOriginKnown || !Number.isFinite(meters) || meters < 50) return "";
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 
@@ -201,7 +205,7 @@ function NearbyScreen() {
       setLocationError(
         "Your location is unavailable right now. Distances are from Kampala Central — turn on Location Services or search for your area.",
       );
-    }, 12_000);
+    }, 10_000);
     return () => window.clearTimeout(t);
   }, [locating]);
   useEffect(() => {
@@ -448,6 +452,9 @@ function NearbyScreen() {
   }
 
   const hasLocation = Boolean(location);
+  // Only show distances when we know where the user is (good GPS fix or a chosen area).
+  distanceOriginKnown = Boolean(searchArea) || Boolean(location && location.accuracy <= 1500);
+  const [manualArea, setManualArea] = useState("");
 
   function selectArea(area: UgandaPlace) {
     setSearch(area.name);
@@ -515,6 +522,24 @@ function NearbyScreen() {
             >
               Try again
             </button>
+            <form
+              className="flex w-full gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const place = resolveUgandaPlace(manualArea);
+                if (place) selectArea(place);
+                else toast.error("We couldn't find that town or area in Uganda. Try a nearby town name.");
+              }}
+            >
+              <input
+                value={manualArea}
+                onChange={(e) => setManualArea(e.target.value)}
+                placeholder="Type your town or area (e.g. Jinja)"
+                aria-label="Type your town or area"
+                className="min-w-0 flex-1 rounded-full border border-current/25 bg-background px-3 py-2 text-[13px] text-foreground"
+              />
+              <button type="submit" className="shrink-0 rounded-full bg-primary px-3 py-2 font-bold text-primary-foreground">Use</button>
+            </form>
           </div>
         )}
 
@@ -1031,7 +1056,7 @@ function NearbyScreen() {
                         )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        {formatDistance(member.distance_m)} away
+                        {formatDistance(member.distance_m) ? `${formatDistance(member.distance_m)} away` : "Nearby"}
                       </p>
                     </div>
                   </div>

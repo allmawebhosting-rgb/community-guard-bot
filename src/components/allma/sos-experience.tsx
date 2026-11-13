@@ -1490,7 +1490,8 @@ export function SOSExperience({
                     title: "Emergency SOS ended",
                     severity: "info",
                     summary: "SOS was stopped by the user.",
-                    sos_status: "resolved",
+                    // The user stopped it themselves, so it is recorded as cancelled.
+                    sos_status: "cancelled",
                     ended_at: new Date().toISOString(),
                   })
                   .eq("id", endedId)

@@ -3,6 +3,19 @@ import { parseAllmaMarkers } from "./allma-markers";
 import { inUganda, haversineKm, MAX_NEARBY_KM } from "./nearby-guard";
 
 describe("chat formatting", () => {
+  it("splits 'Police 999 Toll-free 112' onto separate lines", () => {
+    const r = parseAllmaMarkers("Call: Police 999 Toll-free 112");
+    expect(r.text).toContain("- Police 999\n- Toll-free 112");
+  });
+  it("puts emoji capabilities one per line", () => {
+    const r = parseAllmaMarkers("I can help:\n🚨 Report crimes 👤 Report missing people 🎒 Lost property");
+    expect(r.text).toContain("- 🚨 Report crimes\n- 👤 Report missing people\n- 🎒 Lost property");
+  });
+  it("reads the ::emergency block and removes it from the text", () => {
+    const r = parseAllmaMarkers("::emergency{type=crime}\nGo to a room you can lock.");
+    expect(r.emergency).toEqual({ type: "crime" });
+    expect(r.text).toBe("Go to a room you can lock.");
+  });
   it("turns [YES / SKIP] into two buttons", () => {
     const r = parseAllmaMarkers("Want a tour? [YES / SKIP]");
     expect(r.text).toBe("Want a tour?");

@@ -423,3 +423,36 @@ export function getNearbyPlacesClientSafe() {
     validate: (value: unknown) => NearbyPlaceSchema.safeParse(value),
   };
 }
+
+/** Phone numbers from Google Place Details for places the nearby search returned without one. */
+export async function fetchPlacePhones(ids: string[]): Promise<Record<string, string>> {
+  const key = resolveGoogleMapsKey({
+    ...(import.meta.env as Record<string, string | undefined>),
+    ...process.env,
+  });
+  const out: Record<string, string> = {};
+  if (!key) return out;
+  await Promise.all(
+    ids.slice(0, 6).map(async (id) => {
+      const placeId = id.replace(/^google:/, "");
+      if (!/^[A-Za-z0-9_-]+$/.test(placeId)) return;
+      try {
+        const res = await fetch(`${GOOGLE_API_URL}/places/${placeId}`, {
+          headers: {
+            "X-Goog-Api-Key": key,
+            Referer: "https://allmasafetyai.online/",
+            "X-Goog-FieldMask": "nationalPhoneNumber,internationalPhoneNumber",
+          },
+          signal: AbortSignal.timeout(3500),
+        });
+        if (!res.ok) return;
+        const body = (await res.json()) as { nationalPhoneNumber?: string; internationalPhoneNumber?: string };
+        const phone = body.nationalPhoneNumber ?? body.internationalPhoneNumber;
+        if (phone) out[id] = phone;
+      } catch {
+        // Ignore: the card simply shows no Call button.
+      }
+    }),
+  );
+  return out;
+}

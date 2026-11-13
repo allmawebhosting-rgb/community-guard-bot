@@ -1,4 +1,5 @@
-import { classifyEmergency, emergencyPromptBlock } from "@/lib/emergency-triage";
+import { classifyEmergency, classifyIncident, emergencyPromptBlock } from "@/lib/emergency-triage";
+import { facilityKind } from "@/lib/facility-kind";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
@@ -140,7 +141,7 @@ export const Route = createFileRoute("/api/chat")({
 
         if (isGreetingOnly) {
           const greeting =
-            "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you report a crime, report a missing person, log lost or found property, and find the nearest police station, hospital or emergency number.\n\nWhat's going on today?\n\n::suggest[Report a crime | Missing person | Find help nearby | Emergency numbers]";
+            "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you:\n\n- 🚨 Report a crime\n- 👤 Report a missing person\n- 🎒 Log lost or found property\n- 🏥 Find the nearest hospital\n- 👮 Find the nearest police station\n- 📞 Get emergency numbers\n\nWhat's going on today?\n\n::suggest[Report a crime | Missing person | Find help nearby | Emergency numbers]";
           const assistantId = `allma-greeting-${Date.now()}`;
           const stream = createUIMessageStream({
             originalMessages: uiMessages,
@@ -274,14 +275,16 @@ export const Route = createFileRoute("/api/chat")({
           { matches: /find help|near me|nearest|police station|hospital|ambulance|fire station/i, flow: "Find help", opener: 'Which service do you need? Options: "Police station", "Hospital", "Fire station".' },
         ];
         const directService = /hospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null;
-        const emergencyKind = flowState.flowLabel ? null : classifyEmergency(intakeText);
-        const emergencyBlock = emergencyPromptBlock(emergencyKind, Boolean(sharedCoords));
+        const emergencyIncident = flowState.flowLabel ? null : classifyIncident(intakeText);
+        const emergencyKind = emergencyIncident ? classifyEmergency(intakeText) : null;
+        // Matched incident's playbook section only — loaded with the procedure blocks below.
+        const emergencyBlock = emergencyIncident ? emergencyPromptBlock(emergencyIncident, Boolean(sharedCoords)).trim() : "";
         const matchedIntent = emergencyKind ? undefined : INTENTS.find((i) => i.matches.test(intakeText));
         const intent = matchedIntent?.flow === "Find help" && directService ? undefined : matchedIntent;
         const directHelpBlock = matchedIntent?.flow === "Find help" && directService
           ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directService}. Do NOT open a flow, do NOT ask which service they need. Call find_facilities right away for that service in THIS reply — never wait for a location first. ${sharedCoords ? "Use their shared GPS location — unless they named a town or area (e.g. Jinja); then pass that as area, it overrides GPS." : "If the user named a town or area anywhere in the conversation, ALWAYS pass it as area (it overrides GPS). No GPS is shared: call find_facilities with area set to the area they named, or \"Kampala\" if none, and after the results say in one short line they can tap Share my location for places closest to them."} Never add a ::media card or ask for photos or files for this request. Then answer with a short friendly line and finish with "Would you like directions to any of these?"`
           : "";
-        const intentBlock = emergencyBlock + directHelpBlock + (intent
+        const intentBlock = directHelpBlock + (intent
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
                 ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
@@ -323,6 +326,7 @@ export const Route = createFileRoute("/api/chat")({
             intakeText,
           );
         if (needsProcedures) promptBlocks.push(ALLMA_PROCEDURES_BLOCK);
+        if (emergencyBlock) promptBlocks.push(emergencyBlock);
         if (needsLocation) promptBlocks.push(ALLMA_LOCATION_BLOCK);
         if (fullMode || memoryBlock) promptBlocks.push(ALLMA_MEMORY_BLOCK);
         if (fullMode) promptBlocks.push(ALLMA_DETAIL_BLOCK);
@@ -603,14 +607,31 @@ export const Route = createFileRoute("/api/chat")({
                       limit: 8,
                       types: typesFor[facility_type] ?? [facility_type],
                     })).filter((p) => inUganda(p.latitude, p.longitude) && p.distance_m / 1000 <= MAX_NEARBY_KM);
-                    if (near.length) {
+                    const { refineFacilities } = await import("@/lib/facility-results");
+                    const refined = await refineFacilities(near, facility_type, async (missing) => {
+                      const { fetchPlacePhones } = await import("@/lib/places.server");
+                      const phones = await fetchPlacePhones(missing.filter((m) => m.id.startsWith("google:")).map((m) => m.id));
+                      const names = missing.filter((m) => !phones[m.id]).map((m) => m.name.split(/\s+/).slice(0, 2).join(" "));
+                      if (names.length) {
+                        const { data: rows } = await supabase.from("facilities").select("name, phone").not("phone", "is", null).or(names.map((n) => `name.ilike.%${n.replace(/[,%()]/g, "")}%`).join(",")).limit(40);
+                        for (const m of missing) {
+                          if (phones[m.id]) continue;
+                          const hit = (rows ?? []).find((r) => r.phone && r.name.toLowerCase().includes(m.name.split(/\s+/).slice(0, 2).join(" ").toLowerCase()));
+                          if (hit?.phone) phones[m.id] = hit.phone;
+                        }
+                      }
+                      return phones;
+                    });
+                    if (refined.length) {
                       return {
                         ok: true,
                         resolved_area: origin.label,
                         emergency_type: facility_type,
-                        facilities: near.map((p) => ({
+                        count: refined.length,
+                        facilities: refined.map((p) => ({
                           name: p.name,
-                          facility_type: p.type,
+                          facility_type: p.kind,
+                          type_label: p.type_label,
                           phone: p.phone,
                           address: p.address,
                           latitude: p.latitude,
@@ -619,7 +640,7 @@ export const Route = createFileRoute("/api/chat")({
                           photo_url: p.photo_name ? `/api/public/place-photo?name=${encodeURIComponent(p.photo_name)}` : null,
                           distance_km: Math.round(p.distance_m / 100) / 10,
                         })),
-                        note: "Sorted by straight-line distance. Name the closest one first; never state travel time.",
+                        note: `Showing exactly ${refined.length} ${facility_type} place(s), sorted by straight-line distance. If you state a number, it MUST be ${refined.length}. Name the closest one first; never state travel time.`,
                       };
                     }
                   } catch (err) {
@@ -642,7 +663,7 @@ export const Route = createFileRoute("/api/chat")({
                     .sort((a, b) => a.distance_km - b.distance_km)
                     .slice(0, 5);
                   if (ranked.length) {
-                    return { ok: true, resolved_area: origin.label, emergency_type: facility_type, facilities: ranked, note: "distance_km is straight-line; never state travel time." };
+                    return { ok: true, resolved_area: origin.label, emergency_type: facility_type, count: ranked.length, facilities: ranked.map((r) => ({ ...r, type_label: facilityKind(r.facility_type, r.name) })), note: `Showing exactly ${ranked.length} place(s); if you state a number it MUST be ${ranked.length}. distance_km is straight-line; never state travel time.` };
                   }
                   return unconfirmed;
                 }
@@ -654,7 +675,7 @@ export const Route = createFileRoute("/api/chat")({
                   .ilike("district", "%Kampala%")
                   .limit(5);
                 if (error) return { ok: false, message: "Directory lookup failed." };
-                return { ok: true, resolved_area: "Kampala (share your location for closer places)", emergency_type: facility_type, facilities: data ?? [] };
+                return { ok: true, resolved_area: "Kampala (share your location for closer places)", emergency_type: facility_type, count: (data ?? []).length, facilities: data ?? [], note: `Showing exactly ${(data ?? []).length} place(s); don't state a different number.` };
               },
             }),
             list_alerts: tool({

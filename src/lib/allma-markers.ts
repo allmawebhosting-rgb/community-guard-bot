@@ -22,9 +22,13 @@ export type MarkerMedia = {
 
 export type MarkerSuggestion = { label: string; prompt: string };
 
+export type MarkerEmergency = { type: "medical" | "crime" | "fire" };
+
 export type ParsedMarkers = {
   /** Reply text with every marker removed. */
   text: string;
+  /** Emergency action block (SOS + call buttons) to show at the top. */
+  emergency: MarkerEmergency | null;
   flow: MarkerFlow | null;
   suggestions: MarkerSuggestion[];
   media: MarkerMedia | null;
@@ -33,6 +37,7 @@ export type ParsedMarkers = {
 const FLOW_RE = /::flow\{([^}]*)\}/gi;
 const MEDIA_RE = /::media\{([^}]*)\}/gi;
 const SUGGEST_RE = /::suggest\[([^\]]*)\]/gi;
+const EMERGENCY_RE = /::emergency(?:\{([^}]*)\})?/gi;
 
 function parseAttrs(body: string): Record<string, string> {
   const attrs: Record<string, string> = {};
@@ -57,13 +62,34 @@ export function normalizeChatMarkdown(input: string): string {
   // "yourAI-powered" → "your AI-powered"
   const spaced = input.replace(/([a-z])(AI\b)/g, "$1 $2");
   const out: string[] = [];
-  for (const rawLine of spaced.split("\n")) {
+  // Emoji capability lists glued into one paragraph → one item per line.
+  const EMOJI = /\p{Extended_Pictographic}/u;
+  const lines0 = spaced.split("\n").flatMap((l) => {
+    const hits = l.match(/\p{Extended_Pictographic}/gu) ?? [];
+    if (hits.length >= 3 && !/^\s*-\s/.test(l)) {
+      const parts = l.split(/\s+(?=\p{Extended_Pictographic})/u).map((x) => x.trim()).filter(Boolean);
+      const lead = EMOJI.test(parts[0]?.slice(0, 2) ?? "") ? [] : [parts.shift()!];
+      return [...lead, "", ...parts.map((x) => `- ${x}`), ""];
+    }
+    return [l];
+  });
+  // Consecutive emoji-led lines are a list.
+  for (let i = 0; i < lines0.length; i++) {
+    const cur = lines0[i];
+    const emojiLed = (x?: string) => Boolean(x && /^\s*\p{Extended_Pictographic}/u.test(x) && x.length < 70);
+    if (emojiLed(cur) && (emojiLed(lines0[i - 1]) || emojiLed(lines0[i + 1]))) lines0[i] = `- ${cur.trim()}`;
+  }
+  for (const rawLine of lines0) {
     let line = rawLine.replace(/\s+[•●▪]\s+/g, " - ");
+    // "Police 999 Toll-free 112" → separated so each number gets its own line.
+    line = line.replace(/\b(999|112|911)\b\s+(?=[A-Z][a-z])/g, "$1, ");
     const numbers = line.match(/\b(?:999|112|911|0800\d{6})\b/g) ?? [];
     if (numbers.length >= 2 && !/^\s*[-*\d]/.test(line)) {
       // One emergency number per line.
       const parts = line.split(/\s*[,;·|]\s*|\s+(?:and|or)\s+(?=[A-Z])/).map((p) => p.trim()).filter(Boolean);
       if (parts.length >= 2) {
+        const colon = /^([^:\d]{1,40}):\s*(.+)$/.exec(parts[0]);
+        if (colon) parts.splice(0, 1, `${colon[1]}:`, colon[2]);
         const lead = /\d/.test(parts[0]) ? null : parts.shift()!;
         if (lead) out.push(lead);
         out.push("", ...parts.map((p) => `- ${p.replace(/[.]$/, "")}`), "");
@@ -100,6 +126,11 @@ export function normalizeChatMarkdown(input: string): string {
 
 export function parseAllmaMarkers(raw: string): ParsedMarkers {
   let flow: MarkerFlow | null = null;
+  let emergency: MarkerEmergency | null = null;
+  for (const match of raw.matchAll(EMERGENCY_RE)) {
+    const t = (parseAttrs(match[1] ?? "").type || "medical").toLowerCase();
+    emergency = { type: /crime|violence|police|danger/.test(t) ? "crime" : /fire|gas|collapse/.test(t) ? "fire" : "medical" };
+  }
   let media: MarkerMedia | null = null;
   const suggestions: MarkerSuggestion[] = [];
 
@@ -139,6 +170,7 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
   }
 
   let text = raw
+    .replace(EMERGENCY_RE, "")
     .replace(FLOW_RE, "")
     .replace(MEDIA_RE, "")
     .replace(SUGGEST_RE, "");
@@ -163,13 +195,13 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
 
   text = normalizeChatMarkdown(text).replace(/\n{3,}/g, "\n\n").trim();
 
-  return { text, flow, suggestions: suggestions.slice(0, 5), media };
+  return { text, emergency, flow, suggestions: suggestions.slice(0, 5), media };
 }
 
 /** True when the text still contains a partially streamed marker. */
 export function hasOpenMarker(raw: string): boolean {
   const tail = raw.slice(raw.lastIndexOf("::"));
-  return /^::(f(l(o(w)?)?)?|s(u(g(g(e(s(t)?)?)?)?)?)?|m(e(d(i(a)?)?)?)?)(\{[^}]*|\[[^\]]*)?$/i.test(
+  return /^::(e(m(e(r(g(e(n(c(y)?)?)?)?)?)?)?)?|f(l(o(w)?)?)?|s(u(g(g(e(s(t)?)?)?)?)?)?|m(e(d(i(a)?)?)?)?)(\{[^}]*|\[[^\]]*)?$/i.test(
     tail,
   );
 }
@@ -177,5 +209,6 @@ export function hasOpenMarker(raw: string): boolean {
 export const ALLMA_MARKER_CONTRACT = `INLINE UI MARKERS — write these directly in your reply text (never as tool calls):
 - Guided step banner: ::flow{type=Reporting, step=2, total=5, title="Where did it happen?"}  (put it on its own FIRST line; type is the flow name: Reporting, Missing person, Lost & found, Safety check, Find help, Advice)
 - Tappable answers / next steps: ::suggest[Theft | Robbery | Assault | Something else]  (2-4 short options, on the LAST line, always the exact answers to what you just asked — never a generic menu)
+- Emergency action block: ::emergency{type=medical}  (type: medical, crime or fire; own FIRST line, only for potentially life-threatening situations; renders a red Press SOS button plus separate Call 999 / Call 112 / Call 911 buttons — the user taps them, nothing starts automatically)
 - Ask for evidence: ::media{type=photo, optional=true, tips="Good light · Show the whole scene"}  (type: photo, video, audio, document or location)
-Markers are stripped from the visible message and rendered as premium cards and chips. Use at most one ::flow, one ::media and one ::suggest per reply, and never mention or explain the markers.`;
+Markers are stripped from the visible message and rendered as premium cards and chips. Use at most one ::emergency, one ::flow, one ::media and one ::suggest per reply, and never mention or explain the markers.`;

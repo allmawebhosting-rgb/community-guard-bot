@@ -1,5 +1,5 @@
 import { markSosIntent } from "@/lib/sos-intent";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -68,7 +68,9 @@ import { AssistantHero } from "@/components/allma/assistant-hero";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { UGANDA_HOTLINES } from "@/lib/emergency-triage";
+import { EMERGENCY_BLOCK_LINES, UGANDA_HOTLINES } from "@/lib/emergency-triage";
+import { KIND_LABEL } from "@/lib/facility-results";
+import { facilityKind } from "@/lib/facility-kind";
 import { parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
 
 
@@ -392,14 +394,41 @@ function PlaceThumb({ photo, type }: { photo: string | null; type: string }) {
   );
 }
 
+/** True when this message already shows the ::emergency action block at the top. */
+const EmergencyShownContext = createContext(false);
+
+/** Red "Press SOS" (user taps — never automatic) + one call button per number. */
+function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
+  const navigate = useNavigate();
+  return (
+    <div className="w-full space-y-2">
+      <button
+        type="button"
+        onClick={() => { markSosIntent(); void navigate({ to: "/sos", search: { instant: true } }); }}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive px-4 py-4 text-[16px] font-bold text-destructive-foreground shadow-soft active:scale-[0.98]"
+      >
+        <ShieldAlert className="h-5 w-5 shrink-0" /> Press SOS
+      </button>
+      <div className="flex flex-col gap-2">
+        {EMERGENCY_BLOCK_LINES[type].map((h) => (
+          <a key={h.number} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-destructive/30 bg-card px-4 py-3 text-[15px] font-semibold text-destructive">
+            <Phone className="h-4 w-4 shrink-0" /> Call {h.number}{h.number === "911" ? " Ambulance" : h.number === "999" ? " Police" : " Toll-free"}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const navigate = useNavigate();
+  const emergencyShown = useContext(EmergencyShownContext);
   const facilities = output.facilities as Array<Record<string, unknown>>;
   const t = String(output.emergency_type ?? facilities[0]?.facility_type ?? "");
   const kind = t === "police" ? "violence" : t === "fire" || t === "fire_station" ? "fire" : t ? "medical" : null;
   return (
     <div className="w-full space-y-3">
-      {kind ? (
+      {kind && !emergencyShown ? (
         <div className="space-y-2">
           <button
             type="button"
@@ -408,9 +437,9 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
           >
             <ShieldAlert className="h-5 w-5 shrink-0" /> Getting worse? Activate SOS
           </button>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             {UGANDA_HOTLINES[kind].map((h) => (
-              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-destructive/30 px-3 py-2.5 text-[13.5px] font-semibold text-destructive">
+              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-destructive/30 px-3 py-2.5 text-[13.5px] font-semibold text-destructive">
                 <Phone className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Call {h.number}</span>
               </a>
             ))}
@@ -430,7 +459,11 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
               const lng = Number(facility.lng ?? facility.longitude);
               const dest = Number.isFinite(lat) && Number.isFinite(lng) && facility.latitude != null ? `${lat},${lng}` : encodeURIComponent(String(facility.name) + " " + String(facility.district ?? ""));
               const km = facility.distance_km != null && Number.isFinite(Number(facility.distance_km)) ? Number(facility.distance_km) : null;
-              const label = FACILITY_LABEL[String(facility.facility_type ?? "")] ?? null;
+              const label =
+                (typeof facility.type_label === "string" && facility.type_label) ||
+                FACILITY_LABEL[String(facility.facility_type ?? "")] ||
+                KIND_LABEL[facilityKind(String(facility.facility_type ?? t), String(facility.name ?? ""))] ||
+                null;
               const phone = typeof facility.phone === "string" && facility.phone ? facility.phone : null;
               const photo = typeof facility.photo_url === "string" && facility.photo_url ? facility.photo_url : null;
               return (
@@ -1504,12 +1537,19 @@ export function AllmaChat({
                   <MessageContent
                     className={
                       message.role === "assistant"
-                        ? message.parts.some((p) => p.type === "tool-find_facilities")
+                        ? message.parts.some((p) => p.type === "tool-find_facilities" || (p.type === "text" && /::emergency/i.test(p.text)))
                           ? "w-full max-w-full bg-transparent p-0 shadow-none"
                           : "max-w-[92%] rounded-[1.4rem] rounded-tl-md border border-border/60 bg-card px-4 py-3.5 shadow-soft"
                         : "ml-auto max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[75%]"
                     }
                   >
+                    {(() => {
+                      const em = message.role === "assistant"
+                        ? message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).emergency : null)).find(Boolean) ?? null
+                        : null;
+                      return em ? <div className="mb-3"><EmergencyActions type={em.type} /></div> : null;
+                    })()}
+                    <EmergencyShownContext.Provider value={message.role === "assistant" && message.parts.some((p) => p.type === "text" && /::emergency/i.test(p.text))}>
                     {message.parts.map((part, index) => {
                       if (part.type === "text") {
                         if (message.role !== "assistant") {
@@ -1590,6 +1630,7 @@ export function AllmaChat({
 
                       return null;
                     })}
+                    </EmergencyShownContext.Provider>
                   </MessageContent>
 
                   {message.role === "assistant" && !(busy && msgIndex === messages.length - 1) ? (
