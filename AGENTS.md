@@ -14,3 +14,4 @@
 - Responder navigation aborts route requests only when superseded or unmounted, not on ordinary renders; this preserves pending directions through call timer ticks and small GPS updates.
 - Managed Google sign-in uses the Lovable OAuth helper with a public same-origin callback; navigation waits for a session so invitations survive sign-in.
 - Chat and voice share cause-aware gateway error classification and disable automatic SDK retries; credit/access failures preserve their status and safe remedy without provider fallback.
+- Emergency first-aid/incident guidance lives only in src/lib/allma-emergency-playbook.ts; chat injects just the matched incident section so prompts stay small and there is one source of truth.
