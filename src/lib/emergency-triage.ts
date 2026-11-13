@@ -7,7 +7,7 @@ export type Hotline = { label: string; number: string };
 
 export const UGANDA_HOTLINES: Record<Exclude<EmergencyKind, null>, Hotline[]> = {
   medical: [
-    { label: "Ambulance", number: "911" },
+    { label: "Police", number: "999" },
     { label: "Toll-free emergency", number: "112" },
   ],
   violence: [
@@ -25,7 +25,6 @@ export const EMERGENCY_BLOCK_LINES: Record<"medical" | "crime" | "fire", Hotline
   medical: [
     { label: "Police", number: "999" },
     { label: "Toll-free emergency", number: "112" },
-    { label: "Ambulance", number: "911" },
   ],
   crime: [
     { label: "Police", number: "999" },

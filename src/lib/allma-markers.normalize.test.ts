@@ -28,7 +28,7 @@ describe("chat formatting", () => {
   it("fixes yourAI spacing and puts each emergency number on its own line", () => {
     const r = parseAllmaMarkers("I'm yourAI-powered helper.\nPolice 999, Ambulance 911, Toll-free 112");
     expect(r.text).toContain("your AI-powered");
-    expect(r.text).toContain("- Police 999\n- Ambulance 911\n- Toll-free 112");
+    expect(r.text).toContain("- Police 999\n- Ambulance 112\n- Toll-free 112");
   });
 });
 

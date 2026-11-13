@@ -104,7 +104,7 @@ export const INCIDENTS: Incident[] = [
     followUp: "Is it an adult or a baby?", followUpChips: ["Adult or child", "Baby under 1"],
     guide: "Adult/older child: up to 5 back blows between the shoulder blades, then up to 5 abdominal thrusts; repeat. Infant (<1 yr): face-down along your forearm, 5 back blows, then 5 chest thrusts with two fingers — NO abdominal thrusts. If they become unresponsive, start CPR." },
   { id: "nosebleed", label: "Nosebleed", category: "medical", marker: "medical", helpTypes: ["hospital"], lifeThreatening: false,
-    keywords: /nose ?bleed|bleeding (from )?(the |my |his |her )?nose|nose (is )?bleeding/i,
+    keywords: /nose ?-?bleed|bleed(ing|s)? (from |out of )?(the |my |his |her |their |a |our )?(child'?s |baby'?s |son'?s |daughter'?s )?nose|nose (is |keeps |won'?t stop |has been |started )?bleed|blood (is )?(coming |pouring |dripping )?(from|out of) (the |my |his |her |their )?nose|bloody nose/i,
     followUp: "Did the bleeding stop?", followUpChips: ["Yes, it stopped", "No, still bleeding"],
     guide: "Steps: sit up and lean FORWARD (never tilt the head back); pinch the soft part of the nose continuously for 10–15 min; breathe through the mouth; cold compress on the bridge of the nose; spit out blood, don't swallow; no blowing the nose for some hours. Red flags: still bleeding after 20 min, after a head injury, very heavy or trouble breathing, on blood thinners, dizzy/faint." },
   { id: "snake_bite", label: "Snake bite", category: "medical", marker: "medical", helpTypes: ["hospital"], lifeThreatening: true,
@@ -185,22 +185,48 @@ export const INCIDENTS: Incident[] = [
     guide: "Be compassionate and non-judgemental; thank them for telling you; ask if they are safe right now; encourage them to reach a trusted person now and to call 999/112 or go to a hospital if in immediate danger; suggest removing means of harm if safe; stay with them in the chat. Do NOT add the 'not a doctor' line — close gently instead (e.g. 'I'm here with you.'). No support line other than 999/112." },
 ];
 
+/** Structured first-aid content parsed from an incident's guide (for a guaranteed on-screen fallback). */
+export type FirstAid = { steps: string[]; redFlags: string[]; notDoctor: string | null };
+
+export const NOT_DOCTOR_LINE = NOT_DOCTOR;
+
+function cap(s: string) {
+  const t = s.trim().replace(/[.;,]+$/, "");
+  return t ? t[0].toUpperCase() + t.slice(1) : t;
+}
+
+export function firstAidFor(incident: Incident): FirstAid | null {
+  const g = incident.guide;
+  const stepsMatch = /Steps:\s*([\s\S]*?)(?:\.\s|\.$|$|Red flags:)/.exec(g);
+  if (!stepsMatch) return null;
+  const steps = stepsMatch[1].split(";").map(cap).filter(Boolean).slice(0, 6);
+  if (!steps.length) return null;
+  const flagsMatch = /Red flags:\s*([^.]*)/.exec(g);
+  const redFlags = flagsMatch ? flagsMatch[1].split(",").map(cap).filter(Boolean).slice(0, 6) : [];
+  const notDoctor = incident.category === "medical" && incident.id !== "mental_health" ? NOT_DOCTOR : null;
+  return { steps, redFlags, notDoctor };
+}
+
+/** Place and service names that look like incidents but aren't ("fire station", "blood bank"). */
+const NOT_AN_INCIDENT = /\bfire (?:station|brigade|service|department|and rescue|& rescue|extinguisher)s?\b|\bblood (?:bank|test|donation|group|pressure)s?\b|\baccident (?:and|&) emergency\b/gi;
+
 export function matchIncident(text: string): Incident | null {
-  if (!text.trim()) return null;
-  return INCIDENTS.find((i) => i.keywords.test(text)) ?? null;
+  const cleaned = text.replace(NOT_AN_INCIDENT, " ");
+  if (!cleaned.trim()) return null;
+  return INCIDENTS.find((i) => i.keywords.test(cleaned)) ?? null;
 }
 
 export const ALLMA_EMERGENCY_PLAYBOOK = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EMERGENCY PLAYBOOK — UNIVERSAL FLOW (one reply, this order)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1) Judge severity silently. Ask at most ONE short clarifying question, only if truly needed for safe advice.
-2) If potentially life-threatening: put ::emergency{type=<medical|crime|fire>} on its own FIRST line. It renders a red "Press SOS" button and separate Call 999 / Call 112 (and Call 911 for medical) buttons. Never write the numbers run together on one line — if you write numbers in text, each goes on its own "- " line. Never say you started SOS; the user taps it.
-3) Steps: a numbered list (1. 2. 3.), max 6 items, ONE per line, simple calm English.
+2) If potentially life-threatening: put ::emergency{type=<medical|crime|fire>} on its own FIRST line. It renders a red "Press SOS" button and separate Call 999 (Police) / Call 112 (Toll-free) buttons. Never write the numbers run together on one line — if you write numbers in text, each goes on its own "- " line. Never say you started SOS; the user taps it.
+3) Steps: a numbered list (1. 2. 3.), max 6 items, ONE per line, simple calm English. ALWAYS write the steps and the red flags in your text BEFORE you call find_facilities, and never write them a second time after the results.
 4) "**Get help now if:**" then a short "- " list of red flags.
 5) Nearest help: call find_facilities in THIS reply for the correct type(s) only (one call per type). A town the user named beats GPS. If no location at all, ask in one short line and add ::media{type=location}.
 6) Finish with the follow-up question and a ::suggest[…] line of 2 short Yes/No-style chips (each ≤ 22 characters).
 Medical replies (except mental health) end with exactly this line before the chips: "${NOT_DOCTOR}"
-NEVER: tilt the head back for a nosebleed; induce vomiting; tourniquet unless life-threatening limb bleeding pressure can't control and they know how; cut/suck/ice/tie a snake bite; butter/oil/toothpaste/ice on burns; anything in a seizing person's mouth; remove a crash victim's helmet; name medicines or doses. Numbers: Police 999, Toll-free emergency 112, Ambulance 911 (medical only). Never invent any other number, station or response time. Never claim anyone was contacted or that help is coming.`;
+NEVER: tilt the head back for a nosebleed; induce vomiting; tourniquet unless life-threatening limb bleeding pressure can't control and they know how; cut/suck/ice/tie a snake bite; butter/oil/toothpaste/ice on burns; anything in a seizing person's mouth; remove a crash victim's helmet; name medicines or doses. Numbers: Police 999, Toll-free emergency 112 (also for an ambulance). NEVER mention 911 — it is not a Ugandan number. Never invent any other number, station or response time. Never claim anyone was contacted or that help is coming.`;
 
 /** The universal flow plus ONLY the matched incident's section. */
 export function playbookPromptFor(incident: Incident): string {

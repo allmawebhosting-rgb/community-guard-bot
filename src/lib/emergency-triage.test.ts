@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { classifyEmergency, classifyIncident, facilitiesFor, facilityFor, UGANDA_HOTLINES, EMERGENCY_BLOCK_LINES } from "./emergency-triage";
 
 describe("emergency triage", () => {
-  it("medical routes to hospital with ambulance 911", () => {
+  it("medical routes to hospital with Police 999 (no 911 in Uganda)", () => {
     expect(classifyEmergency("my friend is bleeding a lot")).toBe("medical");
     expect(facilityFor("medical")).toBe("hospital");
-    expect(UGANDA_HOTLINES.medical[0].number).toBe("911");
+    expect(UGANDA_HOTLINES.medical[0].number).toBe("999");
   });
   it("violence routes to police 999", () => {
     expect(classifyEmergency("someone is following me with a knife")).toBe("violence");
@@ -38,8 +38,10 @@ describe("emergency triage", () => {
     expect(classifyIncident("my nose is bleeding")?.id).toBe("nosebleed");
     expect(classifyIncident("I think he is having a heart attack")?.id).toBe("heart_attack");
   });
-  it("emergency block uses Police 999, Toll-free 112, Ambulance 911 only for medical", () => {
+  it("emergency block uses Police 999 and Toll-free 112 only — never 911", () => {
     expect(EMERGENCY_BLOCK_LINES.crime.map((h) => h.number)).toEqual(["999", "112"]);
-    expect(EMERGENCY_BLOCK_LINES.medical.map((h) => h.number)).toEqual(["999", "112", "911"]);
+    expect(EMERGENCY_BLOCK_LINES.medical.map((h) => h.number)).toEqual(["999", "112"]);
+    const all = [...Object.values(EMERGENCY_BLOCK_LINES), ...Object.values(UGANDA_HOTLINES)].flat();
+    expect(all.some((h) => h.number === "911")).toBe(false);
   });
 });

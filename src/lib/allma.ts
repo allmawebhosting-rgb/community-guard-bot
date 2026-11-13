@@ -110,7 +110,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
 export const EMERGENCY_NUMBERS = [
   { label: "Police", number: "999", description: "Crime, violence, immediate danger" },
   { label: "Emergency (toll free)", number: "112", description: "General emergency line" },
-  { label: "Ambulance", number: "911", description: "Medical emergencies" },
+  { label: "Ambulance", number: "112", description: "Medical emergencies (toll-free)" },
   { label: "Fire Brigade", number: "112", description: "Fire and rescue" },
 ];
 

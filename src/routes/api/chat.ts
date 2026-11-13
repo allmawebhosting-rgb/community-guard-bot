@@ -1,5 +1,6 @@
 import { classifyEmergency, classifyIncident, emergencyPromptBlock } from "@/lib/emergency-triage";
 import { facilityKind } from "@/lib/facility-kind";
+import { cleanAddress } from "@/lib/facility-results";
 import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
@@ -571,8 +572,10 @@ export const Route = createFileRoute("/api/chat")({
               }),
               execute: async ({ facility_type, area }) => {
                 const { inUganda, MAX_NEARBY_KM, haversineKm } = await import("@/lib/nearby-guard");
+                // A described medical emergency needs real care, not a pharmacy.
+                const medicalEmergency = emergencyIncident?.helpTypes.includes("hospital") ?? false;
                 const typesFor: Record<string, string[]> = {
-                  hospital: ["hospital", "medical_clinic", "doctor", "pharmacy"],
+                  hospital: medicalEmergency ? ["hospital", "medical_clinic", "doctor"] : ["hospital", "medical_clinic", "doctor", "pharmacy"],
                   ambulance: ["hospital", "medical_clinic", "doctor"],
                   police: ["police"],
                   fire: ["fire_station"],
@@ -584,7 +587,7 @@ export const Route = createFileRoute("/api/chat")({
                   emergency_type: facility_type,
                   facilities: [],
                   message:
-                    "I couldn't confirm your location, so I won't guess. Tell the user plainly, give the emergency numbers (999 police, 112 toll-free, 911 ambulance), and ask them to tap Share my location or type their town or area.",
+                    "I couldn't confirm your location, so I won't guess. Tell the user plainly, give the emergency numbers (999 police, 112 toll-free), and ask them to tap Share my location or type their town or area.",
                 };
                 // A place the user named wins over GPS. GPS outside Uganda is ignored.
                 const named = area ? resolveUgandaPlace(area) : null;
@@ -621,7 +624,7 @@ export const Route = createFileRoute("/api/chat")({
                         }
                       }
                       return phones;
-                    });
+                    }, { emergency: medicalEmergency });
                     if (refined.length) {
                       return {
                         ok: true,
@@ -657,6 +660,7 @@ export const Route = createFileRoute("/api/chat")({
                     .filter((row) => inUganda(Number(row.latitude), Number(row.longitude)))
                     .map((row) => ({
                       ...row,
+                      address: cleanAddress(row.address, Number(row.latitude), Number(row.longitude)),
                       distance_km: Math.round(haversineKm(origin.lat, origin.lng, Number(row.latitude), Number(row.longitude)) * 10) / 10,
                     }))
                     .filter((row) => row.distance_km <= MAX_NEARBY_KM)
@@ -963,7 +967,7 @@ export const Route = createFileRoute("/api/chat")({
                     nearby_police: ranked.filter((r) => r.facility_type === "police").slice(0, 3),
                     directory_note:
                       found === 0
-                        ? "Allma's directory has no facilities with coordinates yet. Tell the user honestly and give the national numbers (Police 999, Emergency 112, Ambulance 911)."
+                        ? "Allma's directory has no facilities with coordinates yet. Tell the user honestly and give the national numbers (Police 999, Toll-free emergency 112)."
                         : "distance_km is a real straight-line distance in kilometres — you may state it. Never state travel or arrival time.",
                   };
                 }
@@ -1009,7 +1013,7 @@ export const Route = createFileRoute("/api/chat")({
                   fire_station: fireStation,
                   directory_note:
                     found === 0
-                      ? `No facilities for "${cleaned}" are in Allma's directory yet. Tell the user honestly, give the national numbers (Police 999, Emergency 112, Ambulance 911), and continue helping. If they can share their GPS location, call location_intelligence again with latitude and longitude for the closest station.`
+                      ? `No facilities for "${cleaned}" are in Allma's directory yet. Tell the user honestly, give the national numbers (Police 999, Toll-free emergency 112), and continue helping. If they can share their GPS location, call location_intelligence again with latitude and longitude for the closest station.`
                       : "Only share the facility details returned here. Do not state distances or arrival times — they are not known.",
                 };
               },

@@ -60,7 +60,12 @@ const INLINE_CHOICE_RE = /\[([A-Z][A-Z' ]{0,20}(?:\s*[/|]\s*[A-Z][A-Z' ]{0,20})+
  */
 export function normalizeChatMarkdown(input: string): string {
   // "yourAI-powered" → "your AI-powered"
-  const spaced = input.replace(/([a-z])(AI\b)/g, "$1 $2");
+  // 911 is not a Ugandan number: never show it.
+  // An "Ambulance 911" becomes the toll-free 112; any other 911 becomes Police 999.
+  const spaced = input
+    .replace(/([a-z])(AI\b)/g, "$1 $2")
+    .replace(/(ambulance\W{0,3})911(?![\d.,]\d)/gi, "$1112")
+    .replace(/(?<![\d.,])911(?![\d.,]\d)/g, "999");
   const out: string[] = [];
   // Emoji capability lists glued into one paragraph → one item per line.
   const EMOJI = /\p{Extended_Pictographic}/u;
@@ -82,11 +87,27 @@ export function normalizeChatMarkdown(input: string): string {
   for (const rawLine of lines0) {
     let line = rawLine.replace(/\s+[•●▪]\s+/g, " - ");
     // "Police 999 Toll-free 112" → separated so each number gets its own line.
-    line = line.replace(/\b(999|112|911)\b\s+(?=[A-Z][a-z])/g, "$1, ");
-    const numbers = line.match(/\b(?:999|112|911|0800\d{6})\b/g) ?? [];
+    line = line.replace(/\b(999|112|0800[\s-]?\d{3}[\s-]?\d{3})\b\s+(?=[A-Z][a-z]|\p{Extended_Pictographic})/gu, "$1, ");
+    const numbers = line.match(/\b(?:999|112|0800[\s-]?\d{3}[\s-]?\d{3})\b/g) ?? [];
+    const bullet = /^(\s*)[-*]\s+(.*)$/.exec(line);
+    if (numbers.length >= 2 && bullet) {
+      // A list item holding two numbers ("- 📞 0800 199 699 📞 Or call 999") → one item each.
+      const items = bullet[2]
+        .split(/\s*[,;·|]\s*|\s+\/\s+(?=\d)/)
+        .map((p) => p.trim())
+        .filter((p) => p && !/^\p{Extended_Pictographic}+$/u.test(p));
+      if (items.length >= 2) {
+        out.push(...items.map((p) => `${bullet[1]}- ${p.replace(/[.]$/, "")}`));
+        continue;
+      }
+    }
     if (numbers.length >= 2 && !/^\s*[-*\d]/.test(line)) {
       // One emergency number per line.
-      const parts = line.split(/\s*[,;·|]\s*|\s+(?:and|or)\s+(?=[A-Z])/).map((p) => p.trim()).filter(Boolean);
+      const parts = line
+        .split(/\s*[,;·|]\s*|\s+(?:and|or)\s+(?=[A-Z])|\s+\/\s+(?=\d)/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .filter((p) => !/^\p{Extended_Pictographic}+$/u.test(p));
       if (parts.length >= 2) {
         const colon = /^([^:\d]{1,40}):\s*(.+)$/.exec(parts[0]);
         if (colon) parts.splice(0, 1, `${colon[1]}:`, colon[2]);
@@ -122,6 +143,42 @@ export function normalizeChatMarkdown(input: string): string {
     fixed.push(l);
   }
   return fixed.join("\n");
+}
+
+function lineKey(line: string): string {
+  return line
+    .toLowerCase()
+    .replace(/^\s*(?:[-*]|\d+[.)])\s*/, "")
+    .replace(/[*_`#>]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/**
+ * When a model writes its steps before a tool call and then repeats them after
+ * the results, the second copy is dropped so each block shows once.
+ * Lines (≥ 12 chars) already shown in an earlier text part are removed.
+ */
+export function dedupeRepeatedParts(texts: string[]): string[] {
+  const seen = new Set<string>();
+  return texts.map((text) => {
+    const kept: string[] = [];
+    const added: string[] = [];
+    for (const line of text.split("\n")) {
+      const key = lineKey(line);
+      if (key.length >= 12 && seen.has(key)) continue;
+      if (key.length >= 12) added.push(key);
+      kept.push(line);
+    }
+    for (const k of added) seen.add(k);
+    // Drop headings left without their (removed) list, e.g. a lone "Get help now if:".
+    const cleaned = kept.filter((line, i) => {
+      if (!/:\**\s*$/.test(line.trim()) || line.trim().length > 60) return true;
+      const next = kept.slice(i + 1).find((l) => l.trim() !== "");
+      return Boolean(next && /^\s*(?:[-*]|\d+[.)])\s/.test(next));
+    });
+    return cleaned.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  });
 }
 
 export function parseAllmaMarkers(raw: string): ParsedMarkers {
@@ -209,6 +266,6 @@ export function hasOpenMarker(raw: string): boolean {
 export const ALLMA_MARKER_CONTRACT = `INLINE UI MARKERS — write these directly in your reply text (never as tool calls):
 - Guided step banner: ::flow{type=Reporting, step=2, total=5, title="Where did it happen?"}  (put it on its own FIRST line; type is the flow name: Reporting, Missing person, Lost & found, Safety check, Find help, Advice)
 - Tappable answers / next steps: ::suggest[Theft | Robbery | Assault | Something else]  (2-4 short options, on the LAST line, always the exact answers to what you just asked — never a generic menu)
-- Emergency action block: ::emergency{type=medical}  (type: medical, crime or fire; own FIRST line, only for potentially life-threatening situations; renders a red Press SOS button plus separate Call 999 / Call 112 / Call 911 buttons — the user taps them, nothing starts automatically)
+- Emergency action block: ::emergency{type=medical}  (type: medical, crime or fire; own FIRST line, only for potentially life-threatening situations; renders a red Press SOS button plus separate Call 999 (Police) / Call 112 (Toll-free) buttons — the user taps them, nothing starts automatically)
 - Ask for evidence: ::media{type=photo, optional=true, tips="Good light · Show the whole scene"}  (type: photo, video, audio, document or location)
 Markers are stripped from the visible message and rendered as premium cards and chips. Use at most one ::emergency, one ::flow, one ::media and one ::suggest per reply, and never mention or explain the markers.`;

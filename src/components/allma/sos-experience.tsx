@@ -180,8 +180,8 @@ const EMERGENCY_NUMBERS = [
     glow: "var(--info)",
   },
   {
-    label: "Ambulance",
-    number: "911",
+    label: "Ambulance (toll-free)",
+    number: "112",
     gradient: "from-success to-success/70 text-success-foreground",
     glow: "var(--success)",
   },
@@ -385,7 +385,7 @@ const HELP_INFO: Record<
       "Check breathing. Start CPR if trained and they are unresponsive.",
       "Do not give food, water, or medication without dispatcher guidance.",
     ],
-    primaryNumbers: [EMERGENCY_NUMBERS[1], EMERGENCY_NUMBERS[3]],
+    primaryNumbers: [EMERGENCY_NUMBERS[1], EMERGENCY_NUMBERS[0]],
     showHospitals: true,
   },
   fire: {
@@ -439,7 +439,7 @@ const HELP_INFO: Record<
       "Call the appropriate number below.",
       "Stay on the line and follow dispatcher instructions.",
     ],
-    primaryNumbers: [EMERGENCY_NUMBERS[3], EMERGENCY_NUMBERS[0], EMERGENCY_NUMBERS[1]],
+    primaryNumbers: [EMERGENCY_NUMBERS[3], EMERGENCY_NUMBERS[0]],
     showHospitals: true,
   },
 };

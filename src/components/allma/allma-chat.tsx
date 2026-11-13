@@ -68,10 +68,12 @@ import { AssistantHero } from "@/components/allma/assistant-hero";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { EMERGENCY_BLOCK_LINES, UGANDA_HOTLINES } from "@/lib/emergency-triage";
+import { EMERGENCY_BLOCK_LINES } from "@/lib/emergency-triage";
+import type { FirstAid, Incident } from "@/lib/allma-emergency-playbook";
+import { firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces } from "@/lib/chat-emergency-view";
 import { KIND_LABEL } from "@/lib/facility-results";
 import { facilityKind } from "@/lib/facility-kind";
-import { parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
+import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
 
 
 type ToolPart = {
@@ -396,6 +398,32 @@ function PlaceThumb({ photo, type }: { photo: string | null; type: string }) {
 
 /** True when this message already shows the ::emergency action block at the top. */
 const EmergencyShownContext = createContext(false);
+/** The emergency the user described for this reply (null for plain searches like "nearest hospital"). */
+const IncidentContext = createContext<Incident | null>(null);
+/** True when this message's find_facilities results already listed places. */
+const HasPlacesContext = createContext(false);
+
+/** Numbered first-aid steps + red flags, shown when the reply itself skipped them. */
+function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | null }) {
+  return (
+    <div className="w-full rounded-2xl border border-border/60 bg-card p-4 text-[15px] leading-relaxed text-foreground shadow-soft">
+      <p className="mb-2 font-semibold">Do this now:</p>
+      <ol className="list-decimal space-y-1.5 pl-5">
+        {aid.steps.map((step, i) => <li key={i}>{step}</li>)}
+      </ol>
+      {aid.redFlags.length ? (
+        <>
+          <p className="mb-1.5 mt-3 font-semibold">Get help now if:</p>
+          <ul className="list-disc space-y-1 pl-5">
+            {aid.redFlags.map((flag, i) => <li key={i}>{flag}</li>)}
+          </ul>
+        </>
+      ) : null}
+      {aid.notDoctor ? <p className="mt-3 text-[13px] text-muted-foreground">{aid.notDoctor}</p> : null}
+      {followUp ? <p className="mt-3 font-semibold">{followUp}</p> : null}
+    </div>
+  );
+}
 
 /** Red "Press SOS" (user taps — never automatic) + one call button per number. */
 function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
@@ -412,7 +440,7 @@ function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
       <div className="flex flex-col gap-2">
         {EMERGENCY_BLOCK_LINES[type].map((h) => (
           <a key={h.number} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-destructive/30 bg-card px-4 py-3 text-[15px] font-semibold text-destructive">
-            <Phone className="h-4 w-4 shrink-0" /> Call {h.number}{h.number === "911" ? " Ambulance" : h.number === "999" ? " Police" : " Toll-free"}
+            <Phone className="h-4 w-4 shrink-0" /> Call {h.number}{h.number === "999" ? " Police" : " Toll-free"}
           </a>
         ))}
       </div>
@@ -423,9 +451,11 @@ function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const navigate = useNavigate();
   const emergencyShown = useContext(EmergencyShownContext);
+  const incident = useContext(IncidentContext);
   const facilities = output.facilities as Array<Record<string, unknown>>;
   const t = String(output.emergency_type ?? facilities[0]?.facility_type ?? "");
-  const kind = t === "police" ? "violence" : t === "fire" || t === "fire_station" ? "fire" : t ? "medical" : null;
+  // SOS + call buttons only when the user described a real emergency — never for a plain "nearest hospital" search.
+  const kind = incident ? incident.marker : null;
   return (
     <div className="w-full space-y-3">
       {kind && !emergencyShown ? (
@@ -438,9 +468,9 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
             <ShieldAlert className="h-5 w-5 shrink-0" /> Getting worse? Activate SOS
           </button>
           <div className="flex flex-col gap-2">
-            {UGANDA_HOTLINES[kind].map((h) => (
+            {EMERGENCY_BLOCK_LINES[kind].map((h) => (
               <a key={h.number + h.label} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-destructive/30 px-3 py-2.5 text-[13.5px] font-semibold text-destructive">
-                <Phone className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Call {h.number}</span>
+                <Phone className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Call {h.number}{h.number === "999" ? " Police" : " Toll-free"}</span>
               </a>
             ))}
           </div>
@@ -513,6 +543,7 @@ function ToolCard({
   onShareLocation?: () => void;
 }) {
   const name = part.type.replace(/^tool-/, "");
+  const hasPlaces = useContext(HasPlacesContext);
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
 
@@ -718,6 +749,8 @@ function ToolCard({
     const policeStation = output.police_station as Record<string, unknown> | null;
     const hospital = output.hospital as Record<string, unknown> | null;
     const fireStation = output.fire_station as Record<string, unknown> | null;
+    // Nearby results already listed places: an empty directory card would contradict them.
+    if (!policeStation && !hospital && !fireStation && hasPlaces) return null;
     const distanceOf = (facility: Record<string, unknown>) =>
       typeof facility.distance_km === "number" ? (facility.distance_km as number) : undefined;
 
@@ -1340,6 +1373,12 @@ export function AllmaChat({
       return chips;
     }
 
+    // An emergency reply without chips still gets its Yes/No follow-up answers.
+    const replyIncident = incidentForReply(messages, messages.length - 1);
+    if (replyIncident && !LOCATION_ASK.test(markers.text)) {
+      return replyIncident.followUpChips.map((label) => ({ label, prompt: label }));
+    }
+
     const flowActive =
       Boolean(markers.flow) ||
       messages.some((m) => {
@@ -1544,13 +1583,31 @@ export function AllmaChat({
                     }
                   >
                     {(() => {
-                      const em = message.role === "assistant"
-                        ? message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).emergency : null)).find(Boolean) ?? null
-                        : null;
-                      return em ? <div className="mb-3"><EmergencyActions type={em.type} /></div> : null;
+                      if (message.role !== "assistant") return null;
+                      const em = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).emergency : null)).find(Boolean) ?? null;
+                      const incident = incidentForReply(messages, msgIndex);
+                      // Life-threatening incident without the marker: still show the tap-only SOS block.
+                      const type = em?.type ?? (incident?.lifeThreatening ? incident.marker : null);
+                      const streaming = busy && msgIndex === messages.length - 1;
+                      const allText = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : "")).join("\n");
+                      const aid = streaming ? null : firstAidFallback(incident, allText);
+                      const followUp = aid && incident && !/\?/.test(allText) ? incident.followUp : null;
+                      if (aid && hasNotDoctorLine(allText)) aid.notDoctor = null;
+                      return type || aid ? (
+                        <div className="mb-3 space-y-3">
+                          {type ? <EmergencyActions type={type} /> : null}
+                          {aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
+                        </div>
+                      ) : null;
                     })()}
-                    <EmergencyShownContext.Provider value={message.role === "assistant" && message.parts.some((p) => p.type === "text" && /::emergency/i.test(p.text))}>
-                    {message.parts.map((part, index) => {
+                    <IncidentContext.Provider value={message.role === "assistant" ? incidentForReply(messages, msgIndex) : null}>
+                    <HasPlacesContext.Provider value={message.role === "assistant" && messageHasPlaces(message.parts as never)}>
+                    <EmergencyShownContext.Provider value={message.role === "assistant" && (message.parts.some((p) => p.type === "text" && /::emergency/i.test(p.text)) || Boolean(incidentForReply(messages, msgIndex)?.lifeThreatening))}>
+                    {(() => {
+                      // Text parts with a repeated block (steps written before AND after the place cards) render it once.
+                      const raw = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : ""));
+                      const deduped = message.role === "assistant" ? dedupeRepeatedParts(raw) : raw;
+                      return message.parts.map((part, index) => {
                       if (part.type === "text") {
                         if (message.role !== "assistant") {
                           return (
@@ -1567,9 +1624,10 @@ export function AllmaChat({
                           );
                         }
                         const parsed = parseAllmaMarkers(part.text);
+                        const partText = deduped[index] ?? parsed.text;
                         const text = suppressGreeting
-                          ? parsed.text.replace(GREETING_LEAD, "").trimStart() || parsed.text
-                          : parsed.text;
+                          ? partText.replace(GREETING_LEAD, "").trimStart() || partText
+                          : partText;
                         return (
                           <div key={index} className="space-y-3">
                             {parsed.flow ? (
@@ -1629,8 +1687,11 @@ export function AllmaChat({
                       }
 
                       return null;
-                    })}
+                    });
+                    })()}
                     </EmergencyShownContext.Provider>
+                    </HasPlacesContext.Provider>
+                    </IncidentContext.Provider>
                   </MessageContent>
 
                   {message.role === "assistant" && !(busy && msgIndex === messages.length - 1) ? (

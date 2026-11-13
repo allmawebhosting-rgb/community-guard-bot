@@ -250,7 +250,7 @@ async function loadGooglePlaces(
       "X-Goog-Api-Key": googleMapsKey,
       Referer: "https://allmasafetyai.online/",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType,places.photos",
+        "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.internationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType,places.photos",
     },
     body: JSON.stringify({
       locationRestriction: {
@@ -296,6 +296,7 @@ async function loadGooglePlaces(
       formattedAddress?: string;
       location?: { latitude?: number; longitude?: number };
       nationalPhoneNumber?: string;
+      internationalPhoneNumber?: string;
       currentOpeningHours?: { openNow?: boolean };
       primaryType?: string;
       photos?: Array<{ name?: string }>;
@@ -309,7 +310,7 @@ async function loadGooglePlaces(
       name: place.displayName?.text ?? "Nearby place",
       type: place.primaryType ?? "service",
       address: place.formattedAddress ?? null,
-      phone: place.nationalPhoneNumber ?? null,
+      phone: place.nationalPhoneNumber || place.internationalPhoneNumber || null,
       open_now: place.currentOpeningHours?.openNow ?? null,
       distance_m: haversineMeters(
         latitude,
