@@ -43,7 +43,6 @@ import {
   Square,
   Volume2,
   SendHorizontal,
-  CheckCheck,
   ChevronRight,
   Star,
 } from "lucide-react";
@@ -403,13 +402,13 @@ const FACILITY_LABEL: Record<string, string> = {
 function PlaceThumb({ photo, type }: { photo: string | null; type: string }) {
   const [failed, setFailed] = useState(false);
   if (photo && !failed) {
-    return <img src={photo} alt="" loading="lazy" onError={() => setFailed(true)} className="h-16 w-16 shrink-0 rounded-xl bg-muted object-cover" />;
+    return <img src={photo} alt="" loading="lazy" onError={() => setFailed(true)} className="h-12 w-12 shrink-0 rounded-xl bg-muted object-cover" />;
   }
   const Icon = /police/.test(type) ? Shield : /fire/.test(type) ? Flame : /pharmacy/.test(type) ? Pill : /ambulance/.test(type) ? Ambulance : Hospital;
   const tone = /police/.test(type) ? "bg-primary/10 text-primary" : /fire/.test(type) ? "bg-destructive/10 text-destructive" : "bg-chat-user text-chat-accent";
   return (
-    <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-xl ${tone}`} aria-hidden>
-      <Icon className="h-7 w-7" />
+    <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${tone}`} aria-hidden>
+      <Icon className="h-5 w-5" />
     </span>
   );
 }
@@ -424,7 +423,7 @@ const HasPlacesContext = createContext(false);
 /** Numbered first-aid steps + red flags, shown when the reply itself skipped them. */
 function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | null }) {
   return (
-    <div className="w-full rounded-2xl border border-border/60 bg-card p-4 text-[15px] leading-relaxed text-foreground shadow-soft">
+    <div className="w-full rounded-2xl border border-border/50 bg-card/70 p-4 text-base leading-[1.6] text-foreground">
       <p className="mb-2 font-semibold">Do this now:</p>
       <ol className="list-decimal space-y-1.5 pl-5">
         {aid.steps.map((step, i) => <li key={i}>{step}</li>)}
@@ -451,13 +450,13 @@ function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
       <button
         type="button"
         onClick={() => { markSosIntent(); void navigate({ to: "/sos", search: { instant: true } }); }}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive px-4 py-4 text-[16px] font-bold text-destructive-foreground shadow-soft active:scale-[0.98]"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3.5 text-base font-semibold text-destructive-foreground active:scale-[0.98]"
       >
         <ShieldAlert className="h-5 w-5 shrink-0" /> Press SOS
       </button>
       <div className="flex flex-col gap-2">
         {EMERGENCY_BLOCK_LINES[type].map((h) => (
-          <a key={h.number} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-destructive/30 bg-card px-4 py-3 text-[15px] font-semibold text-destructive">
+          <a key={h.number} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/35 bg-destructive/5 px-4 py-3 text-[15px] font-semibold text-destructive">
             <Phone className="h-4 w-4 shrink-0" /> Call {h.number}{h.number === "999" ? " Police" : " Toll-free"}
           </a>
         ))}
@@ -475,19 +474,19 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
   // SOS + call buttons only when the user described a real emergency — never for a plain "nearest hospital" search.
   const kind = incident ? incident.marker : null;
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-2.5">
       {kind && !emergencyShown ? (
         <div className="space-y-2">
           <button
             type="button"
             onClick={() => { markSosIntent(); void navigate({ to: "/sos", search: { instant: true } }); }}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-destructive px-4 py-3.5 text-[15px] font-bold text-destructive-foreground shadow-soft active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3.5 text-[15px] font-semibold text-destructive-foreground active:scale-[0.98]"
           >
             <ShieldAlert className="h-5 w-5 shrink-0" /> Getting worse? Activate SOS
           </button>
           <div className="flex flex-col gap-2">
             {EMERGENCY_BLOCK_LINES[kind].map((h) => (
-              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-destructive/30 px-3 py-2.5 text-[13.5px] font-semibold text-destructive">
+              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-destructive/35 bg-destructive/5 px-3 py-2.5 text-[13.5px] font-semibold text-destructive">
                 <Phone className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Call {h.number}{h.number === "999" ? " Police" : " Toll-free"}</span>
               </a>
             ))}
@@ -501,7 +500,7 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
           {output.resolved_area ? (
             <p className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground"><MapPin className="h-3.5 w-3.5 text-chat-accent" />Nearest to {String(output.resolved_area)}</p>
           ) : null}
-          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/60 bg-card lg:grid lg:grid-cols-2 lg:divide-y-0">
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             {facilities.map((facility, index) => {
               const lat = Number(facility.lat ?? facility.latitude);
               const lng = Number(facility.lng ?? facility.longitude);
@@ -514,29 +513,29 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
                 null;
               const phone = typeof facility.phone === "string" && facility.phone ? facility.phone : null;
               const photo = typeof facility.photo_url === "string" && facility.photo_url ? facility.photo_url : null;
+              const address = typeof facility.address === "string" && facility.address ? facility.address : null;
+              const meta = [
+                label,
+                km != null ? `${km} km` : null,
+                index === 0 ? "Nearest" : null,
+                facility.open_now === true ? "Open now" : null,
+                address,
+              ].filter(Boolean).join(" · ");
               return (
-                <div key={index} className="flex items-start gap-3 p-3.5">
+                <div key={index} className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card p-3">
                   <PlaceThumb photo={photo} type={String(facility.facility_type ?? t)} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-bold leading-snug text-foreground [overflow-wrap:anywhere]">{String(facility.name)}</p>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] leading-snug text-muted-foreground">
-                      {km != null ? <strong className="whitespace-nowrap text-chat-accent">{km} km</strong> : null}
-                      {index === 0 ? <span className="whitespace-nowrap font-semibold text-chat-accent">· Nearest</span> : null}
-                      {label ? <span className="whitespace-nowrap">· {label}</span> : null}
-                      {facility.open_now === true ? <span className="whitespace-nowrap text-success">· Open now</span> : null}
-                    </p>
-                    {typeof facility.address === "string" && facility.address ? (
-                      <p className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground/80">{facility.address}</p>
-                    ) : null}
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      <a href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-chat-accent px-3.5 py-2 text-[13px] font-semibold text-primary-foreground">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" /> Directions
-                      </a>
+                    <p className="truncate text-[15px] font-semibold leading-snug text-foreground">{String(facility.name)}</p>
+                    {meta ? <p className="mt-0.5 truncate text-[12.5px] leading-5 text-muted-foreground">{meta}</p> : null}
+                    <div className="mt-2.5 flex gap-2">
                       {phone ? (
-                        <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3.5 py-2 text-[13px] font-semibold text-foreground">
+                        <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background px-3 text-[13px] font-semibold text-foreground">
                           <Phone className="h-3.5 w-3.5 shrink-0" /> Call
                         </a>
                       ) : null}
+                      <a href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-chat-accent px-3 text-[13px] font-semibold text-chat-accent-foreground">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" /> Directions
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -550,35 +549,32 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
 }
 
 function ChatProgressChecklist({ steps }: { steps: ChatProgressStep[] }) {
+  const completed = steps.filter((step) => step.state === "done");
+  const active = steps.find((step) => step.state === "active") ?? (completed.length === steps.length ? null : steps.find((step) => step.state === "pending") ?? null);
+  const latestDone = completed.length ? completed[completed.length - 1] : null;
   return (
-    <ul
+    <div
       role="status"
       aria-live="polite"
       aria-label="Allma is preparing a reply"
-      className="m-0 list-none space-y-1.5 p-0"
+      className="chat-progress m-0 min-h-7 p-0"
     >
-      {steps.map((step) => (
-        <li
-          key={step.id}
-          aria-current={step.state === "active" ? "step" : undefined}
-          className={cn(
-            "flex items-center gap-2.5 text-[13.5px] leading-snug",
-            step.state === "done" && "text-muted-foreground",
-            step.state === "active" && "font-medium text-foreground",
-            step.state === "pending" && "text-muted-foreground/65",
-          )}
+      {latestDone ? (
+        <p className="flex items-center gap-2 text-[12.5px] leading-5 text-muted-foreground">
+          <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+          <span className="truncate">{latestDone.label}</span>
+        </p>
+      ) : null}
+      {active ? (
+        <p
+          aria-current="step"
+          className="flex items-center gap-2 text-[13.5px] font-medium leading-6 text-foreground"
         >
-          {step.state === "done" ? (
-            <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
-          ) : step.state === "active" ? (
-            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-chat-accent" aria-hidden />
-          ) : (
-            <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-border/80" aria-hidden />
-          )}
-          <span>{step.label}</span>
-        </li>
-      ))}
-    </ul>
+          <span className="chat-progress-dot" aria-hidden />
+          <span className="truncate">{active.label}</span>
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -1525,21 +1521,22 @@ export function AllmaChat({
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1 overscroll-contain">
-          <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", "pb-6")}>
-            <div className="flex flex-col gap-7 pt-16 lg:pt-8">
+          <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", "pb-8")}>
+            <div className="flex flex-col gap-5 pt-16 lg:pt-8">
               {messages.map((message, msgIndex) => (
-                <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-3 sm:max-w-full" : "max-w-full sm:max-w-full"}>
+                <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-2.5 sm:max-w-full" : "max-w-full sm:max-w-full"}>
                   {message.role === "assistant" ? (
-                    <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-10 w-10 shrink-0 rounded-full border border-border/60 bg-card object-cover shadow-soft" />
+                    <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-border/50 bg-card object-cover" />
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-2", message.role === "user" && "items-end")}>
+                  {message.role === "assistant" ? (
+                    <p className="text-[13px] font-medium leading-none text-muted-foreground">Allma</p>
+                  ) : null}
                   <MessageContent
                     className={
                       message.role === "assistant"
-                        ? message.parts.some((p) => p.type === "tool-find_facilities" || (p.type === "text" && /::emergency/i.test(p.text)))
-                          ? "w-full max-w-full bg-transparent p-0 shadow-none"
-                          : "max-w-[92%] rounded-[1.4rem] rounded-tl-md border border-border/60 bg-card px-4 py-3.5 shadow-soft"
-                        : "ml-auto max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[75%]"
+                        ? "w-full max-w-full bg-transparent p-0 shadow-none"
+                        : "ml-auto w-fit max-w-[80%] rounded-none bg-transparent p-0 shadow-none"
                     }
                   >
                     {(() => {
@@ -1577,16 +1574,14 @@ export function AllmaChat({
                       if (part.type === "text") {
                         if (message.role !== "assistant") {
                           return (
-                            <p
-                              key={index}
-                              className="whitespace-pre-wrap rounded-[1.4rem] rounded-br-md border border-chat-accent/15 bg-chat-user px-4 py-3 text-[16px] leading-relaxed text-foreground shadow-soft"
-                            >
-                              {part.text}
-                              <span className="mt-1 flex items-center justify-end gap-1 text-chat-accent" aria-label="Sent">
-                                <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>{new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-                                <CheckCheck className="h-4 w-4" />
+                            <div key={index} className="flex max-w-full flex-col items-end">
+                              <p className="max-w-full whitespace-pre-wrap rounded-[1.15rem] rounded-br-md bg-chat-user px-3.5 py-2.5 text-base leading-[1.6] text-foreground">
+                                {part.text}
+                              </p>
+                              <span className="mt-1 text-[11px] leading-none text-muted-foreground" suppressHydrationWarning>
+                                {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                               </span>
-                            </p>
+                            </div>
                           );
                         }
                         const parsed = parseAllmaMarkers(part.text);
@@ -1606,7 +1601,7 @@ export function AllmaChat({
                               />
                             ) : null}
                             {text ? (
-                              <MessageResponse className="chat-checklist px-0 py-0 text-[15.5px] leading-[1.75] tracking-[-0.005em] text-foreground/95">
+                              <MessageResponse className="chat-checklist px-0 py-0 text-base leading-[1.6] text-foreground">
                                 {text}
                               </MessageResponse>
                             ) : null}
@@ -1718,14 +1713,15 @@ export function AllmaChat({
                 </Message>
               ))}
               {status === "submitted" ? (
-                <div className="flex max-w-full flex-row items-start gap-3">
-                  <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-10 w-10 shrink-0 rounded-full border border-border/60 bg-card object-cover shadow-soft" />
-                  <div className="min-w-0 max-w-[92%] flex-1 rounded-[1.4rem] rounded-tl-md border border-border/60 bg-card px-4 py-3.5 shadow-soft">
+                <div className="flex max-w-full flex-row items-start gap-2.5">
+                  <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-border/50 bg-card object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-1.5 text-[13px] font-medium leading-none text-muted-foreground">Allma</p>
                     <div className="space-y-3">
                       {pendingEmergencyType ? <EmergencyActions type={pendingEmergencyType} /> : null}
                       {pendingAid ? <FirstAidCard aid={pendingAid} followUp={null} /> : null}
                       {progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : (
-                        <span className="flex items-center gap-1" role="status" aria-label="Allma is typing">
+                        <span className="flex h-7 items-center gap-1" role="status" aria-label="Allma is typing">
                           {[0, 1, 2].map((d) => (
                             <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-chat-accent/70" style={{ animationDelay: `${d * 0.15}s` }} />
                           ))}
@@ -1977,7 +1973,7 @@ function ResponseActions({ text, onRetry }: { text: string; onRetry?: () => void
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   if (!text) return null;
-  const btn = "inline-flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-card px-3.5 text-[13px] font-medium text-foreground/85 shadow-soft transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40";
+  const btn = "inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40";
   const listen = () => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
