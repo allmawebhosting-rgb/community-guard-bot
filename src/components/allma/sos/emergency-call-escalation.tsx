@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Phone, PhoneOff, ShieldCheck, SquareStop } from "lucide-react";
+import { ChevronDown, Phone, PhoneOff, ShieldCheck, SquareStop } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
@@ -130,26 +130,37 @@ export function EmergencyCallEscalation({
     const reachedCount = rows.filter(({ attempt, target }) => {
       if (target.ineligible_reason) return false;
       const derived = attempt ? attemptState(attempt.status) : null;
-      return derived === "answered" || derived === "calling" || derived === "alerted";
+      return Boolean(
+        attempt && (attempt.accepted_at || attempt.connected_at || derived === "answered"),
+      );
     }).length;
-    const progress = callableCount ? Math.round((reachedCount / callableCount) * 100) : 0;
+    const notifiedCount = rows.filter(({ attempt, target }) => {
+      if (target.ineligible_reason) return false;
+      const derived = attempt ? attemptState(attempt.status) : null;
+      return (
+        !attempt?.accepted_at &&
+        !attempt?.connected_at &&
+        (derived === "calling" || derived === "alerted")
+      );
+    }).length;
+    const progressCount = reachedCount + notifiedCount;
+    const progress = callableCount ? Math.round((progressCount / callableCount) * 100) : 0;
 
     return (
-      <section aria-labelledby="response-heading" className="min-w-0">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-          <div className="min-w-0">
-            <p className="cmd-label">Response</p>
-            <h2 id="response-heading" className="mt-2 font-display text-[17px] font-black leading-tight tracking-tight text-foreground sm:text-[19px]">
-              {answered
-                ? `${current?.target.full_name ?? "Responder"} is responding`
-                : running
-                  ? "Calling your Safety Network"
-                  : "Safety Network"}
-            </h2>
-          </div>
+      <section aria-label="Safety Network response" className="min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-[12px] font-bold leading-tight text-foreground">
+            {answered
+              ? `${current?.target.full_name ?? "Responder"} is responding`
+              : running
+                ? `Calling Safety Network (${progressCount}/${callableCount})`
+                : loading
+                  ? "Loading Safety Network…"
+                  : `Safety Network (${callableCount})`}
+          </p>
           <span
             className={cn(
-              "shrink-0 rounded-full border px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.14em]",
+              "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]",
               answered
                 ? "border-success/40 bg-success/10 text-success"
                 : "border-border/70 bg-muted/40 text-muted-foreground",
@@ -159,91 +170,127 @@ export function EmergencyCallEscalation({
           </span>
         </div>
 
-        <div className="mt-3">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
-            <span>{reachedCount}/{callableCount} eligible contacts reached</span>
-            {current && !answered ? (
-              <span className="truncate pl-3 text-foreground/70">{current.target.full_name}</span>
-            ) : null}
-          </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-destructive to-gold transition-[width] duration-500"
-              style={{ width: `${callableCount ? Math.max(progress, 6) : 0}%` }}
-            />
-          </div>
+        <div className="mt-1 flex items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground">
+          <span>
+            {reachedCount} reached · {notifiedCount} notified
+          </span>
+          {current && !answered ? (
+            <span className="truncate text-foreground/70">{current.target.full_name}</span>
+          ) : null}
+        </div>
+        <div
+          className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-label="Safety Network contact response progress"
+          aria-valuemin={0}
+          aria-valuemax={callableCount}
+          aria-valuenow={progressCount}
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-destructive to-gold transition-[width] duration-500"
+            style={{ width: `${progress}%` }}
+          />
         </div>
 
-        <div className="mt-4 space-y-1.5 border-t border-border/60 pt-3.5 lg:max-h-[19rem] lg:overflow-y-auto lg:pr-1">
-          {loading && (
-            <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-[12px] text-muted-foreground">
-              Loading your Safety Network…
-            </p>
-          )}
-          {!loading && rows.length === 0 && (
-            <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-[12px] leading-relaxed text-muted-foreground">
-              No Safety Network members are available for this emergency.
-            </p>
-          )}
-          {!loading && rows.length > 0 && callableCount === 0 && (
-            <p
-              role="status"
-              className="rounded-lg border border-border/60 bg-muted/30 p-3 text-[12px] leading-relaxed text-muted-foreground"
-            >
-              No contacts have enabled SOS alerts and in-app emergency calls.
-            </p>
-          )}
-          {rows.map(({ target, attempt }) => {
-            const derived = attempt ? attemptState(attempt.status) : null;
-            const isAnswered = derived === "answered";
-            const isCalling = derived === "calling";
-            return (
-              <div
-                key={target.member_id}
-                className={cn(
-                  "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2.5 text-[12px] transition-colors duration-200",
-                  isAnswered
-                    ? "border-success/45 bg-success/[0.07]"
-                    : isCalling
-                      ? "border-gold/55 bg-gold/[0.08]"
-                      : "border-border/50 bg-card",
-                )}
-              >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
-                  {target.full_name.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate font-semibold text-foreground">{target.full_name}</span>
-                  <span className="block truncate text-[10px] text-muted-foreground">
-                    {target.ineligible_reason ?? target.safety_role ?? "Friend"}
-                  </span>
-                </span>
-                <span
+        <details className="group mt-1">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md py-0.5 text-[10px] font-semibold text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <span>View responders ({rows.length})</span>
+            <ChevronDown
+              aria-hidden="true"
+              className="h-3.5 w-3.5 transition-transform group-open:rotate-180"
+            />
+          </summary>
+          <div className="mt-1 max-h-28 space-y-1 overflow-y-auto border-t border-border/60 pt-1">
+            {loading && (
+              <p className="py-1 text-[11px] text-muted-foreground">Loading your Safety Network…</p>
+            )}
+            {!loading && errored && (
+              <div className="flex items-center justify-between gap-2 py-1">
+                <p className="text-[11px] text-muted-foreground">
+                  Couldn't load your Safety Network.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (controller) void controller.retry(autoStart);
+                    else {
+                      setPreTargets(null);
+                      setPreRetry((value) => value + 1);
+                    }
+                  }}
+                  className="shrink-0 text-[11px] font-semibold text-foreground underline"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {!loading && !errored && rows.length === 0 && (
+              <p className="py-1 text-[11px] text-muted-foreground">
+                No Safety Network members are available for this emergency.
+              </p>
+            )}
+            {!loading && !errored && rows.length > 0 && callableCount === 0 && (
+              <p role="status" className="py-1 text-[11px] text-muted-foreground">
+                No contacts have enabled SOS alerts and in-app emergency calls.
+              </p>
+            )}
+            {rows.map(({ target, attempt }) => {
+              const derived = attempt ? attemptState(attempt.status) : null;
+              const isAnswered = derived === "answered";
+              const isCalling = derived === "calling";
+              return (
+                <div
+                  key={target.member_id}
                   className={cn(
-                    "shrink-0 text-[10.5px] font-bold uppercase tracking-[0.1em]",
-                    isAnswered ? "text-success" : isCalling ? "text-gold" : "text-muted-foreground",
+                    "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-2 py-1 text-[11px]",
+                    isAnswered
+                      ? "border-success/45 bg-success/[0.07]"
+                      : isCalling
+                        ? "border-gold/55 bg-gold/[0.08]"
+                        : "border-border/50 bg-card",
                   )}
                 >
-                  {target.ineligible_reason
-                    ? "Unavailable"
-                    : isAnswered
-                      ? attempt?.status === "connected"
-                        ? "Connected"
-                        : "Answered"
-                      : isCalling
-                        ? "Calling"
-                        : derived === "alerted"
-                          ? "Notified"
-                          : "Waiting"}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-[9px] font-bold text-foreground">
+                    {target.full_name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-foreground">
+                      {target.full_name}
+                    </span>
+                    <span className="block truncate text-[9px] text-muted-foreground">
+                      {target.ineligible_reason ?? target.safety_role ?? "Friend"}
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      "shrink-0 text-[10.5px] font-bold uppercase tracking-[0.1em]",
+                      isAnswered
+                        ? "text-success"
+                        : isCalling
+                          ? "text-gold"
+                          : "text-muted-foreground",
+                    )}
+                  >
+                    {target.ineligible_reason
+                      ? "Unavailable"
+                      : isAnswered
+                        ? attempt?.status === "connected"
+                          ? "Connected"
+                          : "Answered"
+                        : isCalling
+                          ? "Calling"
+                          : derived === "alerted"
+                            ? "Notified"
+                            : "Waiting"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </details>
       </section>
     );
   }
-
 
   const start = () => {
     if (!controller) {

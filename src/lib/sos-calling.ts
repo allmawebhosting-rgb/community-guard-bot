@@ -118,13 +118,13 @@ export async function listSosCallTargets(): Promise<SosCallTarget[]> {
       }))
       .sort((a, b) => a.priority - b.priority);
     console.info("[SAFETY NETWORK DEBUG] fallback responders found", { count: targets.length });
-    return targets;
+    return targets.filter((target) => target.member_id !== userId);
   };
   if (error) return useConnectionFallback(friendly(error.message));
   const targets = (data ?? []) as SosCallTarget[];
   if (targets.length === 0) return useConnectionFallback("No SOS-eligible contacts returned");
   console.info("[SAFETY NETWORK DEBUG] responders found", { count: targets.length });
-  return targets;
+  return targets.filter((target) => target.member_id !== userId);
 }
 
 /** Server verifies SOS ownership, both-sided call permission and blocks. */

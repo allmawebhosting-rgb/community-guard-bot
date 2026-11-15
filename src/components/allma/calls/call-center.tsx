@@ -381,10 +381,12 @@ export function CallCenter() {
           const row = payload.new as {
             id: string;
             caller_id: string | null;
+            recipient_id: string;
             caller_display_name?: string | null;
             status: string;
             sos_session_id?: string | null;
           };
+          if (row.caller_id === userId || row.caller_id === row.recipient_id) return;
           if (callIdRef.current || row.status === "ended") return;
           const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
           const callerPeer = known ?? {
@@ -494,18 +496,26 @@ export function CallCenter() {
     void (async () => {
       const { data: row } = await supabase
         .from("emergency_calls")
-        .select("id, caller_id, caller_display_name, status, sos_session_id")
+        .select("id, caller_id, recipient_id, caller_display_name, status, sos_session_id")
         .eq("id", id)
         .eq("recipient_id", userId)
         .in("status", ["initiating", "ringing", "connecting"])
         .maybeSingle<{
           id: string;
-          caller_id: string;
+          caller_id: string | null;
+          recipient_id: string;
           caller_display_name: string | null;
           status: string;
           sos_session_id: string | null;
         }>();
-      if (!row || callIdRef.current) return;
+      if (
+        !row ||
+        row.caller_id === userId ||
+        row.caller_id === row.recipient_id ||
+        callIdRef.current
+      ) {
+        return;
+      }
       const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
       const callerPeer = known ?? {
         id: row.caller_id ?? `former-member-${row.id}`,

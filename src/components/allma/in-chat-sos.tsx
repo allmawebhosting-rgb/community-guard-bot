@@ -14,7 +14,12 @@ const TYPE_MAP = { medical: "medical", crime: "crime", fire: "fire" } as const;
 
 function isMissingSosColumnError(error: unknown, columns: readonly string[]) {
   if (!error || typeof error !== "object") return false;
-  const candidate = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+  const candidate = error as {
+    code?: unknown;
+    message?: unknown;
+    details?: unknown;
+    hint?: unknown;
+  };
   if (candidate.code === "PGRST204") return true;
   const message = [candidate.message, candidate.details, candidate.hint]
     .filter((value): value is string => typeof value === "string")
@@ -176,10 +181,15 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
 
   const time = (ms: number | null) => (ms ? new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
   const dials = (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-1.5">
       {lines.map((h) => (
-        <a key={h.number} href={`tel:${h.number}`} className="flex items-center justify-center gap-2 rounded-xl border border-destructive/35 bg-destructive/5 px-3 py-2.5 text-[15px] font-semibold text-destructive">
-          <Phone className="h-4 w-4 shrink-0" /> Call {h.number} {lineLabel(h.number)}
+        <a
+          key={h.number}
+          href={`tel:${h.number}`}
+          aria-label={`Call ${h.number} ${lineLabel(h.number)}`}
+          className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-destructive/35 bg-destructive/5 px-2 py-1.5 text-xs font-semibold text-destructive"
+        >
+          <Phone className="h-3.5 w-3.5 shrink-0" /> Call {h.number}
         </a>
       ))}
     </div>
@@ -214,25 +224,47 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
 
   if (phase === "active") {
     return (
-      <div className="space-y-3 rounded-2xl border border-destructive/40 bg-card p-3.5">
+      <div className="space-y-1.5 rounded-xl border border-destructive/40 bg-card p-2.5">
         <div className="flex items-center justify-between gap-2">
-          <p className="flex items-center gap-2 text-[15px] font-bold text-destructive">
-            <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-destructive" /></span>
+          <p className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-destructive">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" />
+            </span>
             {saving ? "Starting SOS…" : "SOS active"}
+            <span className="font-medium text-muted-foreground">{time(startedAt)}</span>
           </p>
-          <span className="text-xs text-muted-foreground">{time(startedAt)}</span>
+          <span className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
+            <MapPin className="h-3 w-3 shrink-0" />
+            <span className="truncate">
+              {saving
+                ? "Getting location…"
+                : loc
+                  ? `Location shared · ±${Math.round(loc.acc)} m`
+                  : "Location unavailable"}
+            </span>
+          </span>
         </div>
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
-          {saving ? "Getting your location…" : loc ? `Location shared · ±${Math.round(loc.acc)} m` : "Location not available"}
-        </p>
         {saving ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Saving your SOS…</div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving your SOS…
+          </div>
         ) : (
-          <EmergencyCallEscalation activityId={activityId} emergencyType={TYPE_MAP[type]} microphoneStream={mic} shareLocation={!!loc} compact />
+          <EmergencyCallEscalation
+            activityId={activityId}
+            emergencyType={TYPE_MAP[type]}
+            microphoneStream={mic}
+            shareLocation={!!loc}
+            compact
+          />
         )}
         {dials}
-        <button type="button" onClick={() => void endSos()} disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-[15px] font-semibold text-foreground disabled:opacity-50">
+        <button
+          type="button"
+          onClick={() => void endSos()}
+          disabled={saving}
+          className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-sm font-bold text-destructive-foreground disabled:opacity-50"
+        >
           <X className="h-4 w-4" /> I'm safe · End SOS
         </button>
       </div>
