@@ -473,6 +473,14 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const t = String(output.emergency_type ?? facilities[0]?.facility_type ?? "");
   // SOS + call buttons only when the user described a real emergency — never for a plain "nearest hospital" search.
   const kind = incident ? incident.marker : null;
+  const [filter, setFilter] = useState<string>("All");
+  const labelOf = (f: Record<string, unknown>) =>
+    (typeof f.type_label === "string" && f.type_label) ||
+    FACILITY_LABEL[String(f.facility_type ?? "")] ||
+    KIND_LABEL[facilityKind(String(f.facility_type ?? t), String(f.name ?? ""))] ||
+    "Other";
+  const types = Array.from(new Set(facilities.map(labelOf)));
+  const shown = filter === "All" ? facilities : facilities.filter((f) => labelOf(f) === filter);
   return (
     <div className="w-full space-y-2.5">
       {kind && !emergencyShown ? (
@@ -500,8 +508,17 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
           {output.resolved_area ? (
             <p className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground"><MapPin className="h-3.5 w-3.5 text-chat-accent" />Nearest to {String(output.resolved_area)}</p>
           ) : null}
+          {types.length > 1 ? (
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+              {["All", ...types].map((ty) => (
+                <button key={ty} type="button" onClick={() => setFilter(ty)} className={cn("shrink-0 rounded-full border px-3 py-1 text-[12.5px] font-semibold", filter === ty ? "border-chat-accent bg-chat-accent text-chat-accent-foreground" : "border-border bg-background text-foreground")}>
+                  {ty}{ty !== "All" ? ` (${facilities.filter((f) => labelOf(f) === ty).length})` : ""}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-            {facilities.map((facility, index) => {
+            {shown.map((facility, index) => {
               const lat = Number(facility.lat ?? facility.latitude);
               const lng = Number(facility.lng ?? facility.longitude);
               const dest = Number.isFinite(lat) && Number.isFinite(lng) && facility.latitude != null ? `${lat},${lng}` : encodeURIComponent(String(facility.name) + " " + String(facility.district ?? ""));
@@ -515,9 +532,8 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
               const photo = typeof facility.photo_url === "string" && facility.photo_url ? facility.photo_url : null;
               const address = typeof facility.address === "string" && facility.address ? facility.address : null;
               const meta = [
-                label,
                 km != null ? `${km} km` : null,
-                index === 0 ? "Nearest" : null,
+                index === 0 && filter === "All" ? "Nearest" : null,
                 facility.open_now === true ? "Open now" : null,
                 address,
               ].filter(Boolean).join(" · ");
@@ -525,6 +541,7 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
                 <div key={index} className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card p-3">
                   <PlaceThumb photo={photo} type={String(facility.facility_type ?? t)} />
                   <div className="min-w-0 flex-1">
+                    {label ? <span className="mb-1 inline-block rounded-full bg-chat-user px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-chat-accent">{label}</span> : null}
                     <p className="truncate text-[15px] font-semibold leading-snug text-foreground">{String(facility.name)}</p>
                     {meta ? <p className="mt-0.5 truncate text-[12.5px] leading-5 text-muted-foreground">{meta}</p> : null}
                     <div className="mt-2.5 flex gap-2">
@@ -1535,7 +1552,7 @@ export function AllmaChat({
                   <MessageContent
                     className={
                       message.role === "assistant"
-                        ? "w-full max-w-full bg-transparent p-0 shadow-none"
+                        ? "w-full max-w-full rounded-2xl rounded-tl-md border border-border/50 bg-muted/60 px-3.5 py-3 shadow-none"
                         : "ml-auto w-fit max-w-[80%] rounded-none bg-transparent p-0 shadow-none"
                     }
                   >
