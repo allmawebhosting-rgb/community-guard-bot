@@ -12,6 +12,17 @@ type Phase = "idle" | "countdown" | "active" | "ended";
 const COUNTDOWN = 3;
 const TYPE_MAP = { medical: "medical", crime: "crime", fire: "fire" } as const;
 
+function isMissingSosColumnError(error: unknown, columns: readonly string[]) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+  if (candidate.code === "PGRST204") return true;
+  const message = [candidate.message, candidate.details, candidate.hint]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+  return columns.some((column) => message.includes(column.toLowerCase()));
+}
+
 function lineLabel(n: string) {
   return n === "999" ? "Police" : n === "911" ? "Ambulance" : "Toll-free";
 }
@@ -74,7 +85,16 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
     const pos = await getPosition();
     const coords = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy } : null;
     setLoc(coords);
-    const { data, error } = await supabase
+    const activatedAt = new Date().toISOString();
+    const details = {
+      channel: "chat",
+      emergency_type: TYPE_MAP[type],
+      location_consent: !!coords,
+      responder_notification_consent: true,
+      accuracy_m: coords?.acc ?? null,
+      activation_mode: "manual",
+    };
+    const insertResult = await supabase
       .from("safety_activity")
       .insert({
         user_id: user.id,
@@ -83,21 +103,34 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
         summary: `SOS activated from chat (${type}).`,
         severity: "critical",
         sos_status: "active",
-        activated_at: new Date().toISOString(),
+        activated_at: activatedAt,
         location_text: coords ? "Live GPS location" : "Location pending",
         latitude: coords?.lat ?? null,
         longitude: coords?.lng ?? null,
-        details: {
-          channel: "chat",
-          emergency_type: TYPE_MAP[type],
-          location_consent: !!coords,
-          responder_notification_consent: true,
-          accuracy_m: coords?.acc ?? null,
-          activation_mode: "manual",
-        } as never,
+        details: details as never,
       })
       .select("id")
       .single();
+    let { data, error } = insertResult;
+    if (error && isMissingSosColumnError(error, ["activated_at", "sos_status"])) {
+      const fallbackResult = await supabase
+        .from("safety_activity")
+        .insert({
+          user_id: user.id,
+          activity_type: "sos_activated",
+          title: "Emergency SOS activated",
+          summary: `SOS activated from chat (${type}).`,
+          severity: "critical",
+          location_text: coords ? "Live GPS location" : "Location pending",
+          latitude: coords?.lat ?? null,
+          longitude: coords?.lng ?? null,
+          details: { ...details, sos_status: "active", activated_at: activatedAt } as never,
+        })
+        .select("id")
+        .single();
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
     setSaving(false);
     if (error || !data) {
       toast.error("SOS could not be started. Call 999 or 112 now.");
@@ -111,7 +144,7 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
 
   async function endSos() {
     if (activityId) {
-      const { error } = await supabase
+      const updateResult = await supabase
         .from("safety_activity")
         .update({
           activity_type: "sos_resolved",
@@ -122,6 +155,18 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
           ended_at: new Date().toISOString(),
         })
         .eq("id", activityId);
+      let { error } = updateResult;
+      if (error && isMissingSosColumnError(error, ["ended_at", "sos_status"])) {
+        const fallbackResult = await supabase
+          .from("safety_activity")
+          .update({
+            activity_type: "sos_resolved",
+            title: "Emergency SOS ended",
+            summary: "SOS was stopped by the user from chat.",
+          })
+          .eq("id", activityId);
+        error = fallbackResult.error;
+      }
       if (error) toast.error("SOS stopped here, but the server could not be updated.");
     }
     mic?.getTracks().forEach((t) => t.stop());
