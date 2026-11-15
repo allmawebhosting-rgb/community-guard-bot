@@ -1,3 +1,4 @@
+import { InChatSos } from "@/components/allma/in-chat-sos";
 import { markSosIntent } from "@/lib/sos-intent";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
@@ -444,25 +445,7 @@ function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | nul
 
 /** Red "Press SOS" (user taps — never automatic) + one call button per number. */
 function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
-  const navigate = useNavigate();
-  return (
-    <div className="w-full space-y-2">
-      <button
-        type="button"
-        onClick={() => { markSosIntent(); void navigate({ to: "/sos", search: { instant: true } }); }}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3.5 text-base font-semibold text-destructive-foreground active:scale-[0.98]"
-      >
-        <ShieldAlert className="h-5 w-5 shrink-0" /> Press SOS
-      </button>
-      <div className="flex flex-col gap-2">
-        {EMERGENCY_BLOCK_LINES[type].map((h) => (
-          <a key={h.number} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/35 bg-destructive/5 px-4 py-3 text-[15px] font-semibold text-destructive">
-            <Phone className="h-4 w-4 shrink-0" /> Call {h.number}{h.number === "999" ? " Police" : " Toll-free"}
-          </a>
-        ))}
-      </div>
-    </div>
-  );
+  return <InChatSos type={type} lines={EMERGENCY_BLOCK_LINES[type]} />;
 }
 
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
