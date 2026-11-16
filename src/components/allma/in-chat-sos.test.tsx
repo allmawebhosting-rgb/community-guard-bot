@@ -1,0 +1,168 @@
+import React from "react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+const {
+  endEscalationMock,
+  fromMock,
+  getNearbyPlacesMock,
+  inlineCallMock,
+  notifyMock,
+  runCallActionMock,
+  singleMock,
+  updateMock,
+} = vi.hoisted(() => ({
+  endEscalationMock: vi.fn(),
+  fromMock: vi.fn(),
+  getNearbyPlacesMock: vi.fn(),
+  inlineCallMock: vi.fn(),
+  notifyMock: vi.fn(),
+  runCallActionMock: vi.fn(),
+  singleMock: vi.fn(),
+  updateMock: vi.fn(),
+}));
+
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: { from: fromMock },
+}));
+vi.mock("@/components/allma/live-location-map", () => ({
+  LiveLocationMap: ({ heightClassName }: { heightClassName: string }) => (
+    <div data-testid="live-map" data-height={heightClassName} />
+  ),
+}));
+vi.mock("@/components/allma/sos/emergency-call-escalation", () => ({
+  EmergencyCallEscalation: () => <div>Safety network dialing</div>,
+}));
+vi.mock("@/lib/places.functions", () => ({ getNearbyPlaces: getNearbyPlacesMock }));
+vi.mock("@/lib/sos-escalation-controller", () => ({
+  endSosEscalation: endEscalationMock,
+}));
+vi.mock("@/lib/push.functions", () => ({ notifySosActivity: notifyMock }));
+vi.mock("@/lib/zego-call", () => ({ primeMicrophone: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/sos-inline-call", () => ({
+  runSosInlineCallAction: runCallActionMock,
+  useSosInlineCall: inlineCallMock,
+}));
+
+import { InChatSos } from "./in-chat-sos";
+
+const location = {
+  coords: {
+    latitude: 0.31,
+    longitude: 32.58,
+    accuracy: 8,
+  },
+} as GeolocationPosition;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  singleMock.mockResolvedValue({ data: { id: "sos-1" }, error: null });
+  updateMock.mockImplementation((payload: Record<string, unknown>) => {
+    const error = "sos_status" in payload
+      ? { code: "PGRST204", message: "column safety_activity.sos_status does not exist" }
+      : null;
+    const updateChain: {
+      eq: ReturnType<typeof vi.fn>;
+      then: Promise<{ error: typeof error }>["then"];
+    } = {
+      eq: vi.fn(() => updateChain),
+      then: (resolve, reject) => Promise.resolve({ error }).then(resolve, reject),
+    };
+    return updateChain;
+  });
+  fromMock.mockImplementation(() => ({
+    insert: vi.fn(() => ({
+      select: vi.fn(() => ({ single: singleMock })),
+    })),
+    update: updateMock,
+  }));
+  getNearbyPlacesMock.mockResolvedValue([
+    {
+      id: "hospital-1",
+      name: "City Hospital",
+      type: "hospital",
+      address: null,
+      phone: null,
+      distance_m: 450,
+      latitude: 0.312,
+      longitude: 32.581,
+    },
+    {
+      id: "police-1",
+      name: "Central Police",
+      type: "police",
+      address: null,
+      phone: null,
+      distance_m: 1200,
+      latitude: 0.313,
+      longitude: 32.582,
+    },
+  ]);
+  inlineCallMock.mockReturnValue({
+    activityId: "sos-1",
+    callId: "call-1",
+    name: "Amina N.",
+    avatarUrl: null,
+    safetyRole: "Sister",
+    status: "connected",
+    seconds: 125,
+    muted: false,
+    speaker: true,
+  });
+  runCallActionMock.mockReset();
+  endEscalationMock.mockResolvedValue(undefined);
+  notifyMock.mockResolvedValue({ delivered: 1, devices: 1, recipients: 1 });
+  vi.stubGlobal("navigator", {
+    geolocation: {
+      getCurrentPosition: vi.fn((success: PositionCallback) => success(location)),
+      watchPosition: vi.fn((success: PositionCallback) => {
+        success(location);
+        return 1;
+      }),
+      clearWatch: vi.fn(),
+    },
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+it("shows the live map, responder controls, and Ugandan hotlines inside the active SOS card", async () => {
+  render(<InChatSos type="crime" lines={[{ number: "999" }, { number: "112" }]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Press SOS" }));
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+  vi.useRealTimers();
+
+  expect(await screen.findByText("SOS active")).toBeTruthy();
+  expect(screen.getByTestId("live-map").getAttribute("data-height")).toBe("h-36");
+  expect(await screen.findByText(/Nearest Hospital \(450m\)/)).toBeTruthy();
+  expect(screen.getByText(/Nearest Police \(1.2km\)/)).toBeTruthy();
+  expect(screen.getByText("Amina N.")).toBeTruthy();
+  expect(screen.getByText("Sister")).toBeTruthy();
+  expect(screen.getByText("02:05")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Call 999 Police" }).getAttribute("href")).toBe("tel:999");
+  expect(screen.getByRole("link", { name: "Call 112 Toll-free" }).getAttribute("href")).toBe("tel:112");
+
+  fireEvent.click(screen.getByRole("button", { name: "Mute" }));
+  expect(runCallActionMock).toHaveBeenCalledWith("toggleMute");
+  fireEvent.click(screen.getByRole("button", { name: "Hide map" }));
+  expect(screen.queryByTestId("live-map")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "I'm safe · End SOS" }));
+  expect(await screen.findByText(/Safety network notified/)).toBeTruthy();
+  expect(endEscalationMock).toHaveBeenCalledWith("sos-1");
+  expect(runCallActionMock).toHaveBeenCalledWith("hangUp");
+  expect(updateMock.mock.calls.at(-1)?.[0]).toMatchObject({
+    details: { sos_status: "cancelled" },
+  });
+  expect(notifyMock).toHaveBeenCalledWith({
+    data: { activityId: "sos-1", status: "resolved" },
+  });
+});

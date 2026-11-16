@@ -119,12 +119,12 @@ export function EmergencyCallEscalation({
         });
     const currentLabel = answered
       ? answered.status === "connected"
-        ? "Connected"
-        : "Answered"
+        ? "CONNECTED"
+        : "ANSWERED"
       : running
-        ? "Calling"
+        ? "ALERTING"
         : attempts.length > 0
-          ? "No answer"
+          ? "NO ANSWER"
           : "Preparing";
 
     const reachedCount = rows.filter(({ attempt, target }) => {
@@ -161,9 +161,11 @@ export function EmergencyCallEscalation({
           <span
             className={cn(
               "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]",
-              answered
+              answered?.status === "connected"
                 ? "border-success/40 bg-success/10 text-success"
-                : "border-border/70 bg-muted/40 text-muted-foreground",
+                : answered
+                  ? "border-gold/40 bg-gold/10 text-gold"
+                  : "border-border/70 bg-muted/40 text-muted-foreground",
             )}
           >
             {currentLabel}
@@ -194,13 +196,13 @@ export function EmergencyCallEscalation({
 
         <details className="group mt-1">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md py-0.5 text-[10px] font-semibold text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <span>View responders ({rows.length})</span>
+            <span>View details ({rows.length})</span>
             <ChevronDown
               aria-hidden="true"
               className="h-3.5 w-3.5 transition-transform group-open:rotate-180"
             />
           </summary>
-          <div className="mt-1 max-h-28 space-y-1 overflow-y-auto border-t border-border/60 pt-1">
+          <div className="mt-1 max-h-24 space-y-1 overflow-y-auto border-t border-border/60 pt-1">
             {loading && (
               <p className="py-1 text-[11px] text-muted-foreground">Loading your Safety Network…</p>
             )}

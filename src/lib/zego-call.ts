@@ -64,6 +64,7 @@ export type CallPeer = {
   id: string;
   name: string;
   avatarUrl?: string | null;
+  safetyRole?: string;
   sosActivityId?: string;
   emergencyType?: string;
   shareLocation?: boolean;
@@ -126,7 +127,7 @@ export async function primeMicrophone() {
   }
 }
 
-async function getZegoToken(callId: string): Promise<ZegoTokenResponse> {
+async function getZegoToken(callId: string, quietErrors = false): Promise<ZegoTokenResponse> {
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session?.access_token) {
     throw new Error("Sign in is required before starting an Allma call.");
@@ -144,18 +145,20 @@ async function getZegoToken(callId: string): Promise<ZegoTokenResponse> {
     code?: string;
   };
   if (!response.ok || !payload.token) {
-    console.error("[ALLMA VOICE] token request failed", {
-      callId,
-      status: response.status,
-      code: payload.code ?? "TOKEN_REQUEST_FAILED",
-      message: payload.error ?? "Calling is not available right now.",
-    });
+    if (!quietErrors) {
+      console.error("[ALLMA VOICE] token request failed", {
+        callId,
+        status: response.status,
+        code: payload.code ?? "TOKEN_REQUEST_FAILED",
+        message: payload.error ?? "Calling is not available right now.",
+      });
+    }
     throw new Error("Calling is not available right now. Please try again shortly.");
   }
   return payload;
 }
 
-async function loadZegoSdk(): Promise<ZegoSdk> {
+async function loadZegoSdk(quietErrors = false): Promise<ZegoSdk> {
   try {
     // Static specifier so the bundler ships the SDK chunk; bare specifiers cannot
     // be resolved at runtime in the browser.
@@ -166,7 +169,7 @@ async function loadZegoSdk(): Promise<ZegoSdk> {
     if (!sdk?.ZegoExpressEngine) throw new Error("missing engine");
     return sdk;
   } catch (error) {
-    console.error("Failed to load ZEGOCLOUD Voice SDK", error);
+    if (!quietErrors) console.error("Failed to load ZEGOCLOUD Voice SDK", error);
     throw new Error("Allma could not load the voice calling engine. Please refresh and try again.");
   }
 }
@@ -197,6 +200,7 @@ export class VoiceCallEngine {
     private readonly isCaller: boolean,
     private readonly events: EngineEvents,
     private readonly prewarmedStream?: MediaStream,
+    private readonly options: { quietErrors?: boolean } = {},
   ) {}
 
   async start() {
@@ -206,14 +210,14 @@ export class VoiceCallEngine {
     if (!window.isSecureContext && window.location.hostname !== "localhost") {
       throw new Error("Voice calls require a secure HTTPS connection.");
     }
-    const token = await getZegoToken(this.callId);
+    const token = await getZegoToken(this.callId, this.options.quietErrors);
     console.info("[ALLMA VOICE] token received", {
       callId: this.callId,
       roomId: token.roomId,
       userId: token.userId,
       appIdConfigured: Number.isSafeInteger(token.appId) && token.appId > 0,
     });
-    const sdk = await loadZegoSdk();
+    const sdk = await loadZegoSdk(this.options.quietErrors);
     const engine = new sdk.ZegoExpressEngine(token.appId, token.server);
     this.engine = engine;
     this.roomId = token.roomId;

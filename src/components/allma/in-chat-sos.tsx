@@ -1,10 +1,30 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2, MapPin, Phone, ShieldAlert, X } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  MapPin,
+  Mic,
+  MicOff,
+  Navigation,
+  Phone,
+  PhoneOff,
+  ShieldAlert,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
+import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
+import { LiveLocationMap } from "@/components/allma/live-location-map";
+import { helpKind, type HelpPlace } from "@/components/allma/nearby-help-list";
+import { endSosEscalation } from "@/lib/sos-escalation-controller";
 import { notifySosActivity } from "@/lib/push.functions";
+import { getNearbyPlaces } from "@/lib/places.functions";
+import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { primeMicrophone } from "@/lib/zego-call";
 
 type Line = { number: string };
@@ -32,6 +52,10 @@ function lineLabel(n: string) {
   return n === "999" ? "Police" : n === "911" ? "Ambulance" : "Toll-free";
 }
 
+function compactDistance(meters: number) {
+  return meters < 950 ? `${Math.round(meters)}m` : `${(meters / 1000).toFixed(1)}km`;
+}
+
 /**
  * SOS inside the chat. Only starts when the user taps Press SOS, then a 3-second
  * cancellable countdown. Every status shown comes from the real SOS record and call rows.
@@ -45,14 +69,115 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
   const [endedAt, setEndedAt] = useState<number | null>(null);
   const [mic, setMic] = useState<MediaStream | undefined>();
   const [loc, setLoc] = useState<{ lat: number; lng: number; acc: number } | null>(null);
+  const [places, setPlaces] = useState<HelpPlace[]>([]);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [mapVisible, setMapVisible] = useState(true);
+  const [networkNotified, setNetworkNotified] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const inlineCall = useSosInlineCall();
   const timer = useRef<number | null>(null);
+  const detailsRef = useRef<Record<string, unknown>>({});
+  const lastLocationSync = useRef<{ lat: number; lng: number; at: number } | null>(null);
 
   useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
+
+  useEffect(() => {
+    if (phase !== "active" || !activityId || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const next = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          acc: position.coords.accuracy,
+        };
+        setLoc({
+          ...next,
+        });
+        const previous = lastLocationSync.current;
+        const movedMeters = previous
+          ? Math.hypot(
+              (next.lat - previous.lat) * 111_000,
+              (next.lng - previous.lng) * 111_000 * Math.cos((next.lat * Math.PI) / 180),
+            )
+          : Number.POSITIVE_INFINITY;
+        const now = Date.now();
+        if (!previous || movedMeters >= 50 || now - previous.at >= 15_000) {
+          lastLocationSync.current = { lat: next.lat, lng: next.lng, at: now };
+          void supabase
+            .from("safety_activity")
+            .update({
+              latitude: next.lat,
+              longitude: next.lng,
+              location_text: "Live GPS location",
+            })
+            .eq("id", activityId)
+            .eq("user_id", user?.id ?? "")
+            .then(({ error }) => {
+              if (error) console.warn("SOS live location could not be shared", error);
+            });
+        }
+      },
+      (error) => {
+        if (error.code !== 1) console.warn("SOS live location update unavailable", error);
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [activityId, phase, user?.id]);
+
+  const placeSearchKey = loc ? `${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}` : null;
+  useEffect(() => {
+    if (!placeSearchKey) {
+      setPlaces([]);
+      setPlacesLoading(false);
+      return;
+    }
+    const [latitude, longitude] = placeSearchKey.split(",").map(Number);
+    let active = true;
+    setPlacesLoading(true);
+    void getNearbyPlaces({
+      data: {
+        latitude,
+        longitude,
+        radiusMeters: 8000,
+        limit: 20,
+        types: ["hospital", "police", "pharmacy"],
+      },
+    })
+      .then((results) => {
+        if (!active) return;
+        setPlaces(
+          (results ?? []).map((place) => ({
+            id: place.id,
+            name: place.name,
+            type: place.type,
+            address: place.address,
+            phone: place.phone,
+            distance_m: place.distance_m,
+            latitude: place.latitude,
+            longitude: place.longitude,
+          })),
+        );
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.warn("Nearby SOS help could not be loaded", error);
+        setPlaces([]);
+      })
+      .finally(() => {
+        if (active) setPlacesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [placeSearchKey]);
 
   function startCountdown() {
     if (!user) { toast.error("Sign in so Allma can alert your safety network."); return; }
     setLeft(COUNTDOWN);
+    setNetworkNotified(null);
+    setMapVisible(true);
     setPhase("countdown");
     timer.current = window.setInterval(() => {
       setLeft((s) => {
@@ -86,7 +211,7 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
     if (!user) return;
     setPhase("active");
     setSaving(true);
-    void primeMicrophone().then(setMic).catch(() => toast.error("Microphone access is needed for SOS calls."));
+    void primeMicrophone().then(setMic).catch(() => undefined);
     const pos = await getPosition();
     const coords = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy } : null;
     setLoc(coords);
@@ -99,6 +224,7 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
       accuracy_m: coords?.acc ?? null,
       activation_mode: "manual",
     };
+    detailsRef.current = details;
     const insertResult = await supabase
       .from("safety_activity")
       .insert({
@@ -148,6 +274,12 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
   }
 
   async function endSos() {
+    if (ending) return;
+    setEnding(true);
+    const hangUp = runSosInlineCallAction("hangUp");
+    if (activityId) await endSosEscalation(activityId);
+    await hangUp;
+    const endedAtIso = new Date().toISOString();
     if (activityId) {
       const updateResult = await supabase
         .from("safety_activity")
@@ -157,7 +289,12 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
           severity: "info",
           summary: "SOS was stopped by the user from chat.",
           sos_status: "cancelled",
-          ended_at: new Date().toISOString(),
+          ended_at: endedAtIso,
+          details: {
+            ...detailsRef.current,
+            sos_status: "cancelled",
+            ended_at: endedAtIso,
+          } as never,
         })
         .eq("id", activityId);
       let { error } = updateResult;
@@ -168,18 +305,35 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
             activity_type: "sos_resolved",
             title: "Emergency SOS ended",
             summary: "SOS was stopped by the user from chat.",
+            details: {
+              ...detailsRef.current,
+              sos_status: "cancelled",
+              ended_at: endedAtIso,
+            } as never,
           })
           .eq("id", activityId);
         error = fallbackResult.error;
       }
       if (error) toast.error("SOS stopped here, but the server could not be updated.");
+      try {
+        const result = await notifySosActivity({ data: { activityId, status: "resolved" } });
+        setNetworkNotified(result.delivered > 0);
+        if (result.delivered === 0) toast.message("SOS ended, but no safety-network push notification was delivered.");
+      } catch {
+        setNetworkNotified(false);
+        toast.error("SOS ended, but the safety network could not be notified.");
+      }
     }
     mic?.getTracks().forEach((t) => t.stop());
     setEndedAt(Date.now());
     setPhase("ended");
+    setEnding(false);
   }
 
   const time = (ms: number | null) => (ms ? new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+  const nearestHospital = places.find((place) => ["hospital", "clinic"].includes(helpKind(place.type, place.name)));
+  const nearestPolice = places.find((place) => helpKind(place.type, place.name) === "police");
+  const activeCall = inlineCall?.activityId === activityId ? inlineCall : null;
   const dials = (
     <div className="grid grid-cols-2 gap-1.5">
       {lines.map((h) => (
@@ -187,9 +341,9 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
           key={h.number}
           href={`tel:${h.number}`}
           aria-label={`Call ${h.number} ${lineLabel(h.number)}`}
-          className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-destructive/35 bg-destructive/5 px-2 py-1.5 text-xs font-semibold text-destructive"
+          className="flex min-h-8 items-center justify-center gap-1 rounded-lg border border-destructive/35 bg-destructive/5 px-2 py-1 text-[11px] font-semibold text-destructive"
         >
-          <Phone className="h-3.5 w-3.5 shrink-0" /> Call {h.number}
+          <Phone className="h-3.5 w-3.5 shrink-0" /> Call {h.number} {lineLabel(h.number)}
         </a>
       ))}
     </div>
@@ -200,7 +354,14 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
     return (
       <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/60 px-3.5 py-2.5 text-sm text-muted-foreground">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
-        <span>SOS ended at {time(endedAt)}{mins ? ` · ${mins} min` : ""}</span>
+        <span>
+          SOS ended at {time(endedAt)}{mins ? ` · ${mins} min` : ""}
+          {networkNotified === true
+            ? " · Safety network notified"
+            : networkNotified === false
+              ? " · Network notification failed"
+              : ""}
+        </span>
       </div>
     );
   }
@@ -224,8 +385,8 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
 
   if (phase === "active") {
     return (
-      <div className="space-y-1.5 rounded-xl border border-destructive/40 bg-card p-2.5">
-        <div className="flex items-center justify-between gap-2">
+      <div className="space-y-2 rounded-xl border border-destructive/40 bg-card p-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <p className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-destructive">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
@@ -244,11 +405,53 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
                   : "Location unavailable"}
             </span>
           </span>
+          <button
+            type="button"
+            onClick={() => setMapVisible((visible) => !visible)}
+            aria-expanded={mapVisible}
+            className="ml-auto rounded-md px-1.5 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted"
+          >
+            {mapVisible ? "Hide map" : "Show map"}
+          </button>
         </div>
+
         {saving ? (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving your SOS…
           </div>
+        ) : activeCall ? (
+          <section aria-label="Active emergency call" className="rounded-lg border border-success/35 bg-success/[0.06] px-2 py-1.5">
+            <div className="flex items-center gap-2">
+              <Avatar name={activeCall.name} url={activeCall.avatarUrl} size={34} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold">{activeCall.name}</p>
+                <p className="truncate text-[10px] text-muted-foreground">{activeCall.safetyRole || "Safety contact"}</p>
+              </div>
+              <span className="rounded-full border border-success/35 bg-success/10 px-2 py-0.5 text-[9px] font-bold tracking-wide text-success">
+                {activeCall.status === "connected" ? "CONNECTED" : "CONNECTING"}
+              </span>
+              {activeCall.status === "connected" && (
+                <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                  {String(Math.floor(activeCall.seconds / 60)).padStart(2, "0")}:{String(activeCall.seconds % 60).padStart(2, "0")}
+                </span>
+              )}
+            </div>
+            {activeCall.status === "connected" && (
+              <div className="mt-1.5 grid grid-cols-3 gap-1">
+                <button type="button" onClick={() => runSosInlineCallAction("toggleMute")} className="flex min-h-8 items-center justify-center gap-1 rounded-md border border-border bg-background px-1 text-[10px] font-semibold">
+                  {activeCall.muted ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                  {activeCall.muted ? "Unmute" : "Mute"}
+                </button>
+                <button type="button" onClick={() => runSosInlineCallAction("toggleSpeaker")} className="flex min-h-8 items-center justify-center gap-1 rounded-md border border-border bg-background px-1 text-[10px] font-semibold">
+                  {activeCall.speaker ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+                  {activeCall.speaker ? "Speaker" : "Earpiece"}
+                </button>
+                <button type="button" onClick={() => runSosInlineCallAction("hangUp")} className="flex min-h-8 items-center justify-center gap-1 rounded-md bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                  <PhoneOff className="h-3.5 w-3.5" /> Hang up
+                </button>
+              </div>
+            )}
+          </section>
         ) : (
           <EmergencyCallEscalation
             activityId={activityId}
@@ -258,15 +461,74 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
             compact
           />
         )}
-        {dials}
-        <button
-          type="button"
-          onClick={() => void endSos()}
-          disabled={saving}
-          className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-sm font-bold text-destructive-foreground disabled:opacity-50"
-        >
-          <X className="h-4 w-4" /> I'm safe · End SOS
-        </button>
+
+        {mapVisible && (
+          <section aria-label="Nearby emergency help" className="space-y-1.5">
+            {loc ? (
+              <div className="overflow-hidden rounded-xl border border-border">
+                <LiveLocationMap
+                  location={{ lat: loc.lat, lng: loc.lng, accuracy: loc.acc }}
+                  badge="Your location"
+                  heightClassName="h-36"
+                  places={places}
+                />
+              </div>
+            ) : (
+              <p className="rounded-lg bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
+                {saving || placesLoading ? "Waiting for GPS to show nearby help…" : "Turn on location access to show nearby help."}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {nearestHospital && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${nearestHospital.latitude},${nearestHospital.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-muted/35 px-2.5 text-[10px] font-semibold"
+                >
+                  🏥 Nearest Hospital ({compactDistance(nearestHospital.distance_m)})
+                </a>
+              )}
+              {nearestPolice && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${nearestPolice.latitude},${nearestPolice.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-muted/35 px-2.5 text-[10px] font-semibold"
+                >
+                  🛡️ Nearest Police ({compactDistance(nearestPolice.distance_m)})
+                </a>
+              )}
+              {loc && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-[10px] font-semibold text-primary hover:bg-primary/5"
+                >
+                  <Navigation className="h-3 w-3" /> Open in Google Maps <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              {placesLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" aria-label="Finding nearby help" />}
+              {!placesLoading && loc && !nearestHospital && !nearestPolice && (
+                <span className="text-[10px] text-muted-foreground">No nearby hospitals or police stations found.</span>
+              )}
+            </div>
+          </section>
+        )}
+
+        <div className="space-y-1.5 border-t border-border/60 pt-2">
+          {dials}
+          <button
+            type="button"
+            onClick={() => void endSos()}
+            disabled={saving || ending}
+            className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-bold text-destructive-foreground disabled:opacity-50"
+          >
+            {ending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+            {ending ? "Ending…" : "I'm safe · End SOS"}
+          </button>
+        </div>
       </div>
     );
   }

@@ -68,6 +68,7 @@ class SosEscalation {
   private initialised = false;
   private loadingTargets = false;
   private autoStartRequested = false;
+  private ended = false;
   private microphoneStream: MediaStream | undefined;
   private shareLocation = false;
   private disposeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -124,6 +125,7 @@ class SosEscalation {
   }
 
   async init(autoStart: boolean) {
+    if (this.ended) return;
     this.autoStartRequested = this.autoStartRequested || autoStart;
     // Re-entrant: a re-mount must never leave the card stuck on "loading" and
     // must re-arm auto-dialing if nothing is running yet.
@@ -166,6 +168,7 @@ class SosEscalation {
   }
 
   async retry(autoStart = true) {
+    if (this.ended) return;
     this.generation += 1;
     this.initialised = false;
     this.loadingTargets = false;
@@ -180,7 +183,7 @@ class SosEscalation {
   }
 
   start() {
-    if (this.state.running || !this.callable().length) return;
+    if (this.ended || this.state.running || !this.callable().length) return;
     this.patch({ running: true, error: null });
     void this.loop(++this.generation);
   }
@@ -198,6 +201,21 @@ class SosEscalation {
       ),
     );
     this.patch({ running: false, waitSeconds: null });
+  }
+
+  async end() {
+    this.ended = true;
+    this.generation += 1;
+    this.patch({ running: false, waitSeconds: null });
+    await this.refresh();
+    const callIds = new Set(
+      this.state.attempts
+        .filter((attempt) => !isTerminal(attempt.status))
+        .map((attempt) => attempt.call_id),
+    );
+    await Promise.all(
+      [...callIds].map((callId) => setCallStatus(callId, "ended").catch(() => undefined)),
+    );
   }
 
   /** Rings every eligible contact together, then repeats until someone answers. */
@@ -220,6 +238,7 @@ class SosEscalation {
           id: target.member_id,
           name: target.full_name,
           avatarUrl: target.avatar_url,
+          safetyRole: target.safety_role,
           sosActivityId: this.activityId,
           emergencyType: this.emergencyType,
           shareLocation: this.shareLocation && target.share_location_on_sos,
@@ -330,6 +349,11 @@ export function getSosEscalation(activityId: string, emergencyType: string) {
   }
   controller.setEmergencyType(emergencyType);
   return controller;
+}
+
+export function endSosEscalation(activityId: string) {
+  const controller = controllers.get(activityId);
+  return controller?.end() ?? Promise.resolve();
 }
 
 export function disposeSosEscalation(activityId: string) {

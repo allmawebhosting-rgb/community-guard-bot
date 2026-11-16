@@ -273,19 +273,23 @@ export const sendTestPushAlert = createServerFn({ method: "POST" })
 
 export const notifySosActivity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { activityId: string }) => {
+  .inputValidator((input: { activityId: string; status?: "activated" | "resolved" }) => {
     if (!input || typeof input.activityId !== "string" || !UUID.test(input.activityId)) {
       throw new Error("A valid SOS activity id is required.");
     }
-    return input;
+    if (input.status !== undefined && input.status !== "activated" && input.status !== "resolved") {
+      throw new Error("A valid SOS notification status is required.");
+    }
+    return { ...input, status: input.status ?? "activated" };
   })
   .handler(async ({ data, context }) => {
+    const resolved = data.status === "resolved";
     const { data: activity, error: activityError } = await context.supabase
       .from("safety_activity")
-      .select("id, user_id, location_text, details")
+      .select("id, user_id, location_text, details, activity_type")
       .eq("id", data.activityId)
       .eq("user_id", context.userId)
-      .eq("activity_type", "sos_activated")
+      .eq("activity_type", resolved ? "sos_resolved" : "sos_activated")
       .maybeSingle();
     if (activityError || !activity) throw new Error("SOS activity could not be found.");
 
@@ -304,9 +308,12 @@ export const notifySosActivity = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profile } = await context.supabase.from("profiles").select("full_name").eq("id", context.userId).maybeSingle();
     const callerName = profile?.full_name?.trim() || "An Allma member";
-    const location = activity.location_text && activity.location_text !== "Location pending"
-      ? ` Location: ${activity.location_text}.`
-      : " Location details will follow when available.";
+    const title = resolved ? `${callerName} is safe` : `${callerName} activated SOS`;
+    const body = resolved
+      ? `${callerName} marked themselves safe. Their SOS has ended.`
+      : `${callerName} needs help on Allma.${activity.location_text && activity.location_text !== "Location pending"
+        ? ` Location: ${activity.location_text}.`
+        : " Location details will follow when available."}`;
     const { data: devices } = await supabaseAdmin
       .from("push_subscriptions")
       .select("id, user_id, endpoint, p256dh, auth_key")
@@ -320,7 +327,7 @@ export const notifySosActivity = createServerFn({ method: "POST" })
       try {
         const payload = await buildPushPayload(
           {
-            data: JSON.stringify({ type: "sos_activity", activityId: activity.id, title: `${callerName} activated SOS`, body: `${callerName} needs help on Allma.${location}` }),
+            data: JSON.stringify({ type: "sos_activity", activityId: activity.id, title, body }),
             options: { ttl: 120, urgency: "high" as const },
           },
           { endpoint: device.endpoint, expirationTime: null, keys: { p256dh: device.p256dh, auth: device.auth_key } },

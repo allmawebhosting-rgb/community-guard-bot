@@ -22,7 +22,12 @@ import { BrandMark } from "@/components/allma/brand";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyIncomingCall } from "@/lib/push.functions";
 import { setCallAudioPhase } from "@/lib/call-audio-state";
+import {
+  setSosInlineCall,
+  setSosInlineCallActions,
+} from "@/lib/sos-inline-call";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
+import { LiveLocationMap } from "@/components/allma/live-location-map";
 import { ResponderNavigation } from "@/components/allma/responder-navigation";
 import type { HelpPlace } from "@/components/allma/nearby-help-list";
 import { getNearbyPlaces } from "@/lib/places.functions";
@@ -49,6 +54,13 @@ type Phase = "idle" | "outgoing" | "incoming" | "active" | "ended";
 
 const RING_TIMEOUT_MS = 40_000;
 
+function isChatRoute() {
+  return (
+    typeof window !== "undefined" &&
+    (window.location.pathname === "/" || /^\/chat(?:\/|$)/.test(window.location.pathname))
+  );
+}
+
 const qualityCopy: Record<ConnectionQuality, string> = {
   connecting: "Connecting…",
   good: "Connected",
@@ -70,6 +82,7 @@ export function CallCenter() {
   const [seconds, setSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(true);
+  const [sosCallStatus, setSosCallStatus] = useState<"idle" | "connecting" | "connected">("idle");
   const [endedNote, setEndedNote] = useState<string | null>(null);
   const [emergency, setEmergency] = useState<EmergencyCallContext | null>(null);
   const [sosRoomId, setSosRoomId] = useState<string | null>(null);
@@ -87,7 +100,14 @@ export function CallCenter() {
       : null;
   const hasEmergency = Boolean(emergency);
   useEffect(() => {
-    if (!isCaller || !peer?.sosActivityId || !peer.shareLocation || phase === "ended" || phase === "idle") {
+    const inlineSosOnChat = Boolean(peer?.sosActivityId) && isChatRoute();
+    if (
+      !isCaller ||
+      !peer?.sosActivityId ||
+      !peer.shareLocation ||
+      phase === "ended" ||
+      (phase === "idle" && !inlineSosOnChat)
+    ) {
       setLocalPoint(null);
       setLocalLocationError(null);
       return;
@@ -206,11 +226,19 @@ export function CallCenter() {
   const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const peerRef = useRef<CallPeer | null>(null);
   const isCallerRef = useRef(false);
+  const sosCallStatusRef = useRef(sosCallStatus);
   peerRef.current = peer;
   isCallerRef.current = isCaller;
+  sosCallStatusRef.current = sosCallStatus;
   phaseRef.current = phase;
 
+  const setSosCallState = useCallback((status: "idle" | "connecting" | "connected") => {
+    sosCallStatusRef.current = status;
+    setSosCallStatus(status);
+  }, []);
+
   const teardown = useCallback((note: string | null) => {
+    const sosActivityId = peerRef.current?.sosActivityId;
     engineRef.current?.close();
     engineRef.current = null;
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
@@ -219,6 +247,8 @@ export function CallCenter() {
     sosOutgoingRef.current.clear();
     sosPrimaryClaimedRef.current = false;
     sosWinnerClaimedRef.current = false;
+    setSosCallState("idle");
+    if (sosActivityId) setSosInlineCall(null);
     setCallId(null);
     setSeconds(0);
     setMuted(false);
@@ -226,9 +256,11 @@ export function CallCenter() {
     setEndedNote(note);
     setEmergency(null);
     setSosRoomId(null);
-    setPhase(note ? "ended" : "idle");
-    if (note) setTimeout(() => { if (phaseRef.current === "ended") setPhase("idle"); }, 2600);
-  }, []);
+    setPeer(null);
+    setIsCaller(false);
+    setPhase(sosActivityId ? "idle" : note ? "ended" : "idle");
+    if (note && !sosActivityId) setTimeout(() => { if (phaseRef.current === "ended") setPhase("idle"); }, 2600);
+  }, [setSosCallState, setPhase]);
 
   // Identity + safety-network name lookup (calls only exist between connections).
   useEffect(() => {
@@ -265,7 +297,13 @@ export function CallCenter() {
         onQuality: setQuality,
         onConnected: () => {
           setQuality("good");
-          setPhase("active");
+          if (peerRef.current?.sosActivityId && isChatRoute()) {
+            setSosCallState("connected");
+            setPhaseState("idle");
+            setCallAudioPhase("active");
+          } else {
+            setPhase("active");
+          }
           void setCallStatus(id, "connected").catch(() => undefined);
         },
         onEnded: () => {
@@ -276,11 +314,13 @@ export function CallCenter() {
           void setCallStatus(id, "failed", message).catch(() => undefined);
           teardown(message);
         },
-      }, stream);
+      }, stream, {
+        quietErrors: Boolean(peerRef.current?.sosActivityId || sosOutgoingRef.current.has(id)),
+      });
       engineRef.current = engine;
       await engine.start();
     },
-    [teardown, userId],
+    [setSosCallState, setPhase, teardown, userId],
   );
 
   // Outgoing call requests from anywhere in the app.
@@ -294,25 +334,32 @@ export function CallCenter() {
           toast.error("You are already on a call.");
           return;
         }
+        const isSosCall = Boolean(requested.sosActivityId);
         const isPrimarySosCall = Boolean(
-          requested.sosActivityId && !callIdRef.current && !sosPrimaryClaimedRef.current,
+          isSosCall && !callIdRef.current && !sosPrimaryClaimedRef.current,
         );
         if (isPrimarySosCall) {
           sosPrimaryClaimedRef.current = true;
           setPeer(requested);
           setIsCaller(true);
-          setPhase("outgoing");
+          if (isSosCall) {
+            setPhaseState("idle");
+            setCallAudioPhase("idle");
+          } else {
+            setPhase("outgoing");
+          }
           setEndedNote(null);
           setQuality("connecting");
         }
         let id: string | null = null;
         try {
-          if (!requested.sosActivityId) setPhase("outgoing");
+          if (!isSosCall) setPhase("outgoing");
           // SOS calls go through the SOS-scoped RPC so the server can verify the
           // caller owns that emergency and link the call to it.
           id = requested.sosActivityId
             ? await startSosEmergencyCall(requested.id, requested.sosActivityId)
             : await startVoiceCall(requested.id);
+          if (!id) throw new Error("The call could not be started.");
           if (isPrimarySosCall || !requested.sosActivityId) callIdRef.current = id;
           sosOutgoingRef.current.set(id, requested);
           if (isPrimarySosCall) setCallId(id);
@@ -323,10 +370,10 @@ export function CallCenter() {
                 callId: id,
                 recipientId: requested.id,
               });
-              if (isPrimarySosCall) {
+              if (isPrimarySosCall && !isSosCall) {
                 toast.message(`${requested.name} has not enabled background notifications on their device.`);
               }
-            } else if (isPrimarySosCall && result.delivered === 0) {
+            } else if (isPrimarySosCall && !isSosCall && result.delivered === 0) {
               toast.message(`Background alert could not reach ${requested.name}'s device.`);
             }
           }).catch((error) => {
@@ -335,9 +382,9 @@ export function CallCenter() {
               message: error instanceof Error ? error.message : "unknown",
             });
           });
-          // Join from the user's Call tap so iOS Safari permits microphone access.
-          // CONNECTED is still deferred until ZEGOCLOUD reports a remote stream.
-          if (isPrimarySosCall || !requested.sosActivityId) {
+          // Ordinary calls join from the user's Call tap. SOS calls join only
+          // after a responder answers, so background alerts never take over chat.
+          if (!isSosCall) {
             const activeId = id;
             const microphoneStream = requested.microphoneStream ?? await primeMicrophone();
             await beginEngine(activeId, true, microphoneStream);
@@ -359,12 +406,16 @@ export function CallCenter() {
             await setCallStatus(id, "failed", message).catch(() => undefined);
           }
           requested.onError?.(message);
-          if (isPrimarySosCall || !requested.sosActivityId) teardown(message);
-          if (isPrimarySosCall || !requested.sosActivityId) toast.error(message);
+          if (!isSosCall) {
+            teardown(message);
+            toast.error(message);
+          } else if (isPrimarySosCall && !callIdRef.current) {
+            sosPrimaryClaimedRef.current = false;
+          }
         }
       })();
     });
-  }, [beginEngine, teardown, userId]);
+  }, [beginEngine, setPhase, teardown, userId]);
 
   // Incoming calls + live call state for both sides.
   useEffect(() => {
@@ -389,9 +440,12 @@ export function CallCenter() {
           if (row.caller_id === userId || row.caller_id === row.recipient_id) return;
           if (callIdRef.current || row.status === "ended") return;
           const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
-          const callerPeer = known ?? {
+          const callerPeer = {
+            ...(known ?? {
             id: row.caller_id ?? `former-member-${row.id}`,
             name: row.caller_display_name ?? (row.caller_id ? "Allma member" : "Former Member"),
+            }),
+            ...(row.sos_session_id ? { sosActivityId: row.sos_session_id } : {}),
           };
           callIdRef.current = row.id;
           setCallId(row.id);
@@ -424,13 +478,18 @@ export function CallCenter() {
         (payload) => {
           const row = payload.new as { id: string; status: string };
           const pendingSosPeer = sosOutgoingRef.current.get(row.id);
-          if (row.id !== callIdRef.current && pendingSosPeer && (row.status === "connecting" || row.status === "connected") && phaseRef.current === "outgoing" && !sosWinnerClaimedRef.current) {
+          const currentPeer =
+            pendingSosPeer ?? sosOutgoingRef.current.get(row.id) ?? peerRef.current;
+          if (row.id !== callIdRef.current && pendingSosPeer && (row.status === "connecting" || row.status === "connected") && !sosWinnerClaimedRef.current) {
             sosWinnerClaimedRef.current = true;
             engineRef.current?.close();
             engineRef.current = null;
             callIdRef.current = row.id;
             setCallId(row.id);
             setPeer(pendingSosPeer);
+            setIsCaller(true);
+            setSosCallState("connecting");
+            if (isChatRoute()) setCallAudioPhase("active");
             void beginEngine(row.id, true, pendingSosPeer.microphoneStream)
               .then(() => setCallStatus(row.id, "connecting"))
               .catch(() => undefined);
@@ -441,7 +500,9 @@ export function CallCenter() {
           if (
             row.id === callIdRef.current &&
             !isCallerRef.current &&
-            (phaseRef.current === "incoming" || phaseRef.current === "active")
+            (phaseRef.current === "incoming" ||
+              phaseRef.current === "active" ||
+              sosCallStatusRef.current !== "idle")
           ) {
             void getEmergencyCallContext(row.id).then((context) => {
               if (
@@ -453,17 +514,44 @@ export function CallCenter() {
             });
           }
           if (row.id !== callIdRef.current) return;
-          if (row.status === "declined") teardown(`${peerRef.current?.name ?? "They"} declined the call.`);
-          else if (row.status === "ended") teardown("Call ended");
-          else if (row.status === "missed") teardown("No answer");
+          if (row.status === "declined" || row.status === "missed" || row.status === "failed" || row.status === "ended") {
+            const unansweredSos =
+              Boolean(currentPeer?.sosActivityId) &&
+              (row.status !== "ended" || sosCallStatusRef.current === "idle");
+            if (unansweredSos) {
+              callIdRef.current = null;
+              setCallId(null);
+              setPeer(null);
+              setIsCaller(false);
+              setSosCallState("idle");
+              setSosInlineCall(null);
+              sosPrimaryClaimedRef.current = false;
+            } else {
+              const note =
+                row.status === "declined"
+                  ? `${currentPeer?.name ?? "They"} declined the call.`
+                  : row.status === "missed"
+                    ? "No answer"
+                    : row.status === "failed"
+                      ? "Call failed"
+                      : "Call ended";
+              teardown(note);
+            }
+          }
           else if (row.status === "connecting" || row.status === "connected") {
             // The other side answered: stop the ring timeout so the call is never
             // cut off while the audio streams are still being negotiated.
             if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
             ringTimerRef.current = null;
-            setPhase("active");
+            if (currentPeer?.sosActivityId) setSosCallState("connecting");
+            if (currentPeer?.sosActivityId && isChatRoute()) {
+              setPhaseState("idle");
+              setCallAudioPhase("active");
+            } else {
+              setPhase("active");
+            }
             if (isCallerRef.current && !engineRef.current) {
-              void beginEngine(row.id, true).catch(async (error) => {
+              void beginEngine(row.id, true, pendingSosPeer?.microphoneStream).catch(async (error) => {
                 const message =
                   error instanceof DOMException
                     ? microphoneErrorMessage(error)
@@ -472,7 +560,7 @@ export function CallCenter() {
                       : "The voice connection could not start.";
                 await setCallStatus(row.id, "failed", message).catch(() => undefined);
                 teardown(message);
-                toast.error(message);
+                if (!currentPeer?.sosActivityId) toast.error(message);
               });
             }
           }
@@ -484,7 +572,7 @@ export function CallCenter() {
       void supabase.removeChannel(channel);
     };
     // Deliberately keyed only on identity: re-subscribing per render would leak channels.
-  }, [beginEngine, teardown, userId]);
+  }, [beginEngine, setPhase, setSosCallState, teardown, userId]);
 
   // Cold-start recovery: a notification can open /calls after the realtime
   // INSERT has already happened. Read only the authenticated recipient's live
@@ -517,9 +605,12 @@ export function CallCenter() {
         return;
       }
       const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
-      const callerPeer = known ?? {
-        id: row.caller_id ?? `former-member-${row.id}`,
-        name: row.caller_display_name ?? (row.caller_id ? "Allma member" : "Former Member"),
+      const callerPeer = {
+        ...(known ?? {
+          id: row.caller_id ?? `former-member-${row.id}`,
+          name: row.caller_display_name ?? (row.caller_id ? "Allma member" : "Former Member"),
+        }),
+        ...(row.sos_session_id ? { sosActivityId: row.sos_session_id } : {}),
       };
       callIdRef.current = row.id;
       setCallId(row.id);
@@ -551,10 +642,15 @@ export function CallCenter() {
       ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
       window.setTimeout(() => window.clearInterval(contextTimer), RING_TIMEOUT_MS);
     })();
-  }, [teardown, userId]);
+  }, [setPhase, teardown, userId]);
 
   useEffect(() => {
-    if (!callId || (phase !== "incoming" && phase !== "active")) return;
+    const inlineIncomingSos =
+      Boolean(peer?.sosActivityId) &&
+      !isCaller &&
+      isChatRoute() &&
+      sosCallStatus !== "idle";
+    if (!callId || (phase !== "incoming" && phase !== "active" && !inlineIncomingSos)) return;
     const refreshContext = () => {
       void getEmergencyCallContext(callId).then((context) => {
         if (callIdRef.current === callId && context) setEmergency(context);
@@ -562,14 +658,16 @@ export function CallCenter() {
     };
     const timer = window.setInterval(refreshContext, 3000);
     return () => window.clearInterval(timer);
-  }, [callId, emergency?.is_emergency, phase]);
+  }, [callId, emergency?.is_emergency, isCaller, peer?.sosActivityId, phase, sosCallStatus]);
 
   // Call timer starts only when real audio is connected.
   useEffect(() => {
-    if (phase !== "active" || quality === "connecting") return;
+    const inlineSosActive =
+      Boolean(peer?.sosActivityId) && isChatRoute() && sosCallStatus === "connected";
+    if ((phase !== "active" && !inlineSosActive) || quality === "connecting") return;
     const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
     return () => clearInterval(timer);
-  }, [phase, quality]);
+  }, [peer?.sosActivityId, phase, quality, sosCallStatus]);
 
   // Spoken announcement for emergency calls, so a recipient who only hears the
   // device still learns who needs help. Uses the caller's real SOS record.
@@ -601,6 +699,7 @@ export function CallCenter() {
   const answer = async () => {
     const id = callIdRef.current;
     if (!id) return;
+    const isSosCall = Boolean(peerRef.current?.sosActivityId);
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     try {
       const invitationId = new URLSearchParams(window.location.search).get("invitation");
@@ -624,7 +723,7 @@ export function CallCenter() {
             : "The call could not be answered.";
       await setCallStatus(id, "failed", message).catch(() => undefined);
       teardown(message);
-      toast.error(message);
+      if (!isSosCall) toast.error(message);
     }
   };
 
@@ -635,28 +734,54 @@ export function CallCenter() {
     teardown("Call declined");
   };
 
-  const hangUp = async () => {
+  const hangUp = useCallback(async () => {
     const id = callIdRef.current;
     if (!id) return;
     await setCallStatus(id, "ended").catch(() => undefined);
     teardown("Call ended");
-  };
+  }, [teardown]);
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     const next = !muted;
     setMuted(next);
     engineRef.current?.setMuted(next);
-  };
+  }, [muted]);
 
-  const toggleSpeaker = () => {
+  const toggleSpeaker = useCallback(() => {
     const next = !speaker;
     setSpeaker(next);
     void engineRef.current?.setSpeaker(next).then((applied) => {
       if (!applied) toast.message("Speaker selection isn't supported on this device.");
     });
-  };
+  }, [speaker]);
+
+  useEffect(() => {
+    setSosInlineCallActions({ toggleMute, toggleSpeaker, hangUp });
+    return () => setSosInlineCallActions(null);
+  }, [hangUp, toggleMute, toggleSpeaker]);
+
+  useEffect(() => {
+    if (!peer?.sosActivityId || !callId || sosCallStatus === "idle" || !isChatRoute()) return;
+    setSosInlineCall({
+      activityId: peer.sosActivityId,
+      callId,
+      name: peer.name,
+      avatarUrl: peer.avatarUrl,
+      safetyRole: peer.safetyRole ?? "Safety contact",
+      status: sosCallStatus,
+      seconds,
+      muted,
+      speaker,
+    });
+  }, [callId, muted, peer, seconds, speaker, sosCallStatus]);
 
   const visible = phase !== "idle";
+  const showInlineIncomingSos =
+    phase === "idle" &&
+    isChatRoute() &&
+    !isCaller &&
+    Boolean(peer?.sosActivityId) &&
+    sosCallStatus !== "idle";
   const isEmergencyCall = Boolean(emergency) || Boolean(peer?.sosActivityId);
   const statusLine =
     phase === "outgoing"
@@ -681,6 +806,7 @@ export function CallCenter() {
   };
 
   return (
+    <>
     <AnimatePresence>
       {visible && (
         <motion.div
@@ -855,6 +981,85 @@ export function CallCenter() {
         </motion.div>
       )}
     </AnimatePresence>
+    {showInlineIncomingSos && (
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 12 }}
+        aria-label="Active SOS call"
+        className="fixed inset-x-3 bottom-24 z-[75] mx-auto max-w-xl space-y-2 rounded-2xl border border-destructive/30 bg-card p-3 text-foreground shadow-xl"
+      >
+        <div className="flex items-center gap-2">
+          <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={38} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold">{peer?.name ?? "Allma member"}</p>
+            <p className="text-[10px] text-muted-foreground">Emergency call · Safety network</p>
+          </div>
+          <span className="rounded-full border border-success/35 bg-success/10 px-2 py-1 text-[9px] font-bold text-success">
+            {sosCallStatus === "connected" ? "CONNECTED" : "CONNECTING"}
+          </span>
+          {sosCallStatus === "connected" && (
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              {formatDuration(seconds)}
+            </span>
+          )}
+        </div>
+        {callerPoint && emergency?.location_shared ? (
+          <>
+            <div className="overflow-hidden rounded-xl border border-border">
+              <LiveLocationMap
+                location={{
+                  lat: callerPoint.lat,
+                  lng: callerPoint.lng,
+                  accuracy: emergency.accuracy_m,
+                }}
+                badge="Caller location"
+                heightClassName="h-36"
+                places={helpPlaces}
+              />
+            </div>
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${callerPoint.lat},${callerPoint.lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary"
+            >
+              <Navigation className="h-3.5 w-3.5" /> Open caller location in Google Maps
+            </a>
+          </>
+        ) : emergency?.location_shared ? (
+          <p className="rounded-lg bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
+            Waiting for the caller’s location…
+          </p>
+        ) : null}
+        <div className="grid grid-cols-3 gap-2 border-t border-border/60 pt-2">
+          <button
+            type="button"
+            onClick={toggleMute}
+            className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-border bg-background px-2 text-xs font-semibold"
+          >
+            {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            {muted ? "Unmute" : "Mute"}
+          </button>
+          <button
+            type="button"
+            onClick={toggleSpeaker}
+            className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-border bg-background px-2 text-xs font-semibold"
+          >
+            {speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            {speaker ? "Speaker" : "Earpiece"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void hangUp()}
+            className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-destructive px-2 text-xs font-semibold text-destructive-foreground"
+          >
+            <PhoneOff className="h-4 w-4" /> Hang up
+          </button>
+        </div>
+      </motion.section>
+    )}
+    </>
   );
 }
 
