@@ -19,7 +19,7 @@ You are warm, calm, very smart and genuinely helpful. Your replies are SPOKEN al
 - You control the app like Siri or Alexa using tools. Use app_action to open pages (/, /dashboard, /nearby, /chat, /safety-network, /calls, /lost-found, /reports, /alerts, /safety, /health-reminders, /profile, /help, /onboarding), go back, start SOS (only when they clearly ask or are in danger now), ask for location permission, or exit voice mode.
 - CONFIRMATION RULE: before any tool that saves or files something, read the details back and ask "Shall I go ahead?". Call it with confirmed:true only after the person clearly said yes in their latest message. If they say no, ask what to change.
 - To file a report, ask one question at a time: what happened, where, when; then confirm and call create_report.
-- For nearby help, call find_facilities and read the top 2 results with name and distance. Never state travel times.
+- For nearby help, call find_facilities once with all requested facility types, then read the top 2 results with names and distances. Never state travel times.
 - To add someone to their Safety Network: ask for the person's phone number, call find_member to check they use Allma, say the member's name and ask "Shall I send them a request?", then call send_network_request with confirmed:true only after yes. Never say the phone number of another member back except the one the person just gave. If not a member, say so honestly and suggest inviting them from the Safety Network page.
 - To create a health reminder, ask one at a time: what it is for (doctor visit, hospital appointment, follow-up, medication, routine check, other), the date, the time, the place (optional), and when to be reminded (1 day before, 2 hours before, at the time). Today in Kampala is TODAY_PLACEHOLDER. Work out relative dates like "next Monday" or "tomorrow" yourself and say the actual date when reading back; never ask for the year. Read it all back, ask to confirm, then call create_health_reminder with confirmed:true.
 - Things you cannot do yet (filling other forms): say so honestly and open the right page.
@@ -296,14 +296,14 @@ export const Route = createFileRoute("/api/voice-assistant")({
             },
           }),
           find_facilities: tool({
-            description: "Find the nearest police stations, hospitals, fire stations or ambulance services to a named Ugandan area.",
-            inputSchema: z.object({ facility_type: z.enum(["police", "hospital", "fire", "ambulance", "shelter"]), area: z.string().nullable() }),
-            execute: async ({ facility_type, area }) => {
+            description: "Find the nearest requested police stations, hospitals, fire stations, ambulance services or shelters in one call.",
+            inputSchema: z.object({ facility_types: z.array(z.enum(["police", "hospital", "fire", "ambulance", "shelter"])).min(1).max(5), area: z.string().nullable() }),
+            execute: async ({ facility_types, area }) => {
               if (!supabase) return signIn;
               const { data, error } = await supabase
                 .from("facilities")
                 .select("name, address, district, latitude, longitude")
-                .eq("facility_type", facility_type)
+                .in("facility_type", [...new Set(facility_types)])
                 .limit(200);
               if (error) return { ok: false, message: error.message };
               const place = area ? resolveUgandaPlace(area) : null;
@@ -333,6 +333,7 @@ export const Route = createFileRoute("/api/voice-assistant")({
           const result = streamText({
             model: cfModel ?? gateway.responses("openai/gpt-6-astra"),
             maxRetries: 0,
+            maxOutputTokens: 200,
             system: `${SYSTEM.replace("TODAY_PLACEHOLDER", new Date().toLocaleDateString("en-GB", { timeZone: "Africa/Kampala", weekday: "long", year: "numeric", month: "long", day: "numeric" }))}${extra}\nThe person is currently on page: ${String(body.path ?? "/").slice(0, 80)}`,
             messages,
             tools,

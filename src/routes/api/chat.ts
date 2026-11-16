@@ -1,6 +1,6 @@
 import { classifyEmergency, classifyIncident, emergencyPromptBlock } from "@/lib/emergency-triage";
 import { facilityKind } from "@/lib/facility-kind";
-import { cleanAddress } from "@/lib/facility-results";
+import { cleanAddress, refineFacilities } from "@/lib/facility-results";
 import { chooseSearchOrigin } from "@/lib/location-origin";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
@@ -296,15 +296,25 @@ export const Route = createFileRoute("/api/chat")({
           { matches: /report (a )?(crime|theft|robbery|assault|burglar|fraud)|stolen|theft|robb|assault/i, flow: "Reporting", opener: 'What kind of incident is this? Options: "Theft", "Robbery", "Assault", "Something else".' },
           { matches: /find help|near me|nearest|police station|hospital|ambulance|fire station/i, flow: "Find help", opener: 'Which service do you need? Options: "Police station", "Hospital", "Fire station".' },
         ];
-        const directService = /hospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null;
+        const directFacilityTypes = [
+          [/\bpolice(?: station| post)?\b/i, "police"],
+          [/\b(?:hospital|clinic|pharmacy|pharmacist|doctor|health cent(?:re|er))\b/i, "hospital"],
+          [/\bambulance\b/i, "ambulance"],
+          [/\bfire (?:station|brigade|service)\b/i, "fire"],
+          [/\b(?:shelter|safe house)\b/i, "shelter"],
+        ]
+          .filter(([pattern]) => (pattern as RegExp).test(intakeText))
+          .map(([, type]) => type as "police" | "hospital" | "ambulance" | "fire" | "shelter");
+        const directService = directFacilityTypes[0] ??
+          (/\bhospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null);
         const emergencyIncident = flowState.flowLabel ? null : classifyIncident(intakeText);
         const emergencyKind = emergencyIncident ? classifyEmergency(intakeText) : null;
         // Matched incident's playbook section only — loaded with the procedure blocks below.
         const emergencyBlock = emergencyIncident ? emergencyPromptBlock(emergencyIncident, Boolean(sharedCoords)).trim() : "";
         const matchedIntent = emergencyKind ? undefined : INTENTS.find((i) => i.matches.test(intakeText));
         const intent = matchedIntent?.flow === "Find help" && directService ? undefined : matchedIntent;
-        const directHelpBlock = matchedIntent?.flow === "Find help" && directService
-          ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directService}. Do NOT open a flow, do NOT ask which service they need. Call find_facilities right away for that service in THIS reply — never wait for a location first. ${sharedCoords ? "Use their shared GPS location — unless they named a town or area (e.g. Jinja); then pass that as area, it overrides GPS." : "If the user named a town or area anywhere in the conversation, ALWAYS pass it as area (it overrides GPS). No GPS is shared: call find_facilities with area set to the area they named, or \"Kampala\" if none, and after the results say in one short line they can tap Share my location for places closest to them."} Never add a ::media card or ask for photos or files for this request. Then answer with a short friendly line and finish with "Would you like directions to any of these?"`
+        const directHelpBlock = directService
+          ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directFacilityTypes.length ? directFacilityTypes.join(" and ") : directService}. Do NOT open a flow or ask which service they need. Call find_facilities ONCE with facility_types=[${directFacilityTypes.length ? directFacilityTypes.join(", ") : directService}] in THIS reply. ${sharedCoords ? "Use their shared GPS location unless they named a town or area, which overrides GPS." : "Use an area they named anywhere in the conversation; otherwise use Kampala and briefly offer location sharing for closer places."} Do not add a media card. The UI renders facility cards, so do not generate a second description after the tool result.`
           : "";
         const intentBlock = directHelpBlock + (intent
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
@@ -330,19 +340,27 @@ export const Route = createFileRoute("/api/chat")({
         const activeFlow = flowState.flowLabel ?? intent?.flow ?? null;
         const isFirstTurn = !uiMessages.some((m) => m.role === "assistant");
         const fullMode = Boolean(activeFlow) || uiMessages.length > 4;
+        const isReportFlow = ["Reporting", "Missing person", "Lost & found"].includes(activeFlow ?? "");
+        const hasReportContext =
+          isReportFlow ||
+          Boolean(emergencyIncident) ||
+          Boolean(emergencyKind) ||
+          /\b(report|incident|crime|theft|robbery|assault|burglary|fraud|missing person|lost item|found item|stolen|kidnap|abduct)\b/i.test(intakeText);
         const needsLocation =
-          fullMode ||
+          activeFlow === "Find help" ||
           Boolean(sharedCoords) ||
           /location|near me|nearest|police station|hospital|fire station|ambulance|area|landmark/i.test(
             intakeText,
           );
         const promptBlocks = [ALLMA_CORE_PROMPT];
-        if (isFirstTurn) promptBlocks.push(ALLMA_ONBOARDING_BLOCK);
-        if (fullMode) promptBlocks.push(ALLMA_REPORTING_BLOCK);
+        if (isFirstTurn && !intent && !emergencyIncident && !directService) {
+          promptBlocks.push(ALLMA_ONBOARDING_BLOCK);
+        }
+        if (hasReportContext) promptBlocks.push(ALLMA_REPORTING_BLOCK);
         // Situation playbooks: loaded whenever a real safety situation is live.
         const needsProcedures =
-          fullMode ||
-          Boolean(intent) ||
+          (Boolean(activeFlow) && activeFlow !== "Find help") ||
+          (Boolean(intent) && intent.flow !== "Find help") ||
           Boolean(emergencyKind) ||
           /steal|stole|stolen|thief|theft|snatch|rob|assault|beat|attack|hurt|injur|missing|lost|found|violence|abuse|rape|defile|threaten|accident|crash|knock(ed)? (me|him|her)|fire|burn|smoke|bleed|unconscious|not breathing|choking|stroke|snake bite|burn|fraud|scam|conned|mobile money|momo|suspicious|kidnap|abduct/i.test(
             intakeText,
@@ -350,8 +368,13 @@ export const Route = createFileRoute("/api/chat")({
         if (needsProcedures) promptBlocks.push(ALLMA_PROCEDURES_BLOCK);
         if (emergencyBlock) promptBlocks.push(emergencyBlock);
         if (needsLocation) promptBlocks.push(ALLMA_LOCATION_BLOCK);
-        if (fullMode || memoryBlock) promptBlocks.push(ALLMA_MEMORY_BLOCK);
-        if (fullMode) promptBlocks.push(ALLMA_DETAIL_BLOCK);
+        if (
+          memoryBlock ||
+          /\b(remember|earlier|previous conversation|last time|my report|my reports|draft)\b/i.test(intakeText)
+        ) promptBlocks.push(ALLMA_MEMORY_BLOCK);
+        if (hasReportContext || (Boolean(intent) && intent.flow !== "Find help")) {
+          promptBlocks.push(ALLMA_DETAIL_BLOCK);
+        }
         const systemPrompt = promptBlocks.join("\n\n");
         mark("prompt");
 
@@ -398,10 +421,16 @@ export const Route = createFileRoute("/api/chat")({
         const reportProgress = (step: ProgressStep) => {
           progressSink?.(step);
         };
+        let facilityCardsRendered = false;
+        const facilityToolOutput = <T extends { facilities?: unknown }>(output: T) => {
+          if (Array.isArray(output.facilities)) facilityCardsRendered = true;
+          return output;
+        };
 
         const buildStream = (modelId: string) => streamText({
           model: resolveModel(modelId),
           maxRetries: 0,
+          maxOutputTokens: 384,
           abortSignal: request.signal,
           system: `${systemPrompt}\n\n${ALLMA_MARKER_CONTRACT}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
@@ -409,7 +438,7 @@ export const Route = createFileRoute("/api/chat")({
 
 
           messages: modelMessages,
-          stopWhen: stepCountIs(2),
+          stopWhen: [stepCountIs(2), () => facilityCardsRendered],
           ...providerOptionsFor(modelId),
           onChunk: ({ chunk }) => {
             if (chunk.type === "text-delta" || chunk.type === "text-start") {
@@ -559,36 +588,40 @@ export const Route = createFileRoute("/api/chat")({
                   return { ok: false, message: "The report could not be saved. Please try again." };
                 }
 
-                 const { error: activityError } = await supabase.from("safety_activity").insert({
-                   user_id: userId,
-                   activity_type: "report_submitted",
-                   title: "Incident report submitted",
-                   summary: input.title.slice(0, 1000),
-                   severity: input.risk_level,
-                   report_id: data.id,
-                   location_text: input.location_text,
-                   details: {
-                     channel: "allma_ai",
-                     report_type: input.report_type,
-                     category: input.category,
-                     reference: data.reference,
-                   } as never,
-                 });
-                 if (activityError) console.error("Failed to record report activity", activityError);
-
-                // Attach the photos and files uploaded in this conversation to the report
-                // so the evidence survives outside the chat transcript.
-                if (evidence.length) {
-                  const { error: evidenceError } = await supabase.from("report_evidence").insert(
-                    evidence.map((item) => ({
-                      report_id: data.id,
+                const followUpWrites: Promise<void>[] = [
+                  (async () => {
+                    const { error: activityError } = await supabase.from("safety_activity").insert({
                       user_id: userId,
-                      storage_path: item.path,
-                      media_type: item.mediaType,
-                    })),
-                  );
-                  if (evidenceError) console.error("Failed to link evidence", evidenceError);
+                      activity_type: "report_submitted",
+                      title: "Incident report submitted",
+                      summary: input.title.slice(0, 1000),
+                      severity: input.risk_level,
+                      report_id: data.id,
+                      location_text: input.location_text,
+                      details: {
+                        channel: "allma_ai",
+                        report_type: input.report_type,
+                        category: input.category,
+                        reference: data.reference,
+                      } as never,
+                    });
+                    if (activityError) console.error("Failed to record report activity", activityError);
+                  })(),
+                ];
+                if (evidence.length) {
+                  followUpWrites.push((async () => {
+                    const { error: evidenceError } = await supabase.from("report_evidence").insert(
+                      evidence.map((item) => ({
+                        report_id: data.id,
+                        user_id: userId,
+                        storage_path: item.path,
+                        media_type: item.mediaType,
+                      })),
+                    );
+                    if (evidenceError) console.error("Failed to link evidence", evidenceError);
+                  })());
                 }
+                await Promise.all(followUpWrites);
 
 
 
@@ -597,12 +630,14 @@ export const Route = createFileRoute("/api/chat")({
             }),
             find_facilities: tool({
               description:
-                "Find nearby help: police stations, hospitals, fire stations, ambulance services or safe shelters. If the user named a town/area, pass it as area — it overrides GPS. If the result has location_unconfirmed, say you couldn't confirm their location and ask them to share or type it; never list far-away places.",
+                "Find nearby help in ONE call. Include every requested type in facility_types (police, hospital, fire, ambulance, shelter). A named town overrides GPS. The UI renders place cards; do not repeat results after this tool returns.",
               inputSchema: z.object({
-                facility_type: z.enum(["police", "hospital", "fire", "ambulance", "shelter"]),
+                facility_types: z.array(z.enum(["police", "hospital", "fire", "ambulance", "shelter"])).min(1).max(5),
                 area: z.string().nullable().describe("Optional district or area name"),
               }),
-              execute: async ({ facility_type, area }) => {
+              execute: async ({ facility_types, area }) => {
+                const requestedTypes = [...new Set(facility_types)];
+                const facility_type = requestedTypes[0];
                 reportProgress("finding");
                 const searchStarted = Date.now();
                 const { inUganda, MAX_NEARBY_KM, haversineKm } = await import("@/lib/nearby-guard");
@@ -615,10 +650,12 @@ export const Route = createFileRoute("/api/chat")({
                   fire: ["fire_station"],
                   shelter: ["police", "hospital"],
                 };
+                const placeTypes = [...new Set(requestedTypes.flatMap((type) => typesFor[type] ?? [type]))];
                 const unconfirmed = {
                   ok: false,
                   location_unconfirmed: true,
                   emergency_type: facility_type,
+                  emergency_types: requestedTypes,
                   facilities: [],
                   message:
                     "I couldn't confirm your location, so I won't guess. Tell the user plainly, give the emergency numbers (999 police, 112 toll-free), and ask them to tap Share my location or type their town or area.",
@@ -628,7 +665,7 @@ export const Route = createFileRoute("/api/chat")({
                 const named = picked.kind === "named";
                 const origin = picked.kind === "none" ? null : { lat: picked.lat, lng: picked.lng, label: picked.label };
                 if (!origin) {
-                  if (area || sharedCoords) return unconfirmed;
+                  if (area || sharedCoords) return facilityToolOutput(unconfirmed);
                 }
                 if (origin) {
                   try {
@@ -639,44 +676,48 @@ export const Route = createFileRoute("/api/chat")({
                         longitude: origin.lng,
                         radiusMeters: named ? 15000 : 8000,
                         limit: 8,
-                        types: typesFor[facility_type] ?? [facility_type],
+                        types: placeTypes,
                       }),
                       6000,
                       [],
                       "lookup-nearby-places",
                     )).filter((p) => inUganda(p.latitude, p.longitude) && p.distance_m / 1000 <= MAX_NEARBY_KM);
                     mark("places_search");
-                    const { refineFacilities } = await import("@/lib/facility-results");
-                    const refined = await refineFacilities(near, facility_type, async (missing) => {
+                    const refined = await refineFacilities(near, requestedTypes, async (missing) => {
                       if (phoneLookupBudgetLeft(searchStarted, Date.now(), 6000) <= 0) return {};
                       reportProgress("phones");
                       const { fetchPlacePhones } = await import("@/lib/places.server");
-                      const phones = await fetchPlacePhones(
-                        missing.filter((m) => m.id.startsWith("google:")).map((m) => m.id),
-                        { startedAt: searchStarted, budgetMs: 6000 },
-                      );
-                      const names = missing.filter((m) => !phones[m.id]).map((m) => m.name.split(/\s+/).slice(0, 2).join(" "));
-                      if (names.length && phoneLookupBudgetLeft(searchStarted, Date.now(), 6000) > 0) {
-                        const rows = await withTimeoutFallback(
+                      const names = [...new Set(missing.map((m) => m.name.split(/\s+/).slice(0, 2).join(" ")))];
+                      const directoryLookup = names.length
+                        ? withTimeoutFallback(
                           supabase.from("facilities").select("name, phone").not("phone", "is", null).or(names.map((n) => `name.ilike.%${n.replace(/[,%()]/g, "")}%`).join(",")).limit(40).then((res) => res.data ?? null),
                           2000,
                           null,
                           "facility-phones",
-                        );
-                        for (const m of missing) {
-                          if (phones[m.id]) continue;
-                          const hit = (rows ?? []).find((r) => r.phone && r.name.toLowerCase().includes(m.name.split(/\s+/).slice(0, 2).join(" ").toLowerCase()));
-                          if (hit?.phone) phones[m.id] = hit.phone;
-                        }
+                        )
+                        : Promise.resolve(null);
+                      const [phones, rows] = await Promise.all([
+                        fetchPlacePhones(
+                          missing.filter((m) => m.id.startsWith("google:")).map((m) => m.id),
+                          { startedAt: searchStarted, budgetMs: 6000 },
+                        ),
+                        directoryLookup,
+                      ]);
+                      for (const m of missing) {
+                        if (phones[m.id]) continue;
+                        const name = m.name.split(/\s+/).slice(0, 2).join(" ").toLowerCase();
+                        const hit = (rows ?? []).find((r) => r.phone && r.name.toLowerCase().includes(name));
+                        if (hit?.phone) phones[m.id] = hit.phone;
                       }
                       mark("place_phones");
                       return phones;
                     }, { emergency: medicalEmergency });
                     if (refined.length) {
-                      return {
+                      return facilityToolOutput({
                         ok: true,
                         resolved_area: origin.label,
                         emergency_type: facility_type,
+                        emergency_types: requestedTypes,
                         count: refined.length,
                         facilities: refined.map((p) => ({
                           name: p.name,
@@ -690,8 +731,8 @@ export const Route = createFileRoute("/api/chat")({
                           photo_url: p.photo_name ? `/api/public/place-photo?name=${encodeURIComponent(p.photo_name)}` : null,
                           distance_km: Math.round(p.distance_m / 100) / 10,
                         })),
-                        note: `Showing exactly ${refined.length} ${facility_type} place(s), sorted by straight-line distance from ${origin.label}. The cards already show them. If you state a number, it MUST be ${refined.length}. If you name a place in text, use ONLY a name from this list with its exact distance_km — never any other place, city or distance; never state travel time.`,
-                      };
+                        note: `Showing exactly ${refined.length} place(s) across ${requestedTypes.join(" and ")}, sorted by straight-line distance from ${origin.label}. The cards already show them; never state travel time.`,
+                      });
                     }
                   } catch (err) {
                     console.warn("Nearby places lookup failed; using directory.", err);
@@ -699,7 +740,7 @@ export const Route = createFileRoute("/api/chat")({
                   const { data, error } = await supabase
                     .from("facilities")
                     .select("name, facility_type, phone, address, district, latitude, longitude")
-                    .eq("facility_type", facility_type)
+                    .in("facility_type", requestedTypes)
                     .not("latitude", "is", null)
                     .not("longitude", "is", null);
                   if (error) return { ok: false, message: "Directory lookup failed." };
@@ -714,19 +755,19 @@ export const Route = createFileRoute("/api/chat")({
                     .sort((a, b) => a.distance_km - b.distance_km)
                     .slice(0, 5);
                   if (ranked.length) {
-                    return { ok: true, resolved_area: origin.label, emergency_type: facility_type, count: ranked.length, facilities: ranked.map((r) => ({ ...r, type_label: facilityKind(r.facility_type, r.name) })), note: `Showing exactly ${ranked.length} place(s); if you state a number it MUST be ${ranked.length}. distance_km is straight-line; never state travel time.` };
+                    return facilityToolOutput({ ok: true, resolved_area: origin.label, emergency_type: facility_type, emergency_types: requestedTypes, count: ranked.length, facilities: ranked.map((r) => ({ ...r, type_label: facilityKind(r.facility_type, r.name) })), note: `Showing exactly ${ranked.length} place(s); distance_km is straight-line; never state travel time.` });
                   }
-                  return unconfirmed;
+                  return facilityToolOutput(unconfirmed);
                 }
                 // No area and no GPS: national directory list, no distances.
                 const { data, error } = await supabase
                   .from("facilities")
                   .select("name, facility_type, phone, address, district")
-                  .eq("facility_type", facility_type)
+                  .in("facility_type", requestedTypes)
                   .ilike("district", "%Kampala%")
                   .limit(5);
                 if (error) return { ok: false, message: "Directory lookup failed." };
-                return { ok: true, resolved_area: "Kampala (share your location for closer places)", emergency_type: facility_type, count: (data ?? []).length, facilities: data ?? [], note: `Showing exactly ${(data ?? []).length} place(s); don't state a different number.` };
+                return facilityToolOutput({ ok: true, resolved_area: "Kampala (share your location for closer places)", emergency_type: facility_type, emergency_types: requestedTypes, count: (data ?? []).length, facilities: data ?? [], note: `Showing exactly ${(data ?? []).length} place(s); don't state a different number.` });
               },
             }),
             list_alerts: tool({
@@ -998,22 +1039,20 @@ export const Route = createFileRoute("/api/chat")({
               sdk_message_id: responseMessage.id,
             });
 
-            const { error } = await supabase.from("messages").insert(rows);
-            if (error) console.error("Failed to persist messages", error);
-
             const title = lastUserMessage ? textOf(lastUserMessage).slice(0, 60) : null;
-            const { error: threadError } = await supabase
-              .from("threads")
-              .update({ updated_at: new Date().toISOString(), ...(title ? { title } : {}) })
-              .eq("id", threadId)
-              .eq("title", "New conversation");
-            if (threadError) console.error("Failed to update thread", threadError);
-
-            const { error: touchError } = await supabase
-              .from("threads")
-              .update({ updated_at: new Date().toISOString() })
-              .eq("id", threadId);
-            if (touchError) console.error("Failed to touch thread", touchError);
+            const updatedAt = new Date().toISOString();
+            const [messageInsert, titleUpdate, threadTouch] = await Promise.all([
+              supabase.from("messages").insert(rows),
+              supabase
+                .from("threads")
+                .update({ updated_at: updatedAt, ...(title ? { title } : {}) })
+                .eq("id", threadId)
+                .eq("title", "New conversation"),
+              supabase.from("threads").update({ updated_at: updatedAt }).eq("id", threadId),
+            ]);
+            if (messageInsert.error) console.error("Failed to persist messages", messageInsert.error);
+            if (titleUpdate.error) console.error("Failed to update thread", titleUpdate.error);
+            if (threadTouch.error) console.error("Failed to touch thread", threadTouch.error);
           },
         });
 

@@ -100,11 +100,18 @@ export function filterAndDedupe<T extends Place>(places: T[], facilityType: stri
 
 export async function refineFacilities<T extends Place>(
   places: T[],
-  facilityType: string,
+  facilityType: string | string[],
   lookupPhones: (missing: Array<{ id: string; name: string }>) => Promise<Record<string, string>>,
   options: FilterOptions = {},
 ) {
-  const list = filterAndDedupe(places, facilityType, options);
+  const facilityTypes = Array.isArray(facilityType) ? [...new Set(facilityType)] : [facilityType];
+  const list = [
+    ...new Map(
+      facilityTypes
+        .flatMap((type) => filterAndDedupe(places, type, options))
+        .map((place) => [place.id, place]),
+    ).values(),
+  ];
   for (const p of list) if (typeof p.phone === "string" && !p.phone.trim()) p.phone = null;
   const missing = list.filter((p) => !p.phone).map((p) => ({ id: p.id, name: p.name }));
   if (missing.length) {
