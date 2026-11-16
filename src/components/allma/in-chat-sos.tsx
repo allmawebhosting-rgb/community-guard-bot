@@ -4,14 +4,9 @@ import {
   ExternalLink,
   Loader2,
   MapPin,
-  Mic,
-  MicOff,
   Navigation,
   Phone,
-  PhoneOff,
   ShieldAlert,
-  Volume2,
-  VolumeX,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -60,7 +55,17 @@ function compactDistance(meters: number) {
  * SOS inside the chat. Only starts when the user taps Press SOS, then a 3-second
  * cancellable countdown. Every status shown comes from the real SOS record and call rows.
  */
-export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines: Line[] }) {
+export function InChatSos({
+  type,
+  lines,
+  onActivityStarted,
+  onActivityEnded,
+}: {
+  type: keyof typeof TYPE_MAP;
+  lines: Line[];
+  onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
+  onActivityEnded?: (activityId: string) => void;
+}) {
   const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>("idle");
   const [left, setLeft] = useState(COUNTDOWN);
@@ -77,10 +82,15 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
   const [ending, setEnding] = useState(false);
   const inlineCall = useSosInlineCall();
   const timer = useRef<number | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const detailsRef = useRef<Record<string, unknown>>({});
   const lastLocationSync = useRef<{ lat: number; lng: number; at: number } | null>(null);
 
   useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
+
+  useEffect(() => {
+    if (phase === "active" && activityId) onActivityStarted?.(activityId, cardRef.current);
+  }, [activityId, onActivityStarted, phase]);
 
   useEffect(() => {
     if (phase !== "active" || !activityId || !navigator.geolocation) return;
@@ -327,6 +337,7 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
     mic?.getTracks().forEach((t) => t.stop());
     setEndedAt(Date.now());
     setPhase("ended");
+    if (activityId) onActivityEnded?.(activityId);
     setEnding(false);
   }
 
@@ -385,7 +396,7 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
 
   if (phase === "active") {
     return (
-      <div className="space-y-2 rounded-xl border border-destructive/40 bg-card p-2.5">
+      <div ref={cardRef} className="space-y-2 rounded-xl border border-destructive/40 bg-card p-2.5">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <p className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-destructive">
             <span className="relative flex h-2 w-2">
@@ -430,26 +441,9 @@ export function InChatSos({ type, lines }: { type: keyof typeof TYPE_MAP; lines:
               <span className="rounded-full border border-success/35 bg-success/10 px-2 py-0.5 text-[9px] font-bold tracking-wide text-success">
                 {activeCall.status === "connected" ? "CONNECTED" : "CONNECTING"}
               </span>
-              {activeCall.status === "connected" && (
-                <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                  {String(Math.floor(activeCall.seconds / 60)).padStart(2, "0")}:{String(activeCall.seconds % 60).padStart(2, "0")}
-                </span>
-              )}
             </div>
             {activeCall.status === "connected" && (
-              <div className="mt-1.5 grid grid-cols-3 gap-1">
-                <button type="button" onClick={() => runSosInlineCallAction("toggleMute")} className="flex min-h-8 items-center justify-center gap-1 rounded-md border border-border bg-background px-1 text-[10px] font-semibold">
-                  {activeCall.muted ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-                  {activeCall.muted ? "Unmute" : "Mute"}
-                </button>
-                <button type="button" onClick={() => runSosInlineCallAction("toggleSpeaker")} className="flex min-h-8 items-center justify-center gap-1 rounded-md border border-border bg-background px-1 text-[10px] font-semibold">
-                  {activeCall.speaker ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-                  {activeCall.speaker ? "Speaker" : "Earpiece"}
-                </button>
-                <button type="button" onClick={() => runSosInlineCallAction("hangUp")} className="flex min-h-8 items-center justify-center gap-1 rounded-md bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
-                  <PhoneOff className="h-3.5 w-3.5" /> Hang up
-                </button>
-              </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">Call controls are pinned above the chat.</p>
             )}
           </section>
         ) : (

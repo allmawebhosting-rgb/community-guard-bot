@@ -131,6 +131,41 @@ export async function sendSosRoomMessage(sosActivityId: string, body: string) {
   if (error) throw new Error(friendly(error.message));
 }
 
+export async function sendSosRoomVoiceNote(sosActivityId: string, clip: Blob) {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth.user?.id;
+  if (!userId) throw new Error("Please sign in to send a voice note.");
+  if (!clip.size) throw new Error("That recording was empty — please try again.");
+
+  const mimeType = clip.type.split(";")[0] || "application/octet-stream";
+  if (!mimeType.startsWith("audio/")) throw new Error("This recording format is not supported.");
+  const extension = mimeType.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "audio";
+  const path = `${sosActivityId}/${userId}/${crypto.randomUUID()}.${extension}`;
+  const { error: uploadError } = await supabase.storage
+    .from("emergency-chat-voice")
+    .upload(path, clip, { contentType: mimeType, upsert: false });
+  if (uploadError) throw new Error(friendly(uploadError.message));
+
+  const { error } = await supabase.from("emergency_chat_events").insert({
+    sos_session_id: sosActivityId,
+    author_id: userId,
+    event_type: "voice_note",
+    body: path,
+  });
+  if (error) {
+    await supabase.storage.from("emergency-chat-voice").remove([path]);
+    throw new Error(friendly(error.message));
+  }
+}
+
+export async function getSosRoomVoiceNoteUrl(path: string) {
+  const { data, error } = await supabase.storage
+    .from("emergency-chat-voice")
+    .createSignedUrl(path, 3600);
+  if (error || !data?.signedUrl) throw new Error(friendly(error?.message ?? ""));
+  return data.signedUrl;
+}
+
 /** Live message stream for one emergency room. */
 export function subscribeSosRoomMessages(
   sosActivityId: string,

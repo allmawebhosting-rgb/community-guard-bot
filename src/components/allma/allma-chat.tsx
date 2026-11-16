@@ -1,7 +1,7 @@
 import { InChatSos } from "@/components/allma/in-chat-sos";
-import { markSosIntent } from "@/lib/sos-intent";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { toast } from "sonner";
@@ -23,8 +23,10 @@ import {
   MapPin,
   Megaphone,
   Mic,
+  MicOff,
   Paperclip,
   Phone,
+  PhoneOff,
   Plus,
   Search,
   Shield,
@@ -43,6 +45,7 @@ import {
   RotateCcw,
   Square,
   Volume2,
+  VolumeX,
   SendHorizontal,
   ChevronRight,
   Star,
@@ -83,6 +86,18 @@ import {
 import { KIND_LABEL } from "@/lib/facility-results";
 import { facilityKind } from "@/lib/facility-kind";
 import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
+import { useAuth } from "@/hooks/useAuth";
+import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
+import {
+  getSosRoomVoiceNoteUrl,
+  sendSosRoomMessage,
+  sendSosRoomVoiceNote,
+  sosRoomMessagesQueryOptions,
+  sosRoomQueryOptions,
+  subscribeSosRoomMessages,
+  type SosRoomMessage,
+} from "@/lib/sos-rooms";
+import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 
 
 type ToolPart = {
@@ -420,6 +435,10 @@ const EmergencyShownContext = createContext(false);
 const IncidentContext = createContext<Incident | null>(null);
 /** True when this message's find_facilities results already listed places. */
 const HasPlacesContext = createContext(false);
+const SosActivityContext = createContext<{
+  onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
+  onActivityEnded?: (activityId: string) => void;
+}>({});
 
 /** Numbered first-aid steps + red flags, shown when the reply itself skipped them. */
 function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | null }) {
@@ -445,13 +464,22 @@ function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | nul
 
 /** Red "Press SOS" (user taps — never automatic) + one call button per number. */
 function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
-  return <InChatSos type={type} lines={EMERGENCY_BLOCK_LINES[type]} />;
+  const sosActivity = useContext(SosActivityContext);
+  return (
+    <InChatSos
+      type={type}
+      lines={EMERGENCY_BLOCK_LINES[type]}
+      onActivityStarted={sosActivity.onActivityStarted}
+      onActivityEnded={sosActivity.onActivityEnded}
+    />
+  );
 }
 
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const navigate = useNavigate();
   const emergencyShown = useContext(EmergencyShownContext);
   const incident = useContext(IncidentContext);
+  const sosActivity = useContext(SosActivityContext);
   const facilities = output.facilities as Array<Record<string, unknown>>;
   const t = String(output.emergency_type ?? facilities[0]?.facility_type ?? "");
   // SOS + call buttons only when the user described a real emergency — never for a plain "nearest hospital" search.
@@ -467,22 +495,12 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
   return (
     <div className="w-full space-y-2.5">
       {kind && !emergencyShown ? (
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => { markSosIntent(); void navigate({ to: "/sos", search: { instant: true } }); }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3.5 text-[15px] font-semibold text-destructive-foreground active:scale-[0.98]"
-          >
-            <ShieldAlert className="h-5 w-5 shrink-0" /> Getting worse? Activate SOS
-          </button>
-          <div className="flex flex-col gap-2">
-            {EMERGENCY_BLOCK_LINES[kind].map((h) => (
-              <a key={h.number + h.label} href={`tel:${h.number}`} className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-destructive/35 bg-destructive/5 px-3 py-2.5 text-[13.5px] font-semibold text-destructive">
-                <Phone className="h-3.5 w-3.5 shrink-0" /><span className="whitespace-nowrap">Call {h.number}{h.number === "999" ? " Police" : " Toll-free"}</span>
-              </a>
-            ))}
-          </div>
-        </div>
+        <InChatSos
+          type={kind}
+          lines={EMERGENCY_BLOCK_LINES[kind]}
+          onActivityStarted={sosActivity.onActivityStarted}
+          onActivityEnded={sosActivity.onActivityEnded}
+        />
       ) : null}
       {facilities.length === 0 ? (
         <p className="rounded-2xl border border-border/60 bg-card p-3.5 text-[14px] leading-relaxed text-foreground">{output.location_unconfirmed ? "I couldn't confirm where you are, so I won't show places that may be far away. Tap Share my location or type your town or area." : "No places found nearby. Share your location or type your town or area."}</p>
@@ -1041,6 +1059,22 @@ export function AllmaChat({
   const [uploading, setUploading] = useState(false);
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
+  const [activeSosActivity, setActiveSosActivity] = useState<{ id: string; active: boolean } | null>(null);
+  const [voiceNoteUrls, setVoiceNoteUrls] = useState<Record<string, string>>({});
+  const [voiceNoteUrlErrors, setVoiceNoteUrlErrors] = useState<Set<string>>(() => new Set());
+  const [sosVoiceNoteRecording, setSosVoiceNoteRecording] = useState(false);
+  const [sosVoiceNoteUploading, setSosVoiceNoteUploading] = useState(false);
+  const [sosVoiceNoteSeconds, setSosVoiceNoteSeconds] = useState(0);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const inlineCall = useSosInlineCall();
+  const voiceNoteRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceNoteStreamRef = useRef<MediaStream | null>(null);
+  const voiceNoteChunksRef = useRef<Blob[]>([]);
+  const voiceNoteTimerRef = useRef<number | null>(null);
+  const voiceNoteActivityIdRef = useRef<string | null>(null);
+  const voiceNoteCancelledRef = useRef(false);
+  const voiceNoteUrlRequestsRef = useRef(new Set<string>());
   const [pendingAccept, setPendingAccept] = useState<string | undefined>();
   const [pendingCapture, setPendingCapture] = useState<"environment" | undefined>();
   // Storage paths of everything uploaded in this conversation, so a report filed
@@ -1111,6 +1145,85 @@ export function AllmaChat({
   });
 
   const busy = status === "submitted" || status === "streaming";
+  const sosActivityId = inlineCall?.activityId ?? activeSosActivity?.id ?? null;
+  const sosIsActive =
+    activeSosActivity?.id === sosActivityId
+      ? activeSosActivity.active
+      : Boolean(inlineCall?.activityId === sosActivityId);
+  const sosRoomQuery = useQuery(sosRoomQueryOptions(sosActivityId));
+  const sosRoom = sosRoomQuery.data ?? null;
+  const sosMessagesQuery = useQuery(sosRoomMessagesQueryOptions(sosActivityId));
+  const sosMessages = useMemo(() => sosMessagesQuery.data ?? [], [sosMessagesQuery.data]);
+
+  useEffect(() => {
+    if (!sosActivityId) return;
+    return subscribeSosRoomMessages(sosActivityId, (incoming) => {
+      queryClient.setQueryData<SosRoomMessage[]>(
+        ["sos-room-messages", sosActivityId],
+        (current) => {
+          const rows = current ?? [];
+          if (rows.some((row) => row.id === incoming.id)) return rows;
+          return [...rows, incoming].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+          );
+        },
+      );
+    });
+  }, [queryClient, sosActivityId]);
+
+  useEffect(() => {
+    setVoiceNoteUrls({});
+    setVoiceNoteUrlErrors(new Set());
+    voiceNoteUrlRequestsRef.current.clear();
+  }, [sosActivityId]);
+
+  useEffect(() => {
+    if (!sosActivityId) return;
+    let cancelled = false;
+    const pending = sosMessages.filter(
+      (message) =>
+        message.event_type === "voice_note" &&
+        message.body &&
+        !voiceNoteUrlRequestsRef.current.has(message.id),
+    );
+    for (const message of pending) {
+      voiceNoteUrlRequestsRef.current.add(message.id);
+      void getSosRoomVoiceNoteUrl(message.body)
+        .then((url) => {
+          if (!cancelled) setVoiceNoteUrls((current) => ({ ...current, [message.id]: url }));
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setVoiceNoteUrlErrors((current) => new Set(current).add(message.id));
+          }
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [sosActivityId, sosMessages]);
+
+  const sosRoomPeople = useMemo(() => {
+    const people = new Map<string, { name: string; avatar: string | null; role: string }>();
+    if (sosRoom) {
+      people.set(sosRoom.owner_id, {
+        name: sosRoom.sender_name,
+        avatar: sosRoom.sender_avatar_url,
+        role: "owner",
+      });
+      for (const participant of sosRoom.participants) {
+        people.set(participant.user_id, {
+          name: participant.name,
+          avatar: participant.avatar_url,
+          role: participant.role,
+        });
+      }
+    }
+    return people;
+  }, [sosRoom]);
+  const visibleSosMessages = sosMessages.filter(
+    (message) => message.event_type === "user_message" || message.event_type === "voice_note",
+  );
 
   useEffect(() => {
     if (status === "ready" || status === "error") setServerProgress([]);
@@ -1487,7 +1600,168 @@ export function AllmaChat({
     );
   }, [send]);
 
+  const handleSosActivityStarted = useCallback((activityId: string, card: HTMLDivElement | null) => {
+    setActiveSosActivity({ id: activityId, active: true });
+    requestAnimationFrame(() => card?.scrollIntoView({ behavior: "smooth", block: "end" }));
+  }, []);
+
+  const handleSosActivityEnded = useCallback((activityId: string) => {
+    setActiveSosActivity((current) =>
+      current?.id === activityId ? { ...current, active: false } : current,
+    );
+  }, []);
+
+  const sosActivityContextValue = useMemo(
+    () => ({
+      onActivityStarted: handleSosActivityStarted,
+      onActivityEnded: handleSosActivityEnded,
+    }),
+    [handleSosActivityEnded, handleSosActivityStarted],
+  );
+
+  const sendRoomText = useCallback(
+    async (text: string) => {
+      if (!sosActivityId) return false;
+      try {
+        await sendSosRoomMessage(sosActivityId, text);
+        await queryClient.invalidateQueries({ queryKey: ["sos-room-messages", sosActivityId] });
+        return true;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Message not sent.");
+        return false;
+      }
+    },
+    [queryClient, sosActivityId],
+  );
+
+  const sendVoiceNote = useCallback(
+    async (activityId: string, clip: Blob) => {
+      setSosVoiceNoteUploading(true);
+      try {
+        await sendSosRoomVoiceNote(activityId, clip);
+        await queryClient.invalidateQueries({ queryKey: ["sos-room-messages", activityId] });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Voice note not sent.");
+      } finally {
+        setSosVoiceNoteUploading(false);
+      }
+    },
+    [queryClient],
+  );
+
+  const stopSosVoiceNote = useCallback((discard = false) => {
+    if (discard) voiceNoteCancelledRef.current = true;
+    if (voiceNoteTimerRef.current !== null) {
+      window.clearInterval(voiceNoteTimerRef.current);
+      voiceNoteTimerRef.current = null;
+    }
+    const recorder = voiceNoteRecorderRef.current;
+    if (recorder?.state === "recording") recorder.stop();
+    setSosVoiceNoteRecording(false);
+  }, []);
+
+  const startSosVoiceNote = useCallback(async () => {
+    if (!sosActivityId || !sosIsActive || sosVoiceNoteUploading) return;
+    if (recording || transcribing) {
+      toast.message("Stop voice input before recording a responder voice note.");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error("Voice note recording is not supported on this device.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const supportedType = [
+        "audio/webm;codecs=opus",
+        "audio/mp4",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+      ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+      const recorder = supportedType
+        ? new MediaRecorder(stream, { mimeType: supportedType })
+        : new MediaRecorder(stream);
+      voiceNoteStreamRef.current = stream;
+      voiceNoteRecorderRef.current = recorder;
+      voiceNoteActivityIdRef.current = sosActivityId;
+      voiceNoteChunksRef.current = [];
+      voiceNoteCancelledRef.current = false;
+      setSosVoiceNoteSeconds(0);
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) voiceNoteChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const activityId = voiceNoteActivityIdRef.current;
+        const chunks = voiceNoteChunksRef.current;
+        const mimeType = recorder.mimeType || chunks[0]?.type || "audio/webm";
+        const cancelled = voiceNoteCancelledRef.current;
+        voiceNoteStreamRef.current?.getTracks().forEach((track) => track.stop());
+        voiceNoteStreamRef.current = null;
+        voiceNoteRecorderRef.current = null;
+        voiceNoteActivityIdRef.current = null;
+        voiceNoteChunksRef.current = [];
+        voiceNoteCancelledRef.current = false;
+        setSosVoiceNoteRecording(false);
+        setSosVoiceNoteSeconds(0);
+        if (cancelled) return;
+        const clip = new Blob(chunks, { type: mimeType });
+        if (!activityId || clip.size < 1000) {
+          toast.error("That recording was empty — please try again.");
+          return;
+        }
+        void sendVoiceNote(activityId, clip);
+      };
+      recorder.start(1000);
+      setSosVoiceNoteRecording(true);
+      voiceNoteTimerRef.current = window.setInterval(() => {
+        setSosVoiceNoteSeconds((current) => {
+          const next = current + 1;
+          if (next >= 120) {
+            window.setTimeout(() => {
+              if (voiceNoteRecorderRef.current?.state === "recording") {
+                voiceNoteRecorderRef.current.stop();
+              }
+            }, 0);
+            return 120;
+          }
+          return next;
+        });
+      }, 1000);
+    } catch (error) {
+      voiceNoteStreamRef.current?.getTracks().forEach((track) => track.stop());
+      voiceNoteStreamRef.current = null;
+      toast.error(error instanceof Error ? error.message : "Microphone access was unavailable.");
+    }
+  }, [recording, sendVoiceNote, sosActivityId, sosIsActive, sosVoiceNoteUploading, transcribing]);
+
+  const toggleSosVoiceNote = useCallback(() => {
+    if (sosVoiceNoteRecording) stopSosVoiceNote();
+    else void startSosVoiceNote();
+  }, [sosVoiceNoteRecording, startSosVoiceNote, stopSosVoiceNote]);
+
+  useEffect(() => {
+    if (!sosIsActive && voiceNoteRecorderRef.current?.state === "recording") {
+      stopSosVoiceNote(true);
+    }
+  }, [sosIsActive, stopSosVoiceNote]);
+
+  useEffect(
+    () => () => {
+      voiceNoteCancelledRef.current = true;
+      if (voiceNoteTimerRef.current !== null) window.clearInterval(voiceNoteTimerRef.current);
+      if (voiceNoteRecorderRef.current?.state === "recording") voiceNoteRecorderRef.current.stop();
+      voiceNoteStreamRef.current?.getTracks().forEach((track) => track.stop());
+    },
+    [],
+  );
+
+  const composerRecording = sosIsActive ? sosVoiceNoteRecording : recording;
+  const composerRecordingSeconds = sosIsActive ? sosVoiceNoteSeconds : seconds;
+  const composerMicBusy = sosIsActive ? sosVoiceNoteUploading : transcribing;
+
   return (
+    <SosActivityContext.Provider value={sosActivityContextValue}>
     <div className={cn("chat-canvas flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
       {/* Hidden file input for attachment sheet */}
       <input
@@ -1513,7 +1787,62 @@ export function AllmaChat({
         }}
       />
 
-      {isEmpty ? (
+      {inlineCall?.status === "connected" &&
+      inlineCall.activityId === sosActivityId &&
+      sosIsActive ? (
+        <div
+          role="status"
+          aria-label="Emergency call connected"
+          className="sticky top-0 z-30 flex shrink-0 items-center gap-2.5 border-b border-success/30 bg-background/95 px-3 py-2 shadow-sm backdrop-blur sm:px-4"
+        >
+          <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+            <span className="relative h-2.5 w-2.5 rounded-full bg-success" />
+          </span>
+          <Avatar name={inlineCall.name} url={inlineCall.avatarUrl ?? null} size={32} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold leading-tight text-foreground">
+              {inlineCall.name}
+            </p>
+            <p className="truncate text-[10px] leading-tight text-muted-foreground">
+              {inlineCall.safetyRole || "Safety contact"} · Connected
+            </p>
+          </div>
+          <span className="font-mono text-[13px] font-semibold tabular-nums text-foreground">
+            {String(Math.floor(inlineCall.seconds / 60)).padStart(2, "0")}:
+            {String(inlineCall.seconds % 60).padStart(2, "0")}
+          </span>
+          <button
+            type="button"
+            onClick={() => void runSosInlineCallAction("toggleMute")}
+            aria-label={inlineCall.muted ? "Unmute call" : "Mute call"}
+            title={inlineCall.muted ? "Unmute" : "Mute"}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground hover:bg-muted"
+          >
+            {inlineCall.muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => void runSosInlineCallAction("toggleSpeaker")}
+            aria-label={inlineCall.speaker ? "Use earpiece" : "Use speaker"}
+            title={inlineCall.speaker ? "Speaker on" : "Speaker off"}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground hover:bg-muted"
+          >
+            {inlineCall.speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => void runSosInlineCallAction("hangUp")}
+            aria-label="Hang up emergency call"
+            title="Hang up"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground hover:opacity-90"
+          >
+            <PhoneOff className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+
+      {isEmpty && visibleSosMessages.length === 0 ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
           <div className="mx-auto w-full px-0 pb-6 lg:px-0">
             <AssistantHero onSelect={send} />
@@ -1712,6 +2041,99 @@ export function AllmaChat({
                   </div>
                 </Message>
               ))}
+              {sosActivityId && (sosIsActive || visibleSosMessages.length > 0) ? (
+                <section aria-label="SOS group chat" className="space-y-3 rounded-2xl border border-success/25 bg-success/[0.035] p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-foreground">
+                      SOS group chat
+                    </p>
+                    <span className="flex items-center gap-1.5 text-[10px] font-semibold text-success">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                      {sosIsActive ? "Live" : "Recent"}
+                    </span>
+                  </div>
+                  {visibleSosMessages.length === 0 ? (
+                    <p className="text-[12px] text-muted-foreground">No responder messages yet. Messages and voice notes will appear here.</p>
+                  ) : null}
+                  {visibleSosMessages.map((message) => {
+                    const mine = message.author_id === user?.id;
+                    const person = message.author_id ? sosRoomPeople.get(message.author_id) : undefined;
+                    const relationship =
+                      person?.role === "owner"
+                        ? "SOS caller"
+                        : person?.role === "responder"
+                          ? "Responder"
+                          : person?.role === "contact"
+                            ? "Safety contact"
+                            : "Member";
+                    const voiceNote = message.event_type === "voice_note";
+                    return (
+                      <div
+                        key={message.id}
+                        className={cn("flex items-end gap-2", mine && "flex-row-reverse")}
+                      >
+                        <Avatar
+                          name={person?.name ?? "Allma member"}
+                          url={person?.avatar ?? null}
+                          size={30}
+                        />
+                        <div className={cn("min-w-0 max-w-[84%]", mine && "text-right")}>
+                          <div className={cn("mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px]", mine && "justify-end")}>
+                            <span className="font-semibold text-foreground">
+                              {mine ? "You" : person?.name ?? "Allma member"}
+                            </span>
+                            <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
+                              {relationship}
+                            </span>
+                            <time className="text-muted-foreground" dateTime={message.created_at}>
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </time>
+                          </div>
+                          <div
+                            className={cn(
+                              "rounded-2xl px-3 py-2 text-left text-[13px] leading-relaxed",
+                              mine
+                                ? "bg-gradient-to-br from-primary to-gold text-primary-foreground"
+                                : "border border-border/60 bg-card text-foreground",
+                            )}
+                          >
+                            {voiceNote ? (
+                              voiceNoteUrls[message.id] ? (
+                                <div className="flex min-w-[180px] items-center gap-2">
+                                  <Mic className="h-4 w-4 shrink-0" />
+                                  <audio
+                                    controls
+                                    preload="none"
+                                    src={voiceNoteUrls[message.id]}
+                                    aria-label={`Voice note from ${person?.name ?? "Allma member"}`}
+                                    className="h-9 min-w-0 max-w-[260px]"
+                                  />
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5">
+                                  {voiceNoteUrlErrors.has(message.id) ? (
+                                    "Voice note unavailable"
+                                  ) : (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      Preparing voice note…
+                                    </>
+                                  )}
+                                </span>
+                              )
+                            ) : (
+                              <p className="whitespace-pre-wrap break-words">{message.body}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </section>
+              ) : null}
               {status === "submitted" ? (
                 <div className="flex max-w-full flex-row items-start gap-2.5">
                   <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-border/50 bg-card object-cover" />
@@ -1796,7 +2218,7 @@ export function AllmaChat({
           <div
             className={cn(
               "composer-shell composer-pill min-w-0 focus-within:composer-shell-focused",
-              recording && "composer-shell-recording",
+              composerRecording && "composer-shell-recording",
             )}
           >
             <div className="composer-surface">
@@ -1805,6 +2227,17 @@ export function AllmaChat({
                   event.preventDefault();
                   const text = (message.text ?? "").trim();
                   if (!text) return;
+                  if (sosIsActive && sosActivityId) {
+                    const form = event.currentTarget;
+                    const field = textareaRef.current;
+                    void sendRoomText(text).then((sent) => {
+                      if (!sent) return;
+                      setComposerText("");
+                      form.reset();
+                      if (field) field.style.height = "";
+                    });
+                    return;
+                  }
                   send(text);
                   setComposerText("");
                   event.currentTarget.reset();
@@ -1827,8 +2260,8 @@ export function AllmaChat({
 
                 <PromptInputTextarea
                   ref={textareaRef}
-                  placeholder="Message Allma..."
-                  aria-label="Message Allma"
+                  placeholder={sosIsActive ? "Message your responders…" : "Message Allma..."}
+                  aria-label={sosIsActive ? "Message your responders" : "Message Allma"}
                   enterKeyHint="send"
                   rows={1}
                   className="composer-textarea min-h-[44px] bg-transparent px-1.5 py-[10px] text-base leading-6 sm:text-[15px]"
@@ -1839,7 +2272,7 @@ export function AllmaChat({
                 />
 
                 <InputGroupAddon align="inline-end" className="self-end gap-1 py-1.5 pr-1.5 has-[>button]:mr-0">
-                  {recording ? (
+                  {composerRecording ? (
                     <>
                       <span className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-1">
                         <span className="flex h-4 items-end gap-[2px]">
@@ -1848,19 +2281,19 @@ export function AllmaChat({
                               key={index}
                               className="w-[3px] rounded-full bg-destructive transition-[height] duration-100"
                               style={{
-                                height: `${Math.max(3, Math.min(16, 3 + level * weight * 26))}px`,
+                                height: `${Math.max(3, Math.min(16, 3 + (sosIsActive ? 0.45 : level) * weight * 26))}px`,
                               }}
                             />
                           ))}
                         </span>
                         <span className="tabular-nums text-[11px] font-medium text-destructive">
-                          {String(Math.floor(seconds / 60)).padStart(2, "0")}:
-                          {String(seconds % 60).padStart(2, "0")}
+                          {String(Math.floor(composerRecordingSeconds / 60)).padStart(2, "0")}:
+                          {String(composerRecordingSeconds % 60).padStart(2, "0")}
                         </span>
                       </span>
                       <button
                         type="button"
-                        onClick={cancelVoice}
+                        onClick={() => (sosIsActive ? stopSosVoiceNote(true) : cancelVoice())}
                         className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         aria-label="Discard recording"
                       >
@@ -1868,36 +2301,46 @@ export function AllmaChat({
                       </button>
                     </>
                   ) : null}
-                  {transcribing ? (
+                  {transcribing || sosVoiceNoteUploading ? (
                     <span className="text-[11px] font-medium text-muted-foreground">
-                      Transcribing…
+                      {sosVoiceNoteUploading ? "Sending voice note…" : "Transcribing…"}
                     </span>
                   ) : null}
                   <motion.button
                     type="button"
                     whileTap={{ scale: 0.9 }}
-                    onClick={toggleVoice}
-                    disabled={transcribing}
+                    onClick={sosIsActive ? toggleSosVoiceNote : toggleVoice}
+                    disabled={composerMicBusy}
                     className={cn(
                       "composer-icon-btn disabled:opacity-60",
-                      recording &&
+                      composerRecording &&
                         "mic-recording bg-info text-info-foreground hover:bg-info hover:text-info-foreground",
                     )}
-                    aria-label={recording ? "Stop recording" : "Voice input"}
+                    aria-label={
+                      sosIsActive
+                        ? sosVoiceNoteRecording
+                          ? "Stop voice note recording"
+                          : "Record a voice note for responders"
+                        : recording
+                          ? "Stop recording"
+                          : "Voice input"
+                    }
                   >
-                    {transcribing ? (
+                    {composerMicBusy ? (
                       <Loader2 className="h-[17px] w-[17px] animate-spin" />
+                    ) : composerRecording ? (
+                      <MicOff className="h-5 w-5" />
                     ) : (
                       <Mic className="h-5 w-5" />
                     )}
                   </motion.button>
-                  {!recording ? (
+                  {!composerRecording ? (
                     busy ? (
                     <button type="button" onClick={() => void stop()} aria-label="Stop generating" className="composer-send-btn">
                       <Square className="h-3.5 w-3.5 fill-current" />
                     </button>
                   ) : (
-                    <PromptInputSubmit status={status} disabled={composerText.trim().length === 0} size="icon-sm" aria-label="Send message" className="composer-send-btn" ><SendHorizontal className="h-5 w-5" /></PromptInputSubmit>
+                    <PromptInputSubmit status={status} disabled={composerText.trim().length === 0 || sosVoiceNoteUploading} size="icon-sm" aria-label={sosIsActive ? "Send to responders" : "Send message"} className="composer-send-btn" ><SendHorizontal className="h-5 w-5" /></PromptInputSubmit>
                   )
                   ) : null}
                 </InputGroupAddon>
@@ -1966,6 +2409,7 @@ export function AllmaChat({
         </DrawerContent>
       </Drawer>
     </div>
+    </SosActivityContext.Provider>
   );
 }
 

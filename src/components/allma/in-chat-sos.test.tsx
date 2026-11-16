@@ -131,8 +131,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("shows the live map, responder controls, and Ugandan hotlines inside the active SOS card", async () => {
-  render(<InChatSos type="crime" lines={[{ number: "999" }, { number: "112" }]} />);
+it("shows the live map and hotlines while call controls stay above the chat", async () => {
+  const onActivityStarted = vi.fn();
+  const onActivityEnded = vi.fn();
+  render(
+    <InChatSos
+      type="crime"
+      lines={[{ number: "999" }, { number: "112" }]}
+      onActivityStarted={onActivityStarted}
+      onActivityEnded={onActivityEnded}
+    />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Press SOS" }));
 
   await act(async () => {
@@ -146,17 +155,18 @@ it("shows the live map, responder controls, and Ugandan hotlines inside the acti
   expect(screen.getByText(/Nearest Police \(1.2km\)/)).toBeTruthy();
   expect(screen.getByText("Amina N.")).toBeTruthy();
   expect(screen.getByText("Sister")).toBeTruthy();
-  expect(screen.getByText("02:05")).toBeTruthy();
+  expect(screen.getByText("Call controls are pinned above the chat.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Mute" })).toBeNull();
+  expect(onActivityStarted).toHaveBeenCalledWith("sos-1", expect.anything());
   expect(screen.getByRole("link", { name: "Call 999 Police" }).getAttribute("href")).toBe("tel:999");
   expect(screen.getByRole("link", { name: "Call 112 Toll-free" }).getAttribute("href")).toBe("tel:112");
 
-  fireEvent.click(screen.getByRole("button", { name: "Mute" }));
-  expect(runCallActionMock).toHaveBeenCalledWith("toggleMute");
   fireEvent.click(screen.getByRole("button", { name: "Hide map" }));
   expect(screen.queryByTestId("live-map")).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: "I'm safe · End SOS" }));
   expect(await screen.findByText(/Safety network notified/)).toBeTruthy();
+  expect(onActivityEnded).toHaveBeenCalledWith("sos-1");
   expect(endEscalationMock).toHaveBeenCalledWith("sos-1");
   expect(runCallActionMock).toHaveBeenCalledWith("hangUp");
   expect(updateMock.mock.calls.at(-1)?.[0]).toMatchObject({

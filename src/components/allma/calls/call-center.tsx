@@ -711,6 +711,10 @@ export function CallCenter() {
           return;
         }
       }
+      if (isSosCall) {
+        setSosCallState("connecting");
+        setPhaseState("idle");
+      }
       const microphoneStream = await primeMicrophone();
       if (!sosRoomId && !invitationId) await setCallStatus(id, "connecting");
       await beginEngine(id, false, microphoneStream);
@@ -775,13 +779,16 @@ export function CallCenter() {
     });
   }, [callId, muted, peer, seconds, speaker, sosCallStatus]);
 
-  const visible = phase !== "idle";
+  const inChatSosCall =
+    isChatRoute() &&
+    Boolean(peer?.sosActivityId) &&
+    (phase !== "idle" || sosCallStatus !== "idle");
+  const visible = phase !== "idle" && !inChatSosCall;
   const showInlineIncomingSos =
-    phase === "idle" &&
     isChatRoute() &&
     !isCaller &&
     Boolean(peer?.sosActivityId) &&
-    sosCallStatus !== "idle";
+    (phase === "incoming" || sosCallStatus === "connecting");
   const isEmergencyCall = Boolean(emergency) || Boolean(peer?.sosActivityId);
   const statusLine =
     phase === "outgoing"
@@ -986,77 +993,39 @@ export function CallCenter() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 12 }}
-        aria-label="Active SOS call"
+        aria-label={phase === "incoming" ? "Incoming SOS call" : "Connecting SOS call"}
         className="fixed inset-x-3 bottom-24 z-[75] mx-auto max-w-xl space-y-2 rounded-2xl border border-destructive/30 bg-card p-3 text-foreground shadow-xl"
       >
         <div className="flex items-center gap-2">
           <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={38} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold">{peer?.name ?? "Allma member"}</p>
-            <p className="text-[10px] text-muted-foreground">Emergency call · Safety network</p>
+            <p className="text-[10px] text-muted-foreground">
+              {phase === "incoming" ? "Emergency call · Safety network" : "Connecting your emergency call…"}
+            </p>
           </div>
           <span className="rounded-full border border-success/35 bg-success/10 px-2 py-1 text-[9px] font-bold text-success">
-            {sosCallStatus === "connected" ? "CONNECTED" : "CONNECTING"}
+            {phase === "incoming" ? "INCOMING" : "CONNECTING"}
           </span>
-          {sosCallStatus === "connected" && (
-            <span className="font-mono text-xs tabular-nums text-muted-foreground">
-              {formatDuration(seconds)}
-            </span>
-          )}
         </div>
-        {callerPoint && emergency?.location_shared ? (
-          <>
-            <div className="overflow-hidden rounded-xl border border-border">
-              <LiveLocationMap
-                location={{
-                  lat: callerPoint.lat,
-                  lng: callerPoint.lng,
-                  accuracy: emergency.accuracy_m,
-                }}
-                badge="Caller location"
-                heightClassName="h-36"
-                places={helpPlaces}
-              />
-            </div>
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${callerPoint.lat},${callerPoint.lng}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary"
+        {phase === "incoming" ? (
+          <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2">
+            <button
+              type="button"
+              onClick={() => void decline()}
+              className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-semibold"
             >
-              <Navigation className="h-3.5 w-3.5" /> Open caller location in Google Maps
-            </a>
-          </>
-        ) : emergency?.location_shared ? (
-          <p className="rounded-lg bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
-            Waiting for the caller’s location…
-          </p>
+              <PhoneOff className="h-4 w-4" /> Decline
+            </button>
+            <button
+              type="button"
+              onClick={() => void answer()}
+              className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-success px-3 text-sm font-bold text-success-foreground"
+            >
+              <Phone className="h-4 w-4" /> Answer SOS
+            </button>
+          </div>
         ) : null}
-        <div className="grid grid-cols-3 gap-2 border-t border-border/60 pt-2">
-          <button
-            type="button"
-            onClick={toggleMute}
-            className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-border bg-background px-2 text-xs font-semibold"
-          >
-            {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            {muted ? "Unmute" : "Mute"}
-          </button>
-          <button
-            type="button"
-            onClick={toggleSpeaker}
-            className="flex min-h-9 items-center justify-center gap-1 rounded-lg border border-border bg-background px-2 text-xs font-semibold"
-          >
-            {speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            {speaker ? "Speaker" : "Earpiece"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void hangUp()}
-            className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-destructive px-2 text-xs font-semibold text-destructive-foreground"
-          >
-            <PhoneOff className="h-4 w-4" /> Hang up
-          </button>
-        </div>
       </motion.section>
     )}
     </>
