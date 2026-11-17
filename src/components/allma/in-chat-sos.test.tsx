@@ -190,12 +190,18 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   vi.useRealTimers();
 
   expect(await screen.findByText("SOS active")).toBeTruthy();
-  expect(screen.getByTestId("live-map").getAttribute("data-height")).toBe("h-52 sm:h-56");
-  expect(await screen.findByRole("button", { name: /Nearest Hospital \(450m\)/ })).toBeTruthy();
-  expect(screen.getByRole("button", { name: /Nearest Police \(1.2km\)/ })).toBeTruthy();
-  expect(screen.getByText("Nearby help from Google Places")).toBeTruthy();
+  expect(screen.getByTestId("live-map").getAttribute("data-height")).toBe("h-40");
+  expect(await screen.findByText("Nearby help")).toBeTruthy();
   expect(screen.getByText("City Hospital")).toBeTruthy();
   expect(screen.getByText("Central Police")).toBeTruthy();
+  expect(screen.getByText(/450m · hospital/)).toBeTruthy();
+  expect(screen.getByText(/1.2km · police/)).toBeTruthy();
+  expect(getNearbyPlacesMock).toHaveBeenCalledWith({
+    data: expect.objectContaining({
+      limit: 12,
+      types: expect.arrayContaining(["hospital", "police", "fire_station"]),
+    }),
+  });
   expect(screen.getByText("Amina N.")).toBeTruthy();
   expect(screen.getByText("Sister")).toBeTruthy();
   expect(screen.queryByText("Call controls are pinned above the chat.")).toBeNull();

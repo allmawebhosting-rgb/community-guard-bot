@@ -370,6 +370,7 @@ export function LiveLocationMap({
   onSelectPlace,
   mapTypeId = "hybrid",
   showMapTypeToggle = true,
+  compact = false,
 }: {
   location: LiveLocationPoint;
   /** Small label shown in the map corner. */
@@ -386,6 +387,8 @@ export function LiveLocationMap({
   /** Satellite hybrid is the default for SOS readability. */
   mapTypeId?: LiveMapTypeId;
   showMapTypeToggle?: boolean;
+  /** Slimmer chrome for in-chat SOS cards. */
+  compact?: boolean;
 }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
@@ -635,7 +638,7 @@ export function LiveLocationMap({
         </div>
       </div>
 
-      {(location.address || location.district) && (
+      {!compact && (location.address || location.district) ? (
         <div className="flex items-start gap-2 border-t border-border/60 bg-card px-4 py-3">
           <Navigation2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
           <div className="min-w-0 flex-1">
@@ -647,22 +650,31 @@ export function LiveLocationMap({
             <p className="mt-0.5 font-mono text-[10.5px] text-muted-foreground">{coords}</p>
           </div>
         </div>
-      )}
+      ) : null}
 
-      <div className="grid grid-cols-2 gap-2 border-t border-border/60 bg-card p-2.5">
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-2 border-t border-border/60 bg-card",
+          compact ? "gap-1.5 p-1.5" : "p-2.5",
+        )}
+      >
         <a
           href={externalUrl}
           target="_blank"
           rel="noreferrer"
-          className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-secondary px-3 font-bold text-foreground transition hover:border-primary/40 hover:bg-accent",
+            compact ? "min-h-8 py-1.5 text-[10.5px]" : "min-h-10 py-2 text-[11.5px]",
+          )}
         >
-          <ExternalLink className="h-3.5 w-3.5" /> {directionsLabel}
+          <ExternalLink className="h-3.5 w-3.5" /> {compact ? "Maps" : directionsLabel}
         </a>
         <button
           type="button"
           onClick={copyCoords}
           className={cn(
-            "flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[11.5px] font-semibold transition",
+            "flex items-center justify-center gap-1.5 rounded-xl border px-3 font-semibold transition",
+            compact ? "min-h-8 py-1.5 text-[10.5px]" : "min-h-10 py-2 text-[11.5px]",
             copied
               ? "border-success/30 bg-success/15 text-success"
               : "border-border/60 bg-secondary/40 text-foreground hover:bg-accent",

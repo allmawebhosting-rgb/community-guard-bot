@@ -26,7 +26,7 @@ export function resolveGoogleMapsKey(env: Record<string, string | undefined>) {
 
 const GOOGLE_API_URL = "https://places.googleapis.com/v1";
 const MAX_RADIUS_M = 15_000;
-const MAX_RESULTS = 20;
+const MAX_RESULTS = 24;
 const MAX_CACHE_ENTRIES = 1_000;
 /** Hard caps so one slow Google/directory call cannot stall a chat reply. */
 /** Parallel per-type Nearby Search needs a bit more headroom than a single request. */

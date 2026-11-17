@@ -2,13 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  Building2,
   CheckCircle2,
+  Flame,
   Loader2,
   MapPin,
   Mic,
   MicOff,
+  Navigation2,
   Phone,
   PhoneOff,
+  Pill,
+  Shield,
   ShieldAlert,
   Volume2,
   VolumeX,
@@ -20,7 +25,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
-import { NearbyHelpList, helpKind, type HelpPlace } from "@/components/allma/nearby-help-list";
+import {
+  HELP_KIND_COLOR,
+  directionsUrl,
+  helpKind,
+  type HelpPlace,
+} from "@/components/allma/nearby-help-list";
 import { endSosEscalation } from "@/lib/sos-escalation-controller";
 import { notifySosActivity } from "@/lib/push.functions";
 import { getNearbyPlaces } from "@/lib/places.functions";
@@ -115,6 +125,7 @@ export function InChatSos({
   const [loc, setLoc] = useState<{ lat: number; lng: number; acc: number } | null>(null);
   const [places, setPlaces] = useState<HelpPlace[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesError, setPlacesError] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [mapVisible, setMapVisible] = useState(true);
   const [networkNotified, setNetworkNotified] = useState<boolean | null>(null);
@@ -206,17 +217,19 @@ export function InChatSos({
     if (!placeSearchKey) {
       setPlaces([]);
       setPlacesLoading(false);
+      setPlacesError(false);
       return;
     }
     const [latitude, longitude] = placeSearchKey.split(",").map(Number);
     let active = true;
     setPlacesLoading(true);
+    setPlacesError(false);
     void getNearbyPlaces({
       data: {
         latitude,
         longitude,
         radiusMeters: 10000,
-        limit: 24,
+        limit: 12,
         types: ["hospital", "medical_clinic", "doctor", "police", "fire_station", "pharmacy"],
       },
     })
@@ -235,12 +248,16 @@ export function InChatSos({
           }))
           .sort((a, b) => a.distance_m - b.distance_m);
         setPlaces(next);
-        setSelectedPlaceId((current) => current ?? next[0]?.id ?? null);
+        setPlacesError(false);
+        setSelectedPlaceId((current) =>
+          current && next.some((place) => place.id === current) ? current : next[0]?.id ?? null,
+        );
       })
       .catch((error) => {
         if (!active) return;
         console.warn("Nearby SOS help could not be loaded", error);
         setPlaces([]);
+        setPlacesError(true);
       })
       .finally(() => {
         if (active) setPlacesLoading(false);
@@ -549,16 +566,14 @@ export function InChatSos({
   }
 
   const time = (ms: number | null) => (ms ? new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
-  const nearestHospital = [...places]
-    .filter((place) => ["hospital", "clinic"].includes(helpKind(place.type, place.name)))
-    .sort((a, b) => a.distance_m - b.distance_m)[0];
-  const nearestPolice = [...places]
-    .filter((place) => helpKind(place.type, place.name) === "police")
-    .sort((a, b) => a.distance_m - b.distance_m)[0];
-  const nearestFire = [...places]
-    .filter((place) => helpKind(place.type, place.name) === "fire")
-    .sort((a, b) => a.distance_m - b.distance_m)[0];
+  const compactPlaces = places.slice(0, 5);
   const activeCall = inlineCall?.activityId === activityId ? inlineCall : null;
+  const placeIcon = (kind: ReturnType<typeof helpKind>) => {
+    if (kind === "police") return Shield;
+    if (kind === "fire") return Flame;
+    if (kind === "pharmacy") return Pill;
+    return Building2;
+  };
   const dials = (
     <div className="grid grid-cols-2 gap-1.5">
       {lines.map((h) => (
@@ -731,65 +746,105 @@ export function InChatSos({
         )}
 
         {mapVisible && (
-          <section aria-label="Nearby emergency help" className="space-y-2.5">
+          <section aria-label="Nearby emergency help" className="space-y-1.5">
             {loc ? (
               <LiveLocationMap
                 location={{ lat: loc.lat, lng: loc.lng, accuracy: loc.acc }}
                 badge="Your location"
-                heightClassName="h-52 sm:h-56"
+                heightClassName="h-40"
                 places={places}
                 selectedPlaceId={selectedPlaceId}
                 onSelectPlace={setSelectedPlaceId}
                 mapTypeId="hybrid"
+                compact
               />
             ) : (
               <p className="rounded-lg bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
                 {saving || placesLoading ? "Waiting for GPS to show nearby help…" : "Turn on location access to show nearby help."}
               </p>
             )}
-            <div className="flex flex-wrap items-center gap-1.5">
-              {nearestHospital && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlaceId(nearestHospital.id)}
-                  className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-muted/35 px-2.5 text-[10px] font-semibold"
-                >
-                  🏥 Nearest Hospital ({compactDistance(nearestHospital.distance_m)})
-                </button>
-              )}
-              {nearestPolice && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlaceId(nearestPolice.id)}
-                  className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-muted/35 px-2.5 text-[10px] font-semibold"
-                >
-                  🛡️ Nearest Police ({compactDistance(nearestPolice.distance_m)})
-                </button>
-              )}
-              {nearestFire && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlaceId(nearestFire.id)}
-                  className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-muted/35 px-2.5 text-[10px] font-semibold"
-                >
-                  🔥 Nearest Fire ({compactDistance(nearestFire.distance_m)})
-                </button>
-              )}
-              {placesLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" aria-label="Finding nearby help" />}
-            </div>
             {loc ? (
-              <div className="max-h-64 overflow-y-auto rounded-xl border border-border/70 bg-card/70 p-3">
-                <NearbyHelpList
-                  places={places}
-                  loading={placesLoading}
-                  origin={{ lat: loc.lat, lng: loc.lng }}
-                  selectedId={selectedPlaceId}
-                  onSelect={setSelectedPlaceId}
-                  tone="surface"
-                  title="Nearby help from Google Places"
-                  subtitle="Hospitals, police, fire and pharmacies closest to you"
-                  emptyLabel="No nearby hospitals, police or fire stations found yet. Try again with a clearer GPS fix."
-                />
+              <div className="overflow-hidden rounded-lg border border-border/70">
+                <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/30 px-2.5 py-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    Nearby help
+                  </p>
+                  {placesLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" aria-label="Finding nearby help" />
+                  ) : places.length > 0 ? (
+                    <span className="text-[10px] font-semibold text-muted-foreground">
+                      {places.length} found
+                    </span>
+                  ) : null}
+                </div>
+                {placesLoading && places.length === 0 ? (
+                  <p className="px-2.5 py-2 text-[11px] text-muted-foreground">Finding hospitals and police nearby…</p>
+                ) : placesError && places.length === 0 ? (
+                  <p className="px-2.5 py-2 text-[11px] text-muted-foreground">
+                    Nearby help could not be loaded. Check your connection and try again.
+                  </p>
+                ) : compactPlaces.length === 0 ? (
+                  <p className="px-2.5 py-2 text-[11px] text-muted-foreground">
+                    No hospitals or police found nearby yet.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border/60">
+                    {compactPlaces.map((place) => {
+                      const kind = helpKind(place.type, place.name);
+                      const Icon = placeIcon(kind);
+                      const selected = selectedPlaceId === place.id;
+                      return (
+                        <li key={place.id}>
+                          <div
+                            className={`flex items-center gap-2 px-2 py-1.5 ${selected ? "bg-accent/50" : "bg-card"}`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPlaceId(place.id)}
+                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                            >
+                              <span
+                                className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
+                                style={{
+                                  backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
+                                  color: HELP_KIND_COLOR[kind],
+                                }}
+                              >
+                                <Icon className="h-3 w-3" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[11px] font-semibold text-foreground">
+                                  {place.name}
+                                </span>
+                                <span className="block truncate text-[10px] text-muted-foreground">
+                                  {compactDistance(place.distance_m)} · {kind}
+                                </span>
+                              </span>
+                            </button>
+                            <a
+                              href={directionsUrl({ lat: loc.lat, lng: loc.lng }, place)}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label={`Directions to ${place.name}`}
+                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 text-foreground hover:bg-muted"
+                            >
+                              <Navigation2 className="h-3.5 w-3.5" />
+                            </a>
+                            {place.phone ? (
+                              <a
+                                href={`tel:${place.phone.replace(/[^\d+]/g, "")}`}
+                                aria-label={`Call ${place.name}`}
+                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 text-foreground hover:bg-muted"
+                              >
+                                <Phone className="h-3.5 w-3.5" />
+                              </a>
+                            ) : null}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
             ) : null}
           </section>
