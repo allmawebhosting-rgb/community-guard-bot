@@ -487,7 +487,12 @@ export function LiveLocationMap({
         );
 
   return (
-    <div className="premium-surface shadow-soft overflow-hidden rounded-2xl border border-border/70 transition-shadow duration-300 hover:shadow-lift">
+    <div
+      className={cn(
+        "premium-surface shadow-soft overflow-hidden border border-border/70 transition-shadow duration-300 hover:shadow-lift",
+        compact ? "rounded-none" : "rounded-2xl",
+      )}
+    >
       <div ref={canvasRef} className={cn("relative bg-muted", heightClassName)}>
         {useGoogle ? (
           <GoogleLocationCanvas

@@ -157,12 +157,16 @@ export function InChatSos({
     }
   }, [existingActivityId, existingActive, phase, sharedLocation]);
 
-  // Drive the animated header (logo area) from this real SOS row.
+  // Drive the animated header (logo + shared emergency status) from this real SOS row.
   useEffect(() => {
-    if (!canManage || phase !== "active" || !activityId) return;
-    setActiveSos({ activityId, type });
+    if (phase !== "active" || !activityId) return;
+    setActiveSos({
+      activityId,
+      type,
+      locationShared: Boolean(loc) || Boolean(sharedLocation),
+    });
     return () => setActiveSos(null);
-  }, [activityId, canManage, phase, type]);
+  }, [activityId, loc, phase, sharedLocation, type]);
 
   useEffect(() => {
     if (phase === "active" && activityId) onActivityStarted?.(activityId, cardRef.current);
@@ -608,7 +612,7 @@ export function InChatSos({
 
   if (phase === "active") {
     return (
-      <div ref={cardRef} className="space-y-2 rounded-xl border border-destructive/40 bg-card p-2.5">
+      <div ref={cardRef} className="space-y-2 rounded-none border border-destructive/40 bg-card p-2.5 sm:rounded-sm">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <p className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-destructive">
             <span className="relative flex h-2 w-2">
@@ -764,7 +768,7 @@ export function InChatSos({
               </p>
             )}
             {loc ? (
-              <div className="overflow-hidden rounded-lg border border-border/70">
+              <div className="overflow-hidden rounded-none border border-border/70">
                 <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/30 px-2.5 py-1.5">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                     Nearby help

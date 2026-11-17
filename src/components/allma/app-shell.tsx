@@ -611,7 +611,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       >
         {/* Mobile-only header */}
         <header className={cn("no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl lg:hidden", activeSos && "sos-header-active border-destructive/40")}>
-          <div className="mx-auto grid h-16 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4">
+          <div className={cn("mx-auto grid w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4", activeSos ? "min-h-16 py-1.5" : "h-16")}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -645,7 +645,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
         {/* Desktop top bar — branding strip + status */}
         <header className={cn("no-print sticky top-0 z-30 hidden border-b border-border/40 bg-background/80 backdrop-blur-xl lg:flex", activeSos && "sos-header-active border-destructive/40")}>
-          <div className="flex h-13 w-full items-center justify-between gap-4 px-6">
+          <div className={cn("flex w-full items-center justify-between gap-4 px-6", activeSos ? "min-h-13 py-1.5" : "h-13")}>
             {activeSos ? <SosHeaderStatus sos={activeSos} /> : <div className="flex items-center gap-2.5">
               <span className="online-pulse inline-block h-2 w-2 rounded-full bg-success" />
               <span className="text-[13px] font-semibold text-foreground/80">

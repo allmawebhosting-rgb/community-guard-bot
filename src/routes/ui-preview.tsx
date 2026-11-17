@@ -37,27 +37,18 @@ function PreviewShell({
 
 function SharedStrip() {
   return (
-    <div className="flex items-center gap-3 border-b border-destructive/20 bg-destructive/[0.04] px-3 py-2">
-      <span className="relative flex h-2.5 w-2.5 shrink-0">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-60" />
-        <span className="relative h-2.5 w-2.5 rounded-full bg-destructive" />
+    <div className="sos-header-active flex items-center gap-2.5 border-b border-destructive/40 bg-background/85 px-3 py-2">
+      <span className="sos-header-ring relative shrink-0 rounded-full">
+        <img src={robotAvatar} alt="" className="h-10 w-10 rounded-full border border-border/50 object-cover" />
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-destructive">
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-destructive">
           Shared emergency conversation
         </p>
-        <p className="truncate text-[11px] text-muted-foreground">3 people in this chat · Location shared</p>
-      </div>
-      <div className="flex shrink-0 items-center -space-x-2">
-        <span className="rounded-full ring-2 ring-background">
-          <Avatar name="Amina N." url={null} size={26} />
-        </span>
-        <span className="rounded-full ring-2 ring-background">
-          <Avatar name="James O." url={null} size={26} />
-        </span>
-        <span className="rounded-full ring-2 ring-background">
-          <Avatar name="Sarah K." url={null} size={26} />
-        </span>
+        <p className="truncate text-[13px] font-bold text-destructive">Calling Safety Network · 2/6</p>
+        <p className="truncate text-[11px] text-muted-foreground">
+          Ringing James, Sarah · Location shared
+        </p>
       </div>
     </div>
   );

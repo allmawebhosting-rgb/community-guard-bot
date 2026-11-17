@@ -669,62 +669,6 @@ function SosTimelineEvent({
   );
 }
 
-function SharedSessionStrip({
-  active,
-  people,
-  locationShared,
-}: {
-  active: boolean;
-  people: Array<{ id: string; name: string; avatar: string | null; role: string }>;
-  locationShared: boolean;
-}) {
-  if (!active) return null;
-  const visible = people.slice(0, 5);
-  const extra = Math.max(0, people.length - visible.length);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="flex shrink-0 items-center gap-3 border-b border-destructive/20 bg-destructive/[0.04] px-3 py-2 sm:px-4"
-      role="status"
-      aria-live="polite"
-    >
-      <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-60" />
-        <span className="relative h-2.5 w-2.5 rounded-full bg-destructive" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-destructive">
-          Shared emergency conversation
-        </p>
-        <p className="truncate text-[11px] text-muted-foreground">
-          {people.length > 1
-            ? `${people.length} people in this chat`
-            : "Waiting for Safety Network to join"}
-          {locationShared ? " · Location shared" : ""}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center -space-x-2">
-        {visible.map((person) => (
-          <span
-            key={person.id}
-            className="rounded-full ring-2 ring-background"
-            title={`${person.name} · ${roleLabel(person.role)}`}
-          >
-            <Avatar name={person.name} url={person.avatar} size={26} />
-          </span>
-        ))}
-        {extra > 0 ? (
-          <span className="grid h-[26px] w-[26px] place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground ring-2 ring-background">
-            +{extra}
-          </span>
-        ) : null}
-      </div>
-    </motion.div>
-  );
-}
-
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const navigate = useNavigate();
   const emergencyShown = useContext(EmergencyShownContext);
@@ -2204,31 +2148,6 @@ export function AllmaChat({
           void uploadFiles(event.target.files);
           event.target.value = "";
         }}
-      />
-
-      <SharedSessionStrip
-        active={sosIsActive}
-        locationShared={Boolean(sosRoom?.location_shared)}
-        people={(() => {
-          if (!sosRoom) return [];
-          const people = [
-            {
-              id: sosRoom.owner_id,
-              name: sosRoom.sender_name,
-              avatar: sosRoom.sender_avatar_url,
-              role: "owner",
-            },
-            ...sosRoom.participants.map((participant) => ({
-              id: participant.user_id,
-              name: participant.name,
-              avatar: participant.avatar_url,
-              role: participant.role,
-            })),
-          ];
-          return people.filter(
-            (person, index, all) => all.findIndex((item) => item.id === person.id) === index,
-          );
-        })()}
       />
 
       {activeInlineCall && sosIsActive ? (
