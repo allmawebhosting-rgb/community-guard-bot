@@ -17,6 +17,7 @@ export type SosRoomSummary = {
   created_at: string;
   is_mine: boolean;
   my_invitation_status: string | null;
+  my_offer_status: string | null;
   my_call_session_id: string | null;
   distance_m: number | null;
   location_shared: boolean;
@@ -51,10 +52,29 @@ export type SosRoomDetail = {
 export type SosRoomMessage = {
   id: string;
   sos_session_id: string | null;
+  thread_id: string | null;
   author_id: string | null;
   event_type: string;
   body: string;
+  duration_seconds: number | null;
   created_at: string;
+};
+
+export type SharedChatMessageRow = {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  role: string;
+  parts: unknown;
+  sdk_message_id: string | null;
+  created_at: string;
+};
+
+export type ChatThreadContext = {
+  owner_id: string;
+  is_owner: boolean;
+  sos_activity_id: string | null;
+  sos_active: boolean;
 };
 
 function friendly(message: string) {
@@ -62,9 +82,18 @@ function friendly(message: string) {
 }
 
 export async function listSosRooms(): Promise<SosRoomSummary[]> {
-  const { data, error } = await supabase.rpc("list_sos_rooms");
+  const [{ data, error }, { data: offerData, error: offerError }] = await Promise.all([
+    supabase.rpc("list_sos_rooms"),
+    supabase.rpc("get_my_sos_offers"),
+  ]);
   if (error) throw new Error(friendly(error.message));
-  return (data ?? []) as SosRoomSummary[];
+  if (offerError) throw new Error(friendly(offerError.message));
+  const offers = (offerData ?? []) as Array<{ sos_activity_id: string; status: string }>;
+  const statusBySos = new Map(offers.map((offer) => [offer.sos_activity_id, offer.status]));
+  return ((data ?? []) as Omit<SosRoomSummary, "my_offer_status">[]).map((room) => ({
+    ...room,
+    my_offer_status: statusBySos.get(room.sos_activity_id) ?? null,
+  }));
 }
 
 export function sosRoomsQueryOptions() {
@@ -97,10 +126,33 @@ export function sosRoomQueryOptions(sosActivityId: string | null) {
   });
 }
 
+export function chatThreadContextQueryOptions(threadId: string | null) {
+  return queryOptions({
+    queryKey: ["chat-thread-context", threadId],
+    queryFn: async (): Promise<ChatThreadContext | null> => {
+      if (!threadId) return null;
+      const { data, error } = await supabase.rpc("get_chat_thread_context", {
+        p_thread_id: threadId,
+      });
+      if (error) throw new Error(friendly(error.message));
+      return ((data ?? [])[0] as ChatThreadContext | undefined) ?? null;
+    },
+    enabled: Boolean(threadId),
+  });
+}
+
+export async function getSosThreadForActivity(sosActivityId: string) {
+  const { data, error } = await supabase.rpc("get_sos_thread_for_activity", {
+    p_sos_activity_id: sosActivityId,
+  });
+  if (error) throw new Error(friendly(error.message));
+  return data ?? null;
+}
+
 export async function listSosRoomMessages(sosActivityId: string): Promise<SosRoomMessage[]> {
   const { data, error } = await supabase
     .from("emergency_chat_events")
-    .select("id, sos_session_id, author_id, event_type, body, created_at")
+    .select("id, sos_session_id, thread_id, author_id, event_type, body, duration_seconds, created_at")
     .eq("sos_session_id", sosActivityId)
     .order("created_at", { ascending: true })
     .limit(300);
@@ -131,7 +183,12 @@ export async function sendSosRoomMessage(sosActivityId: string, body: string) {
   if (error) throw new Error(friendly(error.message));
 }
 
-export async function sendSosRoomVoiceNote(sosActivityId: string, clip: Blob) {
+export async function sendSosRoomVoiceNote(
+  sosActivityId: string,
+  threadId: string,
+  clip: Blob,
+  durationSeconds: number,
+) {
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
   if (!userId) throw new Error("Please sign in to send a voice note.");
@@ -148,9 +205,11 @@ export async function sendSosRoomVoiceNote(sosActivityId: string, clip: Blob) {
 
   const { error } = await supabase.from("emergency_chat_events").insert({
     sos_session_id: sosActivityId,
+    thread_id: threadId,
     author_id: userId,
     event_type: "voice_note",
     body: path,
+    duration_seconds: Math.max(0, Math.round(durationSeconds)),
   });
   if (error) {
     await supabase.storage.from("emergency-chat-voice").remove([path]);
@@ -182,6 +241,28 @@ export function subscribeSosRoomMessages(
         filter: `sos_session_id=eq.${sosActivityId}`,
       },
       (payload) => onMessage(payload.new as SosRoomMessage),
+    )
+    .subscribe();
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+export function subscribeConversationMessages(
+  threadId: string,
+  onMessage: (message: SharedChatMessageRow) => void,
+) {
+  const channel = supabase
+    .channel(`chat-thread-${threadId}-${Math.random().toString(36).slice(2, 8)}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `thread_id=eq.${threadId}`,
+      },
+      (payload) => onMessage(payload.new as SharedChatMessageRow),
     )
     .subscribe();
   return () => {

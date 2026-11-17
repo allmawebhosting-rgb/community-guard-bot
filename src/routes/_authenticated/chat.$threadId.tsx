@@ -38,7 +38,7 @@ function ChatThreadPage() {
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from("messages")
-        .select("id, role, parts, created_at")
+        .select("id, role, parts, created_at, user_id, sdk_message_id")
         .eq("thread_id", threadId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -49,10 +49,12 @@ function ChatThreadPage() {
   const initialMessages = useMemo<UIMessage[]>(
     () =>
       (data ?? []).map((row) => ({
-        id: row.id,
+        id: row.sdk_message_id || row.id,
         role: row.role as UIMessage["role"],
         parts: (Array.isArray(row.parts) ? row.parts : []) as UIMessage["parts"],
-      })),
+        authorId: row.user_id,
+        createdAt: row.created_at,
+      }) as UIMessage),
     [data],
   );
 

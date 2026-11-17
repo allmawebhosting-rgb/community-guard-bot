@@ -8,6 +8,7 @@ import { BackgroundCallPrompt } from "@/components/allma/calls/background-call-p
 import { SosInbox } from "@/components/allma/calls/sos-inbox";
 import { EmergencyRoom } from "@/components/allma/calls/emergency-room";
 import { supabase } from "@/integrations/supabase/client";
+import { getSosThreadForActivity } from "@/lib/sos-rooms";
 
 const searchSchema = z.object({
   room: z.string().optional(),
@@ -51,9 +52,28 @@ function CallsRoute() {
     };
   }, []);
 
-  const openRoom = (sosActivityId: string) =>
-    void navigate({ to: "/calls", search: { room: sosActivityId } });
+  const openRoom = (sosActivityId: string, threadId?: string) =>
+    threadId
+      ? void navigate({ to: "/chat/$threadId", params: { threadId } })
+      : void navigate({ to: "/calls", search: { room: sosActivityId } });
   const closeRoom = () => void navigate({ to: "/calls", search: {} });
+
+  useEffect(() => {
+    if (!room) return;
+    let cancelled = false;
+    void getSosThreadForActivity(room)
+      .then((threadId) => {
+        if (!cancelled && threadId) {
+          void navigate({ to: "/chat/$threadId", params: { threadId }, replace: true });
+        }
+      })
+      .catch((error) => {
+        console.warn("Could not open the linked safety conversation", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, room]);
 
   return (
     <AppShell title="Call centre">

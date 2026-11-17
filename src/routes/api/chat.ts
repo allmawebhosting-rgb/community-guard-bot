@@ -133,6 +133,21 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const threadId = userId && body.threadId ? body.threadId : null;
+        let threadIsOwner = Boolean(userId && threadId);
+        if (threadId) {
+          const { data: contextRows, error: contextError } = await supabase.rpc(
+            "get_chat_thread_context",
+            { p_thread_id: threadId },
+          );
+          const context = contextRows?.[0];
+          if (contextError || !context) {
+            return new Response("This conversation is not available to this account.", {
+              status: 403,
+              headers: { "Cache-Control": "no-store" },
+            });
+          }
+          threadIsOwner = context.is_owner;
+        }
         const evidence = parseEvidence(body.evidence);
 
 
@@ -194,7 +209,7 @@ export const Route = createFileRoute("/api/chat")({
         }
 
 
-        if (userId && intakeText) {
+        if (userId && intakeText && threadIsOwner) {
           const normalized = intakeText.toLowerCase();
           const severity =
             /sos|immediate danger|attack|assault|gunshot|fire|ambulance|accident/.test(normalized)
@@ -221,7 +236,7 @@ export const Route = createFileRoute("/api/chat")({
         mark("intake");
 
         let memoryBlock = "";
-        if (userId) {
+        if (userId && (!threadId || threadIsOwner)) {
           const memoryRows = await withTimeoutFallback(
             supabase
               .from("ai_user_memory")

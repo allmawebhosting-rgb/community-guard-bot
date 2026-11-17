@@ -16,6 +16,7 @@ import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   EMERGENCY_TYPE_LABELS,
+  getSosThreadForActivity,
   relativeTime,
   sosRoomsQueryOptions,
   subscribeSosRoomInbox,
@@ -26,11 +27,14 @@ const RING_STATES = new Set(["pending", "sent", "delivered", "ringing"]);
 
 function statusLabel(room: SosRoomSummary) {
   if (room.is_mine) return "Your emergency";
-  const status = room.my_invitation_status;
+  const status = room.my_invitation_status?.toLowerCase();
+  const offerStatus = room.my_offer_status?.toLowerCase();
   if (status && RING_STATES.has(status)) return "Ringing you now";
   if (status === "accepted") return "You answered";
   if (status === "declined") return "You declined";
   if (status === "cancelled") return "Call cancelled";
+  if (offerStatus === "accepted") return "You accepted this request";
+  if (offerStatus === "declined") return "You declined this request";
   if (room.distance_m != null) {
     return room.distance_m < 1000
       ? `Responder request · ${Math.round(room.distance_m)} m away`
@@ -44,7 +48,7 @@ export function SosInbox({
   onOpenRoom,
 }: {
   activeRoomId: string | null;
-  onOpenRoom: (sosActivityId: string) => void;
+  onOpenRoom: (sosActivityId: string, threadId?: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);
@@ -83,11 +87,20 @@ export function SosInbox({
       if (error) throw new Error(error.message);
       toast.success(accept ? "You accepted this emergency." : "Request declined.");
       void queryClient.invalidateQueries({ queryKey: ["sos-rooms"] });
-      if (accept) onOpenRoom(room.sos_activity_id);
+      if (accept) await openConversation(room);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not respond.");
     } finally {
       setBusyOffer(null);
+    }
+  }
+
+  async function openConversation(room: SosRoomSummary) {
+    try {
+      const threadId = await getSosThreadForActivity(room.sos_activity_id);
+      onOpenRoom(room.sos_activity_id, threadId ?? undefined);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "This conversation is unavailable.");
     }
   }
 
@@ -118,8 +131,16 @@ export function SosInbox({
     <div className="space-y-2.5">
       <AnimatePresence initial={false}>
         {rooms.map((room, index) => {
-          const ringing = !room.is_mine && RING_STATES.has(room.my_invitation_status ?? "");
-          const isOffer = !room.is_mine && !room.my_invitation_status && room.distance_m != null;
+          const invitationStatus = room.my_invitation_status?.toLowerCase() ?? "";
+          const offerStatus = room.my_offer_status?.toLowerCase() ?? "";
+          const ringing = !room.is_mine && RING_STATES.has(invitationStatus);
+          const isOffer =
+            !room.is_mine &&
+            !room.my_invitation_status &&
+            room.distance_m != null &&
+            ["pending", "sent", "delivered", "viewed"].includes(offerStatus);
+          const canOpen =
+            room.is_mine || invitationStatus === "accepted" || offerStatus === "accepted";
           const active = activeRoomId === room.sos_activity_id;
           return (
             <motion.article
@@ -179,11 +200,13 @@ export function SosInbox({
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => onOpenRoom(room.sos_activity_id)}
+                      disabled={!canOpen}
+                      onClick={() => void openConversation(room)}
+                      aria-disabled={!canOpen}
                       className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-destructive to-gold px-3.5 py-1.5 text-[12px] font-semibold text-primary-foreground shadow-soft"
                     >
                       <MessageSquare className="h-3.5 w-3.5" />
-                      {active ? "Chat open" : "Open chat"}
+                      {canOpen ? (active ? "Chat open" : "Open conversation") : "Accept to join chat"}
                     </button>
                     {isOffer ? (
                       <>

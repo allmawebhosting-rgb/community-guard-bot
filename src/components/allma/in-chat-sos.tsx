@@ -31,7 +31,7 @@ import { setActiveSos } from "@/lib/sos-active";
 type Line = { number: string };
 type Phase = "idle" | "countdown" | "active" | "ended";
 const COUNTDOWN = 3;
-const TYPE_MAP = { medical: "medical", crime: "crime", fire: "fire" } as const;
+const TYPE_MAP = { medical: "medical", crime: "crime", fire: "fire", other: "other" } as const;
 
 function isMissingSosColumnError(error: unknown, columns: readonly string[]) {
   if (!error || typeof error !== "object") return false;
@@ -64,18 +64,34 @@ function compactDistance(meters: number) {
 export function InChatSos({
   type,
   lines,
+  threadId,
+  existingActivityId,
+  existingActive,
+  sharedLocation,
+  canManage = true,
+  requestActivation = false,
+  hideIdle = false,
   onActivityStarted,
   onActivityEnded,
 }: {
   type: keyof typeof TYPE_MAP;
   lines: Line[];
+  threadId?: string | null;
+  existingActivityId?: string | null;
+  existingActive?: boolean;
+  sharedLocation?: { latitude: number; longitude: number; accuracy_m: number | null } | null;
+  canManage?: boolean;
+  requestActivation?: boolean;
+  hideIdle?: boolean;
   onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
   onActivityEnded?: (activityId: string) => void;
 }) {
   const { user } = useAuth();
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>(
+    existingActivityId ? (existingActive ? "active" : "ended") : "idle",
+  );
   const [left, setLeft] = useState(COUNTDOWN);
-  const [activityId, setActivityId] = useState<string | null>(null);
+  const [activityId, setActivityId] = useState<string | null>(existingActivityId ?? null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [endedAt, setEndedAt] = useState<number | null>(null);
   const [mic, setMic] = useState<MediaStream | undefined>();
@@ -94,19 +110,33 @@ export function InChatSos({
 
   useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
 
+  useEffect(() => {
+    if (!existingActivityId || phase === "countdown") return;
+    setActivityId(existingActivityId);
+    setPhase(existingActive ? "active" : "ended");
+    if (existingActive) setStartedAt((value) => value ?? Date.now());
+    if (sharedLocation) {
+      setLoc({
+        lat: sharedLocation.latitude,
+        lng: sharedLocation.longitude,
+        acc: sharedLocation.accuracy_m ?? 0,
+      });
+    }
+  }, [existingActivityId, existingActive, phase, sharedLocation]);
+
   // Drive the animated header (logo area) from this real SOS row.
   useEffect(() => {
-    if (phase !== "active" || !activityId) return;
+    if (!canManage || phase !== "active" || !activityId) return;
     setActiveSos({ activityId, type });
     return () => setActiveSos(null);
-  }, [activityId, phase, type]);
+  }, [activityId, canManage, phase, type]);
 
   useEffect(() => {
     if (phase === "active" && activityId) onActivityStarted?.(activityId, cardRef.current);
   }, [activityId, onActivityStarted, phase]);
 
   useEffect(() => {
-    if (phase !== "active" || !activityId || !navigator.geolocation) return;
+    if (!canManage || phase !== "active" || !activityId || !navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const next = {
@@ -147,7 +177,7 @@ export function InChatSos({
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [activityId, phase, user?.id]);
+  }, [activityId, canManage, phase, user?.id]);
 
   const placeSearchKey = loc ? `${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}` : null;
   useEffect(() => {
@@ -221,6 +251,17 @@ export function InChatSos({
     setPhase("idle");
   }
 
+  useEffect(() => {
+    if (!requestActivation || !canManage || existingActive) return;
+    if (phase === "idle") {
+      startCountdown();
+    } else if (phase === "ended") {
+      setActivityId(null);
+      setPhase("idle");
+      startCountdown();
+    }
+  }, [canManage, existingActive, phase, requestActivation]);
+
   function getPosition(): Promise<GeolocationPosition | null> {
     return new Promise((resolve) => {
       if (!navigator.geolocation) return resolve(null);
@@ -235,6 +276,27 @@ export function InChatSos({
     setPhase("active");
     setSaving(true);
     void primeMicrophone().then(setMic).catch(() => undefined);
+
+    if (threadId) {
+      try {
+        const { data: contextRows, error: contextError } = await supabase.rpc(
+          "get_chat_thread_context",
+          { p_thread_id: threadId },
+        );
+        if (!contextError) {
+          const existing = contextRows?.[0];
+          if (existing?.sos_active && existing.sos_activity_id) {
+            setActivityId(existing.sos_activity_id);
+            setStartedAt(Date.now());
+            setSaving(false);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn("Could not check for an existing SOS session", error);
+      }
+    }
+
     const pos = await getPosition();
     const coords = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy } : null;
     setLoc(coords);
@@ -242,6 +304,7 @@ export function InChatSos({
     const details = {
       channel: "chat",
       emergency_type: TYPE_MAP[type],
+      ...(threadId ? { thread_id: threadId } : {}),
       location_consent: !!coords,
       responder_notification_consent: true,
       accuracy_m: coords?.acc ?? null,
@@ -297,7 +360,7 @@ export function InChatSos({
   }
 
   async function endSos() {
-    if (ending) return;
+    if (ending || !canManage) return;
     setEnding(true);
     const hangUp = runSosInlineCallAction("hangUp");
     if (activityId) await endSosEscalation(activityId);
@@ -532,7 +595,7 @@ export function InChatSos({
               </div>
             )}
           </section>
-        ) : (
+        ) : canManage ? (
           <EmergencyCallEscalation
             activityId={activityId}
             emergencyType={TYPE_MAP[type]}
@@ -540,6 +603,10 @@ export function InChatSos({
             shareLocation={!!loc}
             compact
           />
+        ) : (
+          <p className="rounded-lg bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
+            SOS is active. You can support through this shared conversation.
+          </p>
         )}
 
         {mapVisible && (
@@ -599,19 +666,60 @@ export function InChatSos({
 
         <div className="space-y-1.5 border-t border-border/60 pt-2">
           {dials}
-          <button
-            type="button"
-            onClick={() => void endSos()}
-            disabled={saving || ending}
-            className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-bold text-destructive-foreground disabled:opacity-50"
-          >
-            {ending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-            {ending ? "Ending…" : "I'm safe · End SOS"}
-          </button>
+          {canManage ? (
+            <button
+              type="button"
+              onClick={() => void endSos()}
+              disabled={saving || ending}
+              className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-bold text-destructive-foreground disabled:opacity-50"
+            >
+              {ending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+              {ending ? "Ending…" : "I'm safe · End SOS"}
+            </button>
+          ) : null}
         </div>
       </div>
     );
   }
+
+  if (phase === "ended" && !canManage) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/60 px-3.5 py-2.5 text-sm text-muted-foreground">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
+        <span>This emergency has ended. The shared conversation remains available.</span>
+      </div>
+    );
+  }
+
+  if (phase === "ended" && canManage) {
+    const mins = startedAt && endedAt ? Math.max(1, Math.round((endedAt - startedAt) / 60000)) : null;
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/60 px-3.5 py-2.5 text-sm text-muted-foreground">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
+        <span className="flex-1">
+          SOS ended at {time(endedAt)}{mins ? ` · ${mins} min` : ""}
+          {networkNotified === true
+            ? " · Safety network notified"
+            : networkNotified === false
+              ? " · Network notification failed"
+              : ""}
+        </span>
+        {requestActivation ? null : (
+          <button
+            type="button"
+            onClick={startCountdown}
+            className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-background"
+          >
+            Start another SOS
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (!canManage) return null;
+
+  if (hideIdle && phase === "idle") return null;
 
   return (
     <div className="w-full space-y-2">

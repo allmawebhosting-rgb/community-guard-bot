@@ -90,12 +90,15 @@ import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import {
+  chatThreadContextQueryOptions,
   getSosRoomVoiceNoteUrl,
-  sendSosRoomMessage,
   sendSosRoomVoiceNote,
   sosRoomMessagesQueryOptions,
   sosRoomQueryOptions,
+  subscribeConversationMessages,
   subscribeSosRoomMessages,
+  type ChatThreadContext,
+  type SharedChatMessageRow,
   type SosRoomMessage,
 } from "@/lib/sos-rooms";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
@@ -108,6 +111,9 @@ type ToolPart = {
 };
 
 type Suggestion = { label: string; prompt: string };
+type TimelineItem =
+  | { kind: "chat"; message: UIMessage; msgIndex: number; timestamp: number }
+  | { kind: "sos"; message: SosRoomMessage; timestamp: number };
 
 function SosRoomAutoScroll({
   active,
@@ -457,9 +463,20 @@ const IncidentContext = createContext<Incident | null>(null);
 /** True when this message's find_facilities results already listed places. */
 const HasPlacesContext = createContext(false);
 const SosActivityContext = createContext<{
+  threadId: string | null;
+  activityId: string | null;
+  active: boolean;
+  canManage: boolean;
+  sharedLocation: { latitude: number; longitude: number; accuracy_m: number | null } | null;
   onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
   onActivityEnded?: (activityId: string) => void;
-}>({});
+}>({
+  threadId: null,
+  activityId: null,
+  active: false,
+  canManage: false,
+  sharedLocation: null,
+});
 
 /** Numbered first-aid steps + red flags, shown when the reply itself skipped them. */
 function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | null }) {
@@ -490,9 +507,90 @@ function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
     <InChatSos
       type={type}
       lines={EMERGENCY_BLOCK_LINES[type]}
+      threadId={sosActivity.threadId}
+      existingActivityId={sosActivity.activityId}
+      existingActive={sosActivity.active}
+      sharedLocation={sosActivity.sharedLocation}
+      canManage={sosActivity.canManage}
       onActivityStarted={sosActivity.onActivityStarted}
       onActivityEnded={sosActivity.onActivityEnded}
     />
+  );
+}
+
+function SosTimelineEvent({
+  message,
+  person,
+  mine,
+  voiceUrl,
+  voiceUrlError,
+}: {
+  message: SosRoomMessage;
+  person?: { name: string; avatar: string | null; role: string };
+  mine: boolean;
+  voiceUrl?: string;
+  voiceUrlError: boolean;
+}) {
+  if (message.event_type !== "user_message" && message.event_type !== "voice_note") {
+    return (
+      <p
+        key={message.id}
+        className="mx-auto max-w-[92%] rounded-full border border-border/50 bg-muted/45 px-3 py-1.5 text-center text-[11px] font-medium text-muted-foreground"
+      >
+        {message.body}
+      </p>
+    );
+  }
+
+  const timestamp = new Date(message.created_at).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const duration = message.duration_seconds
+    ? `${String(Math.floor(message.duration_seconds / 60)).padStart(2, "0")}:${String(message.duration_seconds % 60).padStart(2, "0")}`
+    : null;
+
+  return (
+    <div key={message.id} className={cn("flex items-end gap-2", mine && "flex-row-reverse")}>
+      <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={30} />
+      <div className={cn("min-w-0 max-w-[84%]", mine && "text-right")}>
+        <div className={cn("mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px]", mine && "justify-end")}>
+          <span className="font-semibold text-foreground">{mine ? "You" : person?.name ?? "Allma member"}</span>
+          <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
+            {person?.role === "owner" ? "SOS caller" : person?.role === "responder" ? "Responder" : "Safety contact"}
+          </span>
+          <time className="text-muted-foreground" dateTime={message.created_at}>{timestamp}</time>
+        </div>
+        <div
+          className={cn(
+            "rounded-2xl px-3 py-2 text-left text-[13px] leading-relaxed",
+            mine ? "bg-gradient-to-br from-primary to-gold text-primary-foreground" : "border border-border/60 bg-card text-foreground",
+          )}
+        >
+          {message.event_type === "voice_note" ? (
+            <div className="flex min-w-[180px] items-center gap-2">
+              <Mic className="h-4 w-4 shrink-0" />
+              {voiceUrl ? (
+                <audio
+                  controls
+                  preload="none"
+                  src={voiceUrl}
+                  aria-label={`Voice note from ${person?.name ?? "Allma member"}`}
+                  className="h-9 min-w-0 max-w-[260px]"
+                />
+              ) : (
+                <span className="text-xs">
+                  {voiceUrlError ? "Voice note unavailable" : "Preparing voice note…"}
+                </span>
+              )}
+              {duration ? <span className="shrink-0 text-[10px] tabular-nums">{duration}</span> : null}
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap break-words">{message.body}</p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -519,6 +617,11 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
         <InChatSos
           type={kind}
           lines={EMERGENCY_BLOCK_LINES[kind]}
+          threadId={sosActivity.threadId}
+          existingActivityId={sosActivity.activityId}
+          existingActive={sosActivity.active}
+          sharedLocation={sosActivity.sharedLocation}
+          canManage={sosActivity.canManage}
           onActivityStarted={sosActivity.onActivityStarted}
           onActivityEnded={sosActivity.onActivityEnded}
         />
@@ -1094,6 +1197,7 @@ export function AllmaChat({
   const voiceNoteChunksRef = useRef<Blob[]>([]);
   const voiceNoteTimerRef = useRef<number | null>(null);
   const voiceNoteActivityIdRef = useRef<string | null>(null);
+  const voiceNoteStartedAtRef = useRef<number | null>(null);
   const voiceNoteCancelledRef = useRef(false);
   const voiceNoteUrlRequestsRef = useRef(new Set<string>());
   const [pendingAccept, setPendingAccept] = useState<string | undefined>();
@@ -1144,7 +1248,7 @@ export function AllmaChat({
 
   const [serverProgress, setServerProgress] = useState<ChatProgressStepId[]>([]);
 
-  const { messages, sendMessage, status, error, stop, regenerate } = useChat({
+  const { messages, setMessages, sendMessage, status, error, stop, regenerate } = useChat({
     id: threadId ?? "guest",
     messages: initialMessages,
     transport,
@@ -1166,13 +1270,19 @@ export function AllmaChat({
   });
 
   const busy = status === "submitted" || status === "streaming";
-  const sosActivityId = inlineCall?.activityId ?? activeSosActivity?.id ?? null;
+  const threadContextQuery = useQuery(chatThreadContextQueryOptions(threadId));
+  const threadContext = threadContextQuery.data ?? null;
+  const sosActivityId =
+    inlineCall?.activityId ?? activeSosActivity?.id ?? threadContext?.sos_activity_id ?? null;
   const activeInlineCall =
     inlineCall && inlineCall.activityId === sosActivityId ? inlineCall : null;
   const sosIsActive =
     activeSosActivity?.id === sosActivityId
       ? activeSosActivity.active
-      : Boolean(inlineCall?.activityId === sosActivityId);
+      : inlineCall?.activityId === sosActivityId
+        ? true
+        : Boolean(threadContext?.sos_activity_id === sosActivityId && threadContext.sos_active);
+  const canManageSos = threadId ? threadContext?.is_owner === true : Boolean(user?.id);
   const sosRoomQuery = useQuery(sosRoomQueryOptions(sosActivityId));
   const sosRoom = sosRoomQuery.data ?? null;
   const sosMessagesQuery = useQuery(sosRoomMessagesQueryOptions(sosActivityId));
@@ -1191,8 +1301,30 @@ export function AllmaChat({
           );
         },
       );
+      void queryClient.invalidateQueries({ queryKey: ["sos-room", sosActivityId] });
     });
   }, [queryClient, sosActivityId]);
+
+  useEffect(() => {
+    if (!threadId) return;
+    return subscribeConversationMessages(threadId, (incoming: SharedChatMessageRow) => {
+      setMessages((current) => {
+        const messageId = incoming.sdk_message_id || incoming.id;
+        if (current.some((message) => message.id === messageId)) return current;
+        const parts = Array.isArray(incoming.parts) ? incoming.parts : [];
+        return [
+          ...current,
+          {
+            id: messageId,
+            role: incoming.role as UIMessage["role"],
+            parts: parts as UIMessage["parts"],
+            authorId: incoming.user_id,
+            createdAt: incoming.created_at,
+          } as UIMessage,
+        ];
+      });
+    });
+  }, [setMessages, threadId]);
 
   useEffect(() => {
     setVoiceNoteUrls({});
@@ -1245,12 +1377,9 @@ export function AllmaChat({
     return people;
   }, [sosRoom]);
   const visibleSosMessages = sosMessages.filter(
-    (message) => message.event_type === "user_message" || message.event_type === "voice_note",
+    (message) =>
+      ["user_message", "voice_note", "participant_joined", "system"].includes(message.event_type),
   );
-
-  useEffect(() => {
-    if (sosIsActive && busy) void stop();
-  }, [busy, sosIsActive, stop]);
 
   useEffect(() => {
     if (status === "ready" || status === "error") setServerProgress([]);
@@ -1271,7 +1400,16 @@ export function AllmaChat({
   const send = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      if (sosIsActive || (!trimmed && attachments.length === 0) || busy) return;
+      if ((!trimmed && attachments.length === 0) || busy) return;
+      if (
+        threadId &&
+        threadContext &&
+        !threadContext.is_owner &&
+        !threadContext.sos_active
+      ) {
+        toast.error("Only the conversation owner can send after the emergency ends.");
+        return;
+      }
 
       const parts: UIMessage["parts"] = [];
       const caption =
@@ -1294,7 +1432,7 @@ export function AllmaChat({
       setAttachments([]);
       focusInput();
     },
-    [attachments, busy, sendMessage, focusInput, sosIsActive],
+    [attachments, busy, sendMessage, focusInput, threadContext, threadId],
   );
 
   const seeded = useRef(false);
@@ -1428,6 +1566,23 @@ export function AllmaChat({
 
   const isEmpty = messages.length === 0;
   const lastMsg = messages[messages.length - 1];
+  const timelineItems = useMemo<TimelineItem[]>(() => {
+    const chatItems: TimelineItem[] = messages.map((message, msgIndex) => {
+      const createdAt = (message as UIMessage & { createdAt?: string | Date }).createdAt;
+      return {
+        kind: "chat",
+        message,
+        msgIndex,
+        timestamp: createdAt ? new Date(createdAt).getTime() : Date.now() + msgIndex,
+      };
+    });
+    const sosItems: TimelineItem[] = visibleSosMessages.map((message) => ({
+      kind: "sos",
+      message,
+      timestamp: new Date(message.created_at).getTime(),
+    }));
+    return [...chatItems, ...sosItems].sort((left, right) => left.timestamp - right.timestamp);
+  }, [messages, visibleSosMessages]);
 
   // Contextual chips come from the ::suggest marker in the last assistant reply
   // (legacy threads fall back to the old suggest_replies tool output).
@@ -1633,43 +1788,65 @@ export function AllmaChat({
 
   const handleSosActivityStarted = useCallback((activityId: string, card: HTMLDivElement | null) => {
     setActiveSosActivity({ id: activityId, active: true });
+    if (threadId) {
+      queryClient.setQueryData<ChatThreadContext | null>(
+        ["chat-thread-context", threadId],
+        (current) =>
+          current
+            ? { ...current, sos_activity_id: activityId, sos_active: true }
+            : current,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["chat-thread-context", threadId] });
+    }
     requestAnimationFrame(() => card?.scrollIntoView({ behavior: "smooth", block: "end" }));
-  }, []);
+  }, [queryClient, threadId]);
 
   const handleSosActivityEnded = useCallback((activityId: string) => {
     setActiveSosActivity((current) =>
       current?.id === activityId ? { ...current, active: false } : current,
     );
-  }, []);
+    if (threadId) {
+      void queryClient.invalidateQueries({ queryKey: ["chat-thread-context", threadId] });
+    }
+  }, [queryClient, threadId]);
 
   const sosActivityContextValue = useMemo(
     () => ({
+      threadId,
+      activityId: sosActivityId,
+      active: sosIsActive,
+      canManage: canManageSos,
+      sharedLocation:
+        sosRoom?.location_shared && sosRoom.latitude != null && sosRoom.longitude != null
+          ? {
+              latitude: sosRoom.latitude,
+              longitude: sosRoom.longitude,
+              accuracy_m: sosRoom.accuracy_m,
+            }
+          : null,
       onActivityStarted: handleSosActivityStarted,
       onActivityEnded: handleSosActivityEnded,
     }),
-    [handleSosActivityEnded, handleSosActivityStarted],
-  );
-
-  const sendRoomText = useCallback(
-    async (text: string) => {
-      if (!sosActivityId) return false;
-      try {
-        await sendSosRoomMessage(sosActivityId, text);
-        await queryClient.invalidateQueries({ queryKey: ["sos-room-messages", sosActivityId] });
-        return true;
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Message not sent.");
-        return false;
-      }
-    },
-    [queryClient, sosActivityId],
+    [
+      canManageSos,
+      handleSosActivityEnded,
+      handleSosActivityStarted,
+      sosActivityId,
+      sosIsActive,
+      sosRoom,
+      threadId,
+    ],
   );
 
   const sendVoiceNote = useCallback(
-    async (activityId: string, clip: Blob) => {
+    async (activityId: string, clip: Blob, durationSeconds: number) => {
+      if (!threadId) {
+        toast.error("This voice note cannot be linked to a saved conversation.");
+        return;
+      }
       setSosVoiceNoteUploading(true);
       try {
-        await sendSosRoomVoiceNote(activityId, clip);
+        await sendSosRoomVoiceNote(activityId, threadId, clip, durationSeconds);
         await queryClient.invalidateQueries({ queryKey: ["sos-room-messages", activityId] });
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Voice note not sent.");
@@ -1677,7 +1854,7 @@ export function AllmaChat({
         setSosVoiceNoteUploading(false);
       }
     },
-    [queryClient],
+    [queryClient, threadId],
   );
 
   const stopSosVoiceNote = useCallback((discard = false) => {
@@ -1716,6 +1893,7 @@ export function AllmaChat({
       voiceNoteStreamRef.current = stream;
       voiceNoteRecorderRef.current = recorder;
       voiceNoteActivityIdRef.current = sosActivityId;
+        voiceNoteStartedAtRef.current = Date.now();
       voiceNoteChunksRef.current = [];
       voiceNoteCancelledRef.current = false;
       setSosVoiceNoteSeconds(0);
@@ -1727,6 +1905,10 @@ export function AllmaChat({
         const chunks = voiceNoteChunksRef.current;
         const mimeType = recorder.mimeType || chunks[0]?.type || "audio/webm";
         const cancelled = voiceNoteCancelledRef.current;
+        const durationSeconds = voiceNoteStartedAtRef.current
+          ? Math.max(1, Math.round((Date.now() - voiceNoteStartedAtRef.current) / 1000))
+          : 0;
+        voiceNoteStartedAtRef.current = null;
         voiceNoteStreamRef.current?.getTracks().forEach((track) => track.stop());
         voiceNoteStreamRef.current = null;
         voiceNoteRecorderRef.current = null;
@@ -1741,7 +1923,7 @@ export function AllmaChat({
           toast.error("That recording was empty — please try again.");
           return;
         }
-        void sendVoiceNote(activityId, clip);
+        void sendVoiceNote(activityId, clip, durationSeconds);
       };
       recorder.start(1000);
       setSosVoiceNoteRecording(true);
@@ -1764,7 +1946,15 @@ export function AllmaChat({
       voiceNoteStreamRef.current = null;
       toast.error(error instanceof Error ? error.message : "Microphone access was unavailable.");
     }
-  }, [recording, sendVoiceNote, sosActivityId, sosIsActive, sosVoiceNoteUploading, transcribing]);
+  }, [
+    recording,
+    sendVoiceNote,
+    sosActivityId,
+    sosIsActive,
+    sosVoiceNoteUploading,
+    transcribing,
+    threadId,
+  ]);
 
   const toggleSosVoiceNote = useCallback(() => {
     if (sosVoiceNoteRecording) stopSosVoiceNote();
@@ -1904,14 +2094,41 @@ export function AllmaChat({
           />
           <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", "pb-8")}>
             <div className="flex flex-col gap-5 pt-16 lg:pt-8">
-              {messages.map((message, msgIndex) => (
+              {timelineItems.map((item) => {
+                if (item.kind === "sos") {
+                  const mine = item.message.author_id === user?.id;
+                  const person = item.message.author_id
+                    ? sosRoomPeople.get(item.message.author_id)
+                    : undefined;
+                  return (
+                    <SosTimelineEvent
+                      key={item.message.id}
+                      message={item.message}
+                      person={person}
+                      mine={mine}
+                      voiceUrl={voiceNoteUrls[item.message.id]}
+                      voiceUrlError={voiceNoteUrlErrors.has(item.message.id)}
+                    />
+                  );
+                }
+                const { message, msgIndex } = item;
+                const authorId = (message as UIMessage & { authorId?: string }).authorId;
+                const isOwnUserMessage = message.role === "user" && (!authorId || authorId === user?.id);
+                const author = authorId ? sosRoomPeople.get(authorId) : undefined;
+                return (
                 <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-2.5 sm:max-w-full" : "max-w-full sm:max-w-full"}>
                   {message.role === "assistant" ? (
                     <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-border/50 bg-card object-cover" />
+                  ) : !isOwnUserMessage ? (
+                    <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={28} />
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-2", message.role === "user" && "items-end")}>
                   {message.role === "assistant" ? (
                     <p className="text-[13px] font-medium leading-none text-muted-foreground">Allma</p>
+                  ) : message.role === "user" ? (
+                    <p className={cn("text-[11px] font-semibold text-muted-foreground", isOwnUserMessage && "text-right")}>
+                      {isOwnUserMessage ? "You" : author?.name ?? "Responder"}
+                    </p>
                   ) : null}
                   <MessageContent
                     className={
@@ -2092,109 +2309,8 @@ export function AllmaChat({
                     )}
                   </div>
                 </Message>
-              ))}
-              {sosActivityId && (sosIsActive || visibleSosMessages.length > 0) ? (
-                <section aria-label="SOS group chat" className="space-y-3 rounded-2xl border border-success/25 bg-success/[0.035] p-3 sm:p-4">
-                  <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-foreground">
-                      SOS group chat
-                    </p>
-                    <span className="flex items-center gap-1.5 text-[10px] font-semibold text-success">
-                      <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                      {sosIsActive ? "Live" : "Recent"}
-                    </span>
-                  </div>
-                  {visibleSosMessages.length === 0 ? (
-                    <p className="text-[12px] text-muted-foreground">No responder messages yet. Messages and voice notes will appear here.</p>
-                  ) : null}
-                  {visibleSosMessages.map((message) => {
-                    const mine = message.author_id === user?.id;
-                    const person = message.author_id ? sosRoomPeople.get(message.author_id) : undefined;
-                    const relationship =
-                      person?.role === "owner"
-                        ? "SOS caller"
-                        : person?.role === "responder"
-                          ? "Safety Circle"
-                          : person?.role === "contact"
-                            ? "Safety contact"
-                            : "Member";
-                    const voiceNote = message.event_type === "voice_note";
-                    return (
-                      <div
-                        key={message.id}
-                        className={cn("flex items-end gap-2", mine && "flex-row-reverse")}
-                      >
-                        <Avatar
-                          name={person?.name ?? "Allma member"}
-                          url={person?.avatar ?? null}
-                          size={30}
-                        />
-                        <div className={cn("min-w-0 max-w-[84%]", mine && "text-right")}>
-                          <div className={cn("mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px]", mine && "justify-end")}>
-                            <span className="font-semibold text-foreground">
-                              {mine ? "You" : person?.name ?? "Allma member"}
-                            </span>
-                            <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
-                              {relationship}
-                            </span>
-                            <time className="text-muted-foreground" dateTime={message.created_at}>
-                              {new Date(message.created_at).toLocaleTimeString([], {
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </time>
-                            {mine ? (
-                              <span
-                                aria-label="Message sent"
-                                title="Sent"
-                                className="inline-flex items-center text-success"
-                              >
-                                <Check className="h-3 w-3" />
-                              </span>
-                            ) : null}
-                          </div>
-                          <div
-                            className={cn(
-                              "rounded-2xl px-3 py-2 text-left text-[13px] leading-relaxed",
-                              mine
-                                ? "bg-gradient-to-br from-primary to-gold text-primary-foreground"
-                                : "border border-border/60 bg-card text-foreground",
-                            )}
-                          >
-                            {voiceNote ? (
-                              voiceNoteUrls[message.id] ? (
-                                <div className="flex min-w-[180px] items-center gap-2">
-                                  <Mic className="h-4 w-4 shrink-0" />
-                                  <audio
-                                    controls
-                                    preload="none"
-                                    src={voiceNoteUrls[message.id]}
-                                    aria-label={`Voice note from ${person?.name ?? "Allma member"}`}
-                                    className="h-9 min-w-0 max-w-[260px]"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5">
-                                  {voiceNoteUrlErrors.has(message.id) ? (
-                                    "Voice note unavailable"
-                                  ) : (
-                                    <>
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                      Preparing voice note…
-                                    </>
-                                  )}
-                                </span>
-                              )
-                            ) : (
-                              <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </section>
-              ) : null}
+                );
+              })}
               {status === "submitted" ? (
                 <div className="flex max-w-full flex-row items-start gap-2.5">
                   <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-border/50 bg-card object-cover" />
@@ -2288,17 +2404,6 @@ export function AllmaChat({
                   event.preventDefault();
                   const text = (message.text ?? "").trim();
                   if (!text) return;
-                  if (sosIsActive && sosActivityId) {
-                    const form = event.currentTarget;
-                    const field = textareaRef.current;
-                    void sendRoomText(text).then((sent) => {
-                      if (!sent) return;
-                      setComposerText("");
-                      form.reset();
-                      if (field) field.style.height = "";
-                    });
-                    return;
-                  }
                   send(text);
                   setComposerText("");
                   event.currentTarget.reset();
@@ -2321,8 +2426,8 @@ export function AllmaChat({
 
                 <PromptInputTextarea
                   ref={textareaRef}
-                  placeholder={sosIsActive ? "Message your responders…" : "Message Allma..."}
-                  aria-label={sosIsActive ? "Message your responders" : "Message Allma"}
+                  placeholder={sosIsActive ? "Message Allma and your responders…" : "Message Allma..."}
+                  aria-label={sosIsActive ? "Message Allma and your responders" : "Message Allma"}
                   enterKeyHint="send"
                   rows={1}
                   className="composer-textarea min-h-[44px] bg-transparent px-1.5 py-[10px] text-base leading-6 sm:text-[15px]"
