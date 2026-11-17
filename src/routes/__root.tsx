@@ -14,7 +14,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CallCenter } from "@/components/allma/calls/call-center";
 import { SmartSosGuardian } from "@/components/allma/sos/smart-sos-guardian";
-import { ensurePushRegistered } from "@/lib/push";
+import { ensurePushRegistered, isStandalone } from "@/lib/push";
 import { VoiceAssistant } from "@/components/allma/voice-assistant";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 import appCss from "@/styles.css?url";
@@ -94,7 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Chat with Allma Safety AI to report crime, raise an SOS, find hospitals and police stations, and get calm safety guidance in seconds. Built for Uganda.",
       },
       { name: "author", content: "Allma AI" },
-      { name: "theme-color", content: "#0f1720" },
+      { name: "theme-color", content: "#faf8f4" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
@@ -175,6 +175,16 @@ function AuthSync() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    const syncStandalone = () => {
+      document.documentElement.classList.toggle("standalone", isStandalone());
+    };
+    syncStandalone();
+    const media = window.matchMedia("(display-mode: standalone)");
+    media.addEventListener?.("change", syncStandalone);
+    return () => media.removeEventListener?.("change", syncStandalone);
+  }, []);
 
   useEffect(() => {
     const repairPush = () => {

@@ -259,6 +259,15 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Installed Home Screen (iPhone PWA): let the app chrome own the notch/status bar. */
+  html.standalone body {
+    padding-top: 0;
+  }
+
+  html.standalone .app-mobile-header {
+    padding-top: env(safe-area-inset-top);
+  }
+
   html.viewport-locked,
   body.viewport-locked {
     height: 100%;

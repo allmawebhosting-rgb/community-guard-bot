@@ -610,7 +610,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         )}
       >
         {/* Mobile-only header */}
-        <header className={cn("no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl lg:hidden", activeSos && "sos-header-active border-destructive/40")}>
+        <header className={cn("app-mobile-header no-print sticky top-0 z-30 border-b border-border/50 bg-background/95 backdrop-blur-xl lg:hidden", activeSos && "sos-header-active border-destructive/40")}>
           <div className={cn("mx-auto grid w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4", activeSos ? "min-h-16 py-1.5" : "h-16")}>
             <button
               type="button"

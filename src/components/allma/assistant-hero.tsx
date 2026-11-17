@@ -27,10 +27,18 @@ export function AssistantHero({ onSelect, className }: { onSelect: (prompt: stri
         <img src={heroImg} alt="Allma, your safety assistant" width={1024} height={768} className="h-[22dvh] max-h-60 lg:h-56 lg:max-h-none [@media(max-height:700px)]:h-[14dvh] w-full object-cover object-[center_30%]" />
       </div>
       <div className="relative rounded-t-[2.25rem] bg-background px-4 pb-3 pt-5 sm:mx-4 sm:rounded-[2rem]">
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center font-display text-[1.35rem] font-bold tracking-tight text-foreground sm:text-[1.55rem]"
+        >
+          Allma Safety AI
+        </motion.p>
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center font-display text-[1.75rem] font-bold leading-[1.08] tracking-tight text-chat-accent sm:text-3xl lg:text-4xl"
+          transition={{ delay: 0.04 }}
+          className="mt-1 text-center font-display text-[1.35rem] font-bold leading-[1.12] tracking-tight text-chat-accent sm:text-2xl lg:text-3xl"
         >
           How can I help
           <br className="lg:hidden" />{" "}
