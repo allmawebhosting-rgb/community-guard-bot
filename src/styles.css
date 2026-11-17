@@ -690,6 +690,20 @@
   box-shadow: 0 12px 34px -18px color-mix(in oklab, var(--destructive) 70%, transparent);
 }
 
+@utility composer-shell-sos {
+  border-color: color-mix(in oklab, var(--destructive) 28%, var(--border));
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--destructive) 8%, transparent),
+    0 8px 28px -14px color-mix(in oklab, var(--destructive) 35%, transparent);
+}
+
+.chat-composer-dock-sos {
+  border-top-color: color-mix(in oklab, var(--destructive) 22%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--destructive) 5%, transparent), transparent 42%),
+    color-mix(in oklab, var(--background) 86%, transparent);
+}
+
 @utility composer-surface {
   border-radius: calc(var(--composer-radius, 1.75rem) - 1.25px);
   background: transparent;

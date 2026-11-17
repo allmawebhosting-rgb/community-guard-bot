@@ -34,6 +34,7 @@ import {
   Sparkles,
   Upload,
   User,
+  Users,
   Video,
   FileAudio,
   FileIcon,
@@ -555,6 +556,12 @@ function EmergencyActions({
   );
 }
 
+function roleLabel(role?: string) {
+  if (role === "owner") return "SOS caller";
+  if (role === "responder") return "Responder";
+  return "Safety contact";
+}
+
 function SosTimelineEvent({
   message,
   person,
@@ -569,13 +576,27 @@ function SosTimelineEvent({
   voiceUrlError: boolean;
 }) {
   if (message.event_type !== "user_message" && message.event_type !== "voice_note") {
+    const joined = message.event_type === "participant_joined";
     return (
-      <p
+      <motion.div
         key={message.id}
-        className="mx-auto max-w-[92%] rounded-full border border-border/50 bg-muted/45 px-3 py-1.5 text-center text-[11px] font-medium text-muted-foreground"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto flex max-w-[92%] items-center justify-center gap-2 px-1 py-0.5"
       >
-        {message.body}
-      </p>
+        <span
+          className={cn(
+            "inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-center text-[11px] font-medium",
+            joined
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-border/50 bg-muted/55 text-muted-foreground",
+          )}
+        >
+          {joined ? <Users className="h-3 w-3 shrink-0" /> : <ShieldAlert className="h-3 w-3 shrink-0" />}
+          <span className="min-w-0">{message.body}</span>
+        </span>
+      </motion.div>
     );
   }
 
@@ -588,25 +609,35 @@ function SosTimelineEvent({
     : null;
 
   return (
-    <div key={message.id} className={cn("flex items-end gap-2", mine && "flex-row-reverse")}>
+    <motion.div
+      key={message.id}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      className={cn("flex items-end gap-2", mine && "flex-row-reverse")}
+    >
       <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={30} />
       <div className={cn("min-w-0 max-w-[84%]", mine && "text-right")}>
         <div className={cn("mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px]", mine && "justify-end")}>
           <span className="font-semibold text-foreground">{mine ? "You" : person?.name ?? "Allma member"}</span>
           <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
-            {person?.role === "owner" ? "SOS caller" : person?.role === "responder" ? "Responder" : "Safety contact"}
+            {roleLabel(person?.role)}
           </span>
           <time className="text-muted-foreground" dateTime={message.created_at}>{timestamp}</time>
         </div>
         <div
           className={cn(
-            "rounded-2xl px-3 py-2 text-left text-[13px] leading-relaxed",
-            mine ? "bg-gradient-to-br from-primary to-gold text-primary-foreground" : "border border-border/60 bg-card text-foreground",
+            "rounded-2xl px-3.5 py-2.5 text-left text-[14px] leading-relaxed shadow-sm",
+            mine
+              ? "rounded-br-md bg-gradient-to-br from-primary to-gold text-primary-foreground"
+              : "rounded-bl-md border border-border/55 bg-card text-foreground",
           )}
         >
           {message.event_type === "voice_note" ? (
             <div className="flex min-w-[180px] items-center gap-2">
-              <Mic className="h-4 w-4 shrink-0" />
+              <span className={cn("grid h-8 w-8 place-items-center rounded-full", mine ? "bg-primary-foreground/15" : "bg-muted")}>
+                <Mic className="h-4 w-4 shrink-0" />
+              </span>
               {voiceUrl ? (
                 <audio
                   controls
@@ -620,14 +651,70 @@ function SosTimelineEvent({
                   {voiceUrlError ? "Voice note unavailable" : "Preparing voice note…"}
                 </span>
               )}
-              {duration ? <span className="shrink-0 text-[10px] tabular-nums">{duration}</span> : null}
+              {duration ? <span className="shrink-0 text-[10px] tabular-nums opacity-80">{duration}</span> : null}
             </div>
           ) : (
             <p className="whitespace-pre-wrap break-words">{message.body}</p>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+function SharedSessionStrip({
+  active,
+  people,
+  locationShared,
+}: {
+  active: boolean;
+  people: Array<{ id: string; name: string; avatar: string | null; role: string }>;
+  locationShared: boolean;
+}) {
+  if (!active) return null;
+  const visible = people.slice(0, 5);
+  const extra = Math.max(0, people.length - visible.length);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="flex shrink-0 items-center gap-3 border-b border-destructive/20 bg-destructive/[0.04] px-3 py-2 sm:px-4"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-60" />
+        <span className="relative h-2.5 w-2.5 rounded-full bg-destructive" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-destructive">
+          Shared emergency conversation
+        </p>
+        <p className="truncate text-[11px] text-muted-foreground">
+          {people.length > 1
+            ? `${people.length} people in this chat`
+            : "Waiting for Safety Network to join"}
+          {locationShared ? " · Location shared" : ""}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center -space-x-2">
+        {visible.map((person) => (
+          <span
+            key={person.id}
+            className="rounded-full ring-2 ring-background"
+            title={`${person.name} · ${roleLabel(person.role)}`}
+          >
+            <Avatar name={person.name} url={person.avatar} size={26} />
+          </span>
+        ))}
+        {extra > 0 ? (
+          <span className="grid h-[26px] w-[26px] place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground ring-2 ring-background">
+            +{extra}
+          </span>
+        ) : null}
+      </div>
+    </motion.div>
   );
 }
 
@@ -2053,6 +2140,31 @@ export function AllmaChat({
         }}
       />
 
+      <SharedSessionStrip
+        active={sosIsActive}
+        locationShared={Boolean(sosRoom?.location_shared)}
+        people={(() => {
+          if (!sosRoom) return [];
+          const people = [
+            {
+              id: sosRoom.owner_id,
+              name: sosRoom.sender_name,
+              avatar: sosRoom.sender_avatar_url,
+              role: "owner",
+            },
+            ...sosRoom.participants.map((participant) => ({
+              id: participant.user_id,
+              name: participant.name,
+              avatar: participant.avatar_url,
+              role: participant.role,
+            })),
+          ];
+          return people.filter(
+            (person, index, all) => all.findIndex((item) => item.id === person.id) === index,
+          );
+        })()}
+      />
+
       {activeInlineCall && sosIsActive ? (
         <div
           role="region"
@@ -2138,7 +2250,7 @@ export function AllmaChat({
             messageCount={visibleSosMessages.length}
           />
           <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", "pb-8")}>
-            <div className="flex flex-col gap-5 pt-16 lg:pt-8">
+            <div className={cn("flex flex-col pt-16 lg:pt-8", sosIsActive ? "gap-4" : "gap-5")}>
               {timelineItems.map((item) => {
                 if (item.kind === "sos") {
                   const mine = item.message.author_id === user?.id;
@@ -2160,26 +2272,37 @@ export function AllmaChat({
                 const authorId = (message as UIMessage & { authorId?: string }).authorId;
                 const isOwnUserMessage = message.role === "user" && (!authorId || authorId === user?.id);
                 const author = authorId ? sosRoomPeople.get(authorId) : undefined;
+                const isOtherHuman = message.role === "user" && !isOwnUserMessage;
                 return (
-                <Message key={message.id} from={message.role} className={message.role === "assistant" ? "max-w-full flex-row items-start gap-2.5 sm:max-w-full" : "max-w-full sm:max-w-full"}>
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                >
+                <Message
+                  from={message.role}
+                  className={cn(
+                    message.role === "assistant"
+                      ? "max-w-full flex-row items-start gap-2.5 sm:max-w-full"
+                      : "max-w-full sm:max-w-full",
+                    isOtherHuman && "ml-0 mr-auto justify-start",
+                  )}
+                >
                   {message.role === "assistant" ? (
-                    <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-border/50 bg-card object-cover" />
-                  ) : !isOwnUserMessage ? (
-                    <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={28} />
+                    <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
+                  ) : isOtherHuman ? (
+                    <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={30} />
                   ) : null}
-                  <div className={cn("flex min-w-0 flex-1 flex-col gap-2", message.role === "user" && "items-end")}>
+                  <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
                   {message.role === "assistant" ? (
-                    <p className="text-[13px] font-medium leading-none text-muted-foreground">Allma</p>
+                    <p className="text-[12px] font-semibold tracking-wide text-muted-foreground">Allma</p>
                   ) : message.role === "user" ? (
-                    <p className={cn("flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-muted-foreground", isOwnUserMessage && "justify-end")}>
+                    <p className={cn("flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-muted-foreground", isOwnUserMessage ? "justify-end" : "justify-start")}>
                       <span>{isOwnUserMessage ? "You" : author?.name ?? "Responder"}</span>
                       {!isOwnUserMessage ? (
                         <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                          {author?.role === "owner"
-                            ? "SOS caller"
-                            : author?.role === "responder"
-                              ? "Responder"
-                              : "Safety contact"}
+                          {roleLabel(author?.role)}
                         </span>
                       ) : null}
                     </p>
@@ -2187,8 +2310,11 @@ export function AllmaChat({
                   <MessageContent
                     className={
                       message.role === "assistant"
-                        ? "w-full max-w-full rounded-2xl rounded-tl-md border border-border/50 bg-muted/60 px-3.5 py-3 shadow-none"
-                        : "ml-auto w-fit max-w-[80%] rounded-none bg-transparent p-0 shadow-none"
+                        ? "w-full max-w-full rounded-2xl rounded-tl-md border border-border/45 bg-card/80 px-3.5 py-3 shadow-sm"
+                        : cn(
+                            "w-fit max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[80%]",
+                            isOwnUserMessage ? "ml-auto" : "mr-auto",
+                          )
                     }
                   >
                     {(() => {
@@ -2227,8 +2353,21 @@ export function AllmaChat({
                       if (part.type === "text") {
                         if (message.role !== "assistant") {
                           return (
-                            <div key={index} className="flex max-w-full flex-col items-end">
-                              <p className="max-w-full whitespace-pre-wrap rounded-[1.15rem] rounded-br-md bg-chat-user px-3.5 py-2.5 text-base leading-[1.6] text-foreground">
+                            <div
+                              key={index}
+                              className={cn(
+                                "flex max-w-full flex-col",
+                                isOwnUserMessage ? "items-end" : "items-start",
+                              )}
+                            >
+                              <p
+                                className={cn(
+                                  "max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-base leading-[1.6] text-foreground shadow-sm",
+                                  isOwnUserMessage
+                                    ? "rounded-[1.15rem] rounded-br-md bg-chat-user"
+                                    : "rounded-[1.15rem] rounded-bl-md border border-border/55 bg-card",
+                                )}
+                              >
                                 {part.text}
                               </p>
                               <span className="mt-1 text-[11px] leading-none text-muted-foreground" suppressHydrationWarning>
@@ -2364,13 +2503,14 @@ export function AllmaChat({
                     )}
                   </div>
                 </Message>
+                </motion.div>
                 );
               })}
               {status === "submitted" ? (
                 <div className="flex max-w-full flex-row items-start gap-2.5">
-                  <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-border/50 bg-card object-cover" />
+                  <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="mb-1.5 text-[13px] font-medium leading-none text-muted-foreground">Allma</p>
+                    <p className="mb-1.5 text-[12px] font-semibold tracking-wide text-muted-foreground">Allma</p>
                     <div className="space-y-3">
                       {pendingEmergencyType ? <EmergencyActions type={pendingEmergencyType} /> : null}
                       {pendingAid ? <FirstAidCard aid={pendingAid} followUp={null} /> : null}
@@ -2404,10 +2544,16 @@ export function AllmaChat({
           // Docked as the last flex child of the full-height chat column, so it
           // never floats over (and hides) the end of the conversation.
           "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 px-3 pt-2 sm:px-4",
+          sosIsActive && "chat-composer-dock-sos",
         )}
         data-fixed-composer={fixedComposer ? "true" : undefined}
       >
         <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
+          {sosIsActive ? (
+            <p className="mb-2 px-1 text-[11px] font-medium text-muted-foreground">
+              Messages go to Allma and everyone authorized in this emergency.
+            </p>
+          ) : null}
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {attachments.map((attachment) => (
@@ -2451,6 +2597,7 @@ export function AllmaChat({
             className={cn(
               "composer-shell composer-pill min-w-0 focus-within:composer-shell-focused",
               composerRecording && "composer-shell-recording",
+              sosIsActive && !composerRecording && "composer-shell-sos",
             )}
           >
             <div className="composer-surface">
