@@ -6,7 +6,7 @@ import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { facilityKind } from "@/lib/facility-kind";
 
 /** Public (anon) client for the public emergency directory; works without the admin key. */
-function publicDirectoryClient() {
+export function publicDirectoryClient() {
   const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
   const key =
     process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];

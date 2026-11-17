@@ -1,7 +1,8 @@
 import { classifyEmergency, classifyIncident, emergencyPromptBlock } from "@/lib/emergency-triage";
 import { facilityKind } from "@/lib/facility-kind";
-import { cleanAddress, refineFacilities } from "@/lib/facility-results";
+import { cleanAddress, KIND_LABEL, refineFacilities } from "@/lib/facility-results";
 import { chooseSearchOrigin } from "@/lib/location-origin";
+import { isReportingIntent, shouldShowDirectHelp } from "@/lib/chat-intent";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
 import { createFileRoute } from "@tanstack/react-router";
@@ -309,12 +310,37 @@ export const Route = createFileRoute("/api/chat")({
           (/\bhospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null);
         const emergencyIncident = flowState.flowLabel ? null : classifyIncident(intakeText);
         const emergencyKind = emergencyIncident ? classifyEmergency(intakeText) : null;
-        // Matched incident's playbook section only — loaded with the procedure blocks below.
-        const emergencyBlock = emergencyIncident ? emergencyPromptBlock(emergencyIncident, Boolean(sharedCoords)).trim() : "";
         const matchedIntent = emergencyKind ? undefined : INTENTS.find((i) => i.matches.test(intakeText));
-        const intent = matchedIntent?.flow === "Find help" && directService ? undefined : matchedIntent;
-        const directHelpBlock = directService
+        const isReporting = isReportingIntent({
+          flowLabel: flowState.flowLabel,
+          matchedFlow: matchedIntent?.flow,
+          intakeText,
+        });
+        const reportingIntent = INTENTS.find((candidate) => candidate.flow === "Reporting");
+        const intent =
+          isReporting && !flowState.flowLabel
+            ? reportingIntent
+            : matchedIntent?.flow === "Find help" && directService
+              ? undefined
+              : matchedIntent;
+        const hasNonFindHelpIntent =
+          intent !== undefined && intent.flow !== "Find help";
+        // A reporting request must never be replaced by a facilities search.
+        const shouldShowHelp = shouldShowDirectHelp(
+          directService,
+          isReporting,
+          flowState.flowLabel,
+        );
+        const directHelpBlock = shouldShowHelp
           ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directFacilityTypes.length ? directFacilityTypes.join(" and ") : directService}. Do NOT open a flow or ask which service they need. Call find_facilities ONCE with facility_types=[${directFacilityTypes.length ? directFacilityTypes.join(", ") : directService}] in THIS reply. ${sharedCoords ? "Use their shared GPS location unless they named a town or area, which overrides GPS." : "Use an area they named anywhere in the conversation; otherwise use Kampala and briefly offer location sharing for closer places."} Do not add a media card. The UI renders facility cards, so do not generate a second description after the tool result.`
+          : "";
+        // Keep emergency advice for emergencies outside a guided incident report.
+        const emergencyBlock = emergencyIncident
+          ? isReporting
+            ? emergencyIncident.lifeThreatening
+              ? `\n\nACTIVE DANGER WHILE REPORTING: Keep the Reporting guided flow open. If anyone is in immediate danger, give one short safety instruction, direct them to Police 999 or emergency 112, and include ::emergency{type=${emergencyIncident.marker}}. Do not call find_facilities only because the user mentioned police or a hospital. Then continue the report with one question.`
+              : ""
+            : emergencyPromptBlock(emergencyIncident, Boolean(sharedCoords)).trim()
           : "";
         const intentBlock = directHelpBlock + (intent
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
@@ -360,7 +386,7 @@ export const Route = createFileRoute("/api/chat")({
         // Situation playbooks: loaded whenever a real safety situation is live.
         const needsProcedures =
           (Boolean(activeFlow) && activeFlow !== "Find help") ||
-          (Boolean(intent) && intent.flow !== "Find help") ||
+          hasNonFindHelpIntent ||
           Boolean(emergencyKind) ||
           /steal|stole|stolen|thief|theft|snatch|rob|assault|beat|attack|hurt|injur|missing|lost|found|violence|abuse|rape|defile|threaten|accident|crash|knock(ed)? (me|him|her)|fire|burn|smoke|bleed|unconscious|not breathing|choking|stroke|snake bite|burn|fraud|scam|conned|mobile money|momo|suspicious|kidnap|abduct/i.test(
             intakeText,
@@ -372,7 +398,7 @@ export const Route = createFileRoute("/api/chat")({
           memoryBlock ||
           /\b(remember|earlier|previous conversation|last time|my report|my reports|draft)\b/i.test(intakeText)
         ) promptBlocks.push(ALLMA_MEMORY_BLOCK);
-        if (hasReportContext || (Boolean(intent) && intent.flow !== "Find help")) {
+        if (hasReportContext || hasNonFindHelpIntent) {
           promptBlocks.push(ALLMA_DETAIL_BLOCK);
         }
         const systemPrompt = promptBlocks.join("\n\n");
@@ -665,6 +691,67 @@ export const Route = createFileRoute("/api/chat")({
                 const named = picked.kind === "named";
                 const origin = picked.kind === "none" ? null : { lat: picked.lat, lng: picked.lng, label: picked.label };
                 if (!origin) {
+                  const directoryArea = area?.trim() ?? "";
+                  const safeArea = directoryArea
+                    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+                    .replace(/\s+/g, " ")
+                    .trim();
+                  if (safeArea) {
+                    try {
+                      const { publicDirectoryClient } = await import("@/lib/places.server");
+                      const { data: matchedFacilities, error } = await publicDirectoryClient()
+                        .from("facilities")
+                        .select("*")
+                        .in("facility_type", placeTypes)
+                        .or(
+                          `district.ilike.%${safeArea}%,name.ilike.%${safeArea}%,address.ilike.%${safeArea}%`,
+                        )
+                        .limit(8);
+                      if (error) {
+                        console.warn("Facility directory area search failed", error);
+                        return { ok: false, message: "Directory lookup failed." };
+                      }
+                      if (matchedFacilities?.length) {
+                        const facilities = matchedFacilities.map((row) => {
+                          const latitude =
+                            row.latitude == null || !Number.isFinite(Number(row.latitude))
+                              ? null
+                              : Number(row.latitude);
+                          const longitude =
+                            row.longitude == null || !Number.isFinite(Number(row.longitude))
+                              ? null
+                              : Number(row.longitude);
+                          const kind = facilityKind(row.facility_type, row.name);
+                          return {
+                            name: row.name,
+                            facility_type: kind,
+                            type_label: KIND_LABEL[kind] ?? "Facility",
+                            phone: row.phone,
+                            address:
+                              cleanAddress(row.address, latitude ?? undefined, longitude ?? undefined) ??
+                              row.district ??
+                              safeArea,
+                            district: row.district,
+                            latitude,
+                            longitude,
+                            open_now: row.is_24_7 ? true : null,
+                          };
+                        });
+                        return facilityToolOutput({
+                          ok: true,
+                          resolved_area: safeArea,
+                          emergency_type: facility_type,
+                          emergency_types: requestedTypes,
+                          count: facilities.length,
+                          facilities,
+                          note: `Showing ${facilities.length} public directory match(es) for ${safeArea}. Distances are not available without a confirmed location.`,
+                        });
+                      }
+                    } catch (err) {
+                      console.warn("Facility directory area search failed", err);
+                      return { ok: false, message: "Directory lookup failed." };
+                    }
+                  }
                   if (area || sharedCoords) return facilityToolOutput(unconfirmed);
                 }
                 if (origin) {

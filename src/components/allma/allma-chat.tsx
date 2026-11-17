@@ -44,6 +44,8 @@ import {
   RotateCcw,
   Square,
   Volume2,
+  VolumeX,
+  PhoneOff,
   SendHorizontal,
   ChevronRight,
   Star,
@@ -96,7 +98,7 @@ import {
   subscribeSosRoomMessages,
   type SosRoomMessage,
 } from "@/lib/sos-rooms";
-import { useSosInlineCall } from "@/lib/sos-inline-call";
+import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 
 
 type ToolPart = {
@@ -1817,37 +1819,74 @@ export function AllmaChat({
       />
 
       {activeInlineCall && sosIsActive ? (
-        <button
-          type="button"
-          onClick={() =>
-            document
-              .getElementById(`sos-call-${activeInlineCall.activityId}`)
-              ?.scrollIntoView({ behavior: "smooth", block: "center" })
-          }
-          aria-label="Open active emergency call controls"
-          className="flex shrink-0 items-center gap-2.5 border-b border-success/25 bg-background/95 px-3 py-2 text-left shadow-sm backdrop-blur sm:px-4"
+        <div
+          role="region"
+          aria-label="Active emergency call"
+          className="flex shrink-0 items-center gap-2 border-b border-success/25 bg-background/95 px-3 py-2 shadow-sm backdrop-blur sm:px-4"
         >
-          <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-            <span className="relative h-2.5 w-2.5 rounded-full bg-success" />
-          </span>
-          <Avatar name={activeInlineCall.name} url={activeInlineCall.avatarUrl ?? null} size={30} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[12px] font-semibold leading-tight text-foreground">
-              {activeInlineCall.name}
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .getElementById(`sos-call-${activeInlineCall.activityId}`)
+                ?.scrollIntoView({ behavior: "smooth", block: "center" })
+            }
+            aria-label="Open active emergency call details"
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+          >
+            <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+              <span className="relative h-2.5 w-2.5 rounded-full bg-success" />
             </span>
-            <span className="block truncate text-[10px] leading-tight text-muted-foreground">
-              {activeInlineCall.safetyRole || "Safety Network"} ·{" "}
-              {activeInlineCall.status === "connected"
-                ? `${String(Math.floor(activeInlineCall.seconds / 60)).padStart(2, "0")}:${String(activeInlineCall.seconds % 60).padStart(2, "0")} connected`
-                : "Connecting"}
+            <Avatar name={activeInlineCall.name} url={activeInlineCall.avatarUrl ?? null} size={30} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12px] font-semibold leading-tight text-foreground">
+                {activeInlineCall.name}
+              </span>
+              <span className="block truncate text-[10px] leading-tight text-muted-foreground">
+                {activeInlineCall.safetyRole || "Safety Network"} ·{" "}
+                {activeInlineCall.status === "connected"
+                  ? `${String(Math.floor(activeInlineCall.seconds / 60)).padStart(2, "0")}:${String(activeInlineCall.seconds % 60).padStart(2, "0")} connected`
+                  : "Connecting"}
+              </span>
             </span>
-          </span>
-          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-success">
-            {activeInlineCall.status === "connected" ? "Live" : "Connecting"}
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </button>
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-success">
+              {activeInlineCall.status === "connected" ? "Live" : "Connecting"}
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+          {activeInlineCall.status === "connected" ? (
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                aria-label={activeInlineCall.muted ? "Unmute" : "Mute"}
+                title={activeInlineCall.muted ? "Unmute" : "Mute"}
+                onClick={() => void runSosInlineCallAction("toggleMute")}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-accent"
+              >
+                {activeInlineCall.muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                aria-label={activeInlineCall.speaker ? "Switch to earpiece" : "Switch to speaker"}
+                title={activeInlineCall.speaker ? "Speaker" : "Earpiece"}
+                onClick={() => void runSosInlineCallAction("toggleSpeaker")}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-accent"
+              >
+                {activeInlineCall.speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                aria-label="End call"
+                title="End call"
+                onClick={() => void runSosInlineCallAction("hangUp")}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-destructive text-destructive-foreground hover:opacity-90"
+              >
+                <PhoneOff className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {isEmpty && visibleSosMessages.length === 0 && !sosIsActive ? (

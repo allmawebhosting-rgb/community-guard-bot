@@ -281,6 +281,7 @@ export function CallCenter() {
           id: connection.member_id,
           name: connection.full_name,
           avatarUrl: connection.avatar_url,
+          safetyRole: connection.safety_role || "Safety contact",
         });
       }
       namesRef.current = map;
@@ -519,6 +520,12 @@ export function CallCenter() {
               Boolean(currentPeer?.sosActivityId) &&
               (row.status !== "ended" || sosCallStatusRef.current === "idle");
             if (unansweredSos) {
+              if (ringTimerRef.current) {
+                clearTimeout(ringTimerRef.current);
+                ringTimerRef.current = null;
+              }
+              setCallAudioPhase("idle");
+              setPhaseState("idle");
               callIdRef.current = null;
               setCallId(null);
               setPeer(null);
@@ -526,6 +533,7 @@ export function CallCenter() {
               setSosCallState("idle");
               setSosInlineCall(null);
               sosPrimaryClaimedRef.current = false;
+              teardown(row.status === "ended" ? "Call ended" : "Call cancelled");
             } else {
               const note =
                 row.status === "declined"
@@ -781,11 +789,13 @@ export function CallCenter() {
 
   const inChatSosCall = isChatRoute() && Boolean(peer?.sosActivityId);
   const visible = phase !== "idle" && !inChatSosCall;
-  const showInlineIncomingSos =
+  const showInlineSos =
     isChatRoute() &&
     !isCaller &&
     Boolean(peer?.sosActivityId) &&
-    (phase === "incoming" || sosCallStatus === "connecting");
+    (phase === "incoming" ||
+      sosCallStatus === "connecting" ||
+      sosCallStatus === "connected");
   const isEmergencyCall = Boolean(emergency) || Boolean(peer?.sosActivityId);
   const statusLine =
     phase === "outgoing"
@@ -985,27 +995,110 @@ export function CallCenter() {
         </motion.div>
       )}
     </AnimatePresence>
-    {showInlineIncomingSos && (
+    {showInlineSos && (
       <motion.section
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 12 }}
-        aria-label={phase === "incoming" ? "Incoming SOS call" : "Connecting SOS call"}
-        className="fixed inset-x-3 bottom-24 z-[75] mx-auto max-w-xl space-y-2 rounded-2xl border border-destructive/30 bg-card p-3 text-foreground shadow-xl"
+        aria-label={
+          sosCallStatus === "connected"
+            ? "Connected SOS call"
+            : phase === "incoming"
+              ? "Incoming SOS call"
+              : "Connecting SOS call"
+        }
+        className={cn(
+          "fixed inset-x-3 bottom-24 z-[75] mx-auto max-w-2xl space-y-2 rounded-2xl border bg-card p-3 text-foreground shadow-xl",
+          sosCallStatus === "connected"
+            ? "border-success/35"
+            : "border-destructive/30",
+        )}
       >
         <div className="flex items-center gap-2">
           <Avatar name={peer?.name ?? "Allma member"} url={peer?.avatarUrl ?? null} size={38} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold">{peer?.name ?? "Allma member"}</p>
             <p className="text-[10px] text-muted-foreground">
-              {phase === "incoming" ? "Emergency call · Safety network" : "Connecting your emergency call…"}
+              {sosCallStatus === "connected"
+                ? `${peer?.safetyRole || "Safety contact"} · ${formatDuration(seconds)}`
+                : phase === "incoming"
+                  ? "Emergency call · Safety network"
+                  : "Connecting your emergency call…"}
             </p>
           </div>
-          <span className="rounded-full border border-success/35 bg-success/10 px-2 py-1 text-[9px] font-bold text-success">
-            {phase === "incoming" ? "INCOMING" : "CONNECTING"}
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-success/35 bg-success/10 px-2 py-1 text-[9px] font-bold text-success">
+            {sosCallStatus === "connected" ? (
+              <>
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-70" />
+                  <span className="relative h-2 w-2 rounded-full bg-success" />
+                </span>
+                CONNECTED
+              </>
+            ) : phase === "incoming" ? (
+              "INCOMING"
+            ) : (
+              "CONNECTING"
+            )}
           </span>
         </div>
-        {phase === "incoming" ? (
+        {sosCallStatus === "connected" ? (
+          <>
+            <div className="grid grid-cols-3 gap-2 border-t border-border/60 pt-2">
+              <button
+                type="button"
+                onClick={toggleMute}
+                aria-label={muted ? "Unmute" : "Mute"}
+                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 text-xs font-semibold"
+              >
+                {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {muted ? "Unmute" : "Mute"}
+              </button>
+              <button
+                type="button"
+                onClick={toggleSpeaker}
+                aria-label={speaker ? "Switch to earpiece" : "Switch to speaker"}
+                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 text-xs font-semibold"
+              >
+                {speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                {speaker ? "Speaker" : "Earpiece"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void hangUp()}
+                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-destructive px-2 text-xs font-bold text-destructive-foreground"
+              >
+                <PhoneOff className="h-4 w-4" /> End Call
+              </button>
+            </div>
+            <div className="border-t border-border/60 pt-2">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                Caller location and nearby help
+              </p>
+              {callerPoint ? (
+                <LiveLocationMap
+                  location={{
+                    lat: callerPoint.lat,
+                    lng: callerPoint.lng,
+                    accuracy: emergency?.accuracy_m,
+                    address: emergency?.area ?? undefined,
+                  }}
+                  places={helpPlaces}
+                  heightClassName="h-44 sm:h-52"
+                />
+              ) : (
+                <p className="rounded-xl border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground">
+                  The caller has not shared their location. Nearby help will appear when coordinates are available.
+                </p>
+              )}
+              {helpLoading && (
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Finding nearby hospitals and police…
+                </p>
+              )}
+            </div>
+          </>
+        ) : phase === "incoming" ? (
           <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2">
             <button
               type="button"
