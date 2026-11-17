@@ -29,7 +29,8 @@ const MAX_RADIUS_M = 15_000;
 const MAX_RESULTS = 20;
 const MAX_CACHE_ENTRIES = 1_000;
 /** Hard caps so one slow Google/directory call cannot stall a chat reply. */
-export const GOOGLE_PLACES_TIMEOUT_MS = 4_500;
+/** Parallel per-type Nearby Search needs a bit more headroom than a single request. */
+export const GOOGLE_PLACES_TIMEOUT_MS = 6_000;
 export const DIRECTORY_LOOKUP_TIMEOUT_MS = 2_500;
 export const PLACE_PHONE_TIMEOUT_MS = 2_000;
 export const PLACE_PHONE_MAX = 5;
@@ -133,7 +134,11 @@ function dedupePlaces(items: NearbyPlaceResult[]) {
   const seen = new Map<string, NearbyPlaceResult>();
   for (const item of items) {
     const key = `${normalizePlaceName(item.name)}:${item.latitude.toFixed(5)}:${item.longitude.toFixed(5)}`;
-    if (!seen.has(key)) seen.set(key, item);
+    const existing = seen.get(key);
+    // Prefer live Google Places rows over seeded directory copies of the same facility.
+    if (!existing || (existing.source !== "google" && item.source === "google")) {
+      seen.set(key, item);
+    }
   }
   return [...seen.values()];
 }
@@ -250,88 +255,97 @@ async function loadGooglePlaces(
   }
 
   const includedTypes = normalizeGoogleTypes(types);
-  const response = await fetch(`${GOOGLE_API_URL}/places:searchNearby`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": googleMapsKey,
-      Referer: "https://allmasafetyai.online/",
-      "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.internationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType,places.photos",
-    },
-    signal: AbortSignal.timeout(GOOGLE_PLACES_TIMEOUT_MS),
-    body: JSON.stringify({
-      locationRestriction: {
-        circle: {
-          center: { latitude, longitude },
-          radius: Math.min(Math.max(radiusMeters, 200), MAX_RADIUS_M),
+
+  // One type per request returns denser, more accurate emergency coverage than a
+  // single multi-type Nearby Search in many regions (including Uganda).
+  const batches = await Promise.all(
+    includedTypes.map(async (placeType) => {
+      const response = await fetch(`${GOOGLE_API_URL}/places:searchNearby`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleMapsKey,
+          Referer: "https://allmasafetyai.online/",
+          "X-Goog-FieldMask":
+            "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.internationalPhoneNumber,places.currentOpeningHours.openNow,places.primaryType,places.photos",
         },
-      },
-      includedTypes,
-      maxResultCount: MAX_RESULTS,
-      rankPreference: "DISTANCE",
+        signal: AbortSignal.timeout(GOOGLE_PLACES_TIMEOUT_MS),
+        body: JSON.stringify({
+          locationRestriction: {
+            circle: {
+              center: { latitude, longitude },
+              radius: Math.min(Math.max(radiusMeters, 200), MAX_RADIUS_M),
+            },
+          },
+          includedTypes: [placeType],
+          maxResultCount: Math.min(MAX_RESULTS, 10),
+          rankPreference: "DISTANCE",
+        }),
+      });
+
+      if (response.status === 403) {
+        const body = await response.text().catch(() => "");
+        if (body.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
+          console.warn("Google Places lookup blocked: API key HTTP referrer is not allowed.");
+          return [] as NearbyPlaceResult[];
+        }
+        if (body.includes("API_KEY_SERVICE_BLOCKED")) {
+          console.warn(
+            "Google Places lookup blocked: Google Maps service is not enabled for this API key.",
+          );
+          return [] as NearbyPlaceResult[];
+        }
+        console.warn("Google Places lookup blocked by Google Maps API configuration.", body);
+        return [] as NearbyPlaceResult[];
+      }
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        console.warn(
+          `Google Places lookup failed [${response.status}] type=${placeType}: ${body}`,
+        );
+        return [] as NearbyPlaceResult[];
+      }
+
+      const result = (await response.json()) as {
+        places?: Array<{
+          id?: string;
+          displayName?: { text?: string };
+          formattedAddress?: string;
+          location?: { latitude?: number; longitude?: number };
+          nationalPhoneNumber?: string;
+          internationalPhoneNumber?: string;
+          currentOpeningHours?: { openNow?: boolean };
+          primaryType?: string;
+          photos?: Array<{ name?: string }>;
+        }>;
+      };
+
+      return (result.places ?? [])
+        .filter((place) => place.location?.latitude != null && place.location?.longitude != null)
+        .map((place) => ({
+          id: `google:${place.id ?? `${place.displayName?.text ?? "place"}-${place.location?.latitude ?? 0}-${place.location?.longitude ?? 0}`}`,
+          name: place.displayName?.text ?? "Nearby place",
+          type: place.primaryType ?? placeType,
+          address: place.formattedAddress ?? null,
+          phone: place.nationalPhoneNumber || place.internationalPhoneNumber || null,
+          open_now: place.currentOpeningHours?.openNow ?? null,
+          distance_m: haversineMeters(
+            latitude,
+            longitude,
+            place.location!.latitude!,
+            place.location!.longitude!,
+          ),
+          latitude: place.location!.latitude!,
+          longitude: place.location!.longitude!,
+          source: "google" as const,
+          photo_name: place.photos?.[0]?.name ?? null,
+        }))
+        .filter((item) => Number.isFinite(item.distance_m));
     }),
-  });
+  );
 
-  if (response.status === 403) {
-    const body = await response.text().catch(() => "");
-    if (body.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
-      console.warn("Google Places lookup blocked: API key HTTP referrer is not allowed.");
-      return [] as NearbyPlaceResult[];
-    }
-    if (body.includes("API_KEY_SERVICE_BLOCKED")) {
-      console.warn(
-        "Google Places lookup blocked: Google Maps service is not enabled for this API key.",
-      );
-      return [] as NearbyPlaceResult[];
-    }
-    console.warn("Google Places lookup blocked by Google Maps API configuration.", body);
-    return [] as NearbyPlaceResult[];
-  }
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    console.warn(
-      `Google Places lookup failed [${response.status}] types=${includedTypes.join(",")}: ${body}`,
-    );
-    return [] as NearbyPlaceResult[];
-  }
-
-  const result = (await response.json()) as {
-    places?: Array<{
-      id?: string;
-      displayName?: { text?: string };
-      formattedAddress?: string;
-      location?: { latitude?: number; longitude?: number };
-      nationalPhoneNumber?: string;
-      internationalPhoneNumber?: string;
-      currentOpeningHours?: { openNow?: boolean };
-      primaryType?: string;
-      photos?: Array<{ name?: string }>;
-    }>;
-  };
-
-  return (result.places ?? [])
-    .filter((place) => place.location?.latitude != null && place.location?.longitude != null)
-    .map((place) => ({
-      id: `google:${place.id ?? `${place.displayName?.text ?? "place"}-${place.location?.latitude ?? 0}-${place.location?.longitude ?? 0}`}`,
-      name: place.displayName?.text ?? "Nearby place",
-      type: place.primaryType ?? "service",
-      address: place.formattedAddress ?? null,
-      phone: place.nationalPhoneNumber || place.internationalPhoneNumber || null,
-      open_now: place.currentOpeningHours?.openNow ?? null,
-      distance_m: haversineMeters(
-        latitude,
-        longitude,
-        place.location!.latitude!,
-        place.location!.longitude!,
-      ),
-      latitude: place.location!.latitude!,
-      longitude: place.location!.longitude!,
-      source: "google" as const,
-      photo_name: place.photos?.[0]?.name ?? null,
-    }))
-    .filter((item) => Number.isFinite(item.distance_m));
+  return batches.flat().filter((item) => Number.isFinite(item.distance_m) && item.distance_m <= radiusMeters);
 }
 
 function cacheKey(

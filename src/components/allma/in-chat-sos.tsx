@@ -3,12 +3,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   CheckCircle2,
-  ExternalLink,
   Loader2,
   MapPin,
   Mic,
   MicOff,
-  Navigation,
   Phone,
   PhoneOff,
   ShieldAlert,
@@ -22,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { EmergencyCallEscalation } from "@/components/allma/sos/emergency-call-escalation";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
-import { helpKind, type HelpPlace } from "@/components/allma/nearby-help-list";
+import { NearbyHelpList, helpKind, type HelpPlace } from "@/components/allma/nearby-help-list";
 import { endSosEscalation } from "@/lib/sos-escalation-controller";
 import { notifySosActivity } from "@/lib/push.functions";
 import { getNearbyPlaces } from "@/lib/places.functions";
@@ -117,6 +115,7 @@ export function InChatSos({
   const [loc, setLoc] = useState<{ lat: number; lng: number; acc: number } | null>(null);
   const [places, setPlaces] = useState<HelpPlace[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [mapVisible, setMapVisible] = useState(true);
   const [networkNotified, setNetworkNotified] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
@@ -216,15 +215,15 @@ export function InChatSos({
       data: {
         latitude,
         longitude,
-        radiusMeters: 8000,
-        limit: 20,
-        types: ["hospital", "police", "pharmacy"],
+        radiusMeters: 10000,
+        limit: 24,
+        types: ["hospital", "medical_clinic", "doctor", "police", "fire_station", "pharmacy"],
       },
     })
       .then((results) => {
         if (!active) return;
-        setPlaces(
-          (results ?? []).map((place) => ({
+        const next = (results ?? [])
+          .map((place) => ({
             id: place.id,
             name: place.name,
             type: place.type,
@@ -233,8 +232,10 @@ export function InChatSos({
             distance_m: place.distance_m,
             latitude: place.latitude,
             longitude: place.longitude,
-          })),
-        );
+          }))
+          .sort((a, b) => a.distance_m - b.distance_m);
+        setPlaces(next);
+        setSelectedPlaceId((current) => current ?? next[0]?.id ?? null);
       })
       .catch((error) => {
         if (!active) return;
@@ -548,8 +549,15 @@ export function InChatSos({
   }
 
   const time = (ms: number | null) => (ms ? new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
-  const nearestHospital = places.find((place) => ["hospital", "clinic"].includes(helpKind(place.type, place.name)));
-  const nearestPolice = places.find((place) => helpKind(place.type, place.name) === "police");
+  const nearestHospital = [...places]
+    .filter((place) => ["hospital", "clinic"].includes(helpKind(place.type, place.name)))
+    .sort((a, b) => a.distance_m - b.distance_m)[0];
+  const nearestPolice = [...places]
+    .filter((place) => helpKind(place.type, place.name) === "police")
+    .sort((a, b) => a.distance_m - b.distance_m)[0];
+  const nearestFire = [...places]
+    .filter((place) => helpKind(place.type, place.name) === "fire")
+    .sort((a, b) => a.distance_m - b.distance_m)[0];
   const activeCall = inlineCall?.activityId === activityId ? inlineCall : null;
   const dials = (
     <div className="grid grid-cols-2 gap-1.5">
@@ -723,16 +731,17 @@ export function InChatSos({
         )}
 
         {mapVisible && (
-          <section aria-label="Nearby emergency help" className="space-y-1.5">
+          <section aria-label="Nearby emergency help" className="space-y-2.5">
             {loc ? (
-              <div className="overflow-hidden rounded-xl border border-border">
-                <LiveLocationMap
-                  location={{ lat: loc.lat, lng: loc.lng, accuracy: loc.acc }}
-                  badge="Your location"
-                  heightClassName="h-36"
-                  places={places}
-                />
-              </div>
+              <LiveLocationMap
+                location={{ lat: loc.lat, lng: loc.lng, accuracy: loc.acc }}
+                badge="Your location"
+                heightClassName="h-52 sm:h-56"
+                places={places}
+                selectedPlaceId={selectedPlaceId}
+                onSelectPlace={setSelectedPlaceId}
+                mapTypeId="hybrid"
+              />
             ) : (
               <p className="rounded-lg bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
                 {saving || placesLoading ? "Waiting for GPS to show nearby help…" : "Turn on location access to show nearby help."}
@@ -740,40 +749,49 @@ export function InChatSos({
             )}
             <div className="flex flex-wrap items-center gap-1.5">
               {nearestHospital && (
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${nearestHospital.latitude},${nearestHospital.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlaceId(nearestHospital.id)}
                   className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-muted/35 px-2.5 text-[10px] font-semibold"
                 >
                   🏥 Nearest Hospital ({compactDistance(nearestHospital.distance_m)})
-                </a>
+                </button>
               )}
               {nearestPolice && (
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${nearestPolice.latitude},${nearestPolice.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlaceId(nearestPolice.id)}
                   className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-muted/35 px-2.5 text-[10px] font-semibold"
                 >
                   🛡️ Nearest Police ({compactDistance(nearestPolice.distance_m)})
-                </a>
+                </button>
               )}
-              {loc && (
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-[10px] font-semibold text-primary hover:bg-primary/5"
+              {nearestFire && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlaceId(nearestFire.id)}
+                  className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-muted/35 px-2.5 text-[10px] font-semibold"
                 >
-                  <Navigation className="h-3 w-3" /> Open in Google Maps <ExternalLink className="h-3 w-3" />
-                </a>
+                  🔥 Nearest Fire ({compactDistance(nearestFire.distance_m)})
+                </button>
               )}
               {placesLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" aria-label="Finding nearby help" />}
-              {!placesLoading && loc && !nearestHospital && !nearestPolice && (
-                <span className="text-[10px] text-muted-foreground">No nearby hospitals or police stations found.</span>
-              )}
             </div>
+            {loc ? (
+              <div className="max-h-64 overflow-y-auto rounded-xl border border-border/70 bg-card/70 p-3">
+                <NearbyHelpList
+                  places={places}
+                  loading={placesLoading}
+                  origin={{ lat: loc.lat, lng: loc.lng }}
+                  selectedId={selectedPlaceId}
+                  onSelect={setSelectedPlaceId}
+                  tone="surface"
+                  title="Nearby help from Google Places"
+                  subtitle="Hospitals, police, fire and pharmacies closest to you"
+                  emptyLabel="No nearby hospitals, police or fire stations found yet. Try again with a clearer GPS fix."
+                />
+              </div>
+            ) : null}
           </section>
         )}
 

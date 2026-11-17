@@ -182,6 +182,8 @@ export function OsmTileMap({ lat, lng, zoom }: { lat: number; lng: number; zoom:
   );
 }
 
+export type LiveMapTypeId = "roadmap" | "hybrid" | "satellite";
+
 /** Google Maps canvas centred on the given coordinates (non-interactive, own controls). */
 export function GoogleLocationCanvas({
   lat,
@@ -191,6 +193,7 @@ export function GoogleLocationCanvas({
   selectedPlaceId = null,
   onSelectPlace,
   onFail,
+  mapTypeId = "hybrid",
 }: {
   lat: number;
   lng: number;
@@ -199,6 +202,7 @@ export function GoogleLocationCanvas({
   selectedPlaceId?: string | null;
   onSelectPlace?: (id: string) => void;
   onFail: () => void;
+  mapTypeId?: LiveMapTypeId;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -220,10 +224,13 @@ export function GoogleLocationCanvas({
         const map = new maps.Map(containerRef.current, {
           center: { lat, lng },
           zoom,
+          mapTypeId,
           disableDefaultUI: true,
-          gestureHandling: "none",
+          gestureHandling: "cooperative",
           keyboardShortcuts: false,
           clickableIcons: false,
+          // Raster hybrid keeps the in-chat SOS card light and readable on mobile.
+          renderingType: maps.RenderingType?.RASTER ?? "RASTER",
         });
         mapRef.current = map;
         mapsRef.current = maps;
@@ -267,6 +274,11 @@ export function GoogleLocationCanvas({
     mapRef.current.setZoom(zoom);
   }, [lat, lng, zoom]);
 
+  useEffect(() => {
+    if (!mapRef.current || !mapTypeId) return;
+    mapRef.current.setMapTypeId(mapTypeId);
+  }, [mapTypeId]);
+
   // Nearby help markers (police, clinics, hospitals) drawn on the same canvas.
   useEffect(() => {
     const maps = mapsRef.current;
@@ -299,17 +311,15 @@ export function GoogleLocationCanvas({
           scaledSize: new maps.Size(48, 48),
           anchor: new maps.Point(24, 24),
         },
-        zIndex: selectedPlaceId === place.id ? 2 : 1,
+        zIndex: 1,
       });
       marker.addListener("click", () => {
         selectRef.current?.(place.id);
         infoWindowRef.current?.setContent(infoContent);
         infoWindowRef.current?.open({ map, anchor: marker });
       });
-      if (selectedPlaceId === place.id) {
-        infoWindowRef.current?.setContent(infoContent);
-        infoWindowRef.current?.open({ map, anchor: marker });
-      }
+      (marker as { __placeId?: string; __infoContent?: HTMLElement }).__placeId = place.id;
+      (marker as { __placeId?: string; __infoContent?: HTMLElement }).__infoContent = infoContent;
       return marker;
     });
     const nearest = [...places].sort((a, b) => a.distance_m - b.distance_m).slice(0, 3);
@@ -324,6 +334,25 @@ export function GoogleLocationCanvas({
       infoWindowRef.current?.close();
       markersRef.current = [];
     };
+  }, [lat, lng, mapReady, places]);
+
+  useEffect(() => {
+    const maps = mapsRef.current;
+    const map = mapRef.current;
+    if (!mapReady || !maps || !map) return;
+    markersRef.current.forEach((marker) => {
+      const placeId = (marker as { __placeId?: string }).__placeId;
+      const active = placeId === selectedPlaceId;
+      marker.setZIndex(active ? 4 : 1);
+      if (active) {
+        const infoContent = (marker as { __infoContent?: HTMLElement }).__infoContent;
+        if (infoContent) {
+          infoWindowRef.current?.setContent(infoContent);
+          infoWindowRef.current?.open({ map, anchor: marker });
+        }
+      }
+    });
+    if (!selectedPlaceId) infoWindowRef.current?.close();
   }, [mapReady, places, selectedPlaceId]);
 
   return <div ref={containerRef} className="absolute inset-0" />;
@@ -339,6 +368,8 @@ export function LiveLocationMap({
   places = [],
   selectedPlaceId = null,
   onSelectPlace,
+  mapTypeId = "hybrid",
+  showMapTypeToggle = true,
 }: {
   location: LiveLocationPoint;
   /** Small label shown in the map corner. */
@@ -352,10 +383,14 @@ export function LiveLocationMap({
   places?: HelpPlace[];
   selectedPlaceId?: string | null;
   onSelectPlace?: (id: string) => void;
+  /** Satellite hybrid is the default for SOS readability. */
+  mapTypeId?: LiveMapTypeId;
+  showMapTypeToggle?: boolean;
 }) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [googleFailed, setGoogleFailed] = useState(false);
+  const [activeMapType, setActiveMapType] = useState<LiveMapTypeId>(mapTypeId);
   const [localSelectedPlaceId, setLocalSelectedPlaceId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasHeight, setCanvasHeight] = useState(208);
@@ -368,6 +403,10 @@ export function LiveLocationMap({
   const tileZoom = MAP_TILE_ZOOMS[zoom] ?? 16;
   const useGoogle =
     Boolean(getGoogleMapsBrowserKey()) && !googleFailed && !googleMapsAuthFailed();
+
+  useEffect(() => {
+    setActiveMapType(mapTypeId);
+  }, [mapTypeId]);
 
   useEffect(() => {
     const node = canvasRef.current;
@@ -455,6 +494,7 @@ export function LiveLocationMap({
             places={places}
             selectedPlaceId={selectedPlaceId}
             onSelectPlace={onSelectPlace}
+            mapTypeId={activeMapType}
             onFail={() => setGoogleFailed(true)}
           />
         ) : (
@@ -524,7 +564,7 @@ export function LiveLocationMap({
           <span className="sos-glow-sm h-3.5 w-3.5 rounded-full border-2 border-background bg-destructive" />
         </div>
 
-        {/* Zoom controls */}
+        {/* Zoom + map-type controls */}
         <div className="absolute right-2.5 top-2.5 flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/80 backdrop-blur-md">
           <button
             type="button"
@@ -556,10 +596,42 @@ export function LiveLocationMap({
           </button>
         </div>
 
+        {useGoogle && showMapTypeToggle ? (
+          <div className="absolute bottom-2.5 right-2.5 z-10 flex overflow-hidden rounded-full border border-border/60 bg-background/90 text-[10px] font-bold uppercase tracking-[0.08em] shadow-sm backdrop-blur-md">
+            <button
+              type="button"
+              aria-pressed={activeMapType === "hybrid" || activeMapType === "satellite"}
+              onClick={() => setActiveMapType("hybrid")}
+              className={cn(
+                "px-2.5 py-1.5 transition",
+                activeMapType === "hybrid" || activeMapType === "satellite"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Satellite
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeMapType === "roadmap"}
+              onClick={() => setActiveMapType("roadmap")}
+              className={cn(
+                "px-2.5 py-1.5 transition",
+                activeMapType === "roadmap"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Map
+            </button>
+          </div>
+        ) : null}
+
         <div className="pointer-events-none absolute left-2.5 top-2.5 flex max-w-[calc(100%-4.5rem)] items-center gap-1.5 rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground shadow-sm backdrop-blur-md">
           <LocateFixed className="h-3 w-3 text-success" />
           {badge} · {level.label}
           {accuracy !== null ? ` · ±${Math.round(accuracy)} m` : ""}
+          {places.length > 0 ? ` · ${places.length} nearby` : ""}
         </div>
       </div>
 
