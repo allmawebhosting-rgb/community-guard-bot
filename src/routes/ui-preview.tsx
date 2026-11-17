@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Mic, Phone, PhoneOff, ShieldAlert, Users, Volume2 } from "lucide-react";
+import { AudioLines, Mic, Phone, PhoneOff, Plus, ShieldAlert, Users, Volume2 } from "lucide-react";
 import robotAvatar from "@/assets/allma-robot.png";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 
@@ -89,19 +89,23 @@ function Composer({ sos = false }: { sos?: boolean }) {
           Shared with Allma and your Safety Network in this chat.
         </p>
       ) : null}
-      <div className={`composer-shell composer-pill ${sos ? "composer-shell-sos" : ""}`}>
-        <div className="composer-surface flex items-end gap-1 px-2 py-1.5">
-          <span className="composer-icon-btn grid h-10 w-10 place-items-center text-muted-foreground">📎</span>
-          <div className="min-h-[48px] flex-1 px-1.5 py-3 text-[15px] leading-6 text-muted-foreground">
-            {sos ? "Message this emergency…" : "Message Allma..."}
+      <div className="composer-ori-row flex items-end gap-2">
+        <span className="composer-attach-btn">
+          <Plus className="h-5 w-5" strokeWidth={2.25} />
+        </span>
+        <div className={`composer-shell composer-pill flex-1 ${sos ? "composer-shell-sos" : ""}`}>
+          <div className="composer-surface flex items-end gap-1 px-1.5 py-1">
+            <div className="min-h-[44px] flex-1 px-3 py-2.5 text-[15px] leading-6 text-muted-foreground">
+              {sos ? "Message this emergency…" : "Ask Allma"}
+            </div>
+            <span className="composer-icon-btn">
+              <Mic className="h-5 w-5" />
+            </span>
           </div>
-          <span className="composer-icon-btn grid h-10 w-10 place-items-center text-muted-foreground">
-            <Mic className="h-5 w-5" />
-          </span>
-          <span className="composer-send-btn grid h-10 w-10 place-items-center rounded-full bg-chat-accent text-chat-accent-foreground">
-            ➤
-          </span>
         </div>
+        <span className="composer-voice-btn">
+          <AudioLines className="h-5 w-5" strokeWidth={2.25} />
+        </span>
       </div>
     </div>
   );
@@ -127,31 +131,24 @@ function UiPreviewPage() {
             <div className="mx-auto flex max-w-3xl flex-col gap-5 px-3 py-6">
               <div className="flex items-start gap-2.5">
                 <img src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 rounded-full border border-border/50 object-cover shadow-sm" />
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <p className="text-[12px] font-semibold tracking-wide text-muted-foreground">Allma</p>
-                  <div className="rounded-2xl rounded-tl-md border border-border/45 bg-card/80 px-3.5 py-3 shadow-sm">
-                    <p className="text-base leading-[1.6]">
-                      Hello, I&apos;m Allma Safety AI. How can I help you today?
-                    </p>
-                  </div>
+                <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3">
+                  <p className="text-[15px] leading-[1.55]">
+                    Hello, I&apos;m Allma Safety AI. How can I help you today?
+                  </p>
                 </div>
               </div>
               <div className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
-                <p className="text-[11px] font-semibold text-muted-foreground">You</p>
-                <p className="rounded-[1.15rem] rounded-br-md bg-chat-user px-3.5 py-2.5 text-base leading-[1.6] shadow-sm">
+                <p className="rounded-[1.25rem] rounded-br-md bg-foreground px-3.5 py-2.5 text-[15px] leading-[1.55] text-background">
                   Hi Allma, my nose is bleeding.
                 </p>
               </div>
               <div className="flex items-start gap-2.5">
                 <img src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 rounded-full border border-border/50 object-cover shadow-sm" />
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <p className="text-[12px] font-semibold tracking-wide text-muted-foreground">Allma</p>
-                  <div className="rounded-2xl rounded-tl-md border border-border/45 bg-card/80 px-3.5 py-3 shadow-sm">
-                    <p className="text-base leading-[1.6]">
-                      Sit upright and lean slightly forward. Pinch the soft part of your nose for 10 minutes.
-                      Avoid tilting your head back.
-                    </p>
-                  </div>
+                <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3">
+                  <p className="text-[15px] leading-[1.55]">
+                    Sit upright and lean slightly forward. Pinch the soft part of your nose for 10 minutes.
+                    Avoid tilting your head back.
+                  </p>
                 </div>
               </div>
             </div>
@@ -163,8 +160,7 @@ function UiPreviewPage() {
           <ChatCanvas>
             <div className="mx-auto flex max-w-3xl flex-col gap-5 px-3 py-6">
               <div className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
-                <p className="text-[11px] font-semibold text-muted-foreground">You</p>
-                <p className="rounded-[1.15rem] rounded-br-md bg-chat-user px-3.5 py-2.5 text-base leading-[1.6] shadow-sm">
+                <p className="rounded-[1.25rem] rounded-br-md bg-foreground px-3.5 py-2.5 text-[15px] leading-[1.55] text-background">
                   It keeps bleeding and I feel dizzy.
                 </p>
               </div>
@@ -233,7 +229,7 @@ function UiPreviewPage() {
               </div>
               <div className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
                 <p className="text-[11px] font-semibold text-muted-foreground">You</p>
-                <p className="rounded-[1.15rem] rounded-br-md bg-chat-user px-3.5 py-2.5 text-base leading-[1.6] shadow-sm">
+                <p className="rounded-[1.25rem] rounded-br-md bg-foreground px-3.5 py-2.5 text-[15px] leading-[1.55] text-background">
                   Okay, still bleeding a little.
                 </p>
               </div>
@@ -289,7 +285,7 @@ function UiPreviewPage() {
                   Stay on the line — I&apos;m 5 minutes away.
                 </div>
               </div>
-              <div className="ml-auto max-w-[85%] rounded-[1.15rem] rounded-br-md bg-chat-user px-3 py-2 text-[13px] shadow-sm">
+              <div className="ml-auto max-w-[85%] rounded-[1.25rem] rounded-br-md bg-foreground px-3 py-2 text-[13px] text-background">
                 Okay, door is unlocked.
               </div>
               <div className="flex items-start gap-2">

@@ -24,6 +24,7 @@ import {
   Megaphone,
   Mic,
   MicOff,
+  AudioLines,
   Paperclip,
   Phone,
   Plus,
@@ -51,6 +52,7 @@ import {
   ChevronRight,
   Star,
 } from "lucide-react";
+import { setVoiceMode } from "@/components/allma/voice-mode-toggle";
 
 import { motion, AnimatePresence } from "motion/react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -64,7 +66,6 @@ import { Message, MessageContent, MessageResponse } from "@/components/ai-elemen
 import robotAvatar from "@/assets/allma-robot.png";
 import {
   PromptInput,
-  PromptInputSubmit,
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
 import { InputGroupAddon } from "@/components/ui/input-group";
@@ -634,10 +635,10 @@ function SosTimelineEvent({
         </div>
         <div
           className={cn(
-            "rounded-2xl px-3.5 py-2.5 text-left text-[14px] leading-relaxed shadow-sm",
+            "px-3.5 py-2.5 text-left text-[14px] leading-relaxed",
             mine
-              ? "rounded-br-md bg-gradient-to-br from-primary to-gold text-primary-foreground"
-              : "rounded-bl-md border border-border/55 bg-card text-foreground",
+              ? "rounded-[1.25rem] rounded-br-md bg-foreground text-background"
+              : "rounded-[1.25rem] bg-muted text-foreground",
           )}
         >
           {message.event_type === "voice_note" ? (
@@ -2280,22 +2281,18 @@ export function AllmaChat({
                     <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={30} />
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
-                  {message.role === "assistant" ? (
-                    <p className="text-[12px] font-semibold tracking-wide text-muted-foreground">Allma</p>
-                  ) : message.role === "user" ? (
-                    <p className={cn("flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-muted-foreground", isOwnUserMessage ? "justify-end" : "justify-start")}>
-                      <span>{isOwnUserMessage ? "You" : author?.name ?? "Responder"}</span>
-                      {!isOwnUserMessage ? (
-                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                          {roleLabel(author?.role)}
-                        </span>
-                      ) : null}
+                  {message.role === "user" && !isOwnUserMessage ? (
+                    <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                      <span>{author?.name ?? "Responder"}</span>
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                        {roleLabel(author?.role)}
+                      </span>
                     </p>
                   ) : null}
                   <MessageContent
                     className={
                       message.role === "assistant"
-                        ? "w-full max-w-full rounded-2xl rounded-tl-md border border-border/45 bg-card/80 px-3.5 py-3 shadow-sm"
+                        ? "w-full max-w-[92%] rounded-[1.35rem] border-0 bg-muted px-3.5 py-3 shadow-none sm:max-w-[85%]"
                         : cn(
                             "w-fit max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[80%]",
                             isOwnUserMessage ? "ml-auto" : "mr-auto",
@@ -2347,10 +2344,10 @@ export function AllmaChat({
                             >
                               <p
                                 className={cn(
-                                  "max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-base leading-[1.6] text-foreground shadow-sm",
+                                  "max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-[1.55]",
                                   isOwnUserMessage
-                                    ? "rounded-[1.15rem] rounded-br-md bg-chat-user"
-                                    : "rounded-[1.15rem] rounded-bl-md border border-border/55 bg-card",
+                                    ? "rounded-[1.25rem] rounded-br-md bg-foreground text-background"
+                                    : "rounded-[1.25rem] rounded-bl-md bg-muted text-foreground",
                                 )}
                               >
                                 {part.text}
@@ -2494,15 +2491,14 @@ export function AllmaChat({
               {status === "submitted" ? (
                 <div className="flex max-w-full flex-row items-start gap-2.5">
                   <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="mb-1.5 text-[12px] font-semibold tracking-wide text-muted-foreground">Allma</p>
+                  <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3 sm:max-w-[85%]">
                     <div className="space-y-3">
                       {pendingEmergencyType ? <EmergencyActions type={pendingEmergencyType} /> : null}
                       {pendingAid ? <FirstAidCard aid={pendingAid} followUp={null} /> : null}
                       {progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : (
                         <span className="flex h-7 items-center gap-1" role="status" aria-label="Allma is typing">
                           {[0, 1, 2].map((d) => (
-                            <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-chat-accent/70" style={{ animationDelay: `${d * 0.15}s` }} />
+                            <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-foreground/40" style={{ animationDelay: `${d * 0.15}s` }} />
                           ))}
                         </span>
                       )}
@@ -2520,7 +2516,7 @@ export function AllmaChat({
               ) : null}
             </div>
           </ConversationContent>
-          <ConversationScrollButton />
+          <ConversationScrollButton className="bottom-3 left-auto right-3 translate-x-0 border-border/70 bg-background/95 shadow-soft" />
         </Conversation>
       )}
 
@@ -2578,127 +2574,162 @@ export function AllmaChat({
             </div>
           ) : null}
 
-          <div
-            className={cn(
-              "composer-shell composer-pill min-w-0 focus-within:composer-shell-focused",
-              composerRecording && "composer-shell-recording",
-              sosIsActive && !composerRecording && "composer-shell-sos",
-            )}
-          >
-            <div className="composer-surface">
-              <PromptInput
-                onSubmit={(message, event) => {
-                  event.preventDefault();
-                  const text = (message.text ?? "").trim();
-                  if (!text) return;
-                  send(text);
-                  setComposerText("");
-                  event.currentTarget.reset();
-                  const field = textareaRef.current;
-                  if (field) field.style.height = "";
-                }}
-                className="rounded-[inherit] border-0 bg-transparent shadow-none ring-0 outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent"
-              >
-                <InputGroupAddon align="inline-start" className="self-end py-1.5 pl-1.5 has-[>button]:ml-0">
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setAttachSheetOpen(true)}
-                    className="composer-icon-btn"
-                    aria-label="Attach files"
-                  >
-                    <Paperclip className="h-5 w-5" />
-                  </motion.button>
-                </InputGroupAddon>
+          <div className="composer-ori-row flex items-end gap-2">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.92 }}
+              onClick={() => setAttachSheetOpen(true)}
+              className="composer-attach-btn"
+              aria-label="Attach files"
+            >
+              <Plus className="h-5 w-5" strokeWidth={2.25} />
+            </motion.button>
 
-                <PromptInputTextarea
-                  ref={textareaRef}
-                  placeholder={sosIsActive ? "Message this emergency…" : "Message Allma..."}
-                  aria-label={sosIsActive ? "Message this emergency" : "Message Allma"}
-                  enterKeyHint="send"
-                  rows={1}
-                  className="composer-textarea min-h-[48px] max-h-[140px] bg-transparent px-1.5 py-3 text-[15px] leading-6 sm:text-[15px]"
-                  onChange={(event) => {
-                    setComposerText(event.target.value);
-                    autoGrowTextarea(event.currentTarget);
+            <div
+              className={cn(
+                "composer-shell composer-pill min-w-0 flex-1 focus-within:composer-shell-focused",
+                composerRecording && "composer-shell-recording",
+                sosIsActive && !composerRecording && "composer-shell-sos",
+              )}
+            >
+              <div className="composer-surface">
+                <PromptInput
+                  onSubmit={(message, event) => {
+                    event.preventDefault();
+                    const text = (message.text ?? "").trim();
+                    if (!text) return;
+                    send(text);
+                    setComposerText("");
+                    event.currentTarget.reset();
+                    const field = textareaRef.current;
+                    if (field) field.style.height = "";
                   }}
-                />
+                  className="rounded-[inherit] border-0 bg-transparent shadow-none ring-0 outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent"
+                >
+                  <PromptInputTextarea
+                    ref={textareaRef}
+                    placeholder={sosIsActive ? "Message this emergency…" : "Ask Allma"}
+                    aria-label={sosIsActive ? "Message this emergency" : "Ask Allma"}
+                    enterKeyHint="send"
+                    rows={1}
+                    className="composer-textarea min-h-[44px] max-h-[140px] bg-transparent px-3.5 py-2.5 text-[15px] leading-6 sm:text-[15px]"
+                    onChange={(event) => {
+                      setComposerText(event.target.value);
+                      autoGrowTextarea(event.currentTarget);
+                    }}
+                  />
 
-                <InputGroupAddon align="inline-end" className="self-end gap-1 py-1.5 pr-1.5 has-[>button]:mr-0">
-                  {composerRecording ? (
-                    <>
-                      <span className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-1">
-                        <span className="flex h-4 items-end gap-[2px]">
-                          {[0.55, 0.9, 0.7, 1, 0.6].map((weight, index) => (
-                            <span
-                              key={index}
-                              className="w-[3px] rounded-full bg-destructive transition-[height] duration-100"
-                              style={{
-                                height: `${Math.max(3, Math.min(16, 3 + (sosIsActive ? 0.45 : level) * weight * 26))}px`,
-                              }}
-                            />
-                          ))}
+                  <InputGroupAddon align="inline-end" className="self-end gap-1 py-1 pr-1.5 has-[>button]:mr-0">
+                    {composerRecording ? (
+                      <>
+                        <span className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-1">
+                          <span className="flex h-4 items-end gap-[2px]">
+                            {[0.55, 0.9, 0.7, 1, 0.6].map((weight, index) => (
+                              <span
+                                key={index}
+                                className="w-[3px] rounded-full bg-destructive transition-[height] duration-100"
+                                style={{
+                                  height: `${Math.max(3, Math.min(16, 3 + (sosIsActive ? 0.45 : level) * weight * 26))}px`,
+                                }}
+                              />
+                            ))}
+                          </span>
+                          <span className="tabular-nums text-[11px] font-medium text-destructive">
+                            {String(Math.floor(composerRecordingSeconds / 60)).padStart(2, "0")}:
+                            {String(composerRecordingSeconds % 60).padStart(2, "0")}
+                          </span>
                         </span>
-                        <span className="tabular-nums text-[11px] font-medium text-destructive">
-                          {String(Math.floor(composerRecordingSeconds / 60)).padStart(2, "0")}:
-                          {String(composerRecordingSeconds % 60).padStart(2, "0")}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => (sosIsActive ? stopSosVoiceNote(true) : cancelVoice())}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          aria-label="Discard recording"
+                        >
+                          <X className="h-[17px] w-[17px]" />
+                        </button>
+                      </>
+                    ) : null}
+                    {transcribing || sosVoiceNoteUploading ? (
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        {sosVoiceNoteUploading ? "Sending voice note…" : "Transcribing…"}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => (sosIsActive ? stopSosVoiceNote(true) : cancelVoice())}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                        aria-label="Discard recording"
-                      >
-                        <X className="h-[17px] w-[17px]" />
-                      </button>
-                    </>
-                  ) : null}
-                  {transcribing || sosVoiceNoteUploading ? (
-                    <span className="text-[11px] font-medium text-muted-foreground">
-                      {sosVoiceNoteUploading ? "Sending voice note…" : "Transcribing…"}
-                    </span>
-                  ) : null}
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.9 }}
-                    onClick={sosIsActive ? toggleSosVoiceNote : toggleVoice}
-                    disabled={composerMicBusy}
-                    className={cn(
-                      "composer-icon-btn disabled:opacity-60",
-                      composerRecording &&
-                        "mic-recording bg-info text-info-foreground hover:bg-info hover:text-info-foreground",
-                    )}
-                    aria-label={
-                      sosIsActive
-                        ? sosVoiceNoteRecording
-                          ? "Stop voice note recording"
-                          : "Record a voice note for responders"
-                        : recording
-                          ? "Stop recording"
-                          : "Voice input"
-                    }
-                  >
-                    {composerMicBusy ? (
-                      <Loader2 className="h-[17px] w-[17px] animate-spin" />
-                    ) : composerRecording ? (
-                      <MicOff className="h-5 w-5" />
-                    ) : (
-                      <Mic className="h-5 w-5" />
-                    )}
-                  </motion.button>
-                  {!composerRecording ? (
-                    busy ? (
-                    <button type="button" onClick={() => void stop()} aria-label="Stop generating" className="composer-send-btn">
-                      <Square className="h-3.5 w-3.5 fill-current" />
-                    </button>
-                  ) : (
-                    <PromptInputSubmit status={status} disabled={composerText.trim().length === 0 || sosVoiceNoteUploading} size="icon-sm" aria-label={sosIsActive ? "Send to responders" : "Send message"} className="composer-send-btn" ><SendHorizontal className="h-5 w-5" /></PromptInputSubmit>
-                  )
-                  ) : null}
-                </InputGroupAddon>
-              </PromptInput>
+                    ) : null}
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.9 }}
+                      onClick={sosIsActive ? toggleSosVoiceNote : toggleVoice}
+                      disabled={composerMicBusy}
+                      className={cn(
+                        "composer-icon-btn disabled:opacity-60",
+                        composerRecording &&
+                          "mic-recording bg-info text-info-foreground hover:bg-info hover:text-info-foreground",
+                      )}
+                      aria-label={
+                        sosIsActive
+                          ? sosVoiceNoteRecording
+                            ? "Stop voice note recording"
+                            : "Record a voice note for responders"
+                          : recording
+                            ? "Stop recording"
+                            : "Voice input"
+                      }
+                    >
+                      {composerMicBusy ? (
+                        <Loader2 className="h-[17px] w-[17px] animate-spin" />
+                      ) : composerRecording ? (
+                        <MicOff className="h-5 w-5" />
+                      ) : (
+                        <Mic className="h-5 w-5" />
+                      )}
+                    </motion.button>
+                  </InputGroupAddon>
+                </PromptInput>
+              </div>
             </div>
+
+            {!composerRecording ? (
+              busy ? (
+                <button
+                  type="button"
+                  onClick={() => void stop()}
+                  aria-label="Stop generating"
+                  className="composer-voice-btn"
+                >
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                </button>
+              ) : composerText.trim().length > 0 ? (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.92 }}
+                  disabled={sosVoiceNoteUploading}
+                  aria-label={sosIsActive ? "Send to responders" : "Send message"}
+                  className="composer-voice-btn disabled:opacity-60"
+                  onClick={() => {
+                    const text = composerText.trim();
+                    if (!text) return;
+                    send(text);
+                    setComposerText("");
+                    const field = textareaRef.current;
+                    if (field) {
+                      field.value = "";
+                      field.style.height = "";
+                    }
+                  }}
+                >
+                  <SendHorizontal className="h-5 w-5" />
+                </motion.button>
+              ) : (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => setVoiceMode("on")}
+                  className="composer-voice-btn"
+                  aria-label="Open voice mode"
+                >
+                  <AudioLines className="h-5 w-5" strokeWidth={2.25} />
+                </motion.button>
+              )
+            ) : null}
           </div>
 
           <p className="mt-1.5 hidden text-center text-[11px] leading-4 text-muted-foreground/80 lg:block">
