@@ -194,6 +194,7 @@ export function GoogleLocationCanvas({
   onSelectPlace,
   onFail,
   mapTypeId = "hybrid",
+  compact = false,
 }: {
   lat: number;
   lng: number;
@@ -203,6 +204,7 @@ export function GoogleLocationCanvas({
   onSelectPlace?: (id: string) => void;
   onFail: () => void;
   mapTypeId?: LiveMapTypeId;
+  compact?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -302,14 +304,15 @@ export function GoogleLocationCanvas({
       details.style.cssText = "display:block;margin-top:4px;color:#52616b;text-transform:capitalize";
       infoContent.append(name, details);
       if (!infoWindowRef.current) infoWindowRef.current = new maps.InfoWindow();
+      const markerSize = compact ? 34 : 48;
       const marker = new maps.Marker({
         map,
         position: { lat: place.latitude, lng: place.longitude },
         title: [place.name, distanceLabel, kind].filter(Boolean).join(" · "),
         icon: {
           url: nearbyMarkerDataUrl(kind, HELP_KIND_COLOR[kind]),
-          scaledSize: new maps.Size(48, 48),
-          anchor: new maps.Point(24, 24),
+          scaledSize: new maps.Size(markerSize, markerSize),
+          anchor: new maps.Point(markerSize / 2, markerSize / 2),
         },
         zIndex: 1,
       });
@@ -334,7 +337,7 @@ export function GoogleLocationCanvas({
       infoWindowRef.current?.close();
       markersRef.current = [];
     };
-  }, [lat, lng, mapReady, places]);
+  }, [compact, lat, lng, mapReady, places]);
 
   useEffect(() => {
     const maps = mapsRef.current;
@@ -503,6 +506,7 @@ export function LiveLocationMap({
             selectedPlaceId={selectedPlaceId}
             onSelectPlace={onSelectPlace}
             mapTypeId={activeMapType}
+            compact={compact}
             onFail={() => setGoogleFailed(true)}
           />
         ) : (
@@ -565,21 +569,37 @@ export function LiveLocationMap({
           {accuracyPx > 0 && (
             <span
               className="absolute rounded-full border border-destructive/40 bg-destructive/10"
-              style={{ height: accuracyPx, width: accuracyPx }}
+              style={{
+                height: compact ? Math.min(accuracyPx, canvasHeight * 0.45) : accuracyPx,
+                width: compact ? Math.min(accuracyPx, canvasHeight * 0.45) : accuracyPx,
+              }}
             />
           )}
-          <span className="absolute h-12 w-12 animate-ping rounded-full bg-destructive/20 [animation-duration:1.6s]" />
+          <span
+            className={cn(
+              "absolute animate-ping rounded-full bg-destructive/20 [animation-duration:1.6s]",
+              compact ? "h-7 w-7" : "h-12 w-12",
+            )}
+          />
           <span className="sos-glow-sm h-3.5 w-3.5 rounded-full border-2 border-background bg-destructive" />
         </div>
 
         {/* Zoom + map-type controls */}
-        <div className="absolute right-2.5 top-2.5 flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/80 backdrop-blur-md">
+        <div
+          className={cn(
+            "absolute right-2 top-2 flex flex-col overflow-hidden border border-border/60 bg-background/80 backdrop-blur-md",
+            compact ? "rounded-md" : "rounded-xl",
+          )}
+        >
           <button
             type="button"
             aria-label="Zoom in"
             onClick={() => changeZoom((z) => Math.max(0, z - 1))}
             disabled={zoom === 0}
-            className="grid h-9 w-9 place-items-center bg-background/90 text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
+            className={cn(
+              "grid place-items-center bg-background/90 text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55",
+              compact ? "h-7 w-7" : "h-9 w-9",
+            )}
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -589,7 +609,10 @@ export function LiveLocationMap({
             aria-label="Zoom out"
             onClick={() => changeZoom((z) => Math.min(MAP_ZOOM_LEVELS.length - 1, z + 1))}
             disabled={zoom === MAP_ZOOM_LEVELS.length - 1}
-            className="grid h-9 w-9 place-items-center bg-background/90 text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55"
+            className={cn(
+              "grid place-items-center bg-background/90 text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-55",
+              compact ? "h-7 w-7" : "h-9 w-9",
+            )}
           >
             <Minus className="h-3.5 w-3.5" />
           </button>
@@ -598,20 +621,31 @@ export function LiveLocationMap({
             type="button"
             aria-label="Recenter"
             onClick={resetZoom}
-            className="grid h-9 w-9 place-items-center bg-background/90 text-destructive transition hover:bg-accent"
+            className={cn(
+              "grid place-items-center bg-background/90 text-destructive transition hover:bg-accent",
+              compact ? "h-7 w-7" : "h-9 w-9",
+            )}
           >
             <Crosshair className="h-3.5 w-3.5" />
           </button>
         </div>
 
         {useGoogle && showMapTypeToggle ? (
-          <div className="absolute bottom-2.5 right-2.5 z-10 flex overflow-hidden rounded-full border border-border/60 bg-background/90 text-[10px] font-bold uppercase tracking-[0.08em] shadow-sm backdrop-blur-md">
+          <div
+            className={cn(
+              "absolute bottom-2 right-2 z-10 flex overflow-hidden border border-border/60 bg-background/90 font-bold uppercase tracking-[0.08em] shadow-sm backdrop-blur-md",
+              compact
+                ? "rounded-md text-[9px]"
+                : "rounded-full text-[10px]",
+            )}
+          >
             <button
               type="button"
               aria-pressed={activeMapType === "hybrid" || activeMapType === "satellite"}
               onClick={() => setActiveMapType("hybrid")}
               className={cn(
-                "px-2.5 py-1.5 transition",
+                "transition",
+                compact ? "px-2 py-1" : "px-2.5 py-1.5",
                 activeMapType === "hybrid" || activeMapType === "satellite"
                   ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground",
@@ -624,7 +658,8 @@ export function LiveLocationMap({
               aria-pressed={activeMapType === "roadmap"}
               onClick={() => setActiveMapType("roadmap")}
               className={cn(
-                "px-2.5 py-1.5 transition",
+                "transition",
+                compact ? "px-2 py-1" : "px-2.5 py-1.5",
                 activeMapType === "roadmap"
                   ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground",
@@ -635,11 +670,20 @@ export function LiveLocationMap({
           </div>
         ) : null}
 
-        <div className="pointer-events-none absolute left-2.5 top-2.5 flex max-w-[calc(100%-4.5rem)] items-center gap-1.5 rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground shadow-sm backdrop-blur-md">
-          <LocateFixed className="h-3 w-3 text-success" />
-          {badge} · {level.label}
-          {accuracy !== null ? ` · ±${Math.round(accuracy)} m` : ""}
-          {places.length > 0 ? ` · ${places.length} nearby` : ""}
+        <div
+          className={cn(
+            "pointer-events-none absolute left-2 top-2 flex items-center gap-1 border border-border/60 bg-background/85 font-semibold uppercase tracking-[0.08em] text-muted-foreground shadow-sm backdrop-blur-md",
+            compact
+              ? "max-w-[9.5rem] rounded-md px-1.5 py-0.5 text-[9px]"
+              : "max-w-[calc(100%-4.5rem)] rounded-full px-2.5 py-1 text-[10px]",
+          )}
+        >
+          <LocateFixed className={cn(compact ? "h-2.5 w-2.5" : "h-3 w-3", "shrink-0 text-success")} />
+          <span className="truncate">
+            {compact
+              ? `You${accuracy !== null ? ` · ±${Math.round(accuracy)}m` : ""}`
+              : `${badge} · ${level.label}${accuracy !== null ? ` · ±${Math.round(accuracy)} m` : ""}${places.length > 0 ? ` · ${places.length} nearby` : ""}`}
+          </span>
         </div>
       </div>
 

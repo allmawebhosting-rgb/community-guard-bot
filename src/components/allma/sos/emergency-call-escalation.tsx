@@ -18,6 +18,8 @@ export function EmergencyCallEscalation({
   emergencyType,
   autoStart = true,
   compact = false,
+  /** Run dialing without rendering the card UI (header already shows status). */
+  silent = false,
   microphoneStream,
   shareLocation = false,
 }: {
@@ -25,6 +27,7 @@ export function EmergencyCallEscalation({
   emergencyType: string;
   autoStart?: boolean;
   compact?: boolean;
+  silent?: boolean;
   microphoneStream?: MediaStream;
   shareLocation?: boolean;
 }) {
@@ -109,6 +112,8 @@ export function EmergencyCallEscalation({
     target,
     attempt: [...attempts].reverse().find((row) => row.recipient_id === target.member_id),
   }));
+
+  if (silent) return null;
 
   if (compact) {
     const current = answered

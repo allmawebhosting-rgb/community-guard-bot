@@ -29,6 +29,7 @@ import {
   HELP_KIND_COLOR,
   directionsUrl,
   helpKind,
+  type HelpKind,
   type HelpPlace,
 } from "@/components/allma/nearby-help-list";
 import { endSosEscalation } from "@/lib/sos-escalation-controller";
@@ -127,6 +128,7 @@ export function InChatSos({
   const [placesLoading, setPlacesLoading] = useState(false);
   const [placesError, setPlacesError] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [openHelpKind, setOpenHelpKind] = useState<HelpKind | null>(null);
   const [mapVisible, setMapVisible] = useState(true);
   const [networkNotified, setNetworkNotified] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
@@ -570,12 +572,30 @@ export function InChatSos({
   }
 
   const time = (ms: number | null) => (ms ? new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
-  const compactPlaces = places.slice(0, 5);
+  const HELP_GROUPS: Array<{ kind: HelpKind; label: string }> = [
+    { kind: "hospital", label: "Hospitals" },
+    { kind: "clinic", label: "Clinics" },
+    { kind: "police", label: "Police" },
+    { kind: "fire", label: "Fire" },
+    { kind: "pharmacy", label: "Pharmacy" },
+  ];
+  const helpGroups = HELP_GROUPS.map((group) => ({
+    ...group,
+    places: places
+      .filter((place) => helpKind(place.type, place.name) === group.kind)
+      .sort((a, b) => a.distance_m - b.distance_m)
+      .slice(0, 5),
+  })).filter((group) => group.places.length > 0);
+  const mapPlaces = openHelpKind
+    ? places.filter((place) => helpKind(place.type, place.name) === openHelpKind)
+    : places;
+  const openGroup = helpGroups.find((group) => group.kind === openHelpKind) ?? null;
   const activeCall = inlineCall?.activityId === activityId ? inlineCall : null;
-  const placeIcon = (kind: ReturnType<typeof helpKind>) => {
+  const placeIcon = (kind: HelpKind) => {
     if (kind === "police") return Shield;
     if (kind === "fire") return Flame;
     if (kind === "pharmacy") return Pill;
+    if (kind === "clinic") return Building2;
     return Building2;
   };
   const dials = (
@@ -642,112 +662,72 @@ export function InChatSos({
           </button>
         </div>
 
-        {saving ? (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving your SOS…
-          </div>
-        ) : activeCall ? (
-          <section
-            id={`sos-call-${activityId}`}
-            aria-label="Active emergency call"
-            className="overflow-hidden rounded-xl border border-success/40 bg-gradient-to-br from-success/[0.12] via-card to-success/[0.04] p-3 shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-success/15 p-1 ring-2 ring-success/30 ring-offset-2 ring-offset-card">
-                <Avatar name={activeCall.name} url={activeCall.avatarUrl} size={48} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-foreground">{activeCall.name}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                  <span className="max-w-full truncate rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
-                  {activeCall.safetyRole || "Safety Network"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {activeCall.status === "connected" ? "Connected" : "Joining"}
-                  </span>
-                </div>
-              </div>
-              <span
-                className="shrink-0 rounded-full border border-success/40 bg-success/10 px-2 py-1 text-[9px] font-bold tracking-wide text-success"
-                aria-live="polite"
-              >
-                {activeCall.status === "connected" ? "CONNECTED" : "CONNECTING"}
-              </span>
-            </div>
-
-            {activeCall.status === "connected" ? (
-              <>
-                <div className="mt-3 flex items-center justify-between rounded-lg bg-success/[0.08] px-3 py-2">
-                  <span className="flex items-end gap-[3px]" aria-label="Call audio equalizer">
-                    {[8, 14, 10, 17, 11].map((height, index) => (
-                      <span
-                        key={index}
-                        className="sos-equalizer-bar w-[3px] rounded-full bg-success"
-                        style={{ height, animationDelay: `${index * 110}ms` }}
-                      />
-                    ))}
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-success">
-                    Live Safety Network call
-                  </span>
-                  <span className="font-mono text-sm font-bold tabular-nums text-foreground">
-                    {String(Math.floor(activeCall.seconds / 60)).padStart(2, "0")}:
-                    {String(activeCall.seconds % 60).padStart(2, "0")}
-                  </span>
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void runSosInlineCallAction("toggleMute")}
-                    aria-label={activeCall.muted ? "Unmute call" : "Mute call"}
-                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-background/80 px-2 text-[11px] font-semibold hover:bg-muted"
-                  >
-                    {activeCall.muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                    {activeCall.muted ? "Unmute" : "Mute"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void runSosInlineCallAction("toggleSpeaker")}
-                    aria-label={activeCall.speaker ? "Use earpiece" : "Use speaker"}
-                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-background/80 px-2 text-[11px] font-semibold hover:bg-muted"
-                  >
-                    {activeCall.speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                    Speaker
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void runSosInlineCallAction("hangUp")}
-                    aria-label="End emergency call"
-                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-destructive px-2 text-[11px] font-bold text-destructive-foreground hover:opacity-90"
-                  >
-                    <PhoneOff className="h-4 w-4" />
-                    End
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="mt-3 flex items-center gap-2 rounded-lg bg-background/70 px-3 py-2 text-[11px] font-semibold text-foreground">
-                <span className="relative h-2.5 w-2.5 shrink-0">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-success/70" />
-                  <span className="relative block h-2.5 w-2.5 rounded-full bg-success" />
-                </span>
-                Escalating emergency call to Safety Network...
-              </div>
-            )}
-          </section>
-        ) : canManage ? (
+        {canManage ? (
           <EmergencyCallEscalation
             activityId={activityId}
             emergencyType={TYPE_MAP[type]}
             microphoneStream={mic}
             shareLocation={!!loc}
-            compact
+            silent
           />
-        ) : (
-          <p className="rounded-lg bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
-            SOS is active. You can support through this shared conversation.
-          </p>
-        )}
+        ) : null}
+
+        {saving ? (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving your SOS…
+          </div>
+        ) : activeCall?.status === "connected" ? (
+          <section
+            id={`sos-call-${activityId}`}
+            aria-label="Active emergency call"
+            className="overflow-hidden rounded-none border border-success/40 bg-gradient-to-br from-success/[0.12] via-card to-success/[0.04] p-2.5 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-success/15 p-1 ring-2 ring-success/30 ring-offset-2 ring-offset-card">
+                <Avatar name={activeCall.name} url={activeCall.avatarUrl} size={40} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-foreground">{activeCall.name}</p>
+                <p className="text-[10px] font-semibold text-success">
+                  Connected · {activeCall.safetyRole || "Safety Network"}
+                </p>
+              </div>
+              <span className="font-mono text-sm font-bold tabular-nums text-foreground">
+                {String(Math.floor(activeCall.seconds / 60)).padStart(2, "0")}:
+                {String(activeCall.seconds % 60).padStart(2, "0")}
+              </span>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => void runSosInlineCallAction("toggleMute")}
+                aria-label={activeCall.muted ? "Unmute call" : "Mute call"}
+                className="flex min-h-9 items-center justify-center gap-1.5 rounded-none border border-border bg-background/80 px-2 text-[11px] font-semibold hover:bg-muted"
+              >
+                {activeCall.muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {activeCall.muted ? "Unmute" : "Mute"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void runSosInlineCallAction("toggleSpeaker")}
+                aria-label={activeCall.speaker ? "Use earpiece" : "Use speaker"}
+                className="flex min-h-9 items-center justify-center gap-1.5 rounded-none border border-border bg-background/80 px-2 text-[11px] font-semibold hover:bg-muted"
+              >
+                {activeCall.speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                Speaker
+              </button>
+              <button
+                type="button"
+                onClick={() => void runSosInlineCallAction("hangUp")}
+                aria-label="End emergency call"
+                className="flex min-h-9 items-center justify-center gap-1.5 rounded-none bg-destructive px-2 text-[11px] font-bold text-destructive-foreground hover:opacity-90"
+              >
+                <PhoneOff className="h-4 w-4" />
+                End
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         {mapVisible && (
           <section aria-label="Nearby emergency help" className="space-y-1.5">
@@ -756,14 +736,14 @@ export function InChatSos({
                 location={{ lat: loc.lat, lng: loc.lng, accuracy: loc.acc }}
                 badge="Your location"
                 heightClassName="h-40"
-                places={places}
+                places={mapPlaces}
                 selectedPlaceId={selectedPlaceId}
                 onSelectPlace={setSelectedPlaceId}
                 mapTypeId="hybrid"
                 compact
               />
             ) : (
-              <p className="rounded-lg bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
+              <p className="rounded-none bg-muted/50 px-2.5 py-2 text-[11px] text-muted-foreground">
                 {saving || placesLoading ? "Waiting for GPS to show nearby help…" : "Turn on location access to show nearby help."}
               </p>
             )}
@@ -777,7 +757,7 @@ export function InChatSos({
                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" aria-label="Finding nearby help" />
                   ) : places.length > 0 ? (
                     <span className="text-[10px] font-semibold text-muted-foreground">
-                      {places.length} found
+                      Tap a category · {places.length}
                     </span>
                   ) : null}
                 </div>
@@ -787,67 +767,104 @@ export function InChatSos({
                   <p className="px-2.5 py-2 text-[11px] text-muted-foreground">
                     Nearby help could not be loaded. Check your connection and try again.
                   </p>
-                ) : compactPlaces.length === 0 ? (
+                ) : helpGroups.length === 0 ? (
                   <p className="px-2.5 py-2 text-[11px] text-muted-foreground">
                     No hospitals or police found nearby yet.
                   </p>
                 ) : (
-                  <ul className="divide-y divide-border/60">
-                    {compactPlaces.map((place) => {
-                      const kind = helpKind(place.type, place.name);
-                      const Icon = placeIcon(kind);
-                      const selected = selectedPlaceId === place.id;
-                      return (
-                        <li key={place.id}>
-                          <div
-                            className={`flex items-center gap-2 px-2 py-1.5 ${selected ? "bg-accent/50" : "bg-card"}`}
+                  <div>
+                    <div className="flex flex-wrap gap-1.5 p-2">
+                      {helpGroups.map((group) => {
+                        const Icon = placeIcon(group.kind);
+                        const open = openHelpKind === group.kind;
+                        return (
+                          <button
+                            key={group.kind}
+                            type="button"
+                            aria-expanded={open}
+                            onClick={() => {
+                              const next = open ? null : group.kind;
+                              setOpenHelpKind(next);
+                              setSelectedPlaceId(next ? group.places[0]?.id ?? null : null);
+                            }}
+                            className={`inline-flex min-h-8 items-center gap-1.5 border px-2.5 text-[10px] font-semibold ${
+                              open
+                                ? "border-foreground/30 bg-foreground text-background"
+                                : "border-border/70 bg-card text-foreground hover:bg-muted"
+                            }`}
                           >
-                            <button
-                              type="button"
-                              onClick={() => setSelectedPlaceId(place.id)}
-                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                            >
-                              <span
-                                className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
-                                style={{
-                                  backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
-                                  color: HELP_KIND_COLOR[kind],
-                                }}
+                            <Icon className="h-3 w-3" style={open ? undefined : { color: HELP_KIND_COLOR[group.kind] }} />
+                            {group.label}
+                            <span className={open ? "opacity-80" : "text-muted-foreground"}>
+                              {group.places.length}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {openGroup ? (
+                      <ul className="divide-y divide-border/60 border-t border-border/60">
+                        {openGroup.places.map((place) => {
+                          const kind = helpKind(place.type, place.name);
+                          const Icon = placeIcon(kind);
+                          const selected = selectedPlaceId === place.id;
+                          return (
+                            <li key={place.id}>
+                              <div
+                                className={`flex items-center gap-2 px-2 py-1.5 ${selected ? "bg-accent/50" : "bg-card"}`}
                               >
-                                <Icon className="h-3 w-3" />
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-[11px] font-semibold text-foreground">
-                                  {place.name}
-                                </span>
-                                <span className="block truncate text-[10px] text-muted-foreground">
-                                  {compactDistance(place.distance_m)} · {kind}
-                                </span>
-                              </span>
-                            </button>
-                            <a
-                              href={directionsUrl({ lat: loc.lat, lng: loc.lng }, place)}
-                              target="_blank"
-                              rel="noreferrer"
-                              aria-label={`Directions to ${place.name}`}
-                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 text-foreground hover:bg-muted"
-                            >
-                              <Navigation2 className="h-3.5 w-3.5" />
-                            </a>
-                            {place.phone ? (
-                              <a
-                                href={`tel:${place.phone.replace(/[^\d+]/g, "")}`}
-                                aria-label={`Call ${place.name}`}
-                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 text-foreground hover:bg-muted"
-                              >
-                                <Phone className="h-3.5 w-3.5" />
-                              </a>
-                            ) : null}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedPlaceId(place.id)}
+                                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                                >
+                                  <span
+                                    className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
+                                    style={{
+                                      backgroundColor: `${HELP_KIND_COLOR[kind]}1f`,
+                                      color: HELP_KIND_COLOR[kind],
+                                    }}
+                                  >
+                                    <Icon className="h-3 w-3" />
+                                  </span>
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-[11px] font-semibold text-foreground">
+                                      {place.name}
+                                    </span>
+                                    <span className="block truncate text-[10px] text-muted-foreground">
+                                      {compactDistance(place.distance_m)}
+                                    </span>
+                                  </span>
+                                </button>
+                                <a
+                                  href={directionsUrl({ lat: loc.lat, lng: loc.lng }, place)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  aria-label={`Directions to ${place.name}`}
+                                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center border border-border/70 text-foreground hover:bg-muted"
+                                >
+                                  <Navigation2 className="h-3.5 w-3.5" />
+                                </a>
+                                {place.phone ? (
+                                  <a
+                                    href={`tel:${place.phone.replace(/[^\d+]/g, "")}`}
+                                    aria-label={`Call ${place.name}`}
+                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center border border-border/70 text-foreground hover:bg-muted"
+                                  >
+                                    <Phone className="h-3.5 w-3.5" />
+                                  </a>
+                                ) : null}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="border-t border-border/60 px-2.5 py-2 text-[11px] text-muted-foreground">
+                        Choose a category to show places.
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             ) : null}

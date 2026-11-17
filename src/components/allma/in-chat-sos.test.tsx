@@ -192,10 +192,16 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   expect(await screen.findByText("SOS active")).toBeTruthy();
   expect(screen.getByTestId("live-map").getAttribute("data-height")).toBe("h-40");
   expect(await screen.findByText("Nearby help")).toBeTruthy();
+  expect(screen.getByText("Choose a category to show places.")).toBeTruthy();
+  expect(screen.queryByText("City Hospital")).toBeNull();
+  expect(screen.getByRole("button", { name: /Hospitals/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Police/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /Hospitals/ }));
   expect(screen.getByText("City Hospital")).toBeTruthy();
+  expect(screen.getByText("450m")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /Police/ }));
   expect(screen.getByText("Central Police")).toBeTruthy();
-  expect(screen.getByText(/450m · hospital/)).toBeTruthy();
-  expect(screen.getByText(/1.2km · police/)).toBeTruthy();
+  expect(screen.getByText("1.2km")).toBeTruthy();
   expect(getNearbyPlacesMock).toHaveBeenCalledWith({
     data: expect.objectContaining({
       limit: 12,
@@ -203,13 +209,13 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
     }),
   });
   expect(screen.getByText("Amina N.")).toBeTruthy();
-  expect(screen.getByText("Sister")).toBeTruthy();
+  expect(screen.getByText(/Connected · Sister/)).toBeTruthy();
   expect(screen.queryByText("Call controls are pinned above the chat.")).toBeNull();
+  expect(screen.queryByText(/Escalating emergency call/)).toBeNull();
   expect(screen.getByRole("button", { name: "Mute call" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Use earpiece" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "End emergency call" })).toBeTruthy();
   expect(screen.getByText("02:05")).toBeTruthy();
-  expect(screen.getByLabelText("Call audio equalizer")).toBeTruthy();
   expect(onActivityStarted).toHaveBeenCalledWith("sos-1", expect.anything());
   expect(screen.getByRole("link", { name: "Call 999 Police" }).getAttribute("href")).toBe("tel:999");
   expect(screen.getByRole("link", { name: "Call 112 Toll-free" }).getAttribute("href")).toBe("tel:112");
