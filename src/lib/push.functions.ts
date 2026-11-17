@@ -131,14 +131,11 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
     const privateKey = process.env["VAPID_PRIVATE_KEY"];
     const subject = process.env["VAPID_SUBJECT"] ?? "mailto:safety@allma.app";
     if (!publicKey || !privateKey) {
-      if (invitation) {
-        await context.supabase
-          .from("emergency_call_invitations")
-          .update({ status: "FAILED" })
-          .eq("id", invitation.id);
-      }
+      // Keep SOS invitations as SENT so in-app inbox / realtime still treat the
+      // call as live. Marking FAILED here made receivers look unreachable even
+      // when the app was open and realtime could still ring them.
       console.error("[push] VAPID keys are not configured");
-      throw new Error("Background notifications are not configured for this deployment.");
+      return { delivered: 0, devices: 0, ...(invitation ? { invitationId: invitation.id } : {}) };
     }
 
     const { data: profile } = await context.supabase
@@ -155,12 +152,6 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
       .eq("user_id", call.recipient_id);
 
     if (!devices?.length) {
-      if (invitation) {
-        await context.supabase
-          .from("emergency_call_invitations")
-          .update({ status: "FAILED" })
-          .eq("id", invitation.id);
-      }
       console.warn("[push] recipient has no registered devices", { recipientId: call.recipient_id });
       return { delivered: 0, devices: 0, ...(invitation ? { invitationId: invitation.id } : {}) };
     }
@@ -216,15 +207,17 @@ export const notifyIncomingCall = createServerFn({ method: "POST" })
       await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
     }
 
-    if (invitation) {
+    if (invitation && delivered > 0) {
       await context.supabase
         .from("emergency_call_invitations")
         .update({
-          status: delivered ? "DELIVERED" : "FAILED",
-          delivered_at: delivered ? new Date().toISOString() : null,
+          status: "DELIVERED",
+          delivered_at: new Date().toISOString(),
         })
         .eq("id", invitation.id);
     }
+    // If every endpoint rejected the push, leave status SENT. The recipient may
+    // still answer from an open Allma tab via realtime / polling.
     return { delivered, devices: devices.length, ...(invitation ? { invitationId: invitation.id } : {}) };
   });
 

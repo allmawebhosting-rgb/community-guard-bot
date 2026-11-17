@@ -4,8 +4,8 @@ export type SosCallingSettings = {
 };
 
 export const DEFAULT_SOS_CALLING_SETTINGS: SosCallingSettings = {
-  responseWindowSeconds: 30,
-  retryIntervalSeconds: 60,
+  responseWindowSeconds: 55,
+  retryIntervalSeconds: 45,
 };
 
 const STORAGE_KEY = "allma:sos-calling-settings";

@@ -22,9 +22,9 @@ import { loadSosCallingSettings } from "@/lib/sos-calling-settings";
  */
 
 /** How long all contacts are given to answer before another round starts. */
-export const RING_WINDOW_MS = 30_000;
+export const RING_WINDOW_MS = 55_000;
 /** Pause before starting the next full round through the contact list. */
-export const ROUND_GAP_SECONDS = 60;
+export const ROUND_GAP_SECONDS = 45;
 
 export type EscalationState = {
   loading: boolean;
@@ -58,8 +58,11 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  * Grace period before a controller with no subscribers is torn down. The SOS
  * screen re-renders (and briefly unsubscribes) whenever the emergency type or
  * layout changes; disposing immediately used to kill the dialer mid-emergency.
+ * While a round is still running we keep the dialer alive across navigation so
+ * leaving /sos does not cancel outbound Safety Network rings.
  */
-const DISPOSE_GRACE_MS = 8_000;
+const DISPOSE_GRACE_MS = 30_000;
+const DISPOSE_WHILE_RUNNING_MS = 120_000;
 
 class SosEscalation {
   state = initialState();
@@ -102,10 +105,19 @@ class SosEscalation {
       // the SOS screen), never on a transient re-render.
       if (this.listeners.size > 0) return;
       if (this.disposeTimer) clearTimeout(this.disposeTimer);
-      this.disposeTimer = setTimeout(() => {
-        this.disposeTimer = null;
-        if (this.listeners.size === 0) disposeSosEscalation(this.activityId);
-      }, DISPOSE_GRACE_MS);
+      const scheduleDispose = (delayMs: number) => {
+        this.disposeTimer = setTimeout(() => {
+          this.disposeTimer = null;
+          if (this.listeners.size > 0) return;
+          if (this.state.running && !this.ended) {
+            // Keep dialing while SOS is active even if the escalation card unmounted.
+            scheduleDispose(DISPOSE_WHILE_RUNNING_MS);
+            return;
+          }
+          disposeSosEscalation(this.activityId);
+        }, delayMs);
+      };
+      scheduleDispose(this.state.running ? DISPOSE_WHILE_RUNNING_MS : DISPOSE_GRACE_MS);
     };
   }
 
@@ -233,22 +245,28 @@ class SosEscalation {
 
       const startedAt = Date.now();
       this.patch({ waitSeconds: null });
-      targets.forEach((target) => {
-        requestVoiceCall({
-          id: target.member_id,
-          name: target.full_name,
-          avatarUrl: target.avatar_url,
-          safetyRole: target.safety_role,
-          sosActivityId: this.activityId,
-          emergencyType: this.emergencyType,
-          shareLocation: this.shareLocation && target.share_location_on_sos,
-          microphoneStream: this.microphoneStream,
-          onError: (message) => {
-            if (!alive()) return;
-            this.patch({ error: message });
-          },
-        });
-      });
+      // Place every dial in parallel, but wait briefly for CallCenter handoff
+      // so a short listener gap cannot drop the whole round silently.
+      await Promise.all(
+        targets.map(async (target) => {
+          if (!alive()) return;
+          requestVoiceCall({
+            id: target.member_id,
+            name: target.full_name,
+            avatarUrl: target.avatar_url,
+            safetyRole: target.safety_role,
+            sosActivityId: this.activityId,
+            emergencyType: this.emergencyType,
+            shareLocation: this.shareLocation && target.share_location_on_sos,
+            microphoneStream: this.microphoneStream,
+            onError: (message) => {
+              if (!alive()) return;
+              this.patch({ error: message });
+            },
+          });
+          await sleep(250);
+        }),
+      );
 
       const outcome = await this.waitForRoundOutcome(
         targets,

@@ -45,7 +45,7 @@ function friendly(message: string) {
   return clean || "Something went wrong. Please try again.";
 }
 
-const DISCOVERY_TIMEOUT_MS = 8_000;
+const DISCOVERY_TIMEOUT_MS = 15_000;
 
 async function withTimeout<T>(promise: PromiseLike<T>, message: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;

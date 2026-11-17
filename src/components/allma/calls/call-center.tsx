@@ -54,7 +54,7 @@ import {
 
 type Phase = "idle" | "outgoing" | "incoming" | "active" | "ended";
 
-const RING_TIMEOUT_MS = 40_000;
+const RING_TIMEOUT_MS = 55_000;
 
 function isChatRoute() {
   return (
@@ -240,16 +240,21 @@ export function CallCenter() {
     setSosCallStatus(status);
   }, []);
 
-  const teardown = useCallback((note: string | null) => {
+  const teardown = useCallback((note: string | null, options?: { clearSosOutgoing?: boolean }) => {
     const sosActivityId = peerRef.current?.sosActivityId;
+    const clearSosOutgoing = options?.clearSosOutgoing !== false;
     engineRef.current?.close();
     engineRef.current = null;
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     ringTimerRef.current = null;
     callIdRef.current = null;
-    sosOutgoingRef.current.clear();
-    sosPrimaryClaimedRef.current = false;
-    sosWinnerClaimedRef.current = false;
+    // Parallel SOS dials keep several outgoing rows alive. Clearing the whole
+    // map on one sibling `ended` used to drop the accepted winner before ZEGO joined.
+    if (clearSosOutgoing) {
+      sosOutgoingRef.current.clear();
+      sosPrimaryClaimedRef.current = false;
+      sosWinnerClaimedRef.current = false;
+    }
     setSosCallState("idle");
     if (sosActivityId) setSosInlineCall(null);
     setCallId(null);
@@ -367,9 +372,28 @@ export function CallCenter() {
           if (isPrimarySosCall || !requested.sosActivityId) callIdRef.current = id;
           sosOutgoingRef.current.set(id, requested);
           if (isPrimarySosCall) setCallId(id);
-          // Best-effort: rings the recipient's device even if their app is closed.
-          void notifyIncomingCall({ data: { callId: id } }).then((result) => {
-            if (result.devices === 0) {
+          // Await + retry so SOS invitations are written before the round window races ahead.
+          const pushOnce = () => notifyIncomingCall({ data: { callId: id! } });
+          let pushResult: Awaited<ReturnType<typeof notifyIncomingCall>> | null = null;
+          try {
+            pushResult = await pushOnce();
+          } catch (firstPushError) {
+            console.warn("[ALLMA PUSH] first notify failed; retrying", {
+              callId: id,
+              message: firstPushError instanceof Error ? firstPushError.message : "unknown",
+            });
+            try {
+              await new Promise((resolve) => setTimeout(resolve, 700));
+              pushResult = await pushOnce();
+            } catch (retryPushError) {
+              console.error("[ALLMA PUSH] incoming call notification failed", {
+                callId: id,
+                message: retryPushError instanceof Error ? retryPushError.message : "unknown",
+              });
+            }
+          }
+          if (pushResult) {
+            if (pushResult.devices === 0) {
               console.warn("[ALLMA PUSH] no registered recipient devices", {
                 callId: id,
                 recipientId: requested.id,
@@ -377,15 +401,10 @@ export function CallCenter() {
               if (isPrimarySosCall && !isSosCall) {
                 toast.message(`${requested.name} has not enabled background notifications on their device.`);
               }
-            } else if (isPrimarySosCall && !isSosCall && result.delivered === 0) {
+            } else if (isPrimarySosCall && !isSosCall && pushResult.delivered === 0) {
               toast.message(`Background alert could not reach ${requested.name}'s device.`);
             }
-          }).catch((error) => {
-            console.error("[ALLMA PUSH] incoming call notification failed", {
-              callId: id,
-              message: error instanceof Error ? error.message : "unknown",
-            });
-          });
+          }
           // Ordinary calls join from the user's Call tap. SOS calls join only
           // after a responder answers, so background alerts never take over chat.
           if (!isSosCall) {
@@ -421,199 +440,31 @@ export function CallCenter() {
     });
   }, [beginEngine, setPhase, teardown, userId]);
 
-  // Incoming calls + live call state for both sides.
-  useEffect(() => {
-    if (!userId) return;
-    const channel = supabase
-      // Unique topic per mount: reusing a topic returns an already-subscribed
-      // channel, and adding listeners to that throws.
-      .channel(`allma-calls-${userId}-${Math.random().toString(36).slice(2)}`)
-
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "emergency_calls", filter: `recipient_id=eq.${userId}` },
-        (payload) => {
-          const row = payload.new as {
-            id: string;
-            caller_id: string | null;
-            recipient_id: string;
-            caller_display_name?: string | null;
-            status: string;
-            sos_session_id?: string | null;
-          };
-          if (row.caller_id === userId || row.caller_id === row.recipient_id) return;
-          if (callIdRef.current || row.status === "ended") return;
-          const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
-          const callerPeer = {
-            ...(known ?? {
-            id: row.caller_id ?? `former-member-${row.id}`,
-            name: row.caller_display_name ?? (row.caller_id ? "Allma member" : "Former Member"),
-            }),
-            ...(row.sos_session_id ? { sosActivityId: row.sos_session_id } : {}),
-          };
-          callIdRef.current = row.id;
-          setCallId(row.id);
-          setPeer(callerPeer);
-          setIsCaller(false);
-          setEndedNote(null);
-          setEmergency(null);
-          setSosRoomId(row.sos_session_id ?? null);
-          setPhase("incoming");
-
-          void setCallStatus(row.id, "ringing").catch(() => undefined);
-          // Only the authorised recipient can read this, and only permitted fields.
-          void getEmergencyCallContext(row.id).then((context) => {
-            if (callIdRef.current !== row.id || !context) return;
-            if (context.is_emergency) {
-              setEmergency(context);
-              setPeer((current) => ({
-                ...(current ?? callerPeer),
-                name: context.caller_name,
-                avatarUrl: context.caller_avatar_url,
-              }));
-            }
-          });
-          ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "emergency_calls" },
-        (payload) => {
-          const row = payload.new as { id: string; status: string };
-          const pendingSosPeer = sosOutgoingRef.current.get(row.id);
-          const currentPeer =
-            pendingSosPeer ?? sosOutgoingRef.current.get(row.id) ?? peerRef.current;
-          if (row.id !== callIdRef.current && pendingSosPeer && (row.status === "connecting" || row.status === "connected") && !sosWinnerClaimedRef.current) {
-            sosWinnerClaimedRef.current = true;
-            engineRef.current?.close();
-            engineRef.current = null;
-            callIdRef.current = row.id;
-            setCallId(row.id);
-            setPeer(pendingSosPeer);
-            setIsCaller(true);
-            setSosCallState("connecting");
-            if (isChatRoute()) setCallAudioPhase("active");
-            void beginEngine(row.id, true, pendingSosPeer.microphoneStream)
-              .then(() => setCallStatus(row.id, "connecting"))
-              .catch(() => undefined);
-          }
-          // Location writes on the caller's SOS row bump updated_at on active
-          // call rows. Re-read the recipient-authorized context immediately so
-          // the receiver's map hydrates as soon as GPS arrives.
-          if (
-            row.id === callIdRef.current &&
-            !isCallerRef.current &&
-            (phaseRef.current === "incoming" ||
-              phaseRef.current === "active" ||
-              sosCallStatusRef.current !== "idle")
-          ) {
-            void getEmergencyCallContext(row.id).then((context) => {
-              if (
-                callIdRef.current === row.id &&
-                context?.is_emergency
-              ) {
-                setEmergency(context);
-              }
-            });
-          }
-          if (row.id !== callIdRef.current) return;
-          if (row.status === "declined" || row.status === "missed" || row.status === "failed" || row.status === "ended") {
-            const unansweredSos =
-              Boolean(currentPeer?.sosActivityId) &&
-              (row.status !== "ended" || sosCallStatusRef.current === "idle");
-            if (unansweredSos) {
-              if (ringTimerRef.current) {
-                clearTimeout(ringTimerRef.current);
-                ringTimerRef.current = null;
-              }
-              setCallAudioPhase("idle");
-              setPhaseState("idle");
-              callIdRef.current = null;
-              setCallId(null);
-              setPeer(null);
-              setIsCaller(false);
-              setSosCallState("idle");
-              setSosInlineCall(null);
-              sosPrimaryClaimedRef.current = false;
-              teardown(row.status === "ended" ? "Call ended" : "Call cancelled");
-            } else {
-              const note =
-                row.status === "declined"
-                  ? `${currentPeer?.name ?? "They"} declined the call.`
-                  : row.status === "missed"
-                    ? "No answer"
-                    : row.status === "failed"
-                      ? "Call failed"
-                      : "Call ended";
-              teardown(note);
-            }
-          }
-          else if (row.status === "connecting" || row.status === "connected") {
-            // The other side answered: stop the ring timeout so the call is never
-            // cut off while the audio streams are still being negotiated.
-            if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
-            ringTimerRef.current = null;
-            if (currentPeer?.sosActivityId) setSosCallState("connecting");
-            if (currentPeer?.sosActivityId && isChatRoute()) {
-              setPhaseState("idle");
-              setCallAudioPhase("active");
-            } else {
-              setPhase("active");
-            }
-            if (isCallerRef.current && !engineRef.current) {
-              void beginEngine(row.id, true, pendingSosPeer?.microphoneStream).catch(async (error) => {
-                const message =
-                  error instanceof DOMException
-                    ? microphoneErrorMessage(error)
-                    : error instanceof Error
-                      ? error.message
-                      : "The voice connection could not start.";
-                await setCallStatus(row.id, "failed", message).catch(() => undefined);
-                teardown(message);
-                if (!currentPeer?.sosActivityId) toast.error(message);
-              });
-            }
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-    // Deliberately keyed only on identity: re-subscribing per render would leak channels.
-  }, [beginEngine, setPhase, setSosCallState, teardown, userId]);
-
-  // Cold-start recovery: a notification can open /calls after the realtime
-  // INSERT has already happened. Read only the authenticated recipient's live
-  // call row; sensitive emergency context is fetched through its RPC below.
-  useEffect(() => {
-    if (!userId || callIdRef.current || typeof window === "undefined") return;
-    const id = new URLSearchParams(window.location.search).get("call");
-    if (!id) return;
-    void (async () => {
-      const { data: row } = await supabase
-        .from("emergency_calls")
-        .select("id, caller_id, recipient_id, caller_display_name, status, sos_session_id")
-        .eq("id", id)
-        .eq("recipient_id", userId)
-        .in("status", ["initiating", "ringing", "connecting"])
-        .maybeSingle<{
-          id: string;
-          caller_id: string | null;
-          recipient_id: string;
-          caller_display_name: string | null;
-          status: string;
-          sos_session_id: string | null;
-        }>();
+  const presentIncomingCall = useCallback(
+    (row: {
+      id: string;
+      caller_id: string | null;
+      recipient_id: string;
+      caller_display_name: string | null;
+      status: string;
+      sos_session_id: string | null;
+    }) => {
       if (
-        !row ||
+        !userId ||
         row.caller_id === userId ||
         row.caller_id === row.recipient_id ||
-        callIdRef.current
+        ["ended", "missed", "declined", "failed"].includes(row.status)
       ) {
-        return;
+        return false;
+      }
+      if (callIdRef.current === row.id) return true;
+      if (callIdRef.current) {
+        const busy =
+          phaseRef.current === "incoming" ||
+          phaseRef.current === "outgoing" ||
+          phaseRef.current === "active" ||
+          sosCallStatusRef.current !== "idle";
+        if (busy) return false;
       }
       const known = row.caller_id ? namesRef.current.get(row.caller_id) : undefined;
       const callerPeer = {
@@ -643,17 +494,252 @@ export function CallCenter() {
           }));
         }
       });
-      const contextTimer = window.setInterval(() => {
-        if (callIdRef.current === row.id && (phaseRef.current === "incoming" || phaseRef.current === "active")) {
-          void getEmergencyCallContext(row.id).then((context) => {
-            if (callIdRef.current === row.id && context) setEmergency(context);
-          });
-        }
-      }, 3000);
+      if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
       ringTimerRef.current = setTimeout(() => teardown("Missed call"), RING_TIMEOUT_MS);
-      window.setTimeout(() => window.clearInterval(contextTimer), RING_TIMEOUT_MS);
+      return true;
+    },
+    [setPhase, teardown, userId],
+  );
+
+  // Incoming calls + live call state for both sides.
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      // Unique topic per mount: reusing a topic returns an already-subscribed
+      // channel, and adding listeners to that throws.
+      .channel(`allma-calls-${userId}-${Math.random().toString(36).slice(2)}`)
+
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "emergency_calls", filter: `recipient_id=eq.${userId}` },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            caller_id: string | null;
+            recipient_id: string;
+            caller_display_name?: string | null;
+            status: string;
+            sos_session_id?: string | null;
+          };
+          presentIncomingCall({
+            id: row.id,
+            caller_id: row.caller_id,
+            recipient_id: row.recipient_id,
+            caller_display_name: row.caller_display_name ?? null,
+            status: row.status,
+            sos_session_id: row.sos_session_id ?? null,
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "emergency_calls" },
+        (payload) => {
+          const row = payload.new as { id: string; status: string };
+          const pendingSosPeer = sosOutgoingRef.current.get(row.id);
+          const currentPeer = pendingSosPeer ?? peerRef.current;
+          if (
+            pendingSosPeer &&
+            (row.status === "connecting" || row.status === "connected") &&
+            !sosWinnerClaimedRef.current
+          ) {
+            sosWinnerClaimedRef.current = true;
+            // Keep the accepted peer; drop siblings so later `ended` events
+            // cannot wipe the winner before media connects.
+            sosOutgoingRef.current.clear();
+            sosOutgoingRef.current.set(row.id, pendingSosPeer);
+            engineRef.current?.close();
+            engineRef.current = null;
+            callIdRef.current = row.id;
+            setCallId(row.id);
+            setPeer(pendingSosPeer);
+            setIsCaller(true);
+            setSosCallState("connecting");
+            if (isChatRoute()) setCallAudioPhase("active");
+            void beginEngine(row.id, true, pendingSosPeer.microphoneStream)
+              .then(() => setCallStatus(row.id, "connecting"))
+              .catch(() => undefined);
+          } else if (
+            pendingSosPeer &&
+            (row.status === "declined" ||
+              row.status === "missed" ||
+              row.status === "failed" ||
+              row.status === "ended")
+          ) {
+            // Sibling no-answer: remove only that outbound SOS dial.
+            sosOutgoingRef.current.delete(row.id);
+          }
+          // Location writes on the caller's SOS row bump updated_at on active
+          // call rows. Re-read the recipient-authorized context immediately so
+          // the receiver's map hydrates as soon as GPS arrives.
+          if (
+            row.id === callIdRef.current &&
+            !isCallerRef.current &&
+            (phaseRef.current === "incoming" ||
+              phaseRef.current === "active" ||
+              sosCallStatusRef.current !== "idle")
+          ) {
+            void getEmergencyCallContext(row.id).then((context) => {
+              if (
+                callIdRef.current === row.id &&
+                context?.is_emergency
+              ) {
+                setEmergency(context);
+              }
+            });
+          }
+          if (row.id !== callIdRef.current) return;
+          if (row.status === "declined" || row.status === "missed" || row.status === "failed" || row.status === "ended") {
+            const unansweredSos =
+              Boolean(currentPeer?.sosActivityId) &&
+              (row.status !== "ended" || sosCallStatusRef.current === "idle");
+            if (unansweredSos) {
+              sosOutgoingRef.current.delete(row.id);
+              if (ringTimerRef.current) {
+                clearTimeout(ringTimerRef.current);
+                ringTimerRef.current = null;
+              }
+              // Another parallel SOS dial may still be ringing. Soft-clear the
+              // UI for this row without wiping the remaining outbound peers.
+              if (sosOutgoingRef.current.size > 0 && !sosWinnerClaimedRef.current) {
+                setCallAudioPhase("idle");
+                setPhaseState("idle");
+                callIdRef.current = null;
+                setCallId(null);
+                setPeer(null);
+                setIsCaller(false);
+                setSosCallState("idle");
+                setSosInlineCall(null);
+                sosPrimaryClaimedRef.current = false;
+                return;
+              }
+              teardown(row.status === "ended" ? "Call ended" : "Call cancelled", {
+                clearSosOutgoing: sosOutgoingRef.current.size === 0,
+              });
+            } else {
+              const note =
+                row.status === "declined"
+                  ? `${currentPeer?.name ?? "They"} declined the call.`
+                  : row.status === "missed"
+                    ? "No answer"
+                    : row.status === "failed"
+                      ? "Call failed"
+                      : "Call ended";
+              teardown(note);
+            }
+          }
+          else if (row.status === "connecting" || row.status === "connected") {
+            // The other side answered: stop the ring timeout so the call is never
+            // cut off while the audio streams are still being negotiated.
+            if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
+            ringTimerRef.current = null;
+            if (currentPeer?.sosActivityId) setSosCallState("connecting");
+            if (currentPeer?.sosActivityId && isChatRoute()) {
+              setPhaseState("idle");
+              setCallAudioPhase("active");
+            } else {
+              setPhase("active");
+            }
+            if (isCallerRef.current && !engineRef.current) {
+              void beginEngine(row.id, true, pendingSosPeer?.microphoneStream ?? currentPeer?.microphoneStream).catch(async (error) => {
+                const message =
+                  error instanceof DOMException
+                    ? microphoneErrorMessage(error)
+                    : error instanceof Error
+                      ? error.message
+                      : "The voice connection could not start.";
+                await setCallStatus(row.id, "failed", message).catch(() => undefined);
+                teardown(message);
+                if (!currentPeer?.sosActivityId) toast.error(message);
+              });
+            }
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+    // Deliberately keyed only on identity: re-subscribing per render would leak channels.
+  }, [beginEngine, presentIncomingCall, setPhase, setSosCallState, teardown, userId]);
+
+  // Cold-start recovery: a notification can open /calls after the realtime
+  // INSERT has already happened. Read only the authenticated recipient's live
+  // call row; sensitive emergency context is fetched through its RPC below.
+  useEffect(() => {
+    if (!userId || callIdRef.current || typeof window === "undefined") return;
+    const id = new URLSearchParams(window.location.search).get("call");
+    if (!id) return;
+    void (async () => {
+      const { data: row } = await supabase
+        .from("emergency_calls")
+        .select("id, caller_id, recipient_id, caller_display_name, status, sos_session_id")
+        .eq("id", id)
+        .eq("recipient_id", userId)
+        .in("status", ["initiating", "ringing", "connecting"])
+        .maybeSingle<{
+          id: string;
+          caller_id: string | null;
+          recipient_id: string;
+          caller_display_name: string | null;
+          status: string;
+          sos_session_id: string | null;
+        }>();
+      if (!row) return;
+      presentIncomingCall(row);
     })();
-  }, [setPhase, teardown, userId]);
+  }, [presentIncomingCall, userId]);
+
+  // Realtime can miss inserts when the tab is backgrounded. Poll for live
+  // inbound SOS/voice rows so receivers still see the ring UI.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    const poll = async () => {
+      if (cancelled) return;
+      const busy =
+        Boolean(callIdRef.current) &&
+        (phaseRef.current === "incoming" ||
+          phaseRef.current === "outgoing" ||
+          phaseRef.current === "active" ||
+          sosCallStatusRef.current !== "idle");
+      if (busy) return;
+      const { data } = await supabase
+        .from("emergency_calls")
+        .select("id, caller_id, recipient_id, caller_display_name, status, sos_session_id, created_at")
+        .eq("recipient_id", userId)
+        .in("status", ["initiating", "ringing", "connecting"])
+        .order("created_at", { ascending: false })
+        .limit(3);
+      const rows = (data as unknown as Array<{
+        id: string;
+        caller_id: string | null;
+        recipient_id: string;
+        caller_display_name: string | null;
+        status: string;
+        sos_session_id: string | null;
+        created_at: string;
+      }> | null) ?? [];
+      if (cancelled || !rows.length) return;
+      const preferred =
+        rows.find((row) => Boolean(row.sos_session_id)) ?? rows[0];
+      if (preferred) presentIncomingCall(preferred);
+    };
+    void poll();
+    const timer = window.setInterval(() => {
+      void poll();
+    }, 3500);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [presentIncomingCall, userId]);
 
   useEffect(() => {
     const inlineIncomingSos =
