@@ -37,7 +37,7 @@ import {
   getEmergencyCallContext,
   type EmergencyCallContext,
 } from "@/lib/sos-calling";
-import { getSosThreadForActivity } from "@/lib/sos-rooms";
+import { openSharedSosConversation } from "@/lib/sos-rooms";
 import { startSosEmergencyCall } from "@/lib/sos-calling";
 import {
   VoiceCallEngine,
@@ -723,10 +723,15 @@ export function CallCenter() {
           return;
         }
       }
-      if (isSosCall && sosActivityId && !isChatRoute()) {
+      // Accepting an SOS call always opens the same shared conversation so the
+      // receiver lands in chat with the caller and Allma automatically.
+      if (isSosCall && sosActivityId) {
         try {
-          const threadId = await getSosThreadForActivity(sosActivityId);
-          if (threadId) {
+          const threadId = await openSharedSosConversation(sosActivityId);
+          const alreadyThere =
+            typeof window !== "undefined" &&
+            window.location.pathname === `/chat/${threadId}`;
+          if (!alreadyThere) {
             await navigate({
               to: "/chat/$threadId",
               params: { threadId },
@@ -735,6 +740,7 @@ export function CallCenter() {
           }
         } catch (navigationError) {
           console.warn("The accepted SOS call could not open its shared conversation", navigationError);
+          toast.message("Call connected. Open the shared emergency chat from Call centre if it did not open.");
         }
       }
       if (isSosCall) {

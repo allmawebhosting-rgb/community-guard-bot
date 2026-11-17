@@ -149,6 +149,31 @@ export async function getSosThreadForActivity(sosActivityId: string) {
   return data ?? null;
 }
 
+/**
+ * After a responder accepts an SOS call/offer, resolve the one shared chat for
+ * that emergency (creating/linking a thread when needed) and return its id.
+ */
+export async function openSharedSosConversation(sosActivityId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("open_sos_shared_conversation", {
+    p_sos_activity_id: sosActivityId,
+  });
+  if (!error && data) return data as string;
+
+  // Fallback for environments that have not applied the latest migration yet:
+  // retry the read helper briefly while invitation/offer acceptance lands in RLS.
+  let lastError = error ? friendly(error.message) : "Shared conversation unavailable.";
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      const threadId = await getSosThreadForActivity(sosActivityId);
+      if (threadId) return threadId;
+    } catch (readError) {
+      lastError = readError instanceof Error ? readError.message : lastError;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+  }
+  throw new Error(lastError);
+}
+
 export async function listSosRoomMessages(sosActivityId: string): Promise<SosRoomMessage[]> {
   const { data, error } = await supabase
     .from("emergency_chat_events")

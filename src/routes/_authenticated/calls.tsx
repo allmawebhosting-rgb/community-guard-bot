@@ -8,7 +8,7 @@ import { BackgroundCallPrompt } from "@/components/allma/calls/background-call-p
 import { SosInbox } from "@/components/allma/calls/sos-inbox";
 import { EmergencyRoom } from "@/components/allma/calls/emergency-room";
 import { supabase } from "@/integrations/supabase/client";
-import { getSosThreadForActivity } from "@/lib/sos-rooms";
+import { openSharedSosConversation } from "@/lib/sos-rooms";
 
 const searchSchema = z.object({
   room: z.string().optional(),
@@ -61,7 +61,7 @@ function CallsRoute() {
   useEffect(() => {
     if (!room) return;
     let cancelled = false;
-    void getSosThreadForActivity(room)
+    void openSharedSosConversation(room)
       .then((threadId) => {
         if (!cancelled && threadId) {
           void navigate({ to: "/chat/$threadId", params: { threadId }, replace: true });

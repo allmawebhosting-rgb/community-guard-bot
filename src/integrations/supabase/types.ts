@@ -3059,6 +3059,10 @@ export type Database = {
         Args: { p_sos_activity_id: string }
         Returns: string | null
       }
+      open_sos_shared_conversation: {
+        Args: { p_sos_activity_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

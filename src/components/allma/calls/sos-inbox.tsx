@@ -16,7 +16,7 @@ import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   EMERGENCY_TYPE_LABELS,
-  getSosThreadForActivity,
+  openSharedSosConversation,
   relativeTime,
   sosRoomsQueryOptions,
   subscribeSosRoomInbox,
@@ -97,8 +97,8 @@ export function SosInbox({
 
   async function openConversation(room: SosRoomSummary) {
     try {
-      const threadId = await getSosThreadForActivity(room.sos_activity_id);
-      onOpenRoom(room.sos_activity_id, threadId ?? undefined);
+      const threadId = await openSharedSosConversation(room.sos_activity_id);
+      onOpenRoom(room.sos_activity_id, threadId);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "This conversation is unavailable.");
     }
