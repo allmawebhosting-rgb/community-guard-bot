@@ -201,7 +201,7 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   expect(screen.getByText(/450m/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: /Police/ }));
   expect(screen.getByText("Central Police")).toBeTruthy();
-  expect(screen.getByText("1.2km")).toBeTruthy();
+  expect(screen.getByText(/1\.2km/)).toBeTruthy();
   expect(getNearbyPlacesMock).toHaveBeenCalledWith({
     data: expect.objectContaining({
       limit: 12,
