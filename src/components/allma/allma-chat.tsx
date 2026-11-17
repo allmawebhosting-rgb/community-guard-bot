@@ -1513,7 +1513,7 @@ export function AllmaChat({
       const caption =
         trimmed ||
         (hasImage
-          ? "Please look at this photo carefully and tell me what you see, then give clear first-aid steps if this is an injury."
+          ? "I took a photo of an injury that may be bleeding. Please look at the photo carefully, tell me what you see, and give clear first-aid steps right away."
           : "Here is the file.");
       parts.push({ type: "text", text: caption });
 
@@ -1568,30 +1568,62 @@ export function AllmaChat({
   // Images are inlined as compressed data URLs so the assistant always receives
   // the pixels instead of depending on a link fetch of a private storage object.
   const inlineImage = useCallback(async (file: File) => {
-    const bitmap = await createImageBitmap(file);
-    const maxEdge = 1280;
-    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas unavailable");
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close?.();
-    return canvas.toDataURL("image/jpeg", 0.82);
+    const readAsDataUrl = () =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error ?? new Error("FileReader failed"));
+        reader.readAsDataURL(file);
+      });
+
+    try {
+      const bitmap = await Promise.race([
+        createImageBitmap(file),
+        new Promise<never>((_, reject) =>
+          window.setTimeout(() => reject(new Error("createImageBitmap timed out")), 4000),
+        ),
+      ]);
+      const maxEdge = 1280;
+      const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas unavailable");
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close?.();
+      return canvas.toDataURL("image/jpeg", 0.82);
+    } catch (error) {
+      console.warn("[allma-upload] createImageBitmap failed, using FileReader", error);
+      const dataUrl = await readAsDataUrl();
+      if (!dataUrl.startsWith("data:image/")) {
+        throw error instanceof Error ? error : new Error("Image read failed");
+      }
+      return dataUrl;
+    }
   }, []);
 
   const uploadFiles = useCallback(
-    async (files: FileList | null) => {
-      if (!files?.length) return;
-      const { data: auth } = await supabase.auth.getUser();
-      const userId = auth.user?.id;
+    async (files: FileList | File[] | null) => {
+      // Snapshot immediately — clearing the <input> empties a live FileList.
+      const queue = files ? Array.from(files) : [];
+      if (queue.length === 0) return;
+      let userId: string | undefined;
+      try {
+        const authResult = await Promise.race([
+          supabase.auth.getUser(),
+          new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 2500)),
+        ]);
+        userId = authResult?.data.user?.id;
+      } catch {
+        // Guest photo uploads still work without a session.
+      }
 
       setUploading(true);
       setAttachMenuOpen(false);
       const ready: Attachment[] = [];
       try {
-        for (const file of Array.from(files)) {
+        for (const file of queue) {
           if (file.size === 0) {
             toast.error(`${file.name} is empty — try picking it again.`);
             continue;
@@ -1600,7 +1632,7 @@ export function AllmaChat({
             toast.error(`${file.name} is larger than 20MB. Try a smaller file.`);
             continue;
           }
-          const isImage = file.type.startsWith("image/");
+          const isImage = file.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|heic)$/i.test(file.name);
           if (!userId && !isImage) {
             toast.error("Sign in to attach files other than photos.");
             continue;
@@ -1652,10 +1684,16 @@ export function AllmaChat({
             continue;
           }
 
+          const mediaType = url.startsWith("data:image/")
+            ? (url.slice(5, url.indexOf(";")) || "image/jpeg")
+            : isImage
+              ? file.type || "image/jpeg"
+              : file.type || "application/octet-stream";
+
           ready.push({
             id: path,
             name: file.name,
-            mediaType: isImage ? "image/jpeg" : file.type || "application/octet-stream",
+            mediaType,
             url,
             preview: URL.createObjectURL(file),
           });
@@ -1864,8 +1902,10 @@ export function AllmaChat({
     ].filter((step, index, all) => all.indexOf(step) === index),
     findFacilities: findFacilitiesProgress(streamingParts),
   });
-  const pendingIncident =
-    status === "submitted" ? incidentForReply([...messages, { role: "assistant", parts: [] }], messages.length) : null;
+  const waitingOrFailed = status === "submitted" || Boolean(error);
+  const pendingIncident = waitingOrFailed
+    ? incidentForReply([...messages, { role: "assistant", parts: [] }], messages.length)
+    : null;
   const pendingAid = pendingIncident ? firstAidFallback(pendingIncident, "") : null;
   const pendingEmergencyType = pendingIncident?.lifeThreatening ? pendingIncident.marker : null;
 
@@ -2200,9 +2240,10 @@ export function AllmaChat({
         multiple
         className="hidden"
         onChange={(event) => {
-          void uploadFiles(event.target.files);
+          const selected = event.target.files ? Array.from(event.target.files) : [];
           event.target.value = "";
           setAttachMenuOpen(false);
+          void uploadFiles(selected);
         }}
       />
       <input
@@ -2212,8 +2253,9 @@ export function AllmaChat({
         accept="image/*,video/*,audio/*,application/pdf"
         className="hidden"
         onChange={(event) => {
-          void uploadFiles(event.target.files);
+          const selected = event.target.files ? Array.from(event.target.files) : [];
           event.target.value = "";
+          void uploadFiles(selected);
         }}
       />
 
@@ -2554,20 +2596,22 @@ export function AllmaChat({
                 </motion.div>
                 );
               })}
-              {status === "submitted" ? (
+              {status === "submitted" || (error && pendingAid) ? (
                 <div className="flex max-w-full flex-row items-start gap-2.5">
                   <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
                   <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3 sm:max-w-[85%]">
                     <div className="space-y-3">
                       {pendingEmergencyType ? <EmergencyActions type={pendingEmergencyType} /> : null}
-                      {pendingAid ? <FirstAidCard aid={pendingAid} followUp={null} /> : null}
-                      {progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : (
-                        <span className="flex h-7 items-center gap-1" role="status" aria-label="Allma is typing">
-                          {[0, 1, 2].map((d) => (
-                            <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-foreground/40" style={{ animationDelay: `${d * 0.15}s` }} />
-                          ))}
-                        </span>
-                      )}
+                      {pendingAid ? <FirstAidCard aid={pendingAid} followUp={pendingIncident?.followUp ?? null} /> : null}
+                      {status === "submitted" ? (
+                        progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : (
+                          <span className="flex h-7 items-center gap-1" role="status" aria-label="Allma is typing">
+                            {[0, 1, 2].map((d) => (
+                              <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-foreground/40" style={{ animationDelay: `${d * 0.15}s` }} />
+                            ))}
+                          </span>
+                        )
+                      ) : null}
                     </div>
                   </div>
                 </div>
