@@ -360,7 +360,7 @@ export const Route = createFileRoute("/api/chat")({
         // Situation playbooks: loaded whenever a real safety situation is live.
         const needsProcedures =
           (Boolean(activeFlow) && activeFlow !== "Find help") ||
-          (Boolean(intent) && intent.flow !== "Find help") ||
+          (intent != null && intent.flow !== "Find help") ||
           Boolean(emergencyKind) ||
           /steal|stole|stolen|thief|theft|snatch|rob|assault|beat|attack|hurt|injur|missing|lost|found|violence|abuse|rape|defile|threaten|accident|crash|knock(ed)? (me|him|her)|fire|burn|smoke|bleed|unconscious|not breathing|choking|stroke|snake bite|burn|fraud|scam|conned|mobile money|momo|suspicious|kidnap|abduct/i.test(
             intakeText,
@@ -372,7 +372,7 @@ export const Route = createFileRoute("/api/chat")({
           memoryBlock ||
           /\b(remember|earlier|previous conversation|last time|my report|my reports|draft)\b/i.test(intakeText)
         ) promptBlocks.push(ALLMA_MEMORY_BLOCK);
-        if (hasReportContext || (Boolean(intent) && intent.flow !== "Find help")) {
+        if (hasReportContext || (intent != null && intent.flow !== "Find help")) {
           promptBlocks.push(ALLMA_DETAIL_BLOCK);
         }
         const systemPrompt = promptBlocks.join("\n\n");

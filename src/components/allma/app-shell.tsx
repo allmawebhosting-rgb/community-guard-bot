@@ -28,6 +28,8 @@ import { BrandLockup } from "@/components/allma/brand";
 import { NotificationsBell } from "@/components/allma/notifications-bell";
 import { ConnectionRequestsBanner } from "@/components/allma/safety-network/connection-requests-banner";
 import { SosButton } from "@/components/allma/sos-button";
+import { SosHeaderStatus } from "@/components/allma/sos-header-status";
+import { useActiveSos } from "@/lib/sos-active";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/lib/theme";
@@ -574,6 +576,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAuthenticated } = useAuth();
   const isChat = pathname === "/" || pathname === "/chat" || pathname.startsWith("/chat/");
+  const activeSos = useActiveSos();
 
 
   useEffect(() => {
@@ -606,7 +609,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         )}
       >
         {/* Mobile-only header */}
-        <header className="no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl lg:hidden">
+        <header className={cn("no-print sticky top-0 z-30 border-b border-border/50 bg-background/85 backdrop-blur-xl lg:hidden", activeSos && "sos-header-active border-destructive/40")}>
           <div className="mx-auto grid h-16 w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4">
             <button
               type="button"
@@ -617,7 +620,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               <Menu className="h-[18px] w-[18px]" />
             </button>
 
-            <div className="flex min-w-0 items-center justify-center gap-2.5">
+            {activeSos ? <SosHeaderStatus sos={activeSos} /> : <div className="flex min-w-0 items-center justify-center gap-2.5">
               <MascotAvatar className="h-11 w-11" />
               <div className="min-w-0 leading-tight">
                 <p className="truncate text-[16px] font-bold">{title ?? "Allma Safety AI"}</p>
@@ -626,7 +629,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                   Online
                 </p>
               </div>
-            </div>
+            </div>}
 
             {isChat ? (
               <SosButton inline />
@@ -640,15 +643,15 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         </header>
 
         {/* Desktop top bar — branding strip + status */}
-        <header className="no-print sticky top-0 z-30 hidden border-b border-border/40 bg-background/80 backdrop-blur-xl lg:flex">
+        <header className={cn("no-print sticky top-0 z-30 hidden border-b border-border/40 bg-background/80 backdrop-blur-xl lg:flex", activeSos && "sos-header-active border-destructive/40")}>
           <div className="flex h-13 w-full items-center justify-between gap-4 px-6">
-            <div className="flex items-center gap-2.5">
+            {activeSos ? <SosHeaderStatus sos={activeSos} /> : <div className="flex items-center gap-2.5">
               <span className="online-pulse inline-block h-2 w-2 rounded-full bg-success" />
               <span className="text-[13px] font-semibold text-foreground/80">
                 {title ?? "Allma Safety AI"}
               </span>
               <span className="text-[12px] text-muted-foreground">— Online & ready</span>
-            </div>
+            </div>}
             <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
               <span className="flex items-center gap-1.5 rounded-full border border-border/50 bg-card/50 px-3 py-1">
                 🇺🇬 Uganda Coverage
