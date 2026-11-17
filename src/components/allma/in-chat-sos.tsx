@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   CheckCircle2,
   ExternalLink,
@@ -27,6 +29,7 @@ import { getNearbyPlaces } from "@/lib/places.functions";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { primeMicrophone } from "@/lib/zego-call";
 import { setActiveSos } from "@/lib/sos-active";
+import { createThread, type ThreadSummary } from "@/lib/threads";
 
 type Line = { number: string };
 type Phase = "idle" | "countdown" | "active" | "ended";
@@ -87,6 +90,14 @@ export function InChatSos({
   onActivityEnded?: (activityId: string) => void;
 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [autoThreadId, setAutoThreadId] = useState<string | null>(null);
+  const effectiveThreadId = threadId || autoThreadId;
+  const effectiveThreadIdRef = useRef<string | null>(effectiveThreadId);
+  const autoThreadIdRef = useRef<string | null>(null);
+  const threadCreationRef = useRef<Promise<string> | null>(null);
+  const threadCreationErrorShownRef = useRef(false);
   const [phase, setPhase] = useState<Phase>(
     existingActivityId ? (existingActive ? "active" : "ended") : "idle",
   );
@@ -109,6 +120,10 @@ export function InChatSos({
   const lastLocationSync = useRef<{ lat: number; lng: number; at: number } | null>(null);
 
   useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
+
+  useEffect(() => {
+    effectiveThreadIdRef.current = effectiveThreadId;
+  }, [effectiveThreadId]);
 
   useEffect(() => {
     if (!existingActivityId || phase === "countdown") return;
@@ -226,16 +241,62 @@ export function InChatSos({
     };
   }, [placeSearchKey]);
 
+  function ensureEmergencyThread() {
+    const existingThreadId = effectiveThreadIdRef.current;
+    if (existingThreadId) return Promise.resolve(existingThreadId);
+    if (threadCreationRef.current) return threadCreationRef.current;
+
+    const creation = createThread("Emergency SOS")
+      .then((thread) => {
+        effectiveThreadIdRef.current = thread.id;
+        autoThreadIdRef.current = thread.id;
+        setAutoThreadId(thread.id);
+        queryClient.setQueryData<ThreadSummary[]>(["threads"], (threads = []) => [
+          thread,
+          ...threads.filter((item) => item.id !== thread.id),
+        ]);
+        void queryClient.invalidateQueries({ queryKey: ["threads"] });
+        return thread.id;
+      })
+      .finally(() => {
+        if (threadCreationRef.current === creation) threadCreationRef.current = null;
+      });
+    threadCreationRef.current = creation;
+    return creation;
+  }
+
+  function navigateToAutoThread(activeThreadId: string) {
+    if (autoThreadIdRef.current !== activeThreadId) return;
+    void navigate({
+      to: "/chat/$threadId",
+      params: { threadId: activeThreadId },
+      replace: true,
+    });
+  }
+
+  function showThreadCreationError() {
+    if (threadCreationErrorShownRef.current) return;
+    threadCreationErrorShownRef.current = true;
+    toast.error("Could not create an emergency chat. Call 999 or 112 now.");
+  }
+
   function startCountdown() {
     if (!user) { toast.error("Sign in so Allma can alert your safety network."); return; }
-    if (!threadId) {
-      toast.error("Open a saved conversation before starting SOS so responders can join it.");
-      return;
-    }
+    threadCreationErrorShownRef.current = false;
     setLeft(COUNTDOWN);
     setNetworkNotified(null);
     setMapVisible(true);
     setPhase("countdown");
+    if (!effectiveThreadIdRef.current) {
+      void ensureEmergencyThread().catch(() => {
+        if (timer.current) {
+          window.clearInterval(timer.current);
+          timer.current = null;
+          setPhase("idle");
+        }
+        showThreadCreationError();
+      });
+    }
     timer.current = window.setInterval(() => {
       setLeft((s) => {
         if (s <= 1) {
@@ -277,15 +338,25 @@ export function InChatSos({
 
   async function activate() {
     if (!user) return;
-    setPhase("active");
     setSaving(true);
+    let activeThreadId: string;
+    try {
+      activeThreadId = await ensureEmergencyThread();
+    } catch (error) {
+      console.error("Could not create an emergency thread for SOS", error);
+      setSaving(false);
+      setPhase("idle");
+      showThreadCreationError();
+      return;
+    }
+    setPhase("active");
     void primeMicrophone().then(setMic).catch(() => undefined);
 
-    if (threadId) {
+    if (activeThreadId) {
       try {
         const { data: contextRows, error: contextError } = await supabase.rpc(
           "get_chat_thread_context",
-          { p_thread_id: threadId },
+          { p_thread_id: activeThreadId },
         );
         if (!contextError) {
           const existing = contextRows?.[0];
@@ -293,6 +364,7 @@ export function InChatSos({
             setActivityId(existing.sos_activity_id);
             setStartedAt(Date.now());
             setSaving(false);
+            navigateToAutoThread(activeThreadId);
             return;
           }
         }
@@ -308,7 +380,7 @@ export function InChatSos({
     const details = {
       channel: "chat",
       emergency_type: TYPE_MAP[type],
-      ...(threadId ? { thread_id: threadId } : {}),
+      thread_id: activeThreadId,
       location_consent: !!coords,
       responder_notification_consent: true,
       accuracy_m: coords?.acc ?? null,
@@ -352,16 +424,17 @@ export function InChatSos({
       data = fallbackResult.data;
       error = fallbackResult.error;
     }
-    if (error && threadId && (error as { code?: string }).code === "23505") {
+    if (error && activeThreadId && (error as { code?: string }).code === "23505") {
       const { data: contextRows, error: contextError } = await supabase.rpc(
         "get_chat_thread_context",
-        { p_thread_id: threadId },
+        { p_thread_id: activeThreadId },
       );
       const existing = !contextError ? contextRows?.[0] : null;
       if (existing?.sos_active && existing.sos_activity_id) {
         setActivityId(existing.sos_activity_id);
         setStartedAt(Date.now());
         setSaving(false);
+        navigateToAutoThread(activeThreadId);
         return;
       }
     }
@@ -374,6 +447,7 @@ export function InChatSos({
     setActivityId(data.id);
     setStartedAt(Date.now());
     void notifySosActivity({ data: { activityId: data.id } }).catch(() => {});
+    navigateToAutoThread(activeThreadId);
   }
 
   async function endSos() {

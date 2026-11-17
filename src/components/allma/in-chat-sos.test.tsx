@@ -4,28 +4,45 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const {
   endEscalationMock,
+  createThreadMock,
   fromMock,
+  invalidateQueriesMock,
   getNearbyPlacesMock,
   inlineCallMock,
   notifyMock,
+  navigateMock,
   insertMock,
   rpcMock,
   runCallActionMock,
   singleMock,
+  setQueryDataMock,
   updateMock,
 } = vi.hoisted(() => ({
   endEscalationMock: vi.fn(),
+  createThreadMock: vi.fn(),
   fromMock: vi.fn(),
+  invalidateQueriesMock: vi.fn(),
   getNearbyPlacesMock: vi.fn(),
   inlineCallMock: vi.fn(),
   insertMock: vi.fn(),
   notifyMock: vi.fn(),
+  navigateMock: vi.fn(),
   rpcMock: vi.fn(),
   runCallActionMock: vi.fn(),
   singleMock: vi.fn(),
+  setQueryDataMock: vi.fn(),
   updateMock: vi.fn(),
 }));
 
+vi.mock("@tanstack/react-query", () => ({
+  useQueryClient: () => ({
+    invalidateQueries: invalidateQueriesMock,
+    setQueryData: setQueryDataMock,
+  }),
+}));
+vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => navigateMock,
+}));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { from: fromMock, rpc: rpcMock },
@@ -48,6 +65,7 @@ vi.mock("@/lib/sos-inline-call", () => ({
   runSosInlineCallAction: runCallActionMock,
   useSosInlineCall: inlineCallMock,
 }));
+vi.mock("@/lib/threads", () => ({ createThread: createThreadMock }));
 
 import { InChatSos } from "./in-chat-sos";
 
@@ -62,6 +80,15 @@ const location = {
 beforeEach(() => {
   vi.useFakeTimers();
   fromMock.mockClear();
+  createThreadMock.mockReset();
+  createThreadMock.mockResolvedValue({
+    id: "emergency-thread-1",
+    title: "Emergency SOS",
+    updated_at: "2026-11-17T00:00:00.000Z",
+  });
+  invalidateQueriesMock.mockReset();
+  navigateMock.mockReset();
+  setQueryDataMock.mockReset();
   insertMock.mockClear();
   updateMock.mockClear();
   runCallActionMock.mockClear();
@@ -199,12 +226,29 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   });
 });
 
-it("does not start an SOS without a saved conversation to link", () => {
+it("creates and opens an emergency thread before activating an SOS", async () => {
   render(<InChatSos type="medical" lines={[{ number: "112" }]} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Press SOS" }));
+  expect(screen.getByText(/Starting SOS in/)).toBeTruthy();
+  expect(createThreadMock).toHaveBeenCalledWith("Emergency SOS");
+  expect(navigateMock).not.toHaveBeenCalled();
 
-  expect(screen.getByRole("button", { name: "Press SOS" })).toBeTruthy();
-  expect(screen.queryByText(/Starting SOS in/)).toBeNull();
-  expect(fromMock).not.toHaveBeenCalled();
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+  vi.useRealTimers();
+
+  expect(createThreadMock).toHaveBeenCalledWith("Emergency SOS");
+  expect(navigateMock).toHaveBeenCalledWith({
+    to: "/chat/$threadId",
+    params: { threadId: "emergency-thread-1" },
+    replace: true,
+  });
+  expect(await screen.findByText("SOS active")).toBeTruthy();
+  expect(insertMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      details: expect.objectContaining({ thread_id: "emergency-thread-1" }),
+    }),
+  );
 });
