@@ -104,7 +104,12 @@ import {
   type SosRoomMessage,
 } from "@/lib/sos-rooms";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
-import { rememberActiveChatThread } from "@/lib/active-chat-thread";
+import { peekActiveChatThread, rememberActiveChatThread } from "@/lib/active-chat-thread";
+import {
+  stashPendingChatMessages,
+  takePendingChatMessages,
+} from "@/lib/pending-chat-messages";
+import { createThread } from "@/lib/threads";
 
 
 type ToolPart = {
@@ -501,6 +506,7 @@ const SosActivityContext = createContext<{
   sharedLocation: { latitude: number; longitude: number; accuracy_m: number | null } | null;
   onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
   onActivityEnded?: (activityId: string) => void;
+  onEnsureThread?: () => Promise<string>;
 }>({
   threadId: null,
   activityId: null,
@@ -552,6 +558,7 @@ function EmergencyActions({
       offerMode={offerMode}
       onActivityStarted={sosActivity.onActivityStarted}
       onActivityEnded={sosActivity.onActivityEnded}
+      onEnsureThread={sosActivity.onEnsureThread}
     />
   );
 }
@@ -748,6 +755,7 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
           canManage={sosActivity.canManage}
           onActivityStarted={sosActivity.onActivityStarted}
           onActivityEnded={sosActivity.onActivityEnded}
+          onEnsureThread={sosActivity.onEnsureThread}
         />
       ) : null}
       {facilities.length === 0 ? (
@@ -1942,6 +1950,50 @@ export function AllmaChat({
     }
   }, [queryClient, threadId]);
 
+  const ensureSosThread = useCallback(async () => {
+    if (threadId) return threadId;
+
+    const openExisting = async (existingId: string) => {
+      stashPendingChatMessages(existingId, messages);
+      rememberActiveChatThread(existingId);
+      if (typeof window === "undefined" || window.location.pathname !== `/chat/${existingId}`) {
+        await navigate({
+          to: "/chat/$threadId",
+          params: { threadId: existingId },
+          replace: true,
+        });
+      }
+      return existingId;
+    };
+
+    const remembered = peekActiveChatThread();
+    if (remembered) return openExisting(remembered);
+
+    const firstUserText = messages
+      .find((message) => message.role === "user")
+      ?.parts.filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join(" ")
+      .trim();
+    const title = firstUserText
+      ? firstUserText.replace(/\s+/g, " ").slice(0, 48)
+      : "Safety conversation";
+    const thread = await createThread(title);
+    stashPendingChatMessages(thread.id, messages);
+    rememberActiveChatThread(thread.id);
+    queryClient.setQueryData(["threads"], (threads: Array<{ id: string }> = []) => [
+      thread,
+      ...threads.filter((item) => item.id !== thread.id),
+    ]);
+    void queryClient.invalidateQueries({ queryKey: ["threads"] });
+    await navigate({
+      to: "/chat/$threadId",
+      params: { threadId: thread.id },
+      replace: true,
+    });
+    return thread.id;
+  }, [messages, navigate, queryClient, threadId]);
+
   const sosActivityContextValue = useMemo(
     () => ({
       threadId,
@@ -1958,9 +2010,11 @@ export function AllmaChat({
           : null,
       onActivityStarted: handleSosActivityStarted,
       onActivityEnded: handleSosActivityEnded,
+      onEnsureThread: ensureSosThread,
     }),
     [
       canManageSos,
+      ensureSosThread,
       handleSosActivityEnded,
       handleSosActivityStarted,
       sosActivityId,
@@ -1969,6 +2023,18 @@ export function AllmaChat({
       threadId,
     ],
   );
+
+  useEffect(() => {
+    if (!threadId) return;
+    const pending = takePendingChatMessages(threadId);
+    if (!pending.length) return;
+    setMessages((current) => {
+      if (!current.length) return pending;
+      const ids = new Set(current.map((message) => message.id));
+      const missing = pending.filter((message) => !ids.has(message.id));
+      return missing.length ? [...current, ...missing] : current;
+    });
+  }, [setMessages, threadId]);
 
   const sendVoiceNote = useCallback(
     async (activityId: string, clip: Blob, durationSeconds: number) => {
@@ -2550,8 +2616,8 @@ export function AllmaChat({
       >
         <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
           {sosIsActive ? (
-            <p className="mb-2 px-1 text-[11px] font-medium text-muted-foreground">
-              Messages go to Allma and everyone authorized in this emergency.
+            <p className="mb-1.5 px-1 text-[11px] leading-4 text-muted-foreground">
+              Shared with Allma and your Safety Network in this chat.
             </p>
           ) : null}
           {attachments.length > 0 || uploading ? (
@@ -2628,11 +2694,11 @@ export function AllmaChat({
 
                 <PromptInputTextarea
                   ref={textareaRef}
-                  placeholder={sosIsActive ? "Message Allma and your responders…" : "Message Allma..."}
-                  aria-label={sosIsActive ? "Message Allma and your responders" : "Message Allma"}
+                  placeholder={sosIsActive ? "Message this emergency…" : "Message Allma..."}
+                  aria-label={sosIsActive ? "Message this emergency" : "Message Allma"}
                   enterKeyHint="send"
                   rows={1}
-                  className="composer-textarea min-h-[44px] bg-transparent px-1.5 py-[10px] text-base leading-6 sm:text-[15px]"
+                  className="composer-textarea min-h-[48px] max-h-[140px] bg-transparent px-1.5 py-3 text-[15px] leading-6 sm:text-[15px]"
                   onChange={(event) => {
                     setComposerText(event.target.value);
                     autoGrowTextarea(event.currentTarget);

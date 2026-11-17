@@ -29,6 +29,7 @@ import { getNearbyPlaces } from "@/lib/places.functions";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { primeMicrophone } from "@/lib/zego-call";
 import { setActiveSos } from "@/lib/sos-active";
+import { peekActiveChatThread } from "@/lib/active-chat-thread";
 import { createThread, type ThreadSummary } from "@/lib/threads";
 
 type Line = { number: string };
@@ -77,6 +78,7 @@ export function InChatSos({
   offerMode = false,
   onActivityStarted,
   onActivityEnded,
+  onEnsureThread,
 }: {
   type: keyof typeof TYPE_MAP;
   lines: Line[];
@@ -91,6 +93,8 @@ export function InChatSos({
   offerMode?: boolean;
   onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
   onActivityEnded?: (activityId: string) => void;
+  /** Parent creates/opens the SAME chat thread so SOS never jumps to a blank page. */
+  onEnsureThread?: () => Promise<string>;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -99,6 +103,7 @@ export function InChatSos({
   const effectiveThreadId = threadId || autoThreadId;
   const effectiveThreadIdRef = useRef<string | null>(effectiveThreadId);
   const autoThreadIdRef = useRef<string | null>(null);
+  const createdThreadRef = useRef(false);
   const threadCreationRef = useRef<Promise<string> | null>(null);
   const threadCreationErrorShownRef = useRef(false);
   const [phase, setPhase] = useState<Phase>(
@@ -245,31 +250,54 @@ export function InChatSos({
   }, [placeSearchKey]);
 
   function ensureEmergencyThread() {
-    const existingThreadId = effectiveThreadIdRef.current;
-    if (existingThreadId) return Promise.resolve(existingThreadId);
+    if (effectiveThreadIdRef.current) {
+      return Promise.resolve(effectiveThreadIdRef.current);
+    }
     if (threadCreationRef.current) return threadCreationRef.current;
 
-    const creation = createThread("Emergency SOS")
-      .then((thread) => {
-        effectiveThreadIdRef.current = thread.id;
-        autoThreadIdRef.current = thread.id;
-        setAutoThreadId(thread.id);
-        queryClient.setQueryData<ThreadSummary[]>(["threads"], (threads = []) => [
-          thread,
-          ...threads.filter((item) => item.id !== thread.id),
-        ]);
-        void queryClient.invalidateQueries({ queryKey: ["threads"] });
-        return thread.id;
-      })
-      .finally(() => {
-        if (threadCreationRef.current === creation) threadCreationRef.current = null;
-      });
+    const creation = (async () => {
+      // Parent chat keeps the open messages when promoting a guest chat into a saved thread.
+      if (onEnsureThread) {
+        const ensuredId = await onEnsureThread();
+        effectiveThreadIdRef.current = ensuredId;
+        autoThreadIdRef.current = ensuredId;
+        createdThreadRef.current = true;
+        setAutoThreadId(ensuredId);
+        return ensuredId;
+      }
+
+      const remembered = peekActiveChatThread();
+      if (remembered) {
+        effectiveThreadIdRef.current = remembered;
+        return remembered;
+      }
+
+      // Fallback only: never invent a blank "Emergency SOS" page.
+      const thread = await createThread("Safety conversation");
+      effectiveThreadIdRef.current = thread.id;
+      autoThreadIdRef.current = thread.id;
+      createdThreadRef.current = true;
+      setAutoThreadId(thread.id);
+      queryClient.setQueryData<ThreadSummary[]>(["threads"], (threads = []) => [
+        thread,
+        ...threads.filter((item) => item.id !== thread.id),
+      ]);
+      void queryClient.invalidateQueries({ queryKey: ["threads"] });
+      return thread.id;
+    })().finally(() => {
+      if (threadCreationRef.current === creation) threadCreationRef.current = null;
+    });
     threadCreationRef.current = creation;
     return creation;
   }
 
-  function navigateToAutoThread(activeThreadId: string) {
-    if (autoThreadIdRef.current !== activeThreadId) return;
+  function stayOnConversation(activeThreadId: string) {
+    // Parent continuity helper already routed while preserving messages.
+    if (onEnsureThread) return;
+    if (!createdThreadRef.current) return;
+    if (typeof window !== "undefined" && window.location.pathname === `/chat/${activeThreadId}`) {
+      return;
+    }
     void navigate({
       to: "/chat/$threadId",
       params: { threadId: activeThreadId },
@@ -367,7 +395,7 @@ export function InChatSos({
             setActivityId(existing.sos_activity_id);
             setStartedAt(Date.now());
             setSaving(false);
-            navigateToAutoThread(activeThreadId);
+            stayOnConversation(activeThreadId);
             return;
           }
         }
@@ -444,7 +472,7 @@ export function InChatSos({
         setActivityId(existing.sos_activity_id);
         setStartedAt(Date.now());
         setSaving(false);
-        navigateToAutoThread(activeThreadId);
+        stayOnConversation(activeThreadId);
         return;
       }
     }
@@ -458,7 +486,7 @@ export function InChatSos({
     setActivityId(data.id);
     setStartedAt(Date.now());
     void notifySosActivity({ data: { activityId: data.id } }).catch(() => {});
-    navigateToAutoThread(activeThreadId);
+    stayOnConversation(activeThreadId);
   }
 
   async function endSos() {

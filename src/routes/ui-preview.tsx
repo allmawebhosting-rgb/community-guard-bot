@@ -94,15 +94,15 @@ function Composer({ sos = false }: { sos?: boolean }) {
   return (
     <div className={`chat-composer-dock px-3 pt-2 ${sos ? "chat-composer-dock-sos" : ""}`}>
       {sos ? (
-        <p className="mb-2 px-1 text-[11px] font-medium text-muted-foreground">
-          Messages go to Allma and everyone authorized in this emergency.
+        <p className="mb-1.5 px-1 text-[11px] leading-4 text-muted-foreground">
+          Shared with Allma and your Safety Network in this chat.
         </p>
       ) : null}
       <div className={`composer-shell composer-pill ${sos ? "composer-shell-sos" : ""}`}>
         <div className="composer-surface flex items-end gap-1 px-2 py-1.5">
           <span className="composer-icon-btn grid h-10 w-10 place-items-center text-muted-foreground">📎</span>
-          <div className="min-h-[44px] flex-1 px-1.5 py-[10px] text-[15px] text-muted-foreground">
-            {sos ? "Message Allma and your responders…" : "Message Allma..."}
+          <div className="min-h-[48px] flex-1 px-1.5 py-3 text-[15px] leading-6 text-muted-foreground">
+            {sos ? "Message this emergency…" : "Message Allma..."}
           </div>
           <span className="composer-icon-btn grid h-10 w-10 place-items-center text-muted-foreground">
             <Mic className="h-5 w-5" />

@@ -66,6 +66,9 @@ vi.mock("@/lib/sos-inline-call", () => ({
   useSosInlineCall: inlineCallMock,
 }));
 vi.mock("@/lib/threads", () => ({ createThread: createThreadMock }));
+vi.mock("@/lib/active-chat-thread", () => ({
+  peekActiveChatThread: () => null,
+}));
 
 import { InChatSos } from "./in-chat-sos";
 
@@ -226,12 +229,12 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   });
 });
 
-it("creates and opens an emergency thread before activating an SOS", async () => {
+it("keeps SOS on the same safety conversation instead of a blank emergency page", async () => {
   render(<InChatSos type="medical" lines={[{ number: "112" }]} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Activate SOS" }));
   expect(screen.getByText(/Starting SOS in/)).toBeTruthy();
-  expect(createThreadMock).toHaveBeenCalledWith("Emergency SOS");
+  expect(createThreadMock).toHaveBeenCalledWith("Safety conversation");
   expect(navigateMock).not.toHaveBeenCalled();
 
   await act(async () => {
@@ -239,7 +242,7 @@ it("creates and opens an emergency thread before activating an SOS", async () =>
   });
   vi.useRealTimers();
 
-  expect(createThreadMock).toHaveBeenCalledWith("Emergency SOS");
+  expect(createThreadMock).toHaveBeenCalledWith("Safety conversation");
   expect(navigateMock).toHaveBeenCalledWith({
     to: "/chat/$threadId",
     params: { threadId: "emergency-thread-1" },
