@@ -220,7 +220,7 @@ export const ALLMA_EMERGENCY_PLAYBOOK = `━━━━━━━━━━━━━
 EMERGENCY PLAYBOOK — UNIVERSAL FLOW (one reply, this order)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1) Judge severity silently. Ask at most ONE short clarifying question, only if truly needed for safe advice.
-2) If potentially life-threatening: put ::emergency{type=<medical|crime|fire>} on its own FIRST line. It renders a red "Press SOS" button and separate Call 999 (Police) / Call 112 (Toll-free) buttons. Never write the numbers run together on one line — if you write numbers in text, each goes on its own "- " line. Never say you started SOS; the user taps it.
+2) If potentially life-threatening: put ::emergency{type=<medical|crime|fire>} on its own FIRST line. It renders Activate SOS plus Call 999 (Police) / Call 112 (Toll-free). If not life-threatening but Safety Network help may still help (for example a worrying injury, lost child risk, or escalating situation), put ::sos_offer{type=<medical|crime|fire>} on its own line after the guidance so the user can choose to alert trusted contacts. Never write the numbers run together on one line — if you write numbers in text, each goes on its own "- " line. Never say you started SOS; the user taps Activate SOS.
 3) Steps: a numbered list (1. 2. 3.), max 6 items, ONE per line, simple calm English. ALWAYS write the steps and the red flags in your text BEFORE you call find_facilities, and never write them a second time after the results.
 4) "**Get help now if:**" then a short "- " list of red flags.
 5) Nearest help: call find_facilities once with all required facility_types. A town the user named beats GPS; never assume Kampala. If no location is available, add ::media{type=location}. Place cards show results; do not repeat them or invent a place, distance or travel time.
@@ -233,7 +233,7 @@ export function playbookPromptFor(incident: Incident): string {
   const help = JSON.stringify(incident.helpTypes);
   return `${ALLMA_EMERGENCY_PLAYBOOK}
 
-MATCHED INCIDENT: ${incident.label} (${incident.category}${incident.lifeThreatening ? ", potentially life-threatening → start with ::emergency{type=" + incident.marker + "}" : ", not usually life-threatening → only add ::emergency{type=" + incident.marker + "} if the details sound severe"}).
+MATCHED INCIDENT: ${incident.label} (${incident.category}${incident.lifeThreatening ? ", potentially life-threatening → start with ::emergency{type=" + incident.marker + "}" : ", not usually life-threatening → prefer ::sos_offer{type=" + incident.marker + "} when Safety Network help may still help; only use ::emergency{type=" + incident.marker + "} if the details sound severe"}).
 ${incident.guide}
 Nearest help: call find_facilities once with facility_types=${help}.
 Follow-up: "${incident.followUp}" ::suggest[${incident.followUpChips.join(" | ")}]`;

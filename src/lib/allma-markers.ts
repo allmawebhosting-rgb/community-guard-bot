@@ -22,7 +22,7 @@ export type MarkerMedia = {
 
 export type MarkerSuggestion = { label: string; prompt: string };
 
-export type MarkerEmergency = { type: "medical" | "crime" | "fire" };
+export type MarkerEmergency = { type: "medical" | "crime" | "fire"; offer?: boolean };
 
 export type ParsedMarkers = {
   /** Reply text with every marker removed. */
@@ -38,6 +38,7 @@ const FLOW_RE = /::flow\{([^}]*)\}/gi;
 const MEDIA_RE = /::media\{([^}]*)\}/gi;
 const SUGGEST_RE = /::suggest\[([^\]]*)\]/gi;
 const EMERGENCY_RE = /::emergency(?:\{([^}]*)\})?/gi;
+const SOS_OFFER_RE = /::sos_offer(?:\{([^}]*)\})?/gi;
 
 function parseAttrs(body: string): Record<string, string> {
   const attrs: Record<string, string> = {};
@@ -186,7 +187,16 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
   let emergency: MarkerEmergency | null = null;
   for (const match of raw.matchAll(EMERGENCY_RE)) {
     const t = (parseAttrs(match[1] ?? "").type || "medical").toLowerCase();
-    emergency = { type: /crime|violence|police|danger/.test(t) ? "crime" : /fire|gas|collapse/.test(t) ? "fire" : "medical" };
+    emergency = {
+      type: /crime|violence|police|danger/.test(t) ? "crime" : /fire|gas|collapse/.test(t) ? "fire" : "medical",
+      offer: false,
+    };
+  }
+  for (const match of raw.matchAll(SOS_OFFER_RE)) {
+    const t = (parseAttrs(match[1] ?? "").type || emergency?.type || "medical").toLowerCase();
+    const type = /crime|violence|police|danger/.test(t) ? "crime" : /fire|gas|collapse/.test(t) ? "fire" : "medical";
+    // Soft offer never overrides a hard ::emergency block already present.
+    emergency = emergency?.offer === false ? emergency : { type, offer: true };
   }
   let media: MarkerMedia | null = null;
   const suggestions: MarkerSuggestion[] = [];
@@ -228,6 +238,7 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
 
   let text = raw
     .replace(EMERGENCY_RE, "")
+    .replace(SOS_OFFER_RE, "")
     .replace(FLOW_RE, "")
     .replace(MEDIA_RE, "")
     .replace(SUGGEST_RE, "");
@@ -258,7 +269,7 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
 /** True when the text still contains a partially streamed marker. */
 export function hasOpenMarker(raw: string): boolean {
   const tail = raw.slice(raw.lastIndexOf("::"));
-  return /^::(e(m(e(r(g(e(n(c(y)?)?)?)?)?)?)?)?|f(l(o(w)?)?)?|s(u(g(g(e(s(t)?)?)?)?)?)?|m(e(d(i(a)?)?)?)?)(\{[^}]*|\[[^\]]*)?$/i.test(
+  return /^::(e(m(e(r(g(e(n(c(y)?)?)?)?)?)?)?)?|sos_o(f(f(e(r)?)?)?)?|f(l(o(w)?)?)?|s(u(g(g(e(s(t)?)?)?)?)?)?|m(e(d(i(a)?)?)?)?)(\{[^}]*|\[[^\]]*)?$/i.test(
     tail,
   );
 }
@@ -266,6 +277,7 @@ export function hasOpenMarker(raw: string): boolean {
 export const ALLMA_MARKER_CONTRACT = `INLINE UI MARKERS — write these directly in your reply text (never as tool calls):
 - Guided step banner: ::flow{type=Reporting, step=2, total=5, title="Where did it happen?"}  (put it on its own FIRST line; type is the flow name: Reporting, Missing person, Lost & found, Safety check, Find help, Advice)
 - Tappable answers / next steps: ::suggest[Theft | Robbery | Assault | Something else]  (2-4 short options, on the LAST line, always the exact answers to what you just asked — never a generic menu)
-- Emergency action block: ::emergency{type=medical}  (type: medical, crime or fire; own FIRST line, only for potentially life-threatening situations; renders a red Press SOS button plus separate Call 999 (Police) / Call 112 (Toll-free) buttons — the user taps them, nothing starts automatically)
+- Hard emergency action block: ::emergency{type=medical}  (type: medical, crime or fire; own FIRST line, only for potentially life-threatening situations; renders Activate SOS plus Call 999 / Call 112 — the user taps them, nothing starts automatically)
+- Soft Safety Network offer: ::sos_offer{type=medical}  (own line when help from trusted contacts may be useful but the situation is not clearly life-threatening; renders "Would you like to alert your Safety Network?" with a real Activate SOS action). Never use ::sos_offer and ::emergency in the same reply.
 - Ask for evidence: ::media{type=photo, optional=true, tips="Good light · Show the whole scene"}  (type: photo, video, audio, document or location)
-Markers are stripped from the visible message and rendered as premium cards and chips. Use at most one ::emergency, one ::flow, one ::media and one ::suggest per reply, and never mention or explain the markers.`;
+Markers are stripped from the visible message and rendered as premium cards and chips. Use at most one ::emergency OR one ::sos_offer, plus one ::flow, one ::media and one ::suggest per reply, and never mention or explain the markers.`;

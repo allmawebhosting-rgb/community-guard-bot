@@ -2424,6 +2424,7 @@ export type Database = {
           severity: string
           sos_status: string | null
           summary: string | null
+          thread_id: string | null
           title: string
           user_id: string | null
         }
@@ -2441,6 +2442,7 @@ export type Database = {
           severity?: string
           sos_status?: string | null
           summary?: string | null
+          thread_id?: string | null
           title: string
           user_id?: string | null
         }
@@ -2458,6 +2460,7 @@ export type Database = {
           severity?: string
           sos_status?: string | null
           summary?: string | null
+          thread_id?: string | null
           title?: string
           user_id?: string | null
         }
@@ -2467,6 +2470,13 @@ export type Database = {
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "safety_activity_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
             referencedColumns: ["id"]
           },
         ]

@@ -5,7 +5,9 @@ import { BackgroundCallPrompt } from "@/components/allma/calls/background-call-p
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const Route = createFileRoute("/sos")({
-  validateSearch: (search: Record<string, unknown>): { instant?: true; check?: string } => {
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { instant?: true; check?: string; threadId?: string } => {
     const instant =
       search.instant === true ||
       search.instant === "true" ||
@@ -13,7 +15,13 @@ export const Route = createFileRoute("/sos")({
       search.instant === "1";
     const rawCheck = typeof search.check === "string" ? search.check.trim() : "";
     const check = UUID_PATTERN.test(rawCheck) ? rawCheck : undefined;
-    return { ...(instant ? { instant: true as const } : {}), ...(check ? { check } : {}) };
+    const rawThread = typeof search.threadId === "string" ? search.threadId.trim() : "";
+    const threadId = UUID_PATTERN.test(rawThread) ? rawThread : undefined;
+    return {
+      ...(instant ? { instant: true as const } : {}),
+      ...(check ? { check } : {}),
+      ...(threadId ? { threadId } : {}),
+    };
   },
 
 
@@ -40,6 +48,11 @@ export const Route = createFileRoute("/sos")({
 });
 
 function SOSRoute() {
-  const { instant, check } = Route.useSearch();
-  return <><BackgroundCallPrompt /><SOSExperience instant={instant} smartCheckId={check} /></>;
+  const { instant, check, threadId } = Route.useSearch();
+  return (
+    <>
+      <BackgroundCallPrompt />
+      <SOSExperience instant={instant} smartCheckId={check} conversationThreadId={threadId} />
+    </>
+  );
 }

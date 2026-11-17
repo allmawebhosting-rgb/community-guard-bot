@@ -103,6 +103,7 @@ import {
   type SosRoomMessage,
 } from "@/lib/sos-rooms";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
+import { rememberActiveChatThread } from "@/lib/active-chat-thread";
 
 
 type ToolPart = {
@@ -529,8 +530,14 @@ function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | nul
   );
 }
 
-/** Red "Press SOS" (user taps — never automatic) + one call button per number. */
-function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
+/** Activate SOS (user taps — never automatic) + one call button per number. */
+function EmergencyActions({
+  type,
+  offerMode = false,
+}: {
+  type: "medical" | "crime" | "fire";
+  offerMode?: boolean;
+}) {
   const sosActivity = useContext(SosActivityContext);
   return (
     <InChatSos
@@ -541,6 +548,7 @@ function EmergencyActions({ type }: { type: "medical" | "crime" | "fire" }) {
       existingActive={sosActivity.active}
       sharedLocation={sosActivity.sharedLocation}
       canManage={sosActivity.canManage}
+      offerMode={offerMode}
       onActivityStarted={sosActivity.onActivityStarted}
       onActivityEnded={sosActivity.onActivityEnded}
     />
@@ -1299,6 +1307,14 @@ export function AllmaChat({
   });
 
   const busy = status === "submitted" || status === "streaming";
+  useEffect(() => {
+    rememberActiveChatThread(threadId);
+    return () => {
+      // Keep the last chat thread available for standalone SOS while the user
+      // briefly leaves the chat screen; clear only when unmounting without a thread.
+      if (!threadId) rememberActiveChatThread(null);
+    };
+  }, [threadId]);
   const threadContextQuery = useQuery(chatThreadContextQueryOptions(threadId));
   const threadContext = threadContextQuery.data ?? null;
   const sosActivityId =
@@ -2155,8 +2171,17 @@ export function AllmaChat({
                   {message.role === "assistant" ? (
                     <p className="text-[13px] font-medium leading-none text-muted-foreground">Allma</p>
                   ) : message.role === "user" ? (
-                    <p className={cn("text-[11px] font-semibold text-muted-foreground", isOwnUserMessage && "text-right")}>
-                      {isOwnUserMessage ? "You" : author?.name ?? "Responder"}
+                    <p className={cn("flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-muted-foreground", isOwnUserMessage && "justify-end")}>
+                      <span>{isOwnUserMessage ? "You" : author?.name ?? "Responder"}</span>
+                      {!isOwnUserMessage ? (
+                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                          {author?.role === "owner"
+                            ? "SOS caller"
+                            : author?.role === "responder"
+                              ? "Responder"
+                              : "Safety contact"}
+                        </span>
+                      ) : null}
                     </p>
                   ) : null}
                   <MessageContent
@@ -2172,6 +2197,7 @@ export function AllmaChat({
                       const incident = incidentForReply(messages, msgIndex);
                       // Life-threatening incident without the marker: still show the tap-only SOS block.
                       const type = em?.type ?? (incident?.lifeThreatening ? incident.marker : null);
+                      const offerMode = Boolean(em?.offer) && !incident?.lifeThreatening;
                       const streaming = busy && msgIndex === messages.length - 1;
                       const allText = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : "")).join("\n");
                       // Show first aid as soon as the incident is known, not after the model finishes.
@@ -2184,7 +2210,7 @@ export function AllmaChat({
                         !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>);
                       return type || aid || showProgress ? (
                         <div className="mb-3 space-y-3">
-                          {type ? <EmergencyActions type={type} /> : null}
+                          {type ? <EmergencyActions type={type} offerMode={offerMode} /> : null}
                           {aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
                           {showProgress && progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : null}
                         </div>
@@ -2192,7 +2218,7 @@ export function AllmaChat({
                     })()}
                     <IncidentContext.Provider value={message.role === "assistant" ? incidentForReply(messages, msgIndex) : null}>
                     <HasPlacesContext.Provider value={message.role === "assistant" && messageHasPlaces(message.parts as never)}>
-                    <EmergencyShownContext.Provider value={message.role === "assistant" && (message.parts.some((p) => p.type === "text" && /::emergency/i.test(p.text)) || Boolean(incidentForReply(messages, msgIndex)?.lifeThreatening))}>
+                    <EmergencyShownContext.Provider value={message.role === "assistant" && (message.parts.some((p) => p.type === "text" && /::(?:emergency|sos_offer)/i.test(p.text)) || Boolean(incidentForReply(messages, msgIndex)?.lifeThreatening))}>
                     {(() => {
                       // Text parts with a repeated block (steps written before AND after the place cards) render it once.
                       const raw = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : ""));

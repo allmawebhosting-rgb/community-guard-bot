@@ -134,6 +134,7 @@ export const Route = createFileRoute("/api/chat")({
 
         const threadId = userId && body.threadId ? body.threadId : null;
         let threadIsOwner = Boolean(userId && threadId);
+        let sharedSosActive = false;
         if (threadId) {
           const { data: contextRows, error: contextError } = await supabase.rpc(
             "get_chat_thread_context",
@@ -147,8 +148,20 @@ export const Route = createFileRoute("/api/chat")({
             });
           }
           threadIsOwner = context.is_owner;
+          sharedSosActive = Boolean(context.sos_active);
         }
         const evidence = parseEvidence(body.evidence);
+        const sharedEmergencyBlock = sharedSosActive
+          ? `\n\nSHARED EMERGENCY CONVERSATION (SOS ACTIVE):
+- This is ONE conversation shared by the person in need, Allma AI, and authorized Safety Network responders who accepted the alert.
+- Stay in this conversation. Never invent a separate group chat or claim responders were dispatched unless a tool/backend confirms it.
+- The latest human message may be from the conversation owner OR an authorized responder.
+- Keep replies calm, short, and useful for everyone in the room.
+- Acknowledge when a responder joins or shares location/status, without repeating the same automated sentence.
+- Prefer clarifying questions that help responders act safely.
+- Continue first-aid / safety guidance for the owner when relevant.
+- Do not claim emergency services were contacted unless confirmed.`
+          : "";
 
 
         const initialRunId = getLovableAiGatewayRunId(request);
@@ -473,8 +486,14 @@ export const Route = createFileRoute("/api/chat")({
           maxRetries: 0,
           maxOutputTokens: 384,
           abortSignal: request.signal,
-          system: `${systemPrompt}\n\n${ALLMA_MARKER_CONTRACT}\n\nThe user is ${
+          system: `${systemPrompt}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
+          }${
+            sharedSosActive
+              ? threadIsOwner
+                ? " This sender is the conversation owner during an active SOS."
+                : " This sender is an authorized Safety Network responder in the shared SOS conversation."
+              : ""
           }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}\n\nTURN BUDGET: exactly one reply per turn. Write your one message with its inline markers, then stop and wait for the user. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
 
 
@@ -1143,18 +1162,21 @@ export const Route = createFileRoute("/api/chat")({
 
             const title = lastUserMessage ? textOf(lastUserMessage).slice(0, 60) : null;
             const updatedAt = new Date().toISOString();
-            const [messageInsert, titleUpdate, threadTouch] = await Promise.all([
-              supabase.from("messages").insert(rows),
-              supabase
-                .from("threads")
-                .update({ updated_at: updatedAt, ...(title ? { title } : {}) })
-                .eq("id", threadId)
-                .eq("title", "New conversation"),
-              supabase.from("threads").update({ updated_at: updatedAt }).eq("id", threadId),
-            ]);
+            const messageInsert = await supabase.from("messages").insert(rows);
             if (messageInsert.error) console.error("Failed to persist messages", messageInsert.error);
-            if (titleUpdate.error) console.error("Failed to update thread", titleUpdate.error);
-            if (threadTouch.error) console.error("Failed to touch thread", threadTouch.error);
+            // Only the conversation owner can rename/touch the thread row under RLS.
+            if (threadIsOwner) {
+              const [titleUpdate, threadTouch] = await Promise.all([
+                supabase
+                  .from("threads")
+                  .update({ updated_at: updatedAt, ...(title ? { title } : {}) })
+                  .eq("id", threadId)
+                  .eq("title", "New conversation"),
+                supabase.from("threads").update({ updated_at: updatedAt }).eq("id", threadId),
+              ]);
+              if (titleUpdate.error) console.error("Failed to update thread", titleUpdate.error);
+              if (threadTouch.error) console.error("Failed to touch thread", threadTouch.error);
+            }
           },
         });
 

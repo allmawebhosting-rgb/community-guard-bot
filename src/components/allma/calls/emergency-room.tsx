@@ -8,6 +8,7 @@ import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import { LiveLocationMap } from "@/components/allma/live-location-map";
 import {
   EMERGENCY_TYPE_LABELS,
+  getSosThreadForActivity,
   relativeTime,
   sendSosRoomMessage,
   sosRoomMessagesQueryOptions,
@@ -38,12 +39,27 @@ export function EmergencyRoom({
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [linkedThreadId, setLinkedThreadId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const roomQuery = useQuery(sosRoomQueryOptions(sosActivityId));
   const messagesQuery = useQuery(sosRoomMessagesQueryOptions(sosActivityId));
   const room = roomQuery.data ?? null;
   const messages = messagesQuery.data ?? [];
+
+  useEffect(() => {
+    let active = true;
+    void getSosThreadForActivity(sosActivityId)
+      .then((threadId) => {
+        if (active) setLinkedThreadId(threadId);
+      })
+      .catch(() => {
+        if (active) setLinkedThreadId(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [sosActivityId]);
 
   useEffect(() => {
     return subscribeSosRoomMessages(sosActivityId, (incoming) => {
@@ -79,7 +95,7 @@ export function EmergencyRoom({
     setSending(true);
     setDraft("");
     try {
-      await sendSosRoomMessage(sosActivityId, body);
+      await sendSosRoomMessage(sosActivityId, body, linkedThreadId);
       void messagesQuery.refetch();
     } catch (error) {
       setDraft(body);

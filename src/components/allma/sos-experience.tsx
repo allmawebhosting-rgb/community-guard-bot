@@ -1041,7 +1041,8 @@ function StatusTile({
 export function SOSExperience({
   instant,
   smartCheckId,
-}: { instant?: boolean; smartCheckId?: string } = {}) {
+  conversationThreadId,
+}: { instant?: boolean; smartCheckId?: string; conversationThreadId?: string } = {}) {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("idle");
@@ -1151,7 +1152,14 @@ export function SOSExperience({
   useEffect(() => {
     if (!instant || authLoading || activated.current) return;
     // Strip ?instant so reloads/back never restart SOS.
-    void navigate({ to: "/sos", search: smartCheckId ? { check: smartCheckId } : {}, replace: true });
+    void navigate({
+      to: "/sos",
+      search: {
+        ...(smartCheckId ? { check: smartCheckId } : {}),
+        ...(conversationThreadId ? { threadId: conversationThreadId } : {}),
+      },
+      replace: true,
+    });
     if (consumeSosIntent()) setPhase("countdown");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instant, authLoading]);
@@ -1204,34 +1212,49 @@ export function SOSExperience({
   ) {
     if (activityRecording.current) return null;
     activityRecording.current = true;
-    const { data: activity, error } = await supabase
+    const linkedThreadId = conversationThreadId ?? null;
+    const details = {
+      channel: linkedThreadId ? "chat" : "sos",
+      emergency_type: type,
+      location_consent: locationConsent,
+      responder_notification_consent: notificationConsent,
+      accuracy_m: locationConsent ? initialLocation?.accuracy ?? null : null,
+      coordination_mode: "consent_based",
+      activation_mode: smartCheckId ? "smart_detection" : "manual",
+      ...(linkedThreadId ? { thread_id: linkedThreadId } : {}),
+      ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
+    };
+    const payload = {
+      user_id: userId,
+      activity_type: "sos_activated" as const,
+      title: "Emergency SOS activated",
+      summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
+      severity: "critical",
+      sos_status: "active",
+      activated_at: new Date().toISOString(),
+      location_text: initialLocation
+        ? `${initialLocation.address}, ${initialLocation.district}`.replace(/(^, )|(, $)/g, "")
+        : "Location pending",
+      latitude: locationConsent ? initialLocation?.lat ?? null : null,
+      longitude: locationConsent ? initialLocation?.lng ?? null : null,
+      ...(linkedThreadId ? { thread_id: linkedThreadId } : {}),
+      details: details as never,
+    };
+    let { data: activity, error } = await supabase
       .from("safety_activity")
-      .insert({
-        user_id: userId,
-        activity_type: "sos_activated",
-        title: "Emergency SOS activated",
-        summary: `SOS activated for ${EMERGENCY_TYPES.find((item) => item.id === type)?.label ?? "an emergency"}.`,
-        severity: "critical",
-        sos_status: "active",
-        activated_at: new Date().toISOString(),
-        location_text: initialLocation
-          ? `${initialLocation.address}, ${initialLocation.district}`.replace(/(^, )|(, $)/g, "")
-          : "Location pending",
-        latitude: locationConsent ? initialLocation?.lat ?? null : null,
-        longitude: locationConsent ? initialLocation?.lng ?? null : null,
-        details: {
-          channel: "sos",
-          emergency_type: type,
-          location_consent: locationConsent,
-          responder_notification_consent: notificationConsent,
-          accuracy_m: locationConsent ? initialLocation?.accuracy ?? null : null,
-          coordination_mode: "consent_based",
-          activation_mode: smartCheckId ? "smart_detection" : "manual",
-          ...(smartCheckId ? { smart_sos_check_id: smartCheckId } : {}),
-        } as never,
-      })
+      .insert(payload)
       .select("id")
       .single();
+    if (error && linkedThreadId && /thread_id/i.test(error.message ?? "")) {
+      const { thread_id: _ignored, ...withoutThreadColumn } = payload;
+      const retry = await supabase
+        .from("safety_activity")
+        .insert(withoutThreadColumn)
+        .select("id")
+        .single();
+      activity = retry.data;
+      error = retry.error;
+    }
     if (error) {
       console.error("Failed to record SOS activity", error);
       activityRecording.current = false;
@@ -1240,6 +1263,14 @@ export function SOSExperience({
     const activityId = activity?.id ?? null;
     if (activityId && smartCheckId) {
       void logCheckEvent(smartCheckId, "sos_activated", { sos_activity_id: activityId });
+    }
+    if (activityId && linkedThreadId) {
+      // Keep the user in the same conversation once the SOS session is linked.
+      void navigate({
+        to: "/chat/$threadId",
+        params: { threadId: linkedThreadId },
+        replace: true,
+      });
     }
     return activityId;
   }

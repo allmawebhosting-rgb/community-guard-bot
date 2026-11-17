@@ -178,14 +178,20 @@ export function sosRoomMessagesQueryOptions(sosActivityId: string | null) {
   });
 }
 
-export async function sendSosRoomMessage(sosActivityId: string, body: string) {
+export async function sendSosRoomMessage(
+  sosActivityId: string,
+  body: string,
+  threadId?: string | null,
+) {
   const trimmed = body.trim();
   if (!trimmed) return;
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
   if (!userId) throw new Error("Please sign in to send a message.");
+  const linkedThreadId = threadId ?? (await getSosThreadForActivity(sosActivityId));
   const { error } = await supabase.from("emergency_chat_events").insert({
     sos_session_id: sosActivityId,
+    thread_id: linkedThreadId,
     author_id: userId,
     event_type: "user_message",
     body: trimmed.slice(0, 2000),

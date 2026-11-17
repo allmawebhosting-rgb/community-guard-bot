@@ -13,8 +13,17 @@ describe("chat formatting", () => {
   });
   it("reads the ::emergency block and removes it from the text", () => {
     const r = parseAllmaMarkers("::emergency{type=crime}\nGo to a room you can lock.");
-    expect(r.emergency).toEqual({ type: "crime" });
+    expect(r.emergency).toEqual({ type: "crime", offer: false });
     expect(r.text).toBe("Go to a room you can lock.");
+  });
+  it("reads a soft ::sos_offer into an Activate SOS action", () => {
+    const r = parseAllmaMarkers("::sos_offer{type=medical}\nKeep pressure on the nose.");
+    expect(r.emergency).toEqual({ type: "medical", offer: true });
+    expect(r.text).toBe("Keep pressure on the nose.");
+  });
+  it("keeps a hard ::emergency over a soft ::sos_offer in the same reply", () => {
+    const r = parseAllmaMarkers("::emergency{type=fire}\n::sos_offer{type=medical}\nGet outside now.");
+    expect(r.emergency).toEqual({ type: "fire", offer: false });
   });
   it("turns [YES / SKIP] into two buttons", () => {
     const r = parseAllmaMarkers("Want a tour? [YES / SKIP]");

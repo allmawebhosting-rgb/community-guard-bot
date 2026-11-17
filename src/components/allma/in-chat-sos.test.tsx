@@ -179,7 +179,7 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
       onActivityEnded={onActivityEnded}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Press SOS" }));
+  fireEvent.click(screen.getByRole("button", { name: "Activate SOS" }));
 
   await act(async () => {
     await vi.advanceTimersByTimeAsync(3000);
@@ -229,7 +229,7 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
 it("creates and opens an emergency thread before activating an SOS", async () => {
   render(<InChatSos type="medical" lines={[{ number: "112" }]} />);
 
-  fireEvent.click(screen.getByRole("button", { name: "Press SOS" }));
+  fireEvent.click(screen.getByRole("button", { name: "Activate SOS" }));
   expect(screen.getByText(/Starting SOS in/)).toBeTruthy();
   expect(createThreadMock).toHaveBeenCalledWith("Emergency SOS");
   expect(navigateMock).not.toHaveBeenCalled();

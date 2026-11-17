@@ -61,7 +61,7 @@ function compactDistance(meters: number) {
 }
 
 /**
- * SOS inside the chat. Only starts when the user taps Press SOS, then a 3-second
+ * SOS inside the chat. Only starts when the user taps Activate SOS, then a 3-second
  * cancellable countdown. Every status shown comes from the real SOS record and call rows.
  */
 export function InChatSos({
@@ -74,6 +74,7 @@ export function InChatSos({
   canManage = true,
   requestActivation = false,
   hideIdle = false,
+  offerMode = false,
   onActivityStarted,
   onActivityEnded,
 }: {
@@ -86,6 +87,8 @@ export function InChatSos({
   canManage?: boolean;
   requestActivation?: boolean;
   hideIdle?: boolean;
+  /** Softer CTA: "Would you like to alert your Safety Network?" + Activate SOS */
+  offerMode?: boolean;
   onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
   onActivityEnded?: (activityId: string) => void;
 }) {
@@ -387,36 +390,43 @@ export function InChatSos({
       activation_mode: "manual",
     };
     detailsRef.current = details;
+    const baseInsert = {
+      user_id: user.id,
+      activity_type: "sos_activated" as const,
+      title: "Emergency SOS activated",
+      summary: `SOS activated from chat (${type}).`,
+      severity: "critical",
+      sos_status: "active",
+      activated_at: activatedAt,
+      location_text: coords ? "Live GPS location" : "Location pending",
+      latitude: coords?.lat ?? null,
+      longitude: coords?.lng ?? null,
+      thread_id: activeThreadId,
+      details: details as never,
+    };
     const insertResult = await supabase
       .from("safety_activity")
-      .insert({
-        user_id: user.id,
-        activity_type: "sos_activated",
-        title: "Emergency SOS activated",
-        summary: `SOS activated from chat (${type}).`,
-        severity: "critical",
-        sos_status: "active",
-        activated_at: activatedAt,
-        location_text: coords ? "Live GPS location" : "Location pending",
-        latitude: coords?.lat ?? null,
-        longitude: coords?.lng ?? null,
-        details: details as never,
-      })
+      .insert(baseInsert)
       .select("id")
       .single();
     let { data, error } = insertResult;
+    if (error && isMissingSosColumnError(error, ["thread_id"])) {
+      const { thread_id: _ignored, ...withoutThreadColumn } = baseInsert;
+      const fallbackThread = await supabase
+        .from("safety_activity")
+        .insert(withoutThreadColumn)
+        .select("id")
+        .single();
+      data = fallbackThread.data;
+      error = fallbackThread.error;
+    }
     if (error && isMissingSosColumnError(error, ["activated_at", "sos_status"])) {
+      const { sos_status: _s, activated_at: _a, thread_id: threadColumn, ...rest } = baseInsert;
       const fallbackResult = await supabase
         .from("safety_activity")
         .insert({
-          user_id: user.id,
-          activity_type: "sos_activated",
-          title: "Emergency SOS activated",
-          summary: `SOS activated from chat (${type}).`,
-          severity: "critical",
-          location_text: coords ? "Live GPS location" : "Location pending",
-          latitude: coords?.lat ?? null,
-          longitude: coords?.lng ?? null,
+          ...rest,
+          ...(threadColumn ? { thread_id: threadColumn } : {}),
           details: { ...details, sos_status: "active", activated_at: activatedAt } as never,
         })
         .select("id")
@@ -797,9 +807,31 @@ export function InChatSos({
 
   return (
     <div className="w-full space-y-2">
-      <button type="button" onClick={startCountdown} className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3.5 text-base font-semibold text-destructive-foreground active:scale-[0.98]">
-        <ShieldAlert className="h-5 w-5 shrink-0" /> Press SOS
-      </button>
+      {offerMode ? (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-3.5">
+          <p className="text-[15px] font-semibold text-foreground">
+            Would you like to alert your Safety Network?
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            This keeps your current Allma conversation and invites authorized contacts into it.
+          </p>
+          <button
+            type="button"
+            onClick={startCountdown}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3.5 text-base font-semibold text-destructive-foreground active:scale-[0.98]"
+          >
+            <ShieldAlert className="h-5 w-5 shrink-0" /> Activate SOS
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={startCountdown}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3.5 text-base font-semibold text-destructive-foreground active:scale-[0.98]"
+        >
+          <ShieldAlert className="h-5 w-5 shrink-0" /> Activate SOS
+        </button>
+      )}
       {dials}
     </div>
   );
