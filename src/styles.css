@@ -1590,3 +1590,13 @@
 @media (prefers-reduced-motion: reduce) {
   .sos-equalizer-bar { animation: none; }
 }
+
+/* SOS header calling animation */
+@keyframes sos-header-radar {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--destructive) 60%, transparent); }
+  100% { box-shadow: 0 0 0 12px color-mix(in oklch, var(--destructive) 0%, transparent); }
+}
+.sos-header-ring { animation: sos-header-radar 1.4s ease-out infinite; }
+.sos-header-ring-ok { box-shadow: 0 0 0 3px color-mix(in oklch, var(--success) 25%, transparent); }
+.sos-header-active { background: linear-gradient(90deg, color-mix(in oklch, var(--destructive) 8%, var(--background)), var(--background), color-mix(in oklch, var(--destructive) 8%, var(--background))); background-size: 200% 100%; animation: sos-header-sweep 3s linear infinite; }
+@keyframes sos-header-sweep { to { background-position: 200% 0; } }

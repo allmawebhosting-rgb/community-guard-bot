@@ -26,6 +26,7 @@ import { notifySosActivity } from "@/lib/push.functions";
 import { getNearbyPlaces } from "@/lib/places.functions";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { primeMicrophone } from "@/lib/zego-call";
+import { setActiveSos } from "@/lib/sos-active";
 
 type Line = { number: string };
 type Phase = "idle" | "countdown" | "active" | "ended";
@@ -92,6 +93,13 @@ export function InChatSos({
   const lastLocationSync = useRef<{ lat: number; lng: number; at: number } | null>(null);
 
   useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
+
+  // Drive the animated header (logo area) from this real SOS row.
+  useEffect(() => {
+    if (phase !== "active" || !activityId) return;
+    setActiveSos({ activityId, type });
+    return () => setActiveSos(null);
+  }, [activityId, phase, type]);
 
   useEffect(() => {
     if (phase === "active" && activityId) onActivityStarted?.(activityId, cardRef.current);
