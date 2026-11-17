@@ -2,7 +2,7 @@
   "name": "Allma Safety AI",
   "short_name": "Allma",
   "description": "AI-guided safety support and emergency response.",
-  "start_url": "/chat",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
