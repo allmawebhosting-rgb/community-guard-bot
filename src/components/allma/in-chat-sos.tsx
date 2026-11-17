@@ -450,6 +450,7 @@ export function InChatSos({
     }
     setSaving(false);
     if (error || !data) {
+      console.error("SOS activation insert failed", error);
       toast.error("SOS could not be started. Call 999 or 112 now.");
       setPhase("idle");
       return;
