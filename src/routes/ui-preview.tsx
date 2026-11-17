@@ -83,19 +83,32 @@ function ChatCanvas({ children }: { children: React.ReactNode }) {
 
 function Composer({ sos = false }: { sos?: boolean }) {
   return (
-    <div className={`chat-composer-dock px-3 pt-2 ${sos ? "chat-composer-dock-sos" : ""}`}>
+    <div className={`chat-composer-dock px-3 ${sos ? "chat-composer-dock-sos" : ""}`}>
       {sos ? (
         <p className="mb-1.5 px-1 text-[11px] leading-4 text-muted-foreground">
           Shared with Allma and your Safety Network in this chat.
         </p>
       ) : null}
       <div className="composer-ori-row flex items-end gap-2">
-        <span className="composer-attach-btn">
-          <Plus className="h-5 w-5" strokeWidth={2.25} />
-        </span>
-        <div className={`composer-shell composer-pill flex-1 ${sos ? "composer-shell-sos" : ""}`}>
+        <div className={`composer-shell composer-pill relative flex-1 ${sos ? "composer-shell-sos" : ""}`}>
+          <div className="composer-attach-menu absolute bottom-[calc(100%+0.55rem)] left-0 z-40 w-[15.5rem] overflow-hidden rounded-2xl">
+            {["Photo or Video", "Take Photo", "Scan Document", "Choose File"].map((label, index) => (
+              <div
+                key={label}
+                className={`flex items-center justify-between gap-3 px-4 py-3.5 text-[15px] font-medium ${
+                  index > 0 ? "border-t border-border/50" : ""
+                }`}
+              >
+                <span>{label}</span>
+                <span className="h-[18px] w-[18px] rounded-sm bg-foreground/15" />
+              </div>
+            ))}
+          </div>
           <div className="composer-surface flex items-end gap-1 px-1.5 py-1">
-            <div className="min-h-[44px] flex-1 px-3 py-2.5 text-[15px] leading-6 text-muted-foreground">
+            <span className="composer-attach-btn" aria-label="Attach files">
+              <Plus className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+            <div className="min-h-[44px] flex-1 px-1.5 py-2.5 text-[15px] leading-6 text-muted-foreground">
               {sos ? "Message this emergency…" : "Ask Allma"}
             </div>
             <span className="composer-icon-btn">

@@ -25,6 +25,8 @@ import {
   Mic,
   MicOff,
   AudioLines,
+  Folder,
+  Image as ImageIcon,
   Paperclip,
   Phone,
   Plus,
@@ -55,7 +57,6 @@ import {
 import { setVoiceMode } from "@/components/allma/voice-mode-toggle";
 
 import { motion, AnimatePresence } from "motion/react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   Conversation,
   ConversationContent,
@@ -432,23 +433,33 @@ function MediaRequestCard({
 }
 
 const ATTACHMENT_OPTIONS = [
-
+  {
+    id: "photo_video",
+    icon: ImageIcon,
+    label: "Photo or Video",
+    accept: "image/*,video/*",
+    capture: undefined as undefined,
+  },
   {
     id: "camera",
     icon: Camera,
-    label: "Camera",
+    label: "Take Photo",
     accept: "image/*",
     capture: "environment" as const,
   },
-  { id: "gallery", icon: Paperclip, label: "Gallery", accept: "image/*", capture: undefined },
-  { id: "video", icon: Video, label: "Video", accept: "video/*", capture: undefined },
-  { id: "voice", icon: FileAudio, label: "Voice", accept: "audio/*", capture: undefined },
   {
-    id: "document",
-    icon: FileIcon,
-    label: "Document",
-    accept: "application/pdf,.doc,.docx",
-    capture: undefined,
+    id: "scan",
+    icon: FileText,
+    label: "Scan Document",
+    accept: "image/*,application/pdf",
+    capture: undefined as undefined,
+  },
+  {
+    id: "file",
+    icon: Folder,
+    label: "Choose File",
+    accept: "image/*,video/*,audio/*,application/pdf,.doc,.docx",
+    capture: undefined as undefined,
   },
 ];
 
@@ -1258,7 +1269,7 @@ export function AllmaChat({
   const attachInputRef = useRef<HTMLInputElement | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
   const [activeSosActivity, setActiveSosActivity] = useState<{ id: string; active: boolean } | null>(null);
   const [voiceNoteUrls, setVoiceNoteUrls] = useState<Record<string, string>>({});
@@ -1483,9 +1494,10 @@ export function AllmaChat({
   }, [status, focusInput]);
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, overrideAttachments?: Attachment[]) => {
       const trimmed = text.trim();
-      if ((!trimmed && attachments.length === 0) || busy) return;
+      const files = overrideAttachments ?? attachments;
+      if ((!trimmed && files.length === 0) || busy) return;
       if (
         threadId &&
         threadContext &&
@@ -1497,14 +1509,15 @@ export function AllmaChat({
       }
 
       const parts: UIMessage["parts"] = [];
+      const hasImage = files.some((a) => a.mediaType.startsWith("image/"));
       const caption =
         trimmed ||
-        (attachments.some((a) => a.mediaType.startsWith("image/"))
-          ? "Here is the photo you asked for."
-          : "Here is the file you asked for.");
+        (hasImage
+          ? "Please look at this photo carefully and tell me what you see, then give clear first-aid steps if this is an injury."
+          : "Here is the file.");
       parts.push({ type: "text", text: caption });
 
-      for (const attachment of attachments) {
+      for (const attachment of files) {
         parts.push({
           type: "file",
           mediaType: attachment.mediaType,
@@ -1515,6 +1528,7 @@ export function AllmaChat({
 
       void sendMessage({ role: "user", parts });
       setAttachments([]);
+      setAttachMenuOpen(false);
       focusInput();
     },
     [attachments, busy, sendMessage, focusInput, threadContext, threadId],
@@ -1572,12 +1586,10 @@ export function AllmaChat({
       if (!files?.length) return;
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user?.id;
-      if (!userId) {
-        toast.error("Sign in to attach photos or files to your report.");
-        return;
-      }
 
       setUploading(true);
+      setAttachMenuOpen(false);
+      const ready: Attachment[] = [];
       try {
         for (const file of Array.from(files)) {
           if (file.size === 0) {
@@ -1589,19 +1601,14 @@ export function AllmaChat({
             continue;
           }
           const isImage = file.type.startsWith("image/");
-
-          // Keep a durable copy in storage for the report record.
-          const path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-          const { error: uploadError } = await supabase.storage
-            .from("evidence")
-            .upload(path, file, { contentType: file.type || "application/octet-stream" });
-          if (uploadError) {
-            console.error(uploadError);
-            toast.error(`Could not upload ${file.name}: ${uploadError.message}`);
+          if (!userId && !isImage) {
+            toast.error("Sign in to attach files other than photos.");
             continue;
           }
 
           let url: string | null = null;
+          let path = `guest/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+
           if (isImage) {
             try {
               url = await inlineImage(file);
@@ -1609,33 +1616,65 @@ export function AllmaChat({
               console.error("Image inlining failed", error);
             }
           }
-          if (!url) {
-            const { data: signed, error: signError } = await supabase.storage
+
+          if (userId) {
+            // Keep a durable copy in storage for the report record.
+            path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+            const { error: uploadError } = await supabase.storage
               .from("evidence")
-              .createSignedUrl(path, 3600);
-            if (signError || !signed?.signedUrl) {
-              toast.error(`Could not attach ${file.name}. Please try again.`);
-              continue;
+              .upload(path, file, { contentType: file.type || "application/octet-stream" });
+            if (uploadError) {
+              console.error(uploadError);
+              if (!url) {
+                toast.error(`Could not upload ${file.name}: ${uploadError.message}`);
+                continue;
+              }
+            } else {
+              evidencePathsRef.current = [
+                ...evidencePathsRef.current,
+                { path, mediaType: file.type || "application/octet-stream" },
+              ];
+              if (!url) {
+                const { data: signed, error: signError } = await supabase.storage
+                  .from("evidence")
+                  .createSignedUrl(path, 3600);
+                if (signError || !signed?.signedUrl) {
+                  toast.error(`Could not attach ${file.name}. Please try again.`);
+                  continue;
+                }
+                url = signed.signedUrl;
+              }
             }
-            url = signed.signedUrl;
           }
 
-          evidencePathsRef.current = [
-            ...evidencePathsRef.current,
-            { path, mediaType: file.type || "application/octet-stream" },
-          ];
+          if (!url) {
+            toast.error(`Could not attach ${file.name}. Please try again.`);
+            continue;
+          }
 
-          setAttachments((current) => [
-            ...current,
-            {
-              id: path,
-              name: file.name,
-              mediaType: isImage ? "image/jpeg" : file.type || "application/octet-stream",
-              url,
-              preview: URL.createObjectURL(file),
-            },
-          ]);
+          ready.push({
+            id: path,
+            name: file.name,
+            mediaType: isImage ? "image/jpeg" : file.type || "application/octet-stream",
+            url,
+            preview: URL.createObjectURL(file),
+          });
+        }
 
+        if (ready.length === 0) return;
+
+        const onlyImages = ready.every((item) => item.mediaType.startsWith("image/"));
+        const typedCaption = (textareaRef.current?.value ?? composerText).trim();
+        if (onlyImages && !busy) {
+          // Send injury/scene photos immediately so Allma can look at them and give first aid.
+          send(typedCaption, ready);
+          setComposerText("");
+          if (textareaRef.current) {
+            textareaRef.current.value = "";
+            textareaRef.current.style.height = "";
+          }
+        } else {
+          setAttachments((current) => [...current, ...ready]);
         }
       } catch (error) {
         console.error("Attachment failed", error);
@@ -1646,7 +1685,7 @@ export function AllmaChat({
         setUploading(false);
       }
     },
-    [inlineImage],
+    [busy, composerText, inlineImage, send],
   );
 
   const isEmpty = messages.length === 0;
@@ -1842,7 +1881,7 @@ export function AllmaChat({
   }, [messages]);
 
 
-  // Photo asks open the camera/gallery picker straight away; other media use the sheet.
+  // Photo asks open the camera/gallery picker straight away; other media use the menu.
   const openAttach = useCallback((mediaType?: string) => {
     if (mediaType === "photo" && attachInputRef.current) {
       attachInputRef.current.accept = "image/*";
@@ -1850,8 +1889,35 @@ export function AllmaChat({
       attachInputRef.current.click();
       return;
     }
-    setAttachSheetOpen(true);
+    setAttachMenuOpen(true);
   }, []);
+
+  const pickAttachmentOption = useCallback((opt: (typeof ATTACHMENT_OPTIONS)[number]) => {
+    if (!attachInputRef.current) return;
+    attachInputRef.current.accept = opt.accept;
+    if (opt.capture) attachInputRef.current.setAttribute("capture", opt.capture);
+    else attachInputRef.current.removeAttribute("capture");
+    setAttachMenuOpen(false);
+    attachInputRef.current.click();
+  }, []);
+
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAttachMenuOpen(false);
+    };
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.(".composer-attach-menu, .composer-attach-btn")) return;
+      setAttachMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer);
+    };
+  }, [attachMenuOpen]);
 
   const shareLocation = useCallback(() => {
 
@@ -2136,7 +2202,7 @@ export function AllmaChat({
         onChange={(event) => {
           void uploadFiles(event.target.files);
           event.target.value = "";
-          setAttachSheetOpen(false);
+          setAttachMenuOpen(false);
         }}
       />
       <input
@@ -2524,10 +2590,16 @@ export function AllmaChat({
         className={cn(
           // Docked as the last flex child of the full-height chat column, so it
           // never floats over (and hides) the end of the conversation.
-          "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 px-3 pt-2 sm:px-4",
+          "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 px-3 sm:px-4",
           sosIsActive && "chat-composer-dock-sos",
         )}
         data-fixed-composer={fixedComposer ? "true" : undefined}
+        onPointerDownCapture={(event) => {
+          if (!attachMenuOpen) return;
+          const target = event.target as HTMLElement | null;
+          if (target?.closest?.("[role='menu'], [aria-label='Attach files']")) return;
+          setAttachMenuOpen(false);
+        }}
       >
         <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
           {sosIsActive ? (
@@ -2575,29 +2647,53 @@ export function AllmaChat({
           ) : null}
 
           <div className="composer-ori-row flex items-end gap-2">
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.92 }}
-              onClick={() => setAttachSheetOpen(true)}
-              className="composer-attach-btn"
-              aria-label="Attach files"
-            >
-              <Plus className="h-5 w-5" strokeWidth={2.25} />
-            </motion.button>
-
             <div
               className={cn(
-                "composer-shell composer-pill min-w-0 flex-1 focus-within:composer-shell-focused",
+                "composer-shell composer-pill relative min-w-0 flex-1 focus-within:composer-shell-focused",
                 composerRecording && "composer-shell-recording",
                 sosIsActive && !composerRecording && "composer-shell-sos",
               )}
             >
+              <AnimatePresence>
+                {attachMenuOpen ? (
+                  <motion.div
+                    key="attach-menu"
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.16 }}
+                    className="composer-attach-menu absolute bottom-[calc(100%+0.55rem)] left-0 z-40 w-[15.5rem] overflow-hidden rounded-2xl border border-border/60 bg-card shadow-lift"
+                    role="menu"
+                    aria-label="Attach media"
+                  >
+                    {ATTACHMENT_OPTIONS.map((opt, index) => {
+                      const Icon = opt.icon;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => pickAttachmentOption(opt)}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-[15px] font-medium text-foreground transition-colors hover:bg-muted/70",
+                            index > 0 && "border-t border-border/50",
+                          )}
+                        >
+                          <span>{opt.label}</span>
+                          <Icon className="h-[18px] w-[18px] shrink-0 text-foreground" strokeWidth={1.75} />
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+
               <div className="composer-surface">
                 <PromptInput
                   onSubmit={(message, event) => {
                     event.preventDefault();
                     const text = (message.text ?? "").trim();
-                    if (!text) return;
+                    if (!text && attachments.length === 0) return;
                     send(text);
                     setComposerText("");
                     event.currentTarget.reset();
@@ -2606,13 +2702,27 @@ export function AllmaChat({
                   }}
                   className="rounded-[inherit] border-0 bg-transparent shadow-none ring-0 outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent"
                 >
+                  <InputGroupAddon align="inline-start" className="self-end py-1 pl-1.5 has-[>button]:ml-0">
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.92 }}
+                      onClick={() => setAttachMenuOpen((open) => !open)}
+                      className="composer-attach-btn"
+                      aria-label="Attach files"
+                      aria-expanded={attachMenuOpen}
+                    >
+                      <Plus className="h-5 w-5" strokeWidth={2.25} />
+                    </motion.button>
+                  </InputGroupAddon>
+
                   <PromptInputTextarea
                     ref={textareaRef}
                     placeholder={sosIsActive ? "Message this emergency…" : "Ask Allma"}
                     aria-label={sosIsActive ? "Message this emergency" : "Ask Allma"}
                     enterKeyHint="send"
                     rows={1}
-                    className="composer-textarea min-h-[44px] max-h-[140px] bg-transparent px-3.5 py-2.5 text-[15px] leading-6 sm:text-[15px]"
+                    className="composer-textarea min-h-[44px] max-h-[140px] bg-transparent px-1.5 py-2.5 text-[15px] leading-6 sm:text-[15px]"
+                    onFocus={() => setAttachMenuOpen(false)}
                     onChange={(event) => {
                       setComposerText(event.target.value);
                       autoGrowTextarea(event.currentTarget);
@@ -2649,9 +2759,13 @@ export function AllmaChat({
                         </button>
                       </>
                     ) : null}
-                    {transcribing || sosVoiceNoteUploading ? (
-                      <span className="text-[11px] font-medium text-muted-foreground">
-                        {sosVoiceNoteUploading ? "Sending voice note…" : "Transcribing…"}
+                    {uploading || transcribing || sosVoiceNoteUploading ? (
+                      <span className="pr-1 text-[11px] font-medium text-muted-foreground">
+                        {uploading
+                          ? "Uploading…"
+                          : sosVoiceNoteUploading
+                            ? "Sending voice note…"
+                            : "Transcribing…"}
                       </span>
                     ) : null}
                     <motion.button
@@ -2697,16 +2811,15 @@ export function AllmaChat({
                 >
                   <Square className="h-3.5 w-3.5 fill-current" />
                 </button>
-              ) : composerText.trim().length > 0 ? (
+              ) : composerText.trim().length > 0 || attachments.length > 0 ? (
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.92 }}
-                  disabled={sosVoiceNoteUploading}
+                  disabled={sosVoiceNoteUploading || uploading}
                   aria-label={sosIsActive ? "Send to responders" : "Send message"}
                   className="composer-voice-btn disabled:opacity-60"
                   onClick={() => {
                     const text = composerText.trim();
-                    if (!text) return;
                     send(text);
                     setComposerText("");
                     const field = textareaRef.current;
@@ -2731,67 +2844,8 @@ export function AllmaChat({
               )
             ) : null}
           </div>
-
-          <p className="mt-1.5 hidden text-center text-[11px] leading-4 text-muted-foreground/80 lg:block">
-            <span className="hidden lg:inline">Enter to send · Shift + Enter for new line · </span>Allma can make mistakes. Not officially connected to police — in danger, press SOS.
-          </p>
         </div>
       </div>
-
-      {/* ── Attachment bottom sheet ── */}
-      <Drawer open={attachSheetOpen} onOpenChange={setAttachSheetOpen}>
-        <DrawerContent className="mx-auto max-w-lg rounded-t-[1.75rem] border-border/60 bg-card/95 backdrop-blur-xl">
-          <DrawerHeader className="pb-2 pt-4">
-            <DrawerTitle className="text-base font-semibold">Add to your report</DrawerTitle>
-          </DrawerHeader>
-          <div className="grid grid-cols-3 gap-3 px-4 pb-6 pt-2">
-            {ATTACHMENT_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              return (
-                <motion.button
-                  key={opt.id}
-                  type="button"
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    if (attachInputRef.current) {
-                      attachInputRef.current.accept = opt.accept;
-                      if (opt.capture) {
-                        attachInputRef.current.setAttribute("capture", opt.capture);
-                      } else {
-                        attachInputRef.current.removeAttribute("capture");
-                      }
-                      attachInputRef.current.click();
-                    }
-                  }}
-                  className="flex flex-col items-center gap-2 rounded-2xl border border-border/50 bg-card p-4 shadow-soft transition-all hover:border-primary/40 hover:bg-accent"
-                >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </span>
-                  <span className="text-[11px] font-medium text-muted-foreground">{opt.label}</span>
-                </motion.button>
-              );
-            })}
-            {/* Location option */}
-            <motion.button
-              type="button"
-              whileHover={{ scale: 1.04, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setAttachSheetOpen(false);
-                shareLocation();
-              }}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-border/50 bg-card p-4 shadow-soft transition-all hover:border-primary/40 hover:bg-accent"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Navigation className="h-5 w-5 text-primary" />
-              </span>
-              <span className="text-[11px] font-medium text-muted-foreground">Location</span>
-            </motion.button>
-          </div>
-        </DrawerContent>
-      </Drawer>
     </div>
     </SosActivityContext.Provider>
   );
