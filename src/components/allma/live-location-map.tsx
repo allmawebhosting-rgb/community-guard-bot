@@ -492,8 +492,10 @@ export function LiveLocationMap({
   return (
     <div
       className={cn(
-        "premium-surface shadow-soft overflow-hidden border border-border/70 transition-shadow duration-300 hover:shadow-lift",
-        compact ? "rounded-none" : "rounded-2xl",
+        "overflow-hidden transition-shadow duration-300",
+        compact
+          ? "border-0 bg-transparent shadow-none"
+          : "premium-surface shadow-soft border border-border/70 hover:shadow-lift rounded-2xl",
       )}
     >
       <div ref={canvasRef} className={cn("relative bg-muted", heightClassName)}>
@@ -587,8 +589,8 @@ export function LiveLocationMap({
         {/* Zoom + map-type controls */}
         <div
           className={cn(
-            "absolute right-2 top-2 flex flex-col overflow-hidden border border-border/60 bg-background/80 backdrop-blur-md",
-            compact ? "rounded-md" : "rounded-xl",
+            "absolute right-2 top-2 flex flex-col overflow-hidden border border-border/50 bg-background/85 shadow-sm backdrop-blur-md",
+            compact ? "rounded-2xl" : "rounded-xl",
           )}
         >
           <button
@@ -635,7 +637,7 @@ export function LiveLocationMap({
             className={cn(
               "absolute bottom-2 right-2 z-10 flex overflow-hidden border border-border/60 bg-background/90 font-bold uppercase tracking-[0.08em] shadow-sm backdrop-blur-md",
               compact
-                ? "rounded-md text-[9px]"
+                ? "rounded-full text-[9px]"
                 : "rounded-full text-[10px]",
             )}
           >
@@ -645,7 +647,7 @@ export function LiveLocationMap({
               onClick={() => setActiveMapType("hybrid")}
               className={cn(
                 "transition",
-                compact ? "px-2 py-1" : "px-2.5 py-1.5",
+                compact ? "px-2.5 py-1" : "px-2.5 py-1.5",
                 activeMapType === "hybrid" || activeMapType === "satellite"
                   ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground",
@@ -659,7 +661,7 @@ export function LiveLocationMap({
               onClick={() => setActiveMapType("roadmap")}
               className={cn(
                 "transition",
-                compact ? "px-2 py-1" : "px-2.5 py-1.5",
+                compact ? "px-2.5 py-1" : "px-2.5 py-1.5",
                 activeMapType === "roadmap"
                   ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground",
@@ -672,9 +674,9 @@ export function LiveLocationMap({
 
         <div
           className={cn(
-            "pointer-events-none absolute left-2 top-2 flex items-center gap-1 border border-border/60 bg-background/85 font-semibold uppercase tracking-[0.08em] text-muted-foreground shadow-sm backdrop-blur-md",
+            "pointer-events-none absolute left-2 top-2 flex items-center gap-1 border border-border/50 bg-background/90 font-semibold uppercase tracking-[0.08em] text-muted-foreground shadow-sm backdrop-blur-md",
             compact
-              ? "max-w-[9.5rem] rounded-md px-1.5 py-0.5 text-[9px]"
+              ? "max-w-[9.5rem] rounded-full px-2 py-0.5 text-[9px]"
               : "max-w-[calc(100%-4.5rem)] rounded-full px-2.5 py-1 text-[10px]",
           )}
         >
@@ -703,8 +705,8 @@ export function LiveLocationMap({
 
       <div
         className={cn(
-          "grid grid-cols-2 gap-2 border-t border-border/60 bg-card",
-          compact ? "gap-1.5 p-1.5" : "p-2.5",
+          "grid grid-cols-2 bg-card",
+          compact ? "gap-1.5 border-0 px-0 pb-0 pt-2" : "gap-2 border-t border-border/60 p-2.5",
         )}
       >
         <a
@@ -712,8 +714,10 @@ export function LiveLocationMap({
           target="_blank"
           rel="noreferrer"
           className={cn(
-            "flex items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-secondary px-3 font-bold text-foreground transition hover:border-primary/40 hover:bg-accent",
-            compact ? "min-h-8 py-1.5 text-[10.5px]" : "min-h-10 py-2 text-[11.5px]",
+            "flex items-center justify-center gap-1.5 border font-semibold text-foreground transition hover:bg-accent",
+            compact
+              ? "min-h-8 rounded-full border-border/50 bg-background/90 py-1.5 text-[11px]"
+              : "min-h-10 rounded-xl border-border/70 bg-secondary px-3 py-2 text-[11.5px] font-bold hover:border-primary/40",
           )}
         >
           <ExternalLink className="h-3.5 w-3.5" /> {compact ? "Maps" : directionsLabel}
@@ -722,11 +726,13 @@ export function LiveLocationMap({
           type="button"
           onClick={copyCoords}
           className={cn(
-            "flex items-center justify-center gap-1.5 rounded-xl border px-3 font-semibold transition",
-            compact ? "min-h-8 py-1.5 text-[10.5px]" : "min-h-10 py-2 text-[11.5px]",
+            "flex items-center justify-center gap-1.5 border font-semibold transition",
+            compact ? "min-h-8 rounded-full py-1.5 text-[11px]" : "min-h-10 rounded-xl px-3 py-2 text-[11.5px]",
             copied
               ? "border-success/30 bg-success/15 text-success"
-              : "border-border/60 bg-secondary/40 text-foreground hover:bg-accent",
+              : compact
+                ? "border-border/50 bg-background/90 text-foreground hover:bg-accent"
+                : "border-border/60 bg-secondary/40 text-foreground hover:bg-accent",
           )}
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}

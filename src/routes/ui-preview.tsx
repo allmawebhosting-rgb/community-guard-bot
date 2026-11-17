@@ -83,12 +83,7 @@ function ChatCanvas({ children }: { children: React.ReactNode }) {
 
 function Composer({ sos = false }: { sos?: boolean }) {
   return (
-    <div className={`chat-composer-dock px-3 ${sos ? "chat-composer-dock-sos" : ""}`}>
-      {sos ? (
-        <p className="mb-1.5 px-1 text-[11px] leading-4 text-muted-foreground">
-          Shared with Allma and your Safety Network in this chat.
-        </p>
-      ) : null}
+    <div className={`chat-composer-dock px-2.5 sm:px-4 ${sos ? "chat-composer-dock-sos" : ""}`}>
       <div className="composer-ori-row flex items-end gap-2">
         <div className={`composer-shell composer-pill relative flex-1 ${sos ? "composer-shell-sos" : ""}`}>
           <div className="composer-attach-menu absolute bottom-[calc(100%+0.55rem)] left-0 z-40 w-[15.5rem] overflow-hidden rounded-2xl">

@@ -276,6 +276,11 @@
     overscroll-behavior: none;
   }
 
+  /* Chat owns the home-indicator inset via the composer dock — avoid a second gap. */
+  body.viewport-locked {
+    padding-bottom: 0;
+  }
+
   h1,
   h2,
   h3,
@@ -708,8 +713,7 @@
 }
 
 .chat-composer-dock-sos {
-  border-top-color: color-mix(in oklab, var(--destructive) 16%, transparent);
-  background: color-mix(in oklab, var(--background) 90%, transparent);
+  background: color-mix(in oklab, var(--background) 96%, transparent);
 }
 
 @utility composer-surface {
@@ -718,19 +722,144 @@
   overflow: visible;
 }
 
-/* ── Docked chat composer (Ori-style flush pill) ─────────────────────── */
+/* ── Docked chat composer (flush to phone bottom) ────────────────────── */
 .chat-composer-dock {
-  padding-top: 0.35rem;
-  padding-bottom: max(0.2rem, env(safe-area-inset-bottom));
-  background: color-mix(in oklab, var(--background) 94%, transparent);
-  -webkit-backdrop-filter: saturate(1.3) blur(14px);
-  backdrop-filter: saturate(1.3) blur(14px);
+  padding-top: 0.25rem;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: color-mix(in oklab, var(--background) 96%, transparent);
+  -webkit-backdrop-filter: saturate(1.25) blur(18px);
+  backdrop-filter: saturate(1.25) blur(18px);
   border-top: 0;
 }
 @media (min-width: 1024px) {
   .chat-composer-dock {
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding-top: 0.5rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
   }
+}
+
+/* Premium SOS live card */
+.sos-live-card {
+  overflow: hidden;
+  border-radius: 1.35rem;
+  border: 1px solid color-mix(in oklab, var(--destructive) 22%, var(--border));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--destructive) 7%, var(--card)) 0%,
+      var(--card) 38%
+    );
+  box-shadow:
+    0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent),
+    0 18px 40px -28px color-mix(in oklab, var(--destructive) 45%, transparent);
+}
+.sos-live-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem 0.55rem;
+}
+.sos-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+  padding: 0.2rem 0.55rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--destructive);
+}
+.sos-live-meta {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.sos-live-body {
+  padding: 0 0.65rem 0.65rem;
+}
+.sos-live-map {
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+  background: var(--muted);
+}
+.sos-live-help {
+  margin-top: 0.55rem;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+  background: color-mix(in oklab, var(--card) 88%, var(--background));
+}
+.sos-live-help-tabs {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0.55rem 0.55rem 0.35rem;
+  scrollbar-width: none;
+}
+.sos-live-help-tabs::-webkit-scrollbar {
+  display: none;
+}
+.sos-live-tab {
+  display: inline-flex;
+  min-height: 1.85rem;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+  background: var(--card);
+  padding: 0.2rem 0.7rem;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--foreground);
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.sos-live-tab[aria-expanded="true"] {
+  border-color: transparent;
+  background: var(--foreground);
+  color: var(--background);
+}
+.sos-live-place {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
+}
+.sos-live-place + .sos-live-place {
+  border-top: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+.sos-live-place-action {
+  display: inline-flex;
+  height: 1.85rem;
+  width: 1.85rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+  color: var(--foreground);
+}
+.sos-live-footer {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.15rem 0.65rem 0.7rem;
+}
+.sos-live-end {
+  display: flex;
+  min-height: 2.55rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  background: var(--destructive);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--destructive-foreground);
 }
 .composer-ori-row {
   width: 100%;

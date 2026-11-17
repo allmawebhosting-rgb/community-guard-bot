@@ -2634,7 +2634,7 @@ export function AllmaChat({
         className={cn(
           // Docked as the last flex child of the full-height chat column, so it
           // never floats over (and hides) the end of the conversation.
-          "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 px-3 sm:px-4",
+          "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 px-2.5 sm:px-4",
           sosIsActive && "chat-composer-dock-sos",
         )}
         data-fixed-composer={fixedComposer ? "true" : undefined}
@@ -2646,11 +2646,6 @@ export function AllmaChat({
         }}
       >
         <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
-          {sosIsActive ? (
-            <p className="mb-1.5 px-1 text-[11px] leading-4 text-muted-foreground">
-              Shared with Allma and your Safety Network in this chat.
-            </p>
-          ) : null}
           {attachments.length > 0 || uploading ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {attachments.map((attachment) => (
