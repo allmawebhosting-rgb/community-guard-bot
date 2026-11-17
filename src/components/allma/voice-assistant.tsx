@@ -1,7 +1,7 @@
 import { markSosIntent } from "@/lib/sos-intent";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { AudioLines, ChevronRight, Flame, Map as MapIcon, ShieldAlert, FileText, Heart, Home, Hospital, Keyboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Mic, Package, RotateCcw, Send, ShieldCheck, Siren, Square, UserRound, X, Zap } from "lucide-react";
+import { AudioLines, ChevronRight, Flame, Map as MapIcon, ShieldAlert, FileText, Heart, Home, Hospital, Keyboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Mic, MicOff, Package, PhoneOff, RotateCcw, Send, Settings2, ShieldCheck, Siren, Square, UserRound, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,9 @@ export function VoiceAssistant() {
   const [intro, setIntro] = useState(false);
   const [shown, setShown] = useState(0);
   const [docked, setDocked] = useState(false); // voice stays on, page visible
+  const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
+  mutedRef.current = muted;
   const [online, setOnline] = useState(true);
   useEffect(() => {
     const u = () => setOnline(navigator.onLine);
@@ -225,7 +228,7 @@ export function VoiceAssistant() {
   });
 
   listenRef.current = () => {
-    if (!activeRef.current || pausedRef.current || isCallAudioBlocked()) return;
+    if (!activeRef.current || pausedRef.current || isCallAudioBlocked() || mutedRef.current) return;
     void voice.start();
   };
 
@@ -295,7 +298,11 @@ export function VoiceAssistant() {
     setPref("on");
     setActive(true);
     activeRef.current = true;
+    setMuted(false);
     setHint("");
+    const onChat = path === "/" || path === "/chat" || path.startsWith("/chat/");
+    // From chat, open the Ori-style call bar over the conversation.
+    if (onChat) setDocked(true);
     // Unlock speech output inside the tap so later replies can be heard on phones.
     try {
       const u = new SpeechSynthesisUtterance(" ");
@@ -304,7 +311,7 @@ export function VoiceAssistant() {
     } catch {
       /* ignore */
     }
-    if (withIntro) {
+    if (withIntro && !onChat) {
       // Ask for the microphone inside the tap, then talk through the intro.
       void navigator.mediaDevices
         ?.getUserMedia({ audio: true })
@@ -332,8 +339,12 @@ export function VoiceAssistant() {
     // Start the microphone right inside the tap — phones block it otherwise.
     if (!turnsRef.current.length) {
       turnsRef.current = [{ role: "assistant", content: GREETING }];
-      toast.success("Allma is listening — just speak.");
+      toast.success(onChat ? "Voice call started — speak anytime." : "Allma is listening — just speak.");
     }
+    void navigator.mediaDevices
+      ?.getUserMedia({ audio: true })
+      .then((s) => s.getTracks().forEach((t) => t.stop()))
+      .catch(() => {});
     void voice.start();
   };
 
@@ -355,10 +366,25 @@ export function VoiceAssistant() {
     voice.cancel();
     window.speechSynthesis?.cancel();
     setSpeaking(false);
+    setMuted(false);
     setDocked(false);
   };
 
   stopLoopRef.current = stopLoop;
+
+  const toggleMute = () => {
+    setMuted((current) => {
+      const next = !current;
+      if (next) {
+        voice.cancel();
+        window.speechSynthesis?.cancel();
+        setSpeaking(false);
+      } else if (activeRef.current && !pausedRef.current) {
+        window.setTimeout(() => listenRef.current(), 120);
+      }
+      return next;
+    });
+  };
 
   const decline = () => {
     localStorage.setItem(PREF_KEY, "off");
@@ -408,43 +434,85 @@ export function VoiceAssistant() {
     : voice.transcribing ? "Understanding…" : thinking ? "Thinking…" : speaking ? "Speaking…" : "Ready";
   const scale = 1 + (voice.recording ? voice.level * 0.6 : speaking ? 0.12 : 0);
 
-  // Docked: page stays visible and usable, Allma keeps listening and talking.
+  // Docked Ori-style call bar: chat stays visible, Allma listens and talks.
   if (docked) {
+    const waveLevel = muted ? 0.08 : voice.recording ? Math.max(0.18, voice.level) : speaking ? 0.4 : busy ? 0.22 : 0.12;
+    const callBars = [0.35, 0.55, 0.8, 0.45, 0.95, 0.6, 0.75, 0.4, 0.85, 0.5, 0.7, 0.38, 0.9, 0.48, 0.65];
     return (
       <div
         data-allma-voice-dot
         role="region"
-        aria-label="Allma voice assistant"
-        className="fixed inset-x-3 bottom-20 z-[60] mx-auto max-w-md rounded-3xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300 md:bottom-6"
+        aria-label="Allma voice call"
+        className="voice-call-bar fixed inset-x-0 z-[60] px-3 animate-in fade-in slide-in-from-top-2 duration-250 lg:px-0"
+        style={{ top: "max(4.75rem, calc(env(safe-area-inset-top) + 3.85rem))" }}
       >
-        <div className="flex items-center gap-3">
+        <div className="mx-auto flex h-14 max-w-lg items-center gap-2 rounded-full border border-border/60 bg-card/95 px-2 shadow-[0_10px_40px_-18px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:h-[3.6rem] sm:gap-2.5 sm:px-2.5 lg:max-w-xl">
           <button
             type="button"
-            aria-label="Expand Allma voice"
+            aria-label="Expand voice mode"
             onClick={() => setDocked(false)}
-            className="relative grid size-12 shrink-0 place-items-center"
+            className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full"
           >
             <span
-              className={cn("absolute inset-0 rounded-full bg-gradient-to-br from-primary via-gold to-destructive opacity-60 transition-transform duration-150", (busy || speaking) && "animate-pulse")}
-              style={{ transform: `scale(${scale})` }}
+              className={cn(
+                "absolute inset-0 rounded-full bg-foreground/10 transition-transform duration-150",
+                (busy || speaking || voice.recording) && !muted && "animate-pulse",
+              )}
+              style={{ transform: `scale(${muted ? 1 : scale})` }}
             />
-            <MascotAvatar className="relative size-10" />
+            <MascotAvatar className="relative h-9 w-9" />
           </button>
-          <div className="min-w-0 flex-1" aria-live="polite">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-semibold text-muted-foreground">{status}</p>
-              <Waves small level={voice.recording ? voice.level : speaking ? 0.35 : 0} animated={speaking || busy} />
-            </div>
-            <p className="line-clamp-2 text-sm">{hint || reply || heard || "Just speak — I'm here."}</p>
+
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-[3px] px-1" aria-hidden>
+            {callBars.map((weight, index) => (
+              <span
+                key={index}
+                className={cn(
+                  "w-[3px] rounded-full bg-foreground/35 transition-[height] duration-100",
+                  (speaking || busy || voice.recording) && !muted && "bg-foreground/55",
+                )}
+                style={{
+                  height: `${Math.max(6, Math.min(28, 6 + waveLevel * weight * 26))}px`,
+                }}
+              />
+            ))}
           </div>
-          {voice.recording ? (
-            <Button size="icon" aria-label="Done speaking" onClick={() => void voice.stop()}><Send className="size-4" /></Button>
-          ) : (
-            <Button size="icon" variant="outline" aria-label="Tap to speak" disabled={busy} onClick={() => { window.speechSynthesis?.cancel(); setSpeaking(false); void voice.start(); }}>
-              <Mic className="size-4" />
-            </Button>
-          )}
-          <Button size="icon" variant="ghost" aria-label="Stop voice" onClick={() => stopLoop(false)}><X className="size-4" /></Button>
+
+          <p className="sr-only" aria-live="polite">
+            {muted ? "Muted" : status}
+            {hint || reply || heard ? `. ${hint || reply || heard}` : ""}
+          </p>
+
+          <button
+            type="button"
+            aria-label="Voice settings"
+            onClick={() => setDocked(false)}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Settings2 className="h-[17px] w-[17px]" />
+          </button>
+          <button
+            type="button"
+            aria-label={muted ? "Unmute microphone" : "Mute microphone"}
+            aria-pressed={muted}
+            onClick={toggleMute}
+            className={cn(
+              "grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors",
+              muted
+                ? "bg-destructive/15 text-destructive"
+                : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            {muted ? <MicOff className="h-[17px] w-[17px]" /> : <Mic className="h-[17px] w-[17px]" />}
+          </button>
+          <button
+            type="button"
+            aria-label="End voice call"
+            onClick={() => stopLoop(true)}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition hover:opacity-90 active:scale-95"
+          >
+            <PhoneOff className="h-[18px] w-[18px]" />
+          </button>
         </div>
       </div>
     );

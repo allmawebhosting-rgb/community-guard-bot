@@ -1,5 +1,5 @@
 import React from "react";
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { setCallAudioPhase } from "@/lib/call-audio-state";
 
@@ -12,9 +12,26 @@ vi.mock("@/hooks/useVoiceInput", () => ({ useVoiceInput: (options: { onTranscrip
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getSession: async () => ({ data: { session: null } }), getUser: async () => ({ data: { user: null } }) } } }));
 vi.mock("@/lib/onboarding", () => ({ fetchOnboardingState: vi.fn() }));
 vi.mock("@/components/allma/mascot", () => ({ Mascot: () => null, MascotAvatar: () => null }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { VoiceAssistant } from "./voice-assistant";
 
 afterEach(() => { cleanup(); setCallAudioPhase("idle"); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+
+it("opens an Ori-style voice call bar over chat", async () => {
+  vi.stubGlobal("speechSynthesis", { cancel: vi.fn(), speak: vi.fn() });
+  vi.stubGlobal("SpeechSynthesisUtterance", class {});
+  vi.stubGlobal("navigator", {
+    ...navigator,
+    mediaDevices: { getUserMedia: vi.fn(async () => ({ getTracks: () => [] })) },
+  });
+  render(<VoiceAssistant />);
+  act(() => window.dispatchEvent(new CustomEvent("allma:voice-mode-set", { detail: "on" })));
+  expect(await screen.findByRole("region", { name: "Allma voice call" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "End voice call" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Mute microphone" })).toBeTruthy();
+  expect(mocks.start).toHaveBeenCalled();
+});
+
 it("releases the microphone during ringing and resumes after a call ends", async () => {
   const cancelSpeech = vi.fn();
   vi.stubGlobal("speechSynthesis", { cancel: cancelSpeech, speak: vi.fn() });

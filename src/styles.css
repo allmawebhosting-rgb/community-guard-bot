@@ -738,6 +738,22 @@
   }
 }
 
+/* Ori-style floating voice call bar */
+.voice-call-bar {
+  pointer-events: none;
+}
+.voice-call-bar > * {
+  pointer-events: auto;
+}
+@media (min-width: 1024px) {
+  .voice-call-bar {
+    /* Clear the desktop sidebar + header strip */
+    left: 260px;
+    right: 0;
+    top: 4.25rem !important;
+  }
+}
+
 /* Premium SOS live card — near full chat width */
 .sos-live-card {
   width: 100%;
