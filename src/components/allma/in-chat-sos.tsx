@@ -4,9 +4,14 @@ import {
   ExternalLink,
   Loader2,
   MapPin,
+  Mic,
+  MicOff,
   Navigation,
   Phone,
+  PhoneOff,
   ShieldAlert,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -431,19 +436,92 @@ export function InChatSos({
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving your SOS…
           </div>
         ) : activeCall ? (
-          <section aria-label="Active emergency call" className="rounded-lg border border-success/35 bg-success/[0.06] px-2 py-1.5">
-            <div className="flex items-center gap-2">
-              <Avatar name={activeCall.name} url={activeCall.avatarUrl} size={34} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold">{activeCall.name}</p>
-                <p className="truncate text-[10px] text-muted-foreground">{activeCall.safetyRole || "Safety contact"}</p>
+          <section
+            id={`sos-call-${activityId}`}
+            aria-label="Active emergency call"
+            className="overflow-hidden rounded-xl border border-success/40 bg-gradient-to-br from-success/[0.12] via-card to-success/[0.04] p-3 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-success/15 p-1 ring-2 ring-success/30 ring-offset-2 ring-offset-card">
+                <Avatar name={activeCall.name} url={activeCall.avatarUrl} size={48} />
               </div>
-              <span className="rounded-full border border-success/35 bg-success/10 px-2 py-0.5 text-[9px] font-bold tracking-wide text-success">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-foreground">{activeCall.name}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <span className="max-w-full truncate rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+                  {activeCall.safetyRole || "Safety Network"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {activeCall.status === "connected" ? "Connected" : "Joining"}
+                  </span>
+                </div>
+              </div>
+              <span
+                className="shrink-0 rounded-full border border-success/40 bg-success/10 px-2 py-1 text-[9px] font-bold tracking-wide text-success"
+                aria-live="polite"
+              >
                 {activeCall.status === "connected" ? "CONNECTED" : "CONNECTING"}
               </span>
             </div>
-            {activeCall.status === "connected" && (
-              <p className="mt-1 text-[10px] text-muted-foreground">Call controls are pinned above the chat.</p>
+
+            {activeCall.status === "connected" ? (
+              <>
+                <div className="mt-3 flex items-center justify-between rounded-lg bg-success/[0.08] px-3 py-2">
+                  <span className="flex items-end gap-[3px]" aria-label="Call audio equalizer">
+                    {[8, 14, 10, 17, 11].map((height, index) => (
+                      <span
+                        key={index}
+                        className="sos-equalizer-bar w-[3px] rounded-full bg-success"
+                        style={{ height, animationDelay: `${index * 110}ms` }}
+                      />
+                    ))}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-success">
+                    Live Safety Network call
+                  </span>
+                  <span className="font-mono text-sm font-bold tabular-nums text-foreground">
+                    {String(Math.floor(activeCall.seconds / 60)).padStart(2, "0")}:
+                    {String(activeCall.seconds % 60).padStart(2, "0")}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void runSosInlineCallAction("toggleMute")}
+                    aria-label={activeCall.muted ? "Unmute call" : "Mute call"}
+                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-background/80 px-2 text-[11px] font-semibold hover:bg-muted"
+                  >
+                    {activeCall.muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    {activeCall.muted ? "Unmute" : "Mute"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runSosInlineCallAction("toggleSpeaker")}
+                    aria-label={activeCall.speaker ? "Use earpiece" : "Use speaker"}
+                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-background/80 px-2 text-[11px] font-semibold hover:bg-muted"
+                  >
+                    {activeCall.speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                    Speaker
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runSosInlineCallAction("hangUp")}
+                    aria-label="End emergency call"
+                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-destructive px-2 text-[11px] font-bold text-destructive-foreground hover:opacity-90"
+                  >
+                    <PhoneOff className="h-4 w-4" />
+                    End
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 flex items-center gap-2 rounded-lg bg-background/70 px-3 py-2 text-[11px] font-semibold text-foreground">
+                <span className="relative h-2.5 w-2.5 shrink-0">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-success/70" />
+                  <span className="relative block h-2.5 w-2.5 rounded-full bg-success" />
+                </span>
+                Escalating emergency call to Safety Network...
+              </div>
             )}
           </section>
         ) : (

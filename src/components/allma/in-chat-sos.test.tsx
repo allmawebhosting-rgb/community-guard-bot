@@ -131,7 +131,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("shows the live map and hotlines while call controls stay above the chat", async () => {
+it("shows the live map and emergency call controls in the SOS card", async () => {
   const onActivityStarted = vi.fn();
   const onActivityEnded = vi.fn();
   render(
@@ -155,11 +155,18 @@ it("shows the live map and hotlines while call controls stay above the chat", as
   expect(screen.getByText(/Nearest Police \(1.2km\)/)).toBeTruthy();
   expect(screen.getByText("Amina N.")).toBeTruthy();
   expect(screen.getByText("Sister")).toBeTruthy();
-  expect(screen.getByText("Call controls are pinned above the chat.")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Mute" })).toBeNull();
+  expect(screen.queryByText("Call controls are pinned above the chat.")).toBeNull();
+  expect(screen.getByRole("button", { name: "Mute call" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Use earpiece" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "End emergency call" })).toBeTruthy();
+  expect(screen.getByText("02:05")).toBeTruthy();
+  expect(screen.getByLabelText("Call audio equalizer")).toBeTruthy();
   expect(onActivityStarted).toHaveBeenCalledWith("sos-1", expect.anything());
   expect(screen.getByRole("link", { name: "Call 999 Police" }).getAttribute("href")).toBe("tel:999");
   expect(screen.getByRole("link", { name: "Call 112 Toll-free" }).getAttribute("href")).toBe("tel:112");
+
+  fireEvent.click(screen.getByRole("button", { name: "Mute call" }));
+  expect(runCallActionMock).toHaveBeenCalledWith("toggleMute");
 
   fireEvent.click(screen.getByRole("button", { name: "Hide map" }));
   expect(screen.queryByTestId("live-map")).toBeNull();

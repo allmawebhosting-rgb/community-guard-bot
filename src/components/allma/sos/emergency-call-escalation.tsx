@@ -153,7 +153,7 @@ export function EmergencyCallEscalation({
             {answered
               ? `${current?.target.full_name ?? "Responder"} is responding`
               : running
-                ? `Calling Safety Network (${progressCount}/${callableCount})`
+                ? "Escalating emergency call to Safety Network..."
                 : loading
                   ? "Loading Safety Network…"
                   : `Safety Network (${callableCount})`}
@@ -173,9 +173,7 @@ export function EmergencyCallEscalation({
         </div>
 
         <div className="mt-1 flex items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground">
-          <span>
-            {reachedCount} reached · {notifiedCount} notified
-          </span>
+          <span>Responders notified: {progressCount}/{callableCount}</span>
           {current && !answered ? (
             <span className="truncate text-foreground/70">{current.target.full_name}</span>
           ) : null}
@@ -183,7 +181,7 @@ export function EmergencyCallEscalation({
         <div
           className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted"
           role="progressbar"
-          aria-label="Safety Network contact response progress"
+          aria-label="Safety Network responders notified"
           aria-valuemin={0}
           aria-valuemax={callableCount}
           aria-valuenow={progressCount}

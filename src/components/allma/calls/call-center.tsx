@@ -779,10 +779,7 @@ export function CallCenter() {
     });
   }, [callId, muted, peer, seconds, speaker, sosCallStatus]);
 
-  const inChatSosCall =
-    isChatRoute() &&
-    Boolean(peer?.sosActivityId) &&
-    (phase !== "idle" || sosCallStatus !== "idle");
+  const inChatSosCall = isChatRoute() && Boolean(peer?.sosActivityId);
   const visible = phase !== "idle" && !inChatSosCall;
   const showInlineIncomingSos =
     isChatRoute() &&

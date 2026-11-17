@@ -26,7 +26,6 @@ import {
   MicOff,
   Paperclip,
   Phone,
-  PhoneOff,
   Plus,
   Search,
   Shield,
@@ -45,7 +44,6 @@ import {
   RotateCcw,
   Square,
   Volume2,
-  VolumeX,
   SendHorizontal,
   ChevronRight,
   Star,
@@ -58,6 +56,7 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
+import { useStickToBottomContext } from "use-stick-to-bottom";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import robotAvatar from "@/assets/allma-robot.png";
 import {
@@ -97,7 +96,7 @@ import {
   subscribeSosRoomMessages,
   type SosRoomMessage,
 } from "@/lib/sos-rooms";
-import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
+import { useSosInlineCall } from "@/lib/sos-inline-call";
 
 
 type ToolPart = {
@@ -107,6 +106,26 @@ type ToolPart = {
 };
 
 type Suggestion = { label: string; prompt: string };
+
+function SosRoomAutoScroll({
+  active,
+  activityId,
+  messageCount,
+}: {
+  active: boolean;
+  activityId: string | null;
+  messageCount: number;
+}) {
+  const { scrollToBottom } = useStickToBottomContext();
+
+  useEffect(() => {
+    if (!active) return;
+    const frame = requestAnimationFrame(() => scrollToBottom());
+    return () => cancelAnimationFrame(frame);
+  }, [active, activityId, messageCount, scrollToBottom]);
+
+  return null;
+}
 
 const DEFAULT_MEDIA_TIPS: Record<string, string> = {
   photo: "Good light · Show the whole scene · Up to 4 photos",
@@ -1146,6 +1165,8 @@ export function AllmaChat({
 
   const busy = status === "submitted" || status === "streaming";
   const sosActivityId = inlineCall?.activityId ?? activeSosActivity?.id ?? null;
+  const activeInlineCall =
+    inlineCall && inlineCall.activityId === sosActivityId ? inlineCall : null;
   const sosIsActive =
     activeSosActivity?.id === sosActivityId
       ? activeSosActivity.active
@@ -1226,6 +1247,10 @@ export function AllmaChat({
   );
 
   useEffect(() => {
+    if (sosIsActive && busy) void stop();
+  }, [busy, sosIsActive, stop]);
+
+  useEffect(() => {
     if (status === "ready" || status === "error") setServerProgress([]);
   }, [status]);
 
@@ -1244,7 +1269,7 @@ export function AllmaChat({
   const send = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      if ((!trimmed && attachments.length === 0) || busy) return;
+      if (sosIsActive || (!trimmed && attachments.length === 0) || busy) return;
 
       const parts: UIMessage["parts"] = [];
       const caption =
@@ -1267,15 +1292,15 @@ export function AllmaChat({
       setAttachments([]);
       focusInput();
     },
-    [attachments, busy, sendMessage, focusInput],
+    [attachments, busy, sendMessage, focusInput, sosIsActive],
   );
 
   const seeded = useRef(false);
   useEffect(() => {
-    if (seeded.current || !initialPrompt || messages.length > 0) return;
+    if (seeded.current || !initialPrompt || messages.length > 0 || sosIsActive) return;
     seeded.current = true;
     send(initialPrompt);
-  }, [initialPrompt, messages.length, send]);
+  }, [initialPrompt, messages.length, send, sosIsActive]);
 
   const {
     recording,
@@ -1296,6 +1321,10 @@ export function AllmaChat({
     },
     onError: (message) => toast.error(message),
   });
+
+  useEffect(() => {
+    if (sosIsActive && recording) cancelVoice();
+  }, [cancelVoice, recording, sosIsActive]);
 
   // Images are inlined as compressed data URLs so the assistant always receives
   // the pixels instead of depending on a link fetch of a private storage object.
@@ -1787,62 +1816,41 @@ export function AllmaChat({
         }}
       />
 
-      {inlineCall?.status === "connected" &&
-      inlineCall.activityId === sosActivityId &&
-      sosIsActive ? (
-        <div
-          role="status"
-          aria-label="Emergency call connected"
-          className="sticky top-0 z-30 flex shrink-0 items-center gap-2.5 border-b border-success/30 bg-background/95 px-3 py-2 shadow-sm backdrop-blur sm:px-4"
+      {activeInlineCall && sosIsActive ? (
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById(`sos-call-${activeInlineCall.activityId}`)
+              ?.scrollIntoView({ behavior: "smooth", block: "center" })
+          }
+          aria-label="Open active emergency call controls"
+          className="flex shrink-0 items-center gap-2.5 border-b border-success/25 bg-background/95 px-3 py-2 text-left shadow-sm backdrop-blur sm:px-4"
         >
           <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
             <span className="relative h-2.5 w-2.5 rounded-full bg-success" />
           </span>
-          <Avatar name={inlineCall.name} url={inlineCall.avatarUrl ?? null} size={32} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold leading-tight text-foreground">
-              {inlineCall.name}
-            </p>
-            <p className="truncate text-[10px] leading-tight text-muted-foreground">
-              {inlineCall.safetyRole || "Safety contact"} · Connected
-            </p>
-          </div>
-          <span className="font-mono text-[13px] font-semibold tabular-nums text-foreground">
-            {String(Math.floor(inlineCall.seconds / 60)).padStart(2, "0")}:
-            {String(inlineCall.seconds % 60).padStart(2, "0")}
+          <Avatar name={activeInlineCall.name} url={activeInlineCall.avatarUrl ?? null} size={30} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[12px] font-semibold leading-tight text-foreground">
+              {activeInlineCall.name}
+            </span>
+            <span className="block truncate text-[10px] leading-tight text-muted-foreground">
+              {activeInlineCall.safetyRole || "Safety Network"} ·{" "}
+              {activeInlineCall.status === "connected"
+                ? `${String(Math.floor(activeInlineCall.seconds / 60)).padStart(2, "0")}:${String(activeInlineCall.seconds % 60).padStart(2, "0")} connected`
+                : "Connecting"}
+            </span>
           </span>
-          <button
-            type="button"
-            onClick={() => void runSosInlineCallAction("toggleMute")}
-            aria-label={inlineCall.muted ? "Unmute call" : "Mute call"}
-            title={inlineCall.muted ? "Unmute" : "Mute"}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground hover:bg-muted"
-          >
-            {inlineCall.muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </button>
-          <button
-            type="button"
-            onClick={() => void runSosInlineCallAction("toggleSpeaker")}
-            aria-label={inlineCall.speaker ? "Use earpiece" : "Use speaker"}
-            title={inlineCall.speaker ? "Speaker on" : "Speaker off"}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground hover:bg-muted"
-          >
-            {inlineCall.speaker ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-          </button>
-          <button
-            type="button"
-            onClick={() => void runSosInlineCallAction("hangUp")}
-            aria-label="Hang up emergency call"
-            title="Hang up"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground hover:opacity-90"
-          >
-            <PhoneOff className="h-4 w-4" />
-          </button>
-        </div>
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-success">
+            {activeInlineCall.status === "connected" ? "Live" : "Connecting"}
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
       ) : null}
 
-      {isEmpty && visibleSosMessages.length === 0 ? (
+      {isEmpty && visibleSosMessages.length === 0 && !sosIsActive ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
           <div className="mx-auto w-full px-0 pb-6 lg:px-0">
             <AssistantHero onSelect={send} />
@@ -1850,6 +1858,11 @@ export function AllmaChat({
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1 overscroll-contain">
+          <SosRoomAutoScroll
+            active={sosIsActive}
+            activityId={sosActivityId}
+            messageCount={visibleSosMessages.length}
+          />
           <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", "pb-8")}>
             <div className="flex flex-col gap-5 pt-16 lg:pt-8">
               {messages.map((message, msgIndex) => (
@@ -1987,7 +2000,7 @@ export function AllmaChat({
                   {message.role === "assistant" && !(busy && msgIndex === messages.length - 1) ? (
                     <ResponseActions
                       text={message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : "")).join("\n").trim()}
-                      onRetry={msgIndex === messages.length - 1 ? () => void regenerate() : undefined}
+                      onRetry={!sosIsActive && msgIndex === messages.length - 1 ? () => void regenerate() : undefined}
                     />
                   ) : null}
 
@@ -2062,7 +2075,7 @@ export function AllmaChat({
                       person?.role === "owner"
                         ? "SOS caller"
                         : person?.role === "responder"
-                          ? "Responder"
+                          ? "Safety Circle"
                           : person?.role === "contact"
                             ? "Safety contact"
                             : "Member";
@@ -2091,6 +2104,15 @@ export function AllmaChat({
                                 minute: "2-digit",
                               })}
                             </time>
+                            {mine ? (
+                              <span
+                                aria-label="Message sent"
+                                title="Sent"
+                                className="inline-flex items-center text-success"
+                              >
+                                <Check className="h-3 w-3" />
+                              </span>
+                            ) : null}
                           </div>
                           <div
                             className={cn(
@@ -2153,7 +2175,7 @@ export function AllmaChat({
                   </div>
                 </div>
               ) : null}
-              {error ? (
+              {error && !sosIsActive ? (
                 <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                   <span>Something interrupted the response.</span>
                   <button type="button" onClick={() => void regenerate()} className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1 font-medium hover:bg-destructive/10">
