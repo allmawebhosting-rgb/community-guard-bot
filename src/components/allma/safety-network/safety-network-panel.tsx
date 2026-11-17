@@ -45,6 +45,9 @@ import {
 } from "@/lib/sos-calling-settings";
 import { AddSafetyContactDialog, Avatar } from "./add-safety-contact";
 import { clearPendingSetup, readPendingSetups } from "./contact-setup-sheet";
+import { BackgroundCallAlerts } from "@/components/allma/calls/background-call-alerts";
+import { BackgroundCallPrompt } from "@/components/allma/calls/background-call-prompt";
+import { enableBackgroundCallAlerts, readPushState } from "@/lib/push";
 
 export function SafetyNetworkPanel({ compact = false, workspace = false }: { compact?: boolean; workspace?: boolean }) {
   const [loading, setLoading] = useState(true);
@@ -135,6 +138,15 @@ export function SafetyNetworkPanel({ compact = false, workspace = false }: { com
               ? "Request cancelled"
               : "Request declined",
       );
+      if (action === "accept") {
+        const pushState = await readPushState().catch(() => null);
+        if (pushState === "prompt") {
+          const next = await enableBackgroundCallAlerts().catch(() => null);
+          if (next === "enabled") {
+            toast.success("Closed-app SOS alerts enabled on this device.");
+          }
+        }
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Action failed");
     } finally {
@@ -251,6 +263,11 @@ export function SafetyNetworkPanel({ compact = false, workspace = false }: { com
             <ReadinessMetric value={incoming.length + outgoing.length} label="Pending requests" detail="Awaiting a decision" />
           </div>
         </section>
+
+        <div className="space-y-3">
+          <BackgroundCallPrompt force />
+          <BackgroundCallAlerts />
+        </div>
 
         <section id="requests" className="scroll-mt-24 space-y-3">
           {incoming.length > 0 && <div className="safety-network-section-head"><div><p className="safety-network-kicker text-gold">Action needed</p><h2>Connection requests</h2></div><span className="safety-network-count">{incoming.length}</span></div>}

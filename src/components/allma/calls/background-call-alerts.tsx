@@ -12,19 +12,19 @@ import { sendTestPushAlert } from "@/lib/push.functions";
 
 const copy: Record<PushState, { title: string; detail: string }> = {
   enabled: {
-    title: "Background call alerts are on",
+    title: "Closed-app SOS alerts are on",
     detail:
-      "This device will ring for incoming Allma calls even when the app is closed. Alerts arrive as notifications — there is no full-screen native ringer on the web.",
+      "This device can receive Safety Network SOS call alerts even when Allma is closed. Alerts arrive as notifications — not a native full-screen phone ringer.",
   },
   prompt: {
-    title: "Ring me when Allma is closed",
+    title: "Enable closed-app SOS alerts",
     detail:
-      "Turn on notifications so incoming Allma calls reach this device when the app is in the background.",
+      "Turn on notifications so Safety Network SOS calls reach this device when Allma is closed or in the background.",
   },
   denied: {
     title: "Notifications are blocked",
     detail:
-      "Allow notifications for this site in your browser settings, then reload to enable background call alerts.",
+      "Allow notifications for Allma in your browser settings, then reload and enable closed-app SOS alerts.",
   },
   "ios-needs-install": {
     title: "Add Allma to your Home Screen first",
@@ -38,7 +38,7 @@ const copy: Record<PushState, { title: string; detail: string }> = {
   unsupported: {
     title: "This browser can't do background alerts",
     detail:
-      "Incoming calls will only ring while Allma is open in this browser. Try Chrome on Android or an installed Allma app.",
+      "Incoming SOS calls will only ring while Allma is open. Try Chrome on Android or an installed Allma app on iPhone.",
   },
 };
 
@@ -124,7 +124,7 @@ export function BackgroundCallAlerts() {
               onClick={() => void (state === "enabled" ? disable() : enable())}
             >
               {busy && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-              {state === "enabled" ? "Turn off on this device" : "Enable background alerts"}
+              {state === "enabled" ? "Turn off on this device" : "Enable closed-app SOS alerts"}
             </Button>
           )}
           {state === "enabled" && (

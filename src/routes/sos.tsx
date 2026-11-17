@@ -51,7 +51,7 @@ function SOSRoute() {
   const { instant, check, threadId } = Route.useSearch();
   return (
     <>
-      <BackgroundCallPrompt />
+      <BackgroundCallPrompt force />
       <SOSExperience instant={instant} smartCheckId={check} conversationThreadId={threadId} />
     </>
   );

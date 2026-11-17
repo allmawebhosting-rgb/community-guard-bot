@@ -27,6 +27,7 @@ import { MascotAvatar } from "@/components/allma/mascot";
 import { BrandLockup } from "@/components/allma/brand";
 import { NotificationsBell } from "@/components/allma/notifications-bell";
 import { ConnectionRequestsBanner } from "@/components/allma/safety-network/connection-requests-banner";
+import { BackgroundCallPrompt } from "@/components/allma/calls/background-call-prompt";
 import { SosButton } from "@/components/allma/sos-button";
 import { SosHeaderStatus } from "@/components/allma/sos-header-status";
 import { useActiveSos } from "@/lib/sos-active";
@@ -663,6 +664,14 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         </header>
 
         {isAuthenticated && <ConnectionRequestsBanner />}
+        {isAuthenticated &&
+          !pathname.startsWith("/safety-network") &&
+          !pathname.startsWith("/calls") &&
+          !pathname.startsWith("/profile") && (
+          <div className="no-print mx-auto w-full max-w-2xl px-3 pt-3 sm:px-4 lg:max-w-4xl">
+            <BackgroundCallPrompt compact />
+          </div>
+        )}
 
         {/* Main content — no max-w constraint; children control their own width */}
         <main className={cn("flex min-h-0 flex-1 flex-col", isChat && "overflow-hidden")}>

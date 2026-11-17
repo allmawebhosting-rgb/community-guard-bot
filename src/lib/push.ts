@@ -114,8 +114,14 @@ export async function ensurePushRegistered(): Promise<PushState> {
   const config = await getPushConfig().catch(() => null);
   if (!config?.publicKey) return "not-configured";
   const reg = await registration();
-  const subscription = await reg.pushManager.getSubscription();
-  if (!subscription) return "prompt";
+  // Permission already granted: recreate a missing PushManager subscription so
+  // Safety Network SOS alerts keep working after browser data clears.
+  const subscription =
+    (await reg.pushManager.getSubscription()) ??
+    (await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(config.publicKey),
+    }));
   const json = subscription.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) return "prompt";
   await savePushSubscription({

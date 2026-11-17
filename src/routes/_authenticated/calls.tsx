@@ -78,8 +78,7 @@ function CallsRoute() {
   return (
     <AppShell title="Call centre">
       <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
-        <BackgroundCallPrompt />
-
+        <BackgroundCallPrompt force />
         <header className="mb-5">
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-destructive">
             <Radio className="h-3 w-3" />

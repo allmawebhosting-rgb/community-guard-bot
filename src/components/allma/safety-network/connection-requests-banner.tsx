@@ -8,6 +8,7 @@ import {
   listRequests,
   respondToRequest,
 } from "@/lib/safety-network";
+import { enableBackgroundCallAlerts, readPushState } from "@/lib/push";
 
 /**
  * Always-visible banner for incoming safety-connection requests so accepting
@@ -66,6 +67,20 @@ export function ConnectionRequestsBanner() {
       await respondToRequest(id, action);
       toast.success(action === "accept" ? "Connected" : "Request declined");
       await refresh();
+      // Accepting into a Safety Network is the right moment to enable closed-app SOS rings.
+      if (action === "accept") {
+        const pushState = await readPushState().catch(() => null);
+        if (pushState === "prompt") {
+          const next = await enableBackgroundCallAlerts().catch(() => null);
+          if (next === "enabled") {
+            toast.success("Closed-app SOS alerts enabled on this device.");
+          } else {
+            toast.message("Enable notifications so SOS calls can reach you when Allma is closed.");
+          }
+        } else if (pushState === "ios-needs-install") {
+          toast.message("Add Allma to your Home Screen so SOS alerts can reach this iPhone.");
+        }
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not respond to the request");
     } finally {

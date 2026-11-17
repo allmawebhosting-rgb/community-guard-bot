@@ -176,7 +176,11 @@ async function loadZegoSdk(quietErrors = false): Promise<ZegoSdk> {
 
 
 /** Incoming UI remains owned by ALLMA realtime call records; Zego joins after Answer. */
-export async function registerVoiceDevice() {}
+export async function registerVoiceDevice() {
+  // Keep the device registered for closed-app SOS / Safety Network call pushes.
+  const { ensurePushRegistered } = await import("@/lib/push");
+  return ensurePushRegistered();
+}
 
 type EngineEvents = {
   onQuality: (quality: ConnectionQuality) => void;
