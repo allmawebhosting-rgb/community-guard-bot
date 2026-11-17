@@ -9,6 +9,8 @@ BEGIN
     'public.start_sos_emergency_call(uuid, uuid)',
     'public.list_sos_call_attempts(uuid)',
     'public.can_access_sos_room(uuid, uuid)',
+    'public.can_write_sos_room(uuid, uuid)',
+    'public.can_write_sos_thread(uuid, uuid)',
     'public.upsert_member_presence(double precision, double precision, boolean)',
     'public.find_nearby_members(integer, double precision, double precision, integer)'
   ] LOOP
@@ -40,6 +42,42 @@ BEGIN
   INTO function_definition;
   IF position('_user_id = auth.uid()' IN function_definition) = 0 THEN
     RAISE EXCEPTION 'can_access_sos_room must only inspect the current caller';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM unnest(ARRAY[
+      'public.can_write_sos_room(uuid, uuid)',
+      'public.can_write_sos_thread(uuid, uuid)'
+    ]) AS signatures(function_signature)
+    WHERE has_function_privilege('anon', function_signature, 'EXECUTE')
+  ) THEN
+    RAISE EXCEPTION 'anonymous users must not execute SOS write authorization helpers';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'messages'
+      AND policyname = 'Active SOS participants may write linked chat messages'
+      AND permissive = 'RESTRICTIVE'
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'emergency_chat_events'
+      AND policyname = 'Active SOS participants may post room events'
+      AND permissive = 'RESTRICTIVE'
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'Active SOS participants may upload voice notes'
+      AND permissive = 'RESTRICTIVE'
+  ) THEN
+    RAISE EXCEPTION 'active SOS write policies are missing or not restrictive';
   END IF;
 
   IF NOT EXISTS (

@@ -12,7 +12,7 @@ A community safety AI assistant built with React, TypeScript, Tailwind CSS, TanS
 
 ## How to run
 ```sh
-npm install
+npm ci
 npm run dev   # starts on port 5000
 ```
 
