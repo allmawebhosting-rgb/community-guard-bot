@@ -190,7 +190,7 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   vi.useRealTimers();
 
   expect(await screen.findByText("SOS live")).toBeTruthy();
-  expect(screen.getByTestId("live-map").getAttribute("data-height")).toBe("h-36");
+  expect(screen.getByTestId("live-map").getAttribute("data-height")).toBe("h-44");
   expect(await screen.findByText("Nearby help")).toBeTruthy();
   expect(screen.getByText("Choose a category to show places.")).toBeTruthy();
   expect(screen.queryByText("City Hospital")).toBeNull();

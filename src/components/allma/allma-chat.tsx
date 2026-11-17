@@ -2343,7 +2343,13 @@ export function AllmaChat({
             activityId={sosActivityId}
             messageCount={visibleSosMessages.length}
           />
-          <ConversationContent className={cn("mx-auto w-full max-w-3xl px-3 lg:max-w-4xl lg:px-8 lg:pb-10", "pb-8")}>
+          <ConversationContent
+            className={cn(
+              "mx-auto w-full max-w-3xl lg:max-w-4xl lg:px-8 lg:pb-10",
+              sosIsActive ? "px-1.5 sm:px-3" : "px-3",
+              "pb-8",
+            )}
+          >
             <div className={cn("flex flex-col pt-16 lg:pt-8", sosIsActive ? "gap-4" : "gap-5")}>
               {timelineItems.map((item) => {
                 if (item.kind === "sos") {
@@ -2367,6 +2373,19 @@ export function AllmaChat({
                 const isOwnUserMessage = message.role === "user" && (!authorId || authorId === user?.id);
                 const author = authorId ? sosRoomPeople.get(authorId) : undefined;
                 const isOtherHuman = message.role === "user" && !isOwnUserMessage;
+                const emergencyMarker =
+                  message.role === "assistant"
+                    ? message.parts
+                        .map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).emergency : null))
+                        .find(Boolean) ?? null
+                    : null;
+                const replyIncident =
+                  message.role === "assistant" ? incidentForReply(messages, msgIndex) : null;
+                const emergencyType =
+                  emergencyMarker?.type ??
+                  (replyIncident?.lifeThreatening ? replyIncident.marker : null);
+                const wideSosLayout =
+                  message.role === "assistant" && Boolean(emergencyType) && sosIsActive;
                 return (
                 <motion.div
                   key={message.id}
@@ -2378,12 +2397,13 @@ export function AllmaChat({
                   from={message.role}
                   className={cn(
                     message.role === "assistant"
-                      ? "max-w-full flex-row items-start gap-2.5 sm:max-w-full"
-                      : "max-w-full sm:max-w-full",
+                      ? "flex-row items-start gap-2.5"
+                      : undefined,
+                    wideSosLayout ? "!max-w-none w-full" : "max-w-full sm:max-w-full",
                     isOtherHuman && "ml-0 mr-auto justify-start",
                   )}
                 >
-                  {message.role === "assistant" ? (
+                  {message.role === "assistant" && !wideSosLayout ? (
                     <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
                   ) : isOtherHuman ? (
                     <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={30} />
@@ -2400,7 +2420,9 @@ export function AllmaChat({
                   <MessageContent
                     className={
                       message.role === "assistant"
-                        ? "w-full max-w-[92%] rounded-[1.35rem] border-0 bg-muted px-3.5 py-3 shadow-none sm:max-w-[85%]"
+                        ? wideSosLayout
+                          ? "w-full max-w-none rounded-none border-0 bg-transparent p-0 shadow-none"
+                          : "w-full max-w-[92%] rounded-[1.35rem] border-0 bg-muted px-3.5 py-3 shadow-none sm:max-w-[85%]"
                         : cn(
                             "w-fit max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[80%]",
                             isOwnUserMessage ? "ml-auto" : "mr-auto",
@@ -2409,23 +2431,21 @@ export function AllmaChat({
                   >
                     {(() => {
                       if (message.role !== "assistant") return null;
-                      const em = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).emergency : null)).find(Boolean) ?? null;
-                      const incident = incidentForReply(messages, msgIndex);
-                      // Life-threatening incident without the marker: still show the tap-only SOS block.
-                      const type = em?.type ?? (incident?.lifeThreatening ? incident.marker : null);
-                      const offerMode = Boolean(em?.offer) && !incident?.lifeThreatening;
+                      const type = emergencyType;
+                      const offerMode =
+                        Boolean(emergencyMarker?.offer) && !replyIncident?.lifeThreatening;
                       const streaming = busy && msgIndex === messages.length - 1;
                       const allText = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : "")).join("\n");
                       // Show first aid as soon as the incident is known, not after the model finishes.
-                      const aid = firstAidFallback(incident, allText);
-                      const followUp = !streaming && aid && incident && !/\?/.test(allText) ? incident.followUp : null;
+                      const aid = firstAidFallback(replyIncident, allText);
+                      const followUp = !streaming && aid && replyIncident && !/\?/.test(allText) ? replyIncident.followUp : null;
                       if (aid && hasNotDoctorLine(allText)) aid.notDoctor = null;
                       const showProgress =
                         streaming &&
                         progressSteps &&
                         !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>);
                       return type || aid || showProgress ? (
-                        <div className="mb-3 space-y-3">
+                        <div className={cn("space-y-3", !wideSosLayout && "mb-3")}>
                           {type ? <EmergencyActions type={type} offerMode={offerMode} /> : null}
                           {aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
                           {showProgress && progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : null}
@@ -2634,8 +2654,8 @@ export function AllmaChat({
         className={cn(
           // Docked as the last flex child of the full-height chat column, so it
           // never floats over (and hides) the end of the conversation.
-          "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 px-2.5 sm:px-4",
-          sosIsActive && "chat-composer-dock-sos",
+          "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 sm:px-4",
+          sosIsActive ? "chat-composer-dock-sos px-1.5" : "px-2.5",
         )}
         data-fixed-composer={fixedComposer ? "true" : undefined}
         onPointerDownCapture={(event) => {

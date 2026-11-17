@@ -738,7 +738,7 @@ export function InChatSos({
                   <LiveLocationMap
                     location={{ lat: loc.lat, lng: loc.lng, accuracy: loc.acc }}
                     badge="Your location"
-                    heightClassName="h-36"
+                    heightClassName="h-44"
                     places={mapPlaces}
                     selectedPlaceId={selectedPlaceId}
                     onSelectPlace={setSelectedPlaceId}
@@ -823,11 +823,11 @@ export function InChatSos({
                                     <Icon className="h-3.5 w-3.5" />
                                   </span>
                                   <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-[12.5px] font-semibold text-foreground">
+                                    <span className="block truncate text-[13.5px] font-semibold leading-snug text-foreground">
                                       {place.name}
                                     </span>
-                                    <span className="block truncate text-[11px] text-muted-foreground">
-                                      {compactDistance(place.distance_m)}
+                                    <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                                      {compactDistance(place.distance_m)} away
                                     </span>
                                   </span>
                                 </button>
