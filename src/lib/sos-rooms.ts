@@ -160,6 +160,16 @@ export async function listSosRoomMessages(sosActivityId: string): Promise<SosRoo
   return (data ?? []) as SosRoomMessage[];
 }
 
+export async function listConversationMessages(threadId: string): Promise<SharedChatMessageRow[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id, thread_id, user_id, role, parts, sdk_message_id, created_at")
+    .eq("thread_id", threadId)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(friendly(error.message));
+  return (data ?? []) as SharedChatMessageRow[];
+}
+
 export function sosRoomMessagesQueryOptions(sosActivityId: string | null) {
   return queryOptions({
     queryKey: ["sos-room-messages", sosActivityId],
@@ -229,6 +239,7 @@ export async function getSosRoomVoiceNoteUrl(path: string) {
 export function subscribeSosRoomMessages(
   sosActivityId: string,
   onMessage: (message: SosRoomMessage) => void,
+  onSubscribed?: () => void,
 ) {
   const channel = supabase
     .channel(`sos-room-${sosActivityId}-${Math.random().toString(36).slice(2, 8)}`)
@@ -242,7 +253,9 @@ export function subscribeSosRoomMessages(
       },
       (payload) => onMessage(payload.new as SosRoomMessage),
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") onSubscribed?.();
+    });
   return () => {
     void supabase.removeChannel(channel);
   };
@@ -251,6 +264,7 @@ export function subscribeSosRoomMessages(
 export function subscribeConversationMessages(
   threadId: string,
   onMessage: (message: SharedChatMessageRow) => void,
+  onSubscribed?: () => void,
 ) {
   const channel = supabase
     .channel(`chat-thread-${threadId}-${Math.random().toString(36).slice(2, 8)}`)
@@ -264,7 +278,9 @@ export function subscribeConversationMessages(
       },
       (payload) => onMessage(payload.new as SharedChatMessageRow),
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") onSubscribed?.();
+    });
   return () => {
     void supabase.removeChannel(channel);
   };

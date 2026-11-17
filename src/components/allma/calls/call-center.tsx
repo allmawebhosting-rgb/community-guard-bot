@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Clipboard,
@@ -36,6 +37,7 @@ import {
   getEmergencyCallContext,
   type EmergencyCallContext,
 } from "@/lib/sos-calling";
+import { getSosThreadForActivity } from "@/lib/sos-rooms";
 import { startSosEmergencyCall } from "@/lib/sos-calling";
 import {
   VoiceCallEngine,
@@ -69,6 +71,7 @@ const qualityCopy: Record<ConnectionQuality, string> = {
 };
 
 export function CallCenter() {
+  const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
   const [phase, setPhaseState] = useState<Phase>("idle");
   const setPhase = useCallback((next: Phase) => {
@@ -708,6 +711,7 @@ export function CallCenter() {
     const id = callIdRef.current;
     if (!id) return;
     const isSosCall = Boolean(peerRef.current?.sosActivityId);
+    const sosActivityId = peerRef.current?.sosActivityId ?? sosRoomId;
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     try {
       const invitationId = new URLSearchParams(window.location.search).get("invitation");
@@ -717,6 +721,20 @@ export function CallCenter() {
           toast.message("Another responder has already accepted this emergency.");
           teardown("Another responder has accepted this emergency.");
           return;
+        }
+      }
+      if (isSosCall && sosActivityId && !isChatRoute()) {
+        try {
+          const threadId = await getSosThreadForActivity(sosActivityId);
+          if (threadId) {
+            await navigate({
+              to: "/chat/$threadId",
+              params: { threadId },
+              replace: true,
+            });
+          }
+        } catch (navigationError) {
+          console.warn("The accepted SOS call could not open its shared conversation", navigationError);
         }
       }
       if (isSosCall) {

@@ -29,5 +29,10 @@ commit Google API keys in source or `wrangler.jsonc`. Account deletion is enable
 settings. Apply `supabase/migrations/20261108000200_account_deletion_safety.sql` to the production
 database before deploying the updated Worker.
 
+## Shared SOS conversations
+Apply the Supabase migrations in `supabase/migrations` in filename order before testing responder
+access, shared messages, voice notes, or emergency location. Multi-account acceptance tests require
+separate signed-in owner and responder accounts.
+
 ## User preferences
 - Keep existing project structure and stack (TanStack Start + Supabase + Lovable conventions).

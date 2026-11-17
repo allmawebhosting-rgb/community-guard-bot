@@ -8,6 +8,8 @@ const {
   getNearbyPlacesMock,
   inlineCallMock,
   notifyMock,
+  insertMock,
+  rpcMock,
   runCallActionMock,
   singleMock,
   updateMock,
@@ -16,7 +18,9 @@ const {
   fromMock: vi.fn(),
   getNearbyPlacesMock: vi.fn(),
   inlineCallMock: vi.fn(),
+  insertMock: vi.fn(),
   notifyMock: vi.fn(),
+  rpcMock: vi.fn(),
   runCallActionMock: vi.fn(),
   singleMock: vi.fn(),
   updateMock: vi.fn(),
@@ -24,7 +28,7 @@ const {
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: fromMock },
+  supabase: { from: fromMock, rpc: rpcMock },
 }));
 vi.mock("@/components/allma/live-location-map", () => ({
   LiveLocationMap: ({ heightClassName }: { heightClassName: string }) => (
@@ -57,6 +61,11 @@ const location = {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  fromMock.mockClear();
+  insertMock.mockClear();
+  updateMock.mockClear();
+  runCallActionMock.mockClear();
+  rpcMock.mockResolvedValue({ data: [], error: null });
   singleMock.mockResolvedValue({ data: { id: "sos-1" }, error: null });
   updateMock.mockImplementation((payload: Record<string, unknown>) => {
     const error = "sos_status" in payload
@@ -72,7 +81,7 @@ beforeEach(() => {
     return updateChain;
   });
   fromMock.mockImplementation(() => ({
-    insert: vi.fn(() => ({
+    insert: insertMock.mockImplementation(() => ({
       select: vi.fn(() => ({ single: singleMock })),
     })),
     update: updateMock,
@@ -138,6 +147,7 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
     <InChatSos
       type="crime"
       lines={[{ number: "999" }, { number: "112" }]}
+      threadId="thread-1"
       onActivityStarted={onActivityStarted}
       onActivityEnded={onActivityEnded}
     />,
@@ -179,7 +189,22 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   expect(updateMock.mock.calls.at(-1)?.[0]).toMatchObject({
     details: { sos_status: "cancelled" },
   });
+  expect(insertMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      details: expect.objectContaining({ thread_id: "thread-1" }),
+    }),
+  );
   expect(notifyMock).toHaveBeenCalledWith({
     data: { activityId: "sos-1", status: "resolved" },
   });
+});
+
+it("does not start an SOS without a saved conversation to link", () => {
+  render(<InChatSos type="medical" lines={[{ number: "112" }]} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Press SOS" }));
+
+  expect(screen.getByRole("button", { name: "Press SOS" })).toBeTruthy();
+  expect(screen.queryByText(/Starting SOS in/)).toBeNull();
+  expect(fromMock).not.toHaveBeenCalled();
 });

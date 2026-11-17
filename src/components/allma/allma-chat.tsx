@@ -92,6 +92,7 @@ import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import {
   chatThreadContextQueryOptions,
   getSosRoomVoiceNoteUrl,
+  listConversationMessages,
   sendSosRoomVoiceNote,
   sosRoomMessagesQueryOptions,
   sosRoomQueryOptions,
@@ -114,6 +115,34 @@ type Suggestion = { label: string; prompt: string };
 type TimelineItem =
   | { kind: "chat"; message: UIMessage; msgIndex: number; timestamp: number }
   | { kind: "sos"; message: SosRoomMessage; timestamp: number };
+
+function toSharedUiMessage(row: SharedChatMessageRow): UIMessage {
+  return {
+    id: row.sdk_message_id || row.id,
+    role: row.role as UIMessage["role"],
+    parts: (Array.isArray(row.parts) ? row.parts : []) as UIMessage["parts"],
+    authorId: row.user_id,
+    createdAt: row.created_at,
+  } as UIMessage;
+}
+
+function mergeSharedMessages(
+  current: UIMessage[],
+  incoming: SharedChatMessageRow[],
+): UIMessage[] {
+  const byId = new Map(current.map((message) => [message.id, message]));
+  for (const row of incoming) {
+    const message = toSharedUiMessage(row);
+    byId.set(message.id, message);
+  }
+  return [...byId.values()].sort((left, right) => {
+    const leftDate = (left as UIMessage & { createdAt?: string | Date }).createdAt;
+    const rightDate = (right as UIMessage & { createdAt?: string | Date }).createdAt;
+    const leftTime = leftDate ? new Date(leftDate).getTime() : Number.MAX_SAFE_INTEGER;
+    const rightTime = rightDate ? new Date(rightDate).getTime() : Number.MAX_SAFE_INTEGER;
+    return leftTime - rightTime;
+  });
+}
 
 function SosRoomAutoScroll({
   active,
@@ -1302,28 +1331,28 @@ export function AllmaChat({
         },
       );
       void queryClient.invalidateQueries({ queryKey: ["sos-room", sosActivityId] });
+    }, () => {
+      void queryClient.invalidateQueries({ queryKey: ["sos-room-messages", sosActivityId] });
+      void queryClient.invalidateQueries({ queryKey: ["sos-room", sosActivityId] });
     });
   }, [queryClient, sosActivityId]);
 
   useEffect(() => {
     if (!threadId) return;
-    return subscribeConversationMessages(threadId, (incoming: SharedChatMessageRow) => {
-      setMessages((current) => {
-        const messageId = incoming.sdk_message_id || incoming.id;
-        if (current.some((message) => message.id === messageId)) return current;
-        const parts = Array.isArray(incoming.parts) ? incoming.parts : [];
-        return [
-          ...current,
-          {
-            id: messageId,
-            role: incoming.role as UIMessage["role"],
-            parts: parts as UIMessage["parts"],
-            authorId: incoming.user_id,
-            createdAt: incoming.created_at,
-          } as UIMessage,
-        ];
-      });
-    });
+    const backfillMessages = () => {
+      void listConversationMessages(threadId)
+        .then((rows) => setMessages((current) => mergeSharedMessages(current, rows)))
+        .catch((syncError) => {
+          console.warn("Could not refresh shared conversation messages", syncError);
+        });
+    };
+    return subscribeConversationMessages(
+      threadId,
+      (incoming: SharedChatMessageRow) => {
+        setMessages((current) => mergeSharedMessages(current, [incoming]));
+      },
+      backfillMessages,
+    );
   }, [setMessages, threadId]);
 
   useEffect(() => {

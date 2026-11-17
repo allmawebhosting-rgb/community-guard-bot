@@ -228,6 +228,10 @@ export function InChatSos({
 
   function startCountdown() {
     if (!user) { toast.error("Sign in so Allma can alert your safety network."); return; }
+    if (!threadId) {
+      toast.error("Open a saved conversation before starting SOS so responders can join it.");
+      return;
+    }
     setLeft(COUNTDOWN);
     setNetworkNotified(null);
     setMapVisible(true);
@@ -348,6 +352,19 @@ export function InChatSos({
       data = fallbackResult.data;
       error = fallbackResult.error;
     }
+    if (error && threadId && (error as { code?: string }).code === "23505") {
+      const { data: contextRows, error: contextError } = await supabase.rpc(
+        "get_chat_thread_context",
+        { p_thread_id: threadId },
+      );
+      const existing = !contextError ? contextRows?.[0] : null;
+      if (existing?.sos_active && existing.sos_activity_id) {
+        setActivityId(existing.sos_activity_id);
+        setStartedAt(Date.now());
+        setSaving(false);
+        return;
+      }
+    }
     setSaving(false);
     if (error || !data) {
       toast.error("SOS could not be started. Call 999 or 112 now.");
@@ -435,23 +452,6 @@ export function InChatSos({
       ))}
     </div>
   );
-
-  if (phase === "ended") {
-    const mins = startedAt && endedAt ? Math.max(1, Math.round((endedAt - startedAt) / 60000)) : null;
-    return (
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/60 px-3.5 py-2.5 text-sm text-muted-foreground">
-        <CheckCircle2 className="h-4 w-4 shrink-0" />
-        <span>
-          SOS ended at {time(endedAt)}{mins ? ` · ${mins} min` : ""}
-          {networkNotified === true
-            ? " · Safety network notified"
-            : networkNotified === false
-              ? " · Network notification failed"
-              : ""}
-        </span>
-      </div>
-    );
-  }
 
   if (phase === "countdown") {
     return (
