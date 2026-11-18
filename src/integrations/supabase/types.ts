@@ -817,41 +817,27 @@ export type Database = {
           author_id: string | null
           body: string
           created_at: string
-          duration_seconds: number | null
           event_type: string
           id: string
           sos_session_id: string | null
-          thread_id: string | null
         }
         Insert: {
           author_id?: string | null
           body: string
           created_at?: string
-          duration_seconds?: number | null
           event_type: string
           id?: string
           sos_session_id?: string | null
-          thread_id?: string | null
         }
         Update: {
           author_id?: string | null
           body?: string
           created_at?: string
-          duration_seconds?: number | null
           event_type?: string
           id?: string
           sos_session_id?: string | null
-          thread_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "emergency_chat_events_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "threads"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       emergency_contacts: {
         Row: {
@@ -2424,7 +2410,6 @@ export type Database = {
           severity: string
           sos_status: string | null
           summary: string | null
-          thread_id: string | null
           title: string
           user_id: string | null
         }
@@ -2442,7 +2427,6 @@ export type Database = {
           severity?: string
           sos_status?: string | null
           summary?: string | null
-          thread_id?: string | null
           title: string
           user_id?: string | null
         }
@@ -2460,7 +2444,6 @@ export type Database = {
           severity?: string
           sos_status?: string | null
           summary?: string | null
-          thread_id?: string | null
           title?: string
           user_id?: string | null
         }
@@ -2470,13 +2453,6 @@ export type Database = {
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "safety_activity_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "threads"
             referencedColumns: ["id"]
           },
         ]
@@ -2897,10 +2873,6 @@ export type Database = {
         Args: { _sos_id: string; _user_id: string }
         Returns: boolean
       }
-      can_access_sos_thread: {
-        Args: { _thread_id: string; _user_id: string }
-        Returns: boolean
-      }
       claim_due_health_reminders: {
         Args: { p_limit?: number }
         Returns: {
@@ -3045,23 +3017,6 @@ export type Database = {
           severity: string
           sos_activity_id: string
         }[]
-      }
-      get_chat_thread_context: {
-        Args: { p_thread_id: string }
-        Returns: {
-          is_owner: boolean
-          owner_id: string
-          sos_active: boolean
-          sos_activity_id: string | null
-        }[]
-      }
-      get_sos_thread_for_activity: {
-        Args: { p_sos_activity_id: string }
-        Returns: string | null
-      }
-      open_sos_shared_conversation: {
-        Args: { p_sos_activity_id: string }
-        Returns: string
       }
       has_role: {
         Args: {
