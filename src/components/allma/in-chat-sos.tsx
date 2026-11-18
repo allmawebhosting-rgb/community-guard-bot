@@ -742,7 +742,7 @@ export function InChatSos({
                     places={mapPlaces}
                     selectedPlaceId={selectedPlaceId}
                     onSelectPlace={setSelectedPlaceId}
-                    mapTypeId="hybrid"
+                    mapTypeId="roadmap"
                     compact
                   />
                 </div>

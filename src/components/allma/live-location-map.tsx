@@ -7,7 +7,9 @@ import {
   LocateFixed,
   Minus,
   Navigation2,
+  Phone,
   Plus,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HELP_KIND_COLOR, helpKind, type HelpPlace } from "@/components/allma/nearby-help-list";
@@ -193,12 +195,14 @@ export function GoogleLocationCanvas({
   selectedPlaceId = null,
   onSelectPlace,
   onFail,
-  mapTypeId = "hybrid",
+  mapTypeId = "roadmap",
   compact = false,
+  routeTo = null,
 }: {
   lat: number;
   lng: number;
   zoom: number;
+  routeTo?: { lat: number; lng: number } | null;
   places?: HelpPlace[];
   selectedPlaceId?: string | null;
   onSelectPlace?: (id: string) => void;
@@ -303,7 +307,6 @@ export function GoogleLocationCanvas({
       details.textContent = [distanceLabel, kind].filter(Boolean).join(" · ");
       details.style.cssText = "display:block;margin-top:4px;color:#52616b;text-transform:capitalize";
       infoContent.append(name, details);
-      if (!infoWindowRef.current) infoWindowRef.current = new maps.InfoWindow();
       const markerSize = compact ? 34 : 48;
       const marker = new maps.Marker({
         map,
@@ -318,8 +321,6 @@ export function GoogleLocationCanvas({
       });
       marker.addListener("click", () => {
         selectRef.current?.(place.id);
-        infoWindowRef.current?.setContent(infoContent);
-        infoWindowRef.current?.open({ map, anchor: marker });
       });
       (marker as { __placeId?: string; __infoContent?: HTMLElement }).__placeId = place.id;
       (marker as { __placeId?: string; __infoContent?: HTMLElement }).__infoContent = infoContent;
@@ -347,16 +348,52 @@ export function GoogleLocationCanvas({
       const placeId = (marker as { __placeId?: string }).__placeId;
       const active = placeId === selectedPlaceId;
       marker.setZIndex(active ? 4 : 1);
-      if (active) {
-        const infoContent = (marker as { __infoContent?: HTMLElement }).__infoContent;
-        if (infoContent) {
-          infoWindowRef.current?.setContent(infoContent);
-          infoWindowRef.current?.open({ map, anchor: marker });
-        }
+      const base = compact ? 34 : 48;
+      const size = active ? Math.round(base * 1.35) : base;
+      const icon = marker.getIcon?.();
+      if (icon && typeof icon === "object") {
+        marker.setIcon({
+          ...icon,
+          scaledSize: new maps.Size(size, size),
+          anchor: new maps.Point(size / 2, size / 2),
+        });
       }
+      marker.setAnimation?.(active ? maps.Animation?.BOUNCE ?? null : null);
+      if (active) window.setTimeout(() => marker.setAnimation?.(null), 1400);
     });
-    if (!selectedPlaceId) infoWindowRef.current?.close();
-  }, [mapReady, places, selectedPlaceId]);
+  }, [compact, mapReady, places, selectedPlaceId]);
+
+  // Straight guide line from YOU to the chosen place (stays inside the chat).
+  const routeLineRef = useRef<any>(null);
+  useEffect(() => {
+    const maps = mapsRef.current;
+    const map = mapRef.current;
+    routeLineRef.current?.setMap(null);
+    routeLineRef.current = null;
+    if (!mapReady || !maps || !map || !routeTo) return;
+    routeLineRef.current = new maps.Polyline({
+      map,
+      path: [{ lat, lng }, routeTo],
+      geodesic: true,
+      strokeOpacity: 0,
+      icons: [
+        {
+          icon: { path: "M 0,-1 0,1", strokeOpacity: 1, strokeColor: "#dc2626", strokeWeight: 4, scale: 3 },
+          offset: "0",
+          repeat: "14px",
+        },
+      ],
+      zIndex: 3,
+    });
+    const bounds = new maps.LatLngBounds();
+    bounds.extend({ lat, lng });
+    bounds.extend(routeTo);
+    map.fitBounds(bounds, 48);
+    return () => {
+      routeLineRef.current?.setMap(null);
+      routeLineRef.current = null;
+    };
+  }, [lat, lng, mapReady, routeTo?.lat, routeTo?.lng]);
 
   return <div ref={containerRef} className="absolute inset-0" />;
 }
@@ -371,7 +408,7 @@ export function LiveLocationMap({
   places = [],
   selectedPlaceId = null,
   onSelectPlace,
-  mapTypeId = "hybrid",
+  mapTypeId = "roadmap",
   showMapTypeToggle = true,
   compact = false,
 }: {
@@ -398,6 +435,27 @@ export function LiveLocationMap({
   const [googleFailed, setGoogleFailed] = useState(false);
   const [activeMapType, setActiveMapType] = useState<LiveMapTypeId>(mapTypeId);
   const [localSelectedPlaceId, setLocalSelectedPlaceId] = useState<string | null>(null);
+  const [guiding, setGuiding] = useState(false);
+  const activeId = selectedPlaceId ?? localSelectedPlaceId;
+  const activePlace = places.find((p) => p.id === activeId) ?? null;
+  const selectPlace = (id: string) => {
+    setLocalSelectedPlaceId(id);
+    onSelectPlace?.(id);
+  };
+  const clearPlace = () => {
+    setLocalSelectedPlaceId(null);
+    setGuiding(false);
+    onSelectPlace?.("");
+  };
+  useEffect(() => {
+    if (!activePlace) setGuiding(false);
+  }, [activePlace]);
+  const liveDistance = activePlace
+    ? distanceMetres(location.lat, location.lng, activePlace.latitude, activePlace.longitude)
+    : 0;
+  const heading = activePlace
+    ? compassLabel(bearingDegrees(location.lat, location.lng, activePlace.latitude, activePlace.longitude))
+    : "";
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasHeight, setCanvasHeight] = useState(208);
   const [canvasWidth, setCanvasWidth] = useState(640);
@@ -506,7 +564,8 @@ export function LiveLocationMap({
             zoom={tileZoom}
             places={places}
             selectedPlaceId={selectedPlaceId}
-            onSelectPlace={onSelectPlace}
+            onSelectPlace={selectPlace}
+            routeTo={guiding && activePlace ? { lat: activePlace.latitude, lng: activePlace.longitude } : null}
             mapTypeId={activeMapType}
             compact={compact}
             onFail={() => setGoogleFailed(true)}
@@ -522,8 +581,7 @@ export function LiveLocationMap({
                   : `${(place.distance_m / 1000).toFixed(1)} km`
                 : "";
               const active =
-                selectedPlaceId === place.id ||
-                (selectedPlaceId == null && localSelectedPlaceId === place.id);
+                activeId === place.id;
               return (
                 <button
                   key={place.id}
@@ -532,8 +590,8 @@ export function LiveLocationMap({
                   aria-label={`${place.name}${distanceLabel ? `, ${distanceLabel} away` : ""}, ${kind}`}
                   aria-pressed={active}
                   onClick={() => {
-                    setLocalSelectedPlaceId(active ? null : place.id);
-                    onSelectPlace?.(place.id);
+                    if (active) clearPlace();
+                    else selectPlace(place.id);
                   }}
                   className={cn(
                     "absolute -translate-x-1/2 -translate-y-1/2 group focus:z-20",
@@ -689,6 +747,82 @@ export function LiveLocationMap({
         </div>
       </div>
 
+      {activePlace ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            "mt-2 rounded-2xl border bg-card px-3 py-2.5 shadow-sm",
+            guiding ? "border-destructive/40" : "border-border/60",
+          )}
+        >
+          <div className="flex items-start gap-2.5">
+            <img
+              src={nearbyMarkerDataUrl(helpKind(activePlace.type, activePlace.name), HELP_KIND_COLOR[helpKind(activePlace.type, activePlace.name)])}
+              alt=""
+              aria-hidden="true"
+              className="h-9 w-9 shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-bold text-foreground">{activePlace.name}</p>
+              <p className="text-[11.5px] font-semibold text-muted-foreground">
+                <span className="capitalize">{helpKind(activePlace.type, activePlace.name)}</span>
+                {" · "}
+                {formatDistance(liveDistance)} {heading}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                About {formatMinutes(liveDistance, 4.5)} walk · {formatMinutes(liveDistance, 25)} by car
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Close place details"
+              onClick={clearPlace}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {guiding ? (
+            <p className="mt-2 rounded-xl bg-destructive/10 px-2.5 py-1.5 text-[12px] font-bold text-destructive">
+              Head {heading} · {formatDistance(liveDistance)} to go. The line updates as you move.
+            </p>
+          ) : null}
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              aria-pressed={guiding}
+              onClick={() => setGuiding((g) => !g)}
+              className={cn(
+                "flex min-h-9 items-center justify-center gap-1.5 rounded-full text-[12px] font-bold transition",
+                guiding
+                  ? "border border-border/60 bg-background text-foreground hover:bg-accent"
+                  : "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+              )}
+            >
+              <Navigation2 className="h-3.5 w-3.5" />
+              {guiding ? "Stop guiding" : "Guide me here"}
+            </button>
+            {activePlace.phone ? (
+              <a
+                href={`tel:${activePlace.phone.replace(/[^\d+]/g, "")}`}
+                className="flex min-h-9 items-center justify-center gap-1.5 rounded-full border border-border/60 bg-background text-[12px] font-bold text-foreground hover:bg-accent"
+              >
+                <Phone className="h-3.5 w-3.5" /> Call place
+              </a>
+            ) : (
+              <span className="flex min-h-9 items-center justify-center rounded-full border border-dashed border-border/60 text-[11px] text-muted-foreground">
+                No phone listed
+              </span>
+            )}
+          </div>
+        </div>
+      ) : places.length > 0 ? (
+        <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
+          Tap a pin to see distance and get guided there.
+        </p>
+      ) : null}
+
       {!compact && (location.address || location.district) ? (
         <div className="flex items-start gap-2 border-t border-border/60 bg-card px-4 py-3">
           <Navigation2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
@@ -741,4 +875,38 @@ export function LiveLocationMap({
       </div>
     </div>
   );
+}
+
+
+function distanceMetres(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function bearingDegrees(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const y = Math.sin(toRad(lng2 - lng1)) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lng2 - lng1));
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+function compassLabel(deg: number) {
+  const names = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+  return names[Math.round(deg / 45) % 8];
+}
+
+function formatDistance(m: number) {
+  return m < 950 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
+/** Rough straight-line estimate; roads add distance, so we round up. */
+function formatMinutes(m: number, kmh: number) {
+  const mins = Math.max(1, Math.ceil(((m * 1.3) / 1000 / kmh) * 60));
+  return mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
 }
