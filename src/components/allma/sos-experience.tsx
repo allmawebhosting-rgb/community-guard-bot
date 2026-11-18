@@ -1240,14 +1240,14 @@ export function SOSExperience({
       ...(linkedThreadId ? { thread_id: linkedThreadId } : {}),
       details: details as never,
     };
-    let { data: activity, error } = await supabase
+    let { data: activity, error } = await (supabase as any)
       .from("safety_activity")
       .insert(payload)
       .select("id")
       .single();
     if (error && linkedThreadId && /thread_id/i.test(error.message ?? "")) {
       const { thread_id: _ignored, ...withoutThreadColumn } = payload;
-      const retry = await supabase
+      const retry = await (supabase as any)
         .from("safety_activity")
         .insert(withoutThreadColumn)
         .select("id")

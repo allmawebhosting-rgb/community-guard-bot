@@ -409,8 +409,7 @@ export function InChatSos({
 
     if (activeThreadId) {
       try {
-        const { data: contextRows, error: contextError } = await supabase.rpc(
-          "get_chat_thread_context",
+        const { data: contextRows, error: contextError } = await (supabase as any).rpc("get_chat_thread_context",
           { p_thread_id: activeThreadId },
         );
         if (!contextError) {
@@ -456,7 +455,7 @@ export function InChatSos({
       thread_id: activeThreadId,
       details: details as never,
     };
-    const insertResult = await supabase
+    const insertResult = await (supabase as any)
       .from("safety_activity")
       .insert(baseInsert)
       .select("id")
@@ -464,7 +463,7 @@ export function InChatSos({
     let { data, error } = insertResult;
     if (error && isMissingSosColumnError(error, ["thread_id"])) {
       const { thread_id: _ignored, ...withoutThreadColumn } = baseInsert;
-      const fallbackThread = await supabase
+      const fallbackThread = await (supabase as any)
         .from("safety_activity")
         .insert(withoutThreadColumn)
         .select("id")
@@ -474,7 +473,7 @@ export function InChatSos({
     }
     if (error && isMissingSosColumnError(error, ["activated_at", "sos_status"])) {
       const { sos_status: _s, activated_at: _a, thread_id: threadColumn, ...rest } = baseInsert;
-      const fallbackResult = await supabase
+      const fallbackResult = await (supabase as any)
         .from("safety_activity")
         .insert({
           ...rest,
@@ -487,8 +486,7 @@ export function InChatSos({
       error = fallbackResult.error;
     }
     if (error && activeThreadId && (error as { code?: string }).code === "23505") {
-      const { data: contextRows, error: contextError } = await supabase.rpc(
-        "get_chat_thread_context",
+      const { data: contextRows, error: contextError } = await (supabase as any).rpc("get_chat_thread_context",
         { p_thread_id: activeThreadId },
       );
       const existing = !contextError ? contextRows?.[0] : null;

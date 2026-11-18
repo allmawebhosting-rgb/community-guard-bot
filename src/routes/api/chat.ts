@@ -136,8 +136,7 @@ export const Route = createFileRoute("/api/chat")({
         let threadIsOwner = Boolean(userId && threadId);
         let sharedSosActive = false;
         if (threadId) {
-          const { data: contextRows, error: contextError } = await supabase.rpc(
-            "get_chat_thread_context",
+          const { data: contextRows, error: contextError } = await (supabase as any).rpc("get_chat_thread_context",
             { p_thread_id: threadId },
           );
           const context = contextRows?.[0];
@@ -650,7 +649,7 @@ export const Route = createFileRoute("/api/chat")({
 
                 const followUpWrites: Promise<void>[] = [
                   (async () => {
-                    const { error: activityError } = await supabase.from("safety_activity").insert({
+                    const { error: activityError } = await (supabase as any).from("safety_activity").insert({
                       user_id: userId,
                       activity_type: "report_submitted",
                       title: "Incident report submitted",

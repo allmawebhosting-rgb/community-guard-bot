@@ -131,7 +131,7 @@ export function chatThreadContextQueryOptions(threadId: string | null) {
     queryKey: ["chat-thread-context", threadId],
     queryFn: async (): Promise<ChatThreadContext | null> => {
       if (!threadId) return null;
-      const { data, error } = await supabase.rpc("get_chat_thread_context", {
+      const { data, error } = await (supabase as any).rpc("get_chat_thread_context", {
         p_thread_id: threadId,
       });
       if (error) throw new Error(friendly(error.message));
@@ -142,11 +142,11 @@ export function chatThreadContextQueryOptions(threadId: string | null) {
 }
 
 export async function getSosThreadForActivity(sosActivityId: string) {
-  const { data, error } = await supabase.rpc("get_sos_thread_for_activity", {
+  const { data, error } = await (supabase as any).rpc("get_sos_thread_for_activity", {
     p_sos_activity_id: sosActivityId,
   });
   if (error) throw new Error(friendly(error.message));
-  return data ?? null;
+  return (data as string | null) ?? null;
 }
 
 /**
@@ -154,7 +154,7 @@ export async function getSosThreadForActivity(sosActivityId: string) {
  * that emergency (creating/linking a thread when needed) and return its id.
  */
 export async function openSharedSosConversation(sosActivityId: string): Promise<string> {
-  const { data, error } = await supabase.rpc("open_sos_shared_conversation", {
+  const { data, error } = await (supabase as any).rpc("open_sos_shared_conversation", {
     p_sos_activity_id: sosActivityId,
   });
   if (!error && data) return data as string;
@@ -175,7 +175,7 @@ export async function openSharedSosConversation(sosActivityId: string): Promise<
 }
 
 export async function listSosRoomMessages(sosActivityId: string): Promise<SosRoomMessage[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("emergency_chat_events")
     .select("id, sos_session_id, thread_id, author_id, event_type, body, duration_seconds, created_at")
     .eq("sos_session_id", sosActivityId)
@@ -214,7 +214,7 @@ export async function sendSosRoomMessage(
   const userId = auth.user?.id;
   if (!userId) throw new Error("Please sign in to send a message.");
   const linkedThreadId = threadId ?? (await getSosThreadForActivity(sosActivityId));
-  const { error } = await supabase.from("emergency_chat_events").insert({
+  const { error } = await (supabase as any).from("emergency_chat_events").insert({
     sos_session_id: sosActivityId,
     thread_id: linkedThreadId,
     author_id: userId,
@@ -244,7 +244,7 @@ export async function sendSosRoomVoiceNote(
     .upload(path, clip, { contentType: mimeType, upsert: false });
   if (uploadError) throw new Error(friendly(uploadError.message));
 
-  const { error } = await supabase.from("emergency_chat_events").insert({
+  const { error } = await (supabase as any).from("emergency_chat_events").insert({
     sos_session_id: sosActivityId,
     thread_id: threadId,
     author_id: userId,
