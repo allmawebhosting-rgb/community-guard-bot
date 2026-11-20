@@ -70,6 +70,7 @@ export type SharedChatMessageRow = {
   parts: unknown;
   sdk_message_id: string | null;
   created_at: string;
+  recipient?: string | null;
 };
 
 export type ChatThreadContext = {
@@ -207,7 +208,13 @@ export async function listConversationMessages(threadId: string): Promise<Shared
 /** Flush in-memory chat turns into the canonical messages table before SOS fan-out. */
 export async function persistConversationMessages(
   threadId: string,
-  rows: Array<{ id: string; role: string; parts: unknown; authorId?: string | null }>,
+  rows: Array<{
+    id: string;
+    role: string;
+    parts: unknown;
+    authorId?: string | null;
+    recipient?: string | null;
+  }>,
 ) {
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
@@ -219,6 +226,7 @@ export async function persistConversationMessages(
       role: row.role,
       parts: row.parts,
       user_id: row.authorId || userId,
+      recipient: row.recipient === "responders" ? "responders" : "allma",
     }));
   if (payload.length === 0) return 0;
   const { data, error } = await (supabase as any).rpc("publish_conversation_messages", {

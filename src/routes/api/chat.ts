@@ -63,6 +63,8 @@ type ChatRequestBody = {
   evidence?: unknown;
   /** Device GPS the browser attached to this request, if permitted. */
   coords?: { latitude?: unknown; longitude?: unknown } | null;
+  /** Composer recipient for shared SOS chats: allma | responders. */
+  recipient?: string | null;
 };
 
 const PHYSICAL_SYMPTOM_FIRST_AID_RULE =
@@ -220,6 +222,9 @@ export const Route = createFileRoute("/api/chat")({
         const userConversationText = uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)).join("\n");
         const hasSharedAssistantHistory = sharedThreadHasAssistantHistory(databaseHistory);
 
+        const requestRecipient =
+          body.recipient === "responders" ? ("responders" as const) : ("allma" as const);
+
         // Publish the human turn immediately so other participants see it over Realtime.
         if (userId && threadId && lastUserMessage) {
           const earlyError = await publishConversationMessage(supabase, {
@@ -228,10 +233,24 @@ export const Route = createFileRoute("/api/chat")({
             role: "user",
             parts: lastUserMessage.parts,
             sdkMessageId: lastUserMessage.id,
+            recipient: requestRecipient,
           });
           if (earlyError) {
             console.error("Failed to publish shared user message early", earlyError);
           }
+        }
+
+        // Responders / human-only turns must not invoke Allma.
+        if (requestRecipient === "responders") {
+          const ackId = `human-only-${Date.now()}`;
+          const stream = createUIMessageStream({
+            originalMessages: uiMessages,
+            execute: async ({ writer }) => {
+              writer.write({ type: "start", messageId: ackId });
+              writer.write({ type: "finish" });
+            },
+          });
+          return createUIMessageStreamResponse({ stream });
         }
 
         // ---- Greeting-only opener: answered locally, no model call, no credits.
@@ -264,6 +283,7 @@ export const Route = createFileRoute("/api/chat")({
                 role: responseMessage.role,
                 parts: responseMessage.parts,
                 sdkMessageId: responseMessage.id,
+                recipient: "allma",
               });
               if (error) console.error("Failed to persist scripted chat messages", error);
             },
@@ -1342,6 +1362,7 @@ export const Route = createFileRoute("/api/chat")({
               role: responseMessage.role,
               parts: responseMessage.parts,
               sdkMessageId: responseMessage.id,
+              recipient: "allma",
             });
             if (messageInsertError) console.error("Failed to persist messages", messageInsertError);
 

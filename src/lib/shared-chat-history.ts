@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import { normalizeChatRecipient } from "@/lib/chat-recipient";
 
 export type SharedHistoryRow = {
   id: string;
@@ -7,6 +8,7 @@ export type SharedHistoryRow = {
   parts: unknown;
   sdk_message_id: string | null;
   created_at: string;
+  recipient?: string | null;
 };
 
 /** Convert a persisted messages-table row into the UI message shape. */
@@ -17,6 +19,7 @@ export function sharedRowToUiMessage(row: SharedHistoryRow): UIMessage {
     parts: (Array.isArray(row.parts) ? row.parts : []) as UIMessage["parts"],
     authorId: row.user_id,
     createdAt: row.created_at,
+    recipient: normalizeChatRecipient(row.recipient),
   } as UIMessage;
 }
 

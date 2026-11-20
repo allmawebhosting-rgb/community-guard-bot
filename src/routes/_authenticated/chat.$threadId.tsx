@@ -49,6 +49,7 @@ function ChatThreadPage() {
         parts: (Array.isArray(row.parts) ? row.parts : []) as UIMessage["parts"],
         authorId: row.user_id,
         createdAt: row.created_at,
+        recipient: row.recipient === "responders" ? "responders" : "allma",
       }) as UIMessage),
     [data],
   );

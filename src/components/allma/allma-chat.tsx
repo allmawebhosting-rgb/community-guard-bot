@@ -1,5 +1,11 @@
 import { InChatSos } from "@/components/allma/in-chat-sos";
 import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
+import { ComposerRecipientSelector } from "@/components/allma/composer-recipient-selector";
+import {
+  chatRecipientLabel,
+  normalizeChatRecipient,
+  type ChatRecipient,
+} from "@/lib/chat-recipient";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -136,6 +142,7 @@ function toSharedUiMessage(row: SharedChatMessageRow): UIMessage {
     parts: (Array.isArray(row.parts) ? row.parts : []) as UIMessage["parts"],
     authorId: row.user_id,
     createdAt: row.created_at,
+    recipient: row.recipient === "responders" ? "responders" : "allma",
   } as UIMessage;
 }
 
@@ -1308,6 +1315,7 @@ export function AllmaChat({
   const [uploading, setUploading] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
+  const [composerRecipient, setComposerRecipient] = useState<ChatRecipient>("allma");
   const [activeSosActivity, setActiveSosActivity] = useState<{ id: string; active: boolean } | null>(null);
   const [voiceNoteUrls, setVoiceNoteUrls] = useState<Record<string, string>>({});
   const [voiceNoteUrlErrors, setVoiceNoteUrlErrors] = useState<Set<string>>(() => new Set());
@@ -1352,6 +1360,9 @@ export function AllmaChat({
     return () => { if (watchId != null) navigator.geolocation.clearWatch(watchId); };
   }, []);
 
+  const composerRecipientRef = useRef<ChatRecipient>(composerRecipient);
+  composerRecipientRef.current = composerRecipient;
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -1362,7 +1373,14 @@ export function AllmaChat({
           const headers: Record<string, string> = {};
           if (token) headers.Authorization = `Bearer ${token}`;
           return {
-            body: { ...body, messages, threadId, evidence: evidencePathsRef.current, coords: coordsRef.current },
+            body: {
+              ...body,
+              messages,
+              threadId,
+              evidence: evidencePathsRef.current,
+              coords: coordsRef.current,
+              recipient: composerRecipientRef.current,
+            },
             headers,
           };
         },
@@ -1560,6 +1578,18 @@ export function AllmaChat({
     if (status === "ready") focusInput();
   }, [status, focusInput]);
 
+  const joinedResponderCount = useMemo(
+    () => (sosRoom?.participants ?? []).filter((person) => person.user_id !== sosRoom?.owner_id).length,
+    [sosRoom],
+  );
+
+  useEffect(() => {
+    // Private AI chats stay on Allma. SOS keeps the user's explicit selection.
+    if (!sosIsActive && composerRecipient !== "allma") {
+      setComposerRecipient("allma");
+    }
+  }, [composerRecipient, sosIsActive]);
+
   const send = useCallback(
     (text: string, overrideAttachments?: Attachment[]) => {
       const trimmed = text.trim();
@@ -1593,12 +1623,79 @@ export function AllmaChat({
         });
       }
 
+      const recipient: ChatRecipient =
+        sosIsActive &&
+        (composerRecipient === "responders" || threadContext?.is_owner === false)
+          ? "responders"
+          : "allma";
+
+      // Human-only SOS turn: same canonical thread, no Allma model call.
+      if (recipient === "responders") {
+        if (!threadId || !user?.id) {
+          toast.error("Sign in and keep this emergency chat open to message responders.");
+          return;
+        }
+        const id =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `responder-${Date.now()}`;
+        const localMessage = {
+          id,
+          role: "user" as const,
+          parts,
+          authorId: user.id,
+          recipient,
+          createdAt: new Date().toISOString(),
+        } as UIMessage;
+        setMessages((current) => [...current, localMessage]);
+        void persistConversationMessages(threadId, [
+          {
+            id,
+            role: "user",
+            parts,
+            authorId: user.id,
+            recipient,
+          },
+        ])
+          .then(() => {
+            void queryClient.invalidateQueries({ queryKey: ["thread-messages", threadId] });
+          })
+          .catch((persistError) => {
+            console.error("Responder message failed to publish", persistError);
+            toast.error(
+              persistError instanceof Error
+                ? persistError.message
+                : "Message could not be sent to responders.",
+            );
+          });
+        if (joinedResponderCount === 0) {
+          toast.message("No responder has joined yet — they will see this once they answer the SOS.");
+        }
+        setAttachments([]);
+        setAttachMenuOpen(false);
+        focusInput();
+        return;
+      }
+
       void sendMessage({ role: "user", parts });
       setAttachments([]);
       setAttachMenuOpen(false);
       focusInput();
     },
-    [attachments, busy, sendMessage, focusInput, threadContext, threadId],
+    [
+      attachments,
+      busy,
+      composerRecipient,
+      focusInput,
+      joinedResponderCount,
+      queryClient,
+      sendMessage,
+      setMessages,
+      sosIsActive,
+      threadContext,
+      threadId,
+      user?.id,
+    ],
   );
 
   const seeded = useRef(false);
@@ -2482,9 +2579,13 @@ export function AllmaChat({
                 }
                 const { message, msgIndex } = item;
                 const authorId = (message as UIMessage & { authorId?: string }).authorId;
+                const messageRecipient = normalizeChatRecipient(
+                  (message as UIMessage & { recipient?: string }).recipient,
+                );
                 const isOwnUserMessage = message.role === "user" && (!authorId || authorId === user?.id);
                 const author = authorId ? sosRoomPeople.get(authorId) : undefined;
                 const isOtherHuman = message.role === "user" && !isOwnUserMessage;
+                const showRecipientLabel = sosIsActive && message.role === "user";
                 const emergencyMarker =
                   message.role === "assistant"
                     ? message.parts
@@ -2536,6 +2637,18 @@ export function AllmaChat({
                       <span>{author?.name ?? "Responder"}</span>
                       <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
                         {roleLabel(author?.role)}
+                      </span>
+                      {showRecipientLabel ? (
+                        <span className="rounded-full border border-border/70 bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {chatRecipientLabel(messageRecipient)}
+                        </span>
+                      ) : null}
+                    </p>
+                  ) : null}
+                  {showRecipientLabel && isOwnUserMessage ? (
+                    <p className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                      <span className="rounded-full border border-border/70 bg-background/90 px-1.5 py-0.5">
+                        {chatRecipientLabel(messageRecipient)}
                       </span>
                     </p>
                   ) : null}
@@ -2829,6 +2942,15 @@ export function AllmaChat({
             </div>
           ) : null}
 
+          {sosIsActive && threadContext?.is_owner !== false ? (
+            <ComposerRecipientSelector
+              value={composerRecipient}
+              onChange={setComposerRecipient}
+              disabled={busy || sosVoiceNoteUploading || uploading}
+              respondersJoined={joinedResponderCount}
+            />
+          ) : null}
+
           <div className="composer-ori-row flex items-end gap-2">
             <div
               className={cn(
@@ -2900,8 +3022,20 @@ export function AllmaChat({
 
                   <PromptInputTextarea
                     ref={textareaRef}
-                    placeholder={sosIsActive ? "Message this emergency…" : "Ask Allma"}
-                    aria-label={sosIsActive ? "Message this emergency" : "Ask Allma"}
+                    placeholder={
+                      sosIsActive
+                        ? composerRecipient === "responders"
+                          ? "Message your Safety Network…"
+                          : "Ask Allma in this emergency…"
+                        : "Ask Allma"
+                    }
+                    aria-label={
+                      sosIsActive
+                        ? composerRecipient === "responders"
+                          ? "Message responders"
+                          : "Ask Allma AI"
+                        : "Ask Allma"
+                    }
                     enterKeyHint="send"
                     rows={1}
                     className="composer-textarea min-h-[44px] max-h-[140px] bg-transparent px-1.5 py-2.5 text-[15px] leading-6 sm:text-[15px]"

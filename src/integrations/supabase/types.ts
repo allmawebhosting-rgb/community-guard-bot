@@ -1551,6 +1551,7 @@ export type Database = {
           created_at: string
           id: string
           parts: Json
+          recipient: string | null
           role: string
           sdk_message_id: string | null
           thread_id: string
@@ -1560,6 +1561,7 @@ export type Database = {
           created_at?: string
           id?: string
           parts?: Json
+          recipient?: string | null
           role: string
           sdk_message_id?: string | null
           thread_id: string
@@ -1569,6 +1571,7 @@ export type Database = {
           created_at?: string
           id?: string
           parts?: Json
+          recipient?: string | null
           role?: string
           sdk_message_id?: string | null
           thread_id?: string

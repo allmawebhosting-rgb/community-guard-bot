@@ -511,6 +511,7 @@ Answering an SOS call admits that Safety Network member into the **original** Al
 - `/api/chat` loads the shared DB history for every participant, publishes each human turn immediately for Realtime, and skips private greeting/openers during an active SOS.
 - Ringing, declined, missed, and failed calls do not create chat membership.
 - Floating chat heads on the right show who is in the emergency conversation.
+- During SOS, the composer recipient selector chooses **Ask Allma AI** or **Message Responders** on the same conversation (`messages.recipient`).
 
 ------------------------------------------------
 
