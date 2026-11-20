@@ -6,6 +6,7 @@ import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import {
   isReportingIntent,
   isSoftGuidedFlow,
+  nearbyHelpTypesForTurn,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
 } from "@/lib/chat-intent";
@@ -55,7 +56,7 @@ type ChatRequestBody = {
 };
 
 const PHYSICAL_SYMPTOM_FIRST_AID_RULE =
-  "PHYSICAL FIRST-AID RULE: When the user describes any physical symptom, pain, or injury (including swelling, bleeding, or burns), write clear numbered first-aid steps and urgent red flags in your message text BEFORE calling any tools. Never call a tool first in these cases. Do not emit a separate PHYSICAL_FIRSTAID tool/card; the guidance must be in your message text. Never open ::flow / Safety check for pain or injury. Never re-ask a question already answered. Never spam ::media every turn — at most one optional photo after the steps. Never write ::find_facilities{…} or 'use the find_facilities function' as text; call the tool.";
+  "PHYSICAL FIRST-AID RULE: When the user describes any physical symptom, pain, or injury (including swelling, bleeding, or burns), write clear numbered first-aid steps and urgent red flags in your message text. Nearby help is required on the same turn — call find_facilities (never write the tool name or ::find_facilities{…} as text). If the tool runs first, still write the numbered steps and red flags in your follow-up text. Do not emit a separate PHYSICAL_FIRSTAID tool/card. Never open ::flow / Safety check for pain or injury. Never re-ask a question already answered. Never spam ::media every turn — at most one optional photo after the steps.";
 
 function parseEvidence(value: unknown): Array<{ path: string; mediaType: string | null }> {
   if (!Array.isArray(value)) return [];
@@ -384,9 +385,18 @@ export const Route = createFileRoute("/api/chat")({
           flowState.flowLabel,
           Boolean(emergencyIncident) && !directService,
         );
+        // Every injury/emergency turn must surface nearby help cards — not only when the user asks.
+        const nearbyTypes = nearbyHelpTypesForTurn({
+          directFacilityTypes,
+          directService,
+          emergencyHelpTypes: emergencyIncident?.helpTypes ?? [],
+          isReporting,
+          showDirectHelp: shouldShowHelp,
+        });
+        const requireNearbyHelp = nearbyTypes.length > 0;
         // Drop the survey banner when first-aid or a facility search takes over.
         const continueGuidedFlow =
-          Boolean(flowState.flowLabel) && !shouldShowHelp && !(emergencyIncident && softFlowActive);
+          Boolean(flowState.flowLabel) && !requireNearbyHelp && !(emergencyIncident && softFlowActive);
         const flowBlock = continueGuidedFlow
           ? `\n\nACTIVE GUIDED FLOW: "${flowState.flowLabel}", currently at step ${flowState.step} of ${flowState.totalSteps || "?"}. Steps already asked: ${
               flowState.askedTitles.join(", ") || "none"
@@ -398,12 +408,12 @@ export const Route = createFileRoute("/api/chat")({
 - Never request a photo unless this step truly needs evidence, and never on every step.
 - Every flow must reach an ending: either call create_report and give the reference number, or say plainly that nothing was filed and why. Never trail off mid-flow.`
           : emergencyIncident && softFlowActive
-            ? `\n\nEND THE "${flowState.flowLabel}" FLOW NOW. The user described a physical injury or medical need — do not continue survey steps, do not emit ::flow, and do not ask for a photo on every turn. Give first-aid and call find_facilities when needed.`
-            : shouldShowHelp && softFlowActive
-              ? `\n\nEND THE "${flowState.flowLabel}" FLOW NOW. The user asked for nearby help — call find_facilities and do not continue survey steps.`
+            ? `\n\nEND THE "${flowState.flowLabel}" FLOW NOW. The user described a physical injury or medical need — do not continue survey steps, do not emit ::flow, and do not ask for a photo on every turn. Give first-aid and ALWAYS call find_facilities for nearby help.`
+            : requireNearbyHelp && softFlowActive
+              ? `\n\nEND THE "${flowState.flowLabel}" FLOW NOW. The user needs nearby help — call find_facilities and do not continue survey steps.`
               : "";
-        const directHelpBlock = shouldShowHelp
-          ? `\n\nFACILITY SEARCH REQUIRED THIS TURN: Call find_facilities once with facility_types=[${directFacilityTypes.length ? directFacilityTypes.join(", ") : directService}]. Do not open a flow or ask which service they need. Follow the nearby-help location rules. Do not add a media card or repeat the returned place cards. Never write ::find_facilities{…} as text.`
+        const directHelpBlock = requireNearbyHelp
+          ? `\n\nFACILITY SEARCH REQUIRED THIS TURN: Call find_facilities once with facility_types=[${nearbyTypes.join(", ")}]. Nearby help cards must appear on this reply. Do not open a flow or ask which service they need. Follow the nearby-help location rules. Do not add a media card or repeat the returned place cards. Never write ::find_facilities{…} as text.`
           : "";
         // Keep emergency advice for emergencies outside a guided incident report.
         const emergencyBlock = emergencyIncident
@@ -419,7 +429,7 @@ export const Route = createFileRoute("/api/chat")({
                 ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
                 : `Open the "${intent.flow}" flow in THIS reply: first line ::flow{type=${intent.flow}, step=1, total=4, title="…"}, then this opening question: ${intent.opener} and end with a ::suggest[…] line carrying exactly those options.`
             } Do NOT ask this as plain prose without a ::suggest line, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
-          : intent && !flowState.flowLabel && !emergencyIncident && !shouldShowHelp
+          : intent && !flowState.flowLabel && !emergencyIncident && !requireNearbyHelp
             ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. Open the "${intent.flow}" flow in THIS reply: first line ::flow{type=${intent.flow}, step=1, total=4, title="…"}, then this opening question: ${intent.opener} and end with a ::suggest[…] line carrying exactly those options. Do NOT ask this as plain prose without a ::suggest line, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
           : "");
 
@@ -447,6 +457,7 @@ export const Route = createFileRoute("/api/chat")({
         });
         const needsLocation =
           activeFlow === "Find help" ||
+          requireNearbyHelp ||
           Boolean(sharedCoords) ||
           /location|near me|nearest|police station|hospital|fire station|ambulance|area|landmark/i.test(
             intakeText,
@@ -540,7 +551,15 @@ export const Route = createFileRoute("/api/chat")({
 
 
           messages: modelMessages,
-          stopWhen: [stepCountIs(2), () => facilityCardsRendered],
+          // Injury/emergency turns always search nearby help. Keep a second step so
+          // first-aid text can follow the forced facility tool call.
+          ...(requireNearbyHelp
+            ? { toolChoice: { type: "tool" as const, toolName: "find_facilities" } }
+            : {}),
+          stopWhen:
+            requireNearbyHelp && emergencyIncident
+              ? [stepCountIs(2)]
+              : [stepCountIs(2), () => facilityCardsRendered],
           ...providerOptionsFor(modelId),
           onChunk: ({ chunk }) => {
             if (chunk.type === "text-delta" || chunk.type === "text-start") {

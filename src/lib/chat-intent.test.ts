@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isReportingIntent,
   isSoftGuidedFlow,
+  nearbyHelpTypesForTurn,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
 } from "./chat-intent";
@@ -73,5 +74,41 @@ describe("direct help routing", () => {
         intakeText: "Please report the theft",
       }),
     ).toBe(true);
+  });
+
+  it("always returns playbook facilities for a non-reporting emergency", () => {
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: [],
+        directService: null,
+        emergencyHelpTypes: ["hospital"],
+        isReporting: false,
+        showDirectHelp: false,
+      }),
+    ).toEqual(["hospital"]);
+  });
+
+  it("prefers an explicit hospital ask over emergency defaults", () => {
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: ["hospital"],
+        directService: "hospital",
+        emergencyHelpTypes: ["police"],
+        isReporting: false,
+        showDirectHelp: true,
+      }),
+    ).toEqual(["hospital"]);
+  });
+
+  it("does not force nearby help during a normal report", () => {
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: [],
+        directService: null,
+        emergencyHelpTypes: ["hospital"],
+        isReporting: true,
+        showDirectHelp: false,
+      }),
+    ).toEqual([]);
   });
 });

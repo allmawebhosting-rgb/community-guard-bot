@@ -34,6 +34,29 @@ export function isSoftGuidedFlow(flowLabel: string | null | undefined) {
   return flowLabel === "Safety check" || flowLabel === "Advice";
 }
 
+/**
+ * Facility types that MUST be searched this turn.
+ * Explicit "find hospital/police" wins; otherwise every non-reporting emergency
+ * gets its playbook help types so nearby help cards always appear.
+ */
+export function nearbyHelpTypesForTurn(input: {
+  directFacilityTypes: string[];
+  directService: string | null;
+  emergencyHelpTypes: readonly string[];
+  isReporting: boolean;
+  showDirectHelp: boolean;
+}): string[] {
+  if (input.showDirectHelp) {
+    if (input.directFacilityTypes.length) return [...input.directFacilityTypes];
+    if (input.directService) return [input.directService];
+    return ["police", "hospital"];
+  }
+  if (!input.isReporting && input.emergencyHelpTypes.length) {
+    return [...input.emergencyHelpTypes];
+  }
+  return [];
+}
+
 export function shouldLoadReportingPrompt(input: {
   isReportFlow: boolean;
   isReporting: boolean;
