@@ -39,6 +39,15 @@ describe("chat formatting", () => {
     expect(r.text).toContain("your AI-powered");
     expect(r.text).toContain("- Police 999\n- Ambulance 112\n- Toll-free 112");
   });
+  it("strips leaked fake tool markers like ::find_facilities from visible text", () => {
+    const r = parseAllmaMarkers(
+      'You should seek care.\n::find_facilities{facility_types=["hospital"], area="nearby"}\nTap Activate SOS if you need help.',
+    );
+    expect(r.text).not.toMatch(/find_facilities/);
+    expect(r.text).toContain("You should seek care.");
+    expect(r.text).toContain("Tap Activate SOS if you need help.");
+    expect(r.flow).toBeNull();
+  });
 });
 
 describe("nearby guard", () => {

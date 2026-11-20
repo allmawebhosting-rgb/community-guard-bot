@@ -63,6 +63,16 @@ describe("filler narration is removed from replies", () => {
     expect(stripFillerSentences("Stay calm. Let me find the nearest hospitals for you. Keep pressure on it.")).toBe("Stay calm. Keep pressure on it.");
   });
 
+  it("strips tool-prose leaks about find_facilities and the emergency block", () => {
+    const out = stripFillerSentences(
+      "You should seek medical attention immediately. Call 112 or find the nearest hospital using the find_facilities function.\n\nPlease note that the emergency block has been activated. If you need immediate assistance, tap Activate SOS.",
+    );
+    expect(out).not.toMatch(/find_facilities/i);
+    expect(out).not.toMatch(/emergency block has been activated/i);
+    expect(out).toMatch(/seek medical attention immediately/i);
+    expect(out).toMatch(/tap Activate SOS/i);
+  });
+
   it("the playbook tells the model to name only real results and skip filler", () => {
     expect(ALLMA_EMERGENCY_PLAYBOOK).toMatch(/never assume Kampala/);
     expect(ALLMA_EMERGENCY_PLAYBOOK).toMatch(/Place cards show results; do not repeat them/);

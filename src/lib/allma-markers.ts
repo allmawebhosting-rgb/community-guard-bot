@@ -39,6 +39,10 @@ const MEDIA_RE = /::media\{([^}]*)\}/gi;
 const SUGGEST_RE = /::suggest\[([^\]]*)\]/gi;
 const EMERGENCY_RE = /::emergency(?:\{([^}]*)\})?/gi;
 const SOS_OFFER_RE = /::sos_offer(?:\{([^}]*)\})?/gi;
+/** Model sometimes pastes a fake tool call as text (::find_facilities{…}). Strip it. */
+const LEAKED_TOOL_MARKER_RE = /::[a-z_][a-z0-9_]*(?:\{[^}]*\}|\[[^\]]*\])/gi;
+const KNOWN_MARKER_PREFIX =
+  /^::(?:flow|media|suggest|emergency|sos_offer)\b/i;
 
 function parseAttrs(body: string): Record<string, string> {
   const attrs: Record<string, string> = {};
@@ -241,7 +245,9 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
     .replace(SOS_OFFER_RE, "")
     .replace(FLOW_RE, "")
     .replace(MEDIA_RE, "")
-    .replace(SUGGEST_RE, "");
+    .replace(SUGGEST_RE, "")
+    // Drop fake tool-call markers the model sometimes pastes (::find_facilities{…}).
+    .replace(LEAKED_TOOL_MARKER_RE, (m) => (KNOWN_MARKER_PREFIX.test(m) ? m : ""));
 
   // Inline choice brackets like "[YES / SKIP]" become real buttons.
   const inlineChoices: MarkerSuggestion[] = [];
@@ -275,9 +281,9 @@ export function hasOpenMarker(raw: string): boolean {
 }
 
 export const ALLMA_MARKER_CONTRACT = `INLINE UI MARKERS — write these directly in your reply text (never as tool calls):
-- Guided step banner: ::flow{type=Reporting, step=2, total=5, title="Where did it happen?"}  (put it on its own FIRST line; type is the flow name: Reporting, Missing person, Lost & found, Safety check, Advice)
+- Guided step banner: ::flow{type=Reporting, step=2, total=5, title="Where did it happen?"}  (put it on its own FIRST line; type is ONLY: Reporting, Missing person, Lost & found, Safety check, Advice). Safety check is ONLY for personal-safety threats (followed, unsafe walking, SOS) — NEVER for pain, injury, bleeding, burns, or illness.
 - Tappable answers / next steps: ::suggest[Theft | Robbery | Assault | Something else]  (2-4 short options, on the LAST line, always the exact answers to what you just asked — never a generic menu)
 - Hard emergency action block: ::emergency{type=medical}  (type: medical, crime or fire; own FIRST line, only for potentially life-threatening situations; renders Activate SOS plus Call 999 / Call 112 — the user taps them, nothing starts automatically)
 - Soft Safety Network offer: ::sos_offer{type=medical}  (own line when help from trusted contacts may be useful but the situation is not clearly life-threatening; renders "Would you like to alert your Safety Network?" with a real Activate SOS action). Never use ::sos_offer and ::emergency in the same reply.
-- Ask for evidence: ::media{type=photo, optional=true, tips="Good light · Show the whole scene"}  (type: photo, video, audio, document or location)
-Markers are stripped from the visible message and rendered as premium cards and chips. Use at most one ::emergency OR one ::sos_offer, plus one ::flow, one ::media and one ::suggest per reply, and never mention or explain the markers.`;
+- Ask for evidence: ::media{type=photo, optional=true, tips="Good light · Show the whole scene"}  (type: photo, video, audio, document or location). For medical first-aid, prefer no media card; at most one optional photo after the steps — never every turn.
+Markers are stripped from the visible message and rendered as premium cards and chips. Use at most one ::emergency OR one ::sos_offer, plus one ::flow, one ::media and one ::suggest per reply, and never mention or explain the markers. NEVER invent markers for tools (::find_facilities{…} is forbidden — call the find_facilities tool instead).`;

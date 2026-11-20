@@ -14,14 +14,24 @@ export function isReportingIntent(input: {
   );
 }
 
+/** Soft flows the user can leave instantly when they ask for nearby help. */
+const INTERRUPTIBLE_FLOWS = new Set(["Safety check", "Advice", "Find help"]);
+
 export function shouldShowDirectHelp(
   directService: string | null,
   isReporting: boolean,
   activeFlow: string | null,
   isEmergency = false,
 ) {
-  const anotherFlowIsActive = Boolean(activeFlow && activeFlow !== "Find help");
+  const anotherFlowIsActive = Boolean(
+    activeFlow && !INTERRUPTIBLE_FLOWS.has(activeFlow),
+  );
   return Boolean(directService) && !isReporting && !anotherFlowIsActive && !isEmergency;
+}
+
+/** Flows that must never block medical first-aid or facility search. */
+export function isSoftGuidedFlow(flowLabel: string | null | undefined) {
+  return flowLabel === "Safety check" || flowLabel === "Advice";
 }
 
 export function shouldLoadReportingPrompt(input: {

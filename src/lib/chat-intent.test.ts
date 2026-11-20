@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isReportingIntent,
+  isSoftGuidedFlow,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
 } from "./chat-intent";
@@ -37,6 +38,13 @@ describe("direct help routing", () => {
 
   it("does not interrupt a different active flow with a facility search", () => {
     expect(shouldShowDirectHelp("hospital", false, "Missing person")).toBe(false);
+  });
+
+  it("lets hospital search interrupt a soft Safety check flow", () => {
+    expect(shouldShowDirectHelp("hospital", false, "Safety check")).toBe(true);
+    expect(shouldShowDirectHelp("police", false, "Advice")).toBe(true);
+    expect(isSoftGuidedFlow("Safety check")).toBe(true);
+    expect(isSoftGuidedFlow("Reporting")).toBe(false);
   });
 
   it("leaves emergency facility routing to the emergency instructions", () => {

@@ -93,6 +93,10 @@ describe("SOS only for described emergencies", () => {
   it("a described emergency is an incident for the reply", () => {
     expect(incidentForReply([user("someone is breaking into my house"), bot("…")], 1)?.id).toBe("break_in");
     expect(incidentForReply([user("there is a fire in our house"), bot("…")], 1)?.id).toBe("fire");
+    expect(incidentForReply([user("my head is hurt"), bot("…")], 1)?.id).toBe("head_injury");
+    expect(
+      incidentForReply([user("my head is hurt"), bot("What's hurting?"), user("Yes"), bot("…")], 3)?.id,
+    ).toBe("head_injury");
   });
 });
 

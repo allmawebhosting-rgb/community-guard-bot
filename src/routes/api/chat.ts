@@ -1,10 +1,11 @@
-import { classifyEmergency, classifyIncident, emergencyPromptBlock } from "@/lib/emergency-triage";
+import { classifyIncident, emergencyPromptBlock } from "@/lib/emergency-triage";
 import { facilityKind } from "@/lib/facility-kind";
 import { cleanAddress, KIND_LABEL, refineFacilities } from "@/lib/facility-results";
 import { chooseSearchOrigin } from "@/lib/location-origin";
 import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import {
   isReportingIntent,
+  isSoftGuidedFlow,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
 } from "@/lib/chat-intent";
@@ -54,7 +55,7 @@ type ChatRequestBody = {
 };
 
 const PHYSICAL_SYMPTOM_FIRST_AID_RULE =
-  "PHYSICAL FIRST-AID RULE: When the user describes any physical symptom, pain, or injury (including swelling, bleeding, or burns), write clear numbered first-aid steps and urgent red flags in your message text BEFORE calling any tools. Never call a tool first in these cases. Do not emit a separate PHYSICAL_FIRSTAID tool/card; the guidance must be in your message text.";
+  "PHYSICAL FIRST-AID RULE: When the user describes any physical symptom, pain, or injury (including swelling, bleeding, or burns), write clear numbered first-aid steps and urgent red flags in your message text BEFORE calling any tools. Never call a tool first in these cases. Do not emit a separate PHYSICAL_FIRSTAID tool/card; the guidance must be in your message text. Never open ::flow / Safety check for pain or injury. Never re-ask a question already answered. Never spam ::media every turn — at most one optional photo after the steps. Never write ::find_facilities{…} or 'use the find_facilities function' as text; call the tool.";
 
 function parseEvidence(value: unknown): Array<{ path: string; mediaType: string | null }> {
   if (!Array.isArray(value)) return [];
@@ -296,17 +297,7 @@ export const Route = createFileRoute("/api/chat")({
           totalSteps: priorFlows.reduce((max, f) => Math.max(max, f.total || 0), 0),
           askedTitles: priorFlows.map((f) => f.title.trim().toLowerCase()).filter(Boolean),
         };
-
-        const flowBlock = flowState.flowLabel
-          ? `\n\nACTIVE GUIDED FLOW: "${flowState.flowLabel}", currently at step ${flowState.step} of ${flowState.totalSteps || "?"}. Steps already asked: ${
-              flowState.askedTitles.join(", ") || "none"
-            }.
-- The flow name stays exactly "${flowState.flowLabel}" until the flow ends. Never rename it, never restart it.
-- Your reply MUST begin with ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} — the step number only ever goes up by one.
-- Your reply MUST end with a ::suggest[…] line carrying the exact tappable answers to the question you just asked. A step question without ::suggest is a dead end and is never acceptable.
-- Ask the NEXT thing only — never repeat a step already asked, never announce step numbers in your text, never ask two things in one turn.
-- Every flow must reach an ending: either call create_report and give the reference number, or say plainly that nothing was filed and why. Never trail off mid-flow.`
-          : "";
+        const softFlowActive = isSoftGuidedFlow(flowState.flowLabel);
 
         // ---- Coordinates the user already shared (from "My current location is: lat, lng")
         const coordMatch = /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/.exec(intakeText);
@@ -346,8 +337,30 @@ export const Route = createFileRoute("/api/chat")({
         }
         const directService = directFacilityTypes[0] ??
           (/\bhospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null);
-        const emergencyIncident = flowState.flowLabel ? null : classifyIncident(intakeText);
-        const emergencyKind = emergencyIncident ? classifyEmergency(intakeText) : null;
+        // Soft flows (Safety check / Advice) must not block medical first-aid. Hard report
+        // flows still suppress emergency classification so the wizard stays in control.
+        const hardFlowBlocksEmergency = Boolean(flowState.flowLabel) && !softFlowActive;
+        const shortSoftAnswer =
+          softFlowActive &&
+          /^(yes|no|y|n|yeah|yep|nope|leg|arm|head|hand|foot|chest|back|neck|stomach|it hurts|hurts|bleeding|deep|shallow)[.!]?$/i.test(
+            intakeText.trim(),
+          );
+        const emergencyFromIntake = hardFlowBlocksEmergency ? null : classifyIncident(intakeText);
+        const emergencyFromThread =
+          softFlowActive && !emergencyFromIntake && !directService && shortSoftAnswer
+            ? uiMessages
+                .filter((m) => m.role === "user")
+                .map((m) => classifyIncident(textOf(m)))
+                .find(Boolean) ?? null
+            : null;
+        const emergencyIncident = emergencyFromIntake ?? emergencyFromThread;
+        const emergencyKind = emergencyIncident
+          ? emergencyIncident.marker === "fire"
+            ? "fire"
+            : emergencyIncident.marker === "crime"
+              ? "violence"
+              : "medical"
+          : null;
         const matchedIntent = emergencyKind ? undefined : INTENTS.find((i) => i.matches.test(intakeText));
         const isReporting = isReportingIntent({
           flowLabel: flowState.flowLabel,
@@ -364,14 +377,33 @@ export const Route = createFileRoute("/api/chat")({
         const hasNonFindHelpIntent =
           intent !== undefined && intent.flow !== "Find help";
         // A reporting request must never be replaced by a facilities search.
+        // Soft Safety check / Advice flows DO yield to an explicit hospital/police ask.
         const shouldShowHelp = shouldShowDirectHelp(
           directService,
           isReporting,
           flowState.flowLabel,
-          Boolean(emergencyIncident),
+          Boolean(emergencyIncident) && !directService,
         );
+        // Drop the survey banner when first-aid or a facility search takes over.
+        const continueGuidedFlow =
+          Boolean(flowState.flowLabel) && !shouldShowHelp && !(emergencyIncident && softFlowActive);
+        const flowBlock = continueGuidedFlow
+          ? `\n\nACTIVE GUIDED FLOW: "${flowState.flowLabel}", currently at step ${flowState.step} of ${flowState.totalSteps || "?"}. Steps already asked: ${
+              flowState.askedTitles.join(", ") || "none"
+            }.
+- The flow name stays exactly "${flowState.flowLabel}" until the flow ends. Never rename it, never restart it.
+- Your reply MUST begin with ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} — the step number only ever goes up by one.
+- Your reply MUST end with a ::suggest[…] line carrying the exact tappable answers to the question you just asked. A step question without ::suggest is a dead end and is never acceptable.
+- Ask the NEXT thing only — never repeat a step already asked, never announce step numbers in your text, never ask two things in one turn.
+- Never request a photo unless this step truly needs evidence, and never on every step.
+- Every flow must reach an ending: either call create_report and give the reference number, or say plainly that nothing was filed and why. Never trail off mid-flow.`
+          : emergencyIncident && softFlowActive
+            ? `\n\nEND THE "${flowState.flowLabel}" FLOW NOW. The user described a physical injury or medical need — do not continue survey steps, do not emit ::flow, and do not ask for a photo on every turn. Give first-aid and call find_facilities when needed.`
+            : shouldShowHelp && softFlowActive
+              ? `\n\nEND THE "${flowState.flowLabel}" FLOW NOW. The user asked for nearby help — call find_facilities and do not continue survey steps.`
+              : "";
         const directHelpBlock = shouldShowHelp
-          ? `\n\nFACILITY SEARCH REQUIRED THIS TURN: Call find_facilities once with facility_types=[${directFacilityTypes.length ? directFacilityTypes.join(", ") : directService}]. Do not open a flow or ask which service they need. Follow the nearby-help location rules. Do not add a media card or repeat the returned place cards.`
+          ? `\n\nFACILITY SEARCH REQUIRED THIS TURN: Call find_facilities once with facility_types=[${directFacilityTypes.length ? directFacilityTypes.join(", ") : directService}]. Do not open a flow or ask which service they need. Follow the nearby-help location rules. Do not add a media card or repeat the returned place cards. Never write ::find_facilities{…} as text.`
           : "";
         // Keep emergency advice for emergencies outside a guided incident report.
         const emergencyBlock = emergencyIncident
@@ -381,12 +413,14 @@ export const Route = createFileRoute("/api/chat")({
               : ""
             : emergencyPromptBlock(emergencyIncident, Boolean(sharedCoords)).trim()
           : "";
-        const intentBlock = directHelpBlock + (intent
+        const intentBlock = directHelpBlock + (intent && continueGuidedFlow
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
                 ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
                 : `Open the "${intent.flow}" flow in THIS reply: first line ::flow{type=${intent.flow}, step=1, total=4, title="…"}, then this opening question: ${intent.opener} and end with a ::suggest[…] line carrying exactly those options.`
             } Do NOT ask this as plain prose without a ::suggest line, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
+          : intent && !flowState.flowLabel && !emergencyIncident && !shouldShowHelp
+            ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. Open the "${intent.flow}" flow in THIS reply: first line ::flow{type=${intent.flow}, step=1, total=4, title="…"}, then this opening question: ${intent.opener} and end with a ::suggest[…] line carrying exactly those options. Do NOT ask this as plain prose without a ::suggest line, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
           : "");
 
 

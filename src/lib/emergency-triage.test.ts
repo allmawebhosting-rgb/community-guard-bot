@@ -38,6 +38,11 @@ describe("emergency triage", () => {
     expect(classifyIncident("my nose is bleeding")?.id).toBe("nosebleed");
     expect(classifyIncident("I think he is having a heart attack")?.id).toBe("heart_attack");
   });
+  it("everyday head-pain wording routes to head injury first-aid", () => {
+    expect(classifyIncident("my head is hurt")?.id).toBe("head_injury");
+    expect(classifyIncident("my head hurts")?.id).toBe("head_injury");
+    expect(classifyIncident("I have a pain in my head after a fall")?.id).toBe("head_injury");
+  });
   it("emergency block uses Police 999 and Toll-free 112 only — never 911", () => {
     expect(EMERGENCY_BLOCK_LINES.crime.map((h) => h.number)).toEqual(["999", "112"]);
     expect(EMERGENCY_BLOCK_LINES.medical.map((h) => h.number)).toEqual(["999", "112"]);

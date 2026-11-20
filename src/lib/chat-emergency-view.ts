@@ -25,9 +25,28 @@ export function userTextBefore(messages: LooseMessage[], index: number): string 
   return "";
 }
 
+const SHORT_INJURY_ANSWER =
+  /^(yes|no|y|n|yeah|yep|nope|leg|arm|head|hand|foot|chest|back|neck|stomach|it hurts|hurts|bleeding|deep|shallow)[.!]?$/i;
+
 /** The incident a reply is answering, or null for plain questions and facility searches. */
 export function incidentForReply(messages: LooseMessage[], index: number): Incident | null {
-  return matchIncident(userTextBefore(messages, index));
+  const latest = userTextBefore(messages, index);
+  const direct = matchIncident(latest);
+  if (direct) return direct;
+  // Short yes/no answers mid-injury chat: use the earlier medical cue in the thread.
+  if (!SHORT_INJURY_ANSWER.test(latest.trim())) return null;
+  for (let i = index - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m?.role !== "user") continue;
+    const text = (m.parts ?? [])
+      .filter((p) => p.type === "text")
+      .map((p) => String(p.text ?? ""))
+      .join("\n");
+    if (SHORT_INJURY_ANSWER.test(text.trim())) continue;
+    const hit = matchIncident(text);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 const NUMBERED_LIST = /^\s*\d+[.)]\s+\S/m;
@@ -125,6 +144,10 @@ const FILLER_SENTENCE =
 const LOCATION_INTEL_LEAK =
   /(?:^|\n|(?<=[.!?…]\s+))\s*(?:Location Intelligence\s*[·•][^\n]+|This incident falls under [^\n.!?]+[.!?]?\s*|Responsible Station\s*)/gi;
 
+// Model talking about tools / UI chrome instead of calling them.
+const TOOL_PROSE_LEAK =
+  /(?:^|(?<=[.!?…]\s+))(?:please note that |note that )?(?:the )?emergency block has been activated[^.!?\n]*[.!?]?\s*|using the find_facilities function[^.!?\n]*[.!?]?\s*|(?:call|use|using) (?:the )?find_facilities(?: function)?[^.!?\n]*[.!?]?\s*|::find_facilities\{[^}]*\}\s*/gi;
+
 /** Drop "Let me arrange the local help details."-style filler, leftover Location Intelligence lines, and a dangling "Now,". */
 export function stripFillerSentences(text: string): string {
   if (!text) return text;
@@ -134,7 +157,11 @@ export function stripFillerSentences(text: string): string {
     return atLineStart ? "\n" : " ";
   });
   if (withoutIntel !== text) changed = true;
-  const lines = withoutIntel.split("\n").map((line) => {
+  const withoutTools = withoutIntel.replace(TOOL_PROSE_LEAK, () => {
+    changed = true;
+    return "";
+  });
+  const lines = withoutTools.split("\n").map((line) => {
     const cleaned = line.replace(FILLER_SENTENCE, "");
     if (cleaned === line) return line;
     changed = true;
