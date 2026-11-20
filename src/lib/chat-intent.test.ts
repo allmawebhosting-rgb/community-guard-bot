@@ -4,6 +4,7 @@ import {
   isReportingIntent,
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
+  scriptedFlowOpener,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
 } from "./chat-intent";
@@ -123,5 +124,13 @@ describe("direct help routing", () => {
         askedTitles: ["what kind", "where", "when"],
       }),
     ).toBe(true);
+  });
+
+  it("scripts a Reporting opener for crime-report chips without calling tools", () => {
+    const reply = scriptedFlowOpener("I want to report a crime.", null);
+    expect(reply).toMatch(/::flow\{type=Reporting/);
+    expect(reply).toMatch(/::suggest\[Theft/);
+    expect(scriptedFlowOpener("Report a crime", null)).toMatch(/::flow\{type=Reporting/);
+    expect(scriptedFlowOpener("I want to report a crime.", "Reporting")).toBeNull();
   });
 });

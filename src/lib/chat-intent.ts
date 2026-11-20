@@ -78,6 +78,49 @@ export function isFilingToolName(name: string) {
   return FILING_TOOL_NAMES.has(name);
 }
 
+/** Deterministic first-step openers — no model, no tools, no empty summary cards. */
+const SCRIPTED_FLOW_OPENERS: Array<{ matches: RegExp; reply: string }> = [
+  {
+    matches:
+      /^(report a crime|i want to report( a crime)?|i need to report( a crime)?|report (an )?incident|file a report)[.!]?$/i,
+    reply:
+      '::flow{type=Reporting, step=1, total=5, title="What kind of incident?"}\n\nWhat kind of incident is this?\n\n::suggest[Theft | Robbery | Assault | Something else]',
+  },
+  {
+    matches: /^(missing person|report a missing person|i want to report a missing person)[.!]?$/i,
+    reply:
+      '::flow{type=Missing person, step=1, total=5, title="Adult or child?"}\n\nIs the missing person an adult or a child?\n\n::suggest[An adult | A child]',
+  },
+  {
+    matches: /^(lost (and|&) found|i lost something|i found something|report lost|report found)[.!]?$/i,
+    reply:
+      '::flow{type=Lost & found, step=1, total=4, title="Lost or found?"}\n\nDid you lose something or find something?\n\n::suggest[I lost something | I found something]',
+  },
+  {
+    matches: /^(emergency numbers|get emergency numbers|what (are )?(the )?emergency numbers)[.!]?$/i,
+    reply:
+      "Here are Uganda's emergency numbers:\n\n- Police 999\n- Toll-free emergency 112\n\nIf someone is in immediate danger, call now.\n\n::suggest[Report a crime | Find help nearby | I'm safe now]",
+  },
+];
+
+/**
+ * Returns a fixed reply for clear menu/chip intents when no guided flow is
+ * already open. Avoids model/tool misfires like empty REPORT SUMMARY cards.
+ */
+export function scriptedFlowOpener(intakeText: string, activeFlowLabel: string | null): string | null {
+  if (activeFlowLabel) return null;
+  const text = intakeText.trim();
+  if (!text || text.length > 80) return null;
+  for (const entry of SCRIPTED_FLOW_OPENERS) {
+    if (entry.matches.test(text)) return entry.reply;
+  }
+  // Slightly looser crime-report phrasing still opens Reporting without tools.
+  if (/report (a )?(crime|theft|robbery|assault|burglary|fraud)/i.test(text) && text.length < 60) {
+    return SCRIPTED_FLOW_OPENERS[0].reply;
+  }
+  return null;
+}
+
 export function shouldLoadReportingPrompt(input: {
   isReportFlow: boolean;
   isReporting: boolean;

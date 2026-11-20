@@ -9,6 +9,7 @@ import {
   isFilingToolName,
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
+  scriptedFlowOpener,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
 } from "@/lib/chat-intent";
@@ -192,20 +193,17 @@ export const Route = createFileRoute("/api/chat")({
             intakeText.trim(),
           );
 
-        if (isGreetingOnly) {
-          const greeting =
-            "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you:\n\n- 🚨 Report a crime\n- 👤 Report a missing person\n- 🎒 Log lost or found property\n- 🏥 Find the nearest hospital\n- 👮 Find the nearest police station\n- 📞 Get emergency numbers\n\nWhat's going on today?\n\n::suggest[Report a crime | Missing person | Find help nearby | Emergency numbers]";
-          const assistantId = `allma-greeting-${Date.now()}`;
+        const replyWithFixedText = (text: string, idPrefix: string) => {
+          const assistantId = `${idPrefix}-${Date.now()}`;
           const stream = createUIMessageStream({
             originalMessages: uiMessages,
             execute: async ({ writer }) => {
               writer.write({ type: "start", messageId: assistantId });
-              writer.write({ type: "text-start", id: "greeting" });
-              writer.write({ type: "text-delta", id: "greeting", delta: greeting });
-              writer.write({ type: "text-end", id: "greeting" });
+              writer.write({ type: "text-start", id: idPrefix });
+              writer.write({ type: "text-delta", id: idPrefix, delta: text });
+              writer.write({ type: "text-end", id: idPrefix });
               writer.write({ type: "finish" });
             },
-
             onFinish: async ({ responseMessage }) => {
               if (!userId || !body.threadId) return;
               const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
@@ -226,10 +224,30 @@ export const Route = createFileRoute("/api/chat")({
                 sdk_message_id: responseMessage.id,
               });
               const { error } = await supabase.from("messages").insert(rows);
-              if (error) console.error("Failed to persist greeting messages", error);
+              if (error) console.error("Failed to persist scripted chat messages", error);
             },
           });
           return createUIMessageStreamResponse({ stream });
+        };
+
+        if (isGreetingOnly) {
+          return replyWithFixedText(
+            "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you:\n\n- 🚨 Report a crime\n- 👤 Report a missing person\n- 🎒 Log lost or found property\n- 🏥 Find the nearest hospital\n- 👮 Find the nearest police station\n- 📞 Get emergency numbers\n\nWhat's going on today?\n\n::suggest[Report a crime | Missing person | Find help nearby | Emergency numbers]",
+            "allma-greeting",
+          );
+        }
+
+        // Clear menu/chip intents open a real guided step locally — never call the
+        // model (which was emitting empty REPORT SUMMARY · Done cards).
+        const priorFlowLabel =
+          [...uiMessages]
+            .reverse()
+            .filter((m) => m.role === "assistant")
+            .map((m) => parseAllmaMarkers(textOf(m)).flow?.label)
+            .find(Boolean) ?? null;
+        const scripted = scriptedFlowOpener(intakeText, priorFlowLabel);
+        if (scripted) {
+          return replyWithFixedText(scripted, "allma-flow");
         }
 
 

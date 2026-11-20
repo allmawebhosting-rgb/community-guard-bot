@@ -1253,8 +1253,13 @@ function ToolCard({
         </ul>
       ) : name === "save_draft" && output?.ok ? (
         <p className="text-sm text-muted-foreground">Saved — you can pick this up any time.</p>
+      ) : name === "find_facilities" ? (
+        <p className="text-sm text-muted-foreground">
+          I couldn't load places right now. Tap Share my location or type your town. In danger, call 999 or 112.
+        </p>
       ) : (
-        <p className="text-sm text-muted-foreground">{name === "find_facilities" ? "I couldn't load places right now. Tap Share my location or type your town. In danger, call 999 or 112." : "Done."}</p>
+        // Never show a useless "Done." stub for unknown/empty tool results.
+        null
       )}
     </div>
   );
