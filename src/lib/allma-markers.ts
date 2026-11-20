@@ -275,7 +275,7 @@ export function hasOpenMarker(raw: string): boolean {
 }
 
 export const ALLMA_MARKER_CONTRACT = `INLINE UI MARKERS — write these directly in your reply text (never as tool calls):
-- Guided step banner: ::flow{type=Reporting, step=2, total=5, title="Where did it happen?"}  (put it on its own FIRST line; type is the flow name: Reporting, Missing person, Lost & found, Safety check, Find help, Advice)
+- Guided step banner: ::flow{type=Reporting, step=2, total=5, title="Where did it happen?"}  (put it on its own FIRST line; type is the flow name: Reporting, Missing person, Lost & found, Safety check, Advice)
 - Tappable answers / next steps: ::suggest[Theft | Robbery | Assault | Something else]  (2-4 short options, on the LAST line, always the exact answers to what you just asked — never a generic menu)
 - Hard emergency action block: ::emergency{type=medical}  (type: medical, crime or fire; own FIRST line, only for potentially life-threatening situations; renders Activate SOS plus Call 999 / Call 112 — the user taps them, nothing starts automatically)
 - Soft Safety Network offer: ::sos_offer{type=medical}  (own line when help from trusted contacts may be useful but the situation is not clearly life-threatening; renders "Would you like to alert your Safety Network?" with a real Activate SOS action). Never use ::sos_offer and ::emergency in the same reply.

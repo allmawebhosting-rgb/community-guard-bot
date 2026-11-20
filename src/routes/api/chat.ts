@@ -322,7 +322,6 @@ export const Route = createFileRoute("/api/chat")({
           { matches: /feel(ing)? (unsafe|scared|afraid|followed)|walking (home )?alone|being (followed|watched)|unsafe at night/i, flow: "Safety check", opener: 'FIRST give 4-6 practical safety tips as a bullet list, each on its own line (stay on lit, busy roads; share your live location with a trusted contact; keep your phone ready; avoid shortcuts and earphones; go into an open shop or police post if followed), then the numbers on their own lines (Police 999, Toll-free 112), THEN ask: Are you safe right now? Options: "Yes, I\'m safe", "No, I\'m in danger", "I\'m not sure".' },
           { matches: /sos|immediate danger|being attacked|help me now/i, flow: "Safety check", opener: 'Are you safe right now? Options: "Yes, I\'m safe", "No, I\'m in danger", "I\'m not sure".' },
           { matches: /report (a )?(crime|theft|robbery|assault|burglar|fraud)|stolen|theft|robb|assault/i, flow: "Reporting", opener: 'What kind of incident is this? Options: "Theft", "Robbery", "Assault", "Something else".' },
-          { matches: /find help|near me|nearest|police station|hospital|ambulance|fire station/i, flow: "Find help", opener: 'Which service do you need? Options: "Police station", "Hospital", "Fire station".' },
         ];
         const directFacilityTypes = [
           [/\bpolice(?: station| post)?\b/i, "police"],
@@ -333,6 +332,10 @@ export const Route = createFileRoute("/api/chat")({
         ]
           .filter(([pattern]) => (pattern as RegExp).test(intakeText))
           .map(([, type]) => type as "police" | "hospital" | "ambulance" | "fire" | "shelter");
+        // Generic "find help / near me" requests skip any wizard and show police + hospitals at once.
+        if (directFacilityTypes.length === 0 && /find help|help nearby|nearby help|near me|nearest/i.test(intakeText)) {
+          directFacilityTypes.push("police", "hospital");
+        }
         const directService = directFacilityTypes[0] ??
           (/\bhospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null);
         const emergencyIncident = flowState.flowLabel ? null : classifyIncident(intakeText);
