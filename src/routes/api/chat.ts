@@ -2,7 +2,11 @@ import { classifyEmergency, classifyIncident, emergencyPromptBlock } from "@/lib
 import { facilityKind } from "@/lib/facility-kind";
 import { cleanAddress, KIND_LABEL, refineFacilities } from "@/lib/facility-results";
 import { chooseSearchOrigin } from "@/lib/location-origin";
-import { isReportingIntent, shouldShowDirectHelp } from "@/lib/chat-intent";
+import {
+  isReportingIntent,
+  shouldLoadReportingPrompt,
+  shouldShowDirectHelp,
+} from "@/lib/chat-intent";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
 import { createFileRoute } from "@tanstack/react-router";
@@ -21,7 +25,6 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import {
   ALLMA_CORE_PROMPT,
-  ALLMA_DETAIL_BLOCK,
   ALLMA_LOCATION_BLOCK,
   ALLMA_MEMORY_BLOCK,
   ALLMA_ONBOARDING_BLOCK,
@@ -29,6 +32,7 @@ import {
   ALLMA_REPORTING_BLOCK,
 } from "@/lib/allma-prompt";
 import { ALLMA_MARKER_CONTRACT, parseAllmaMarkers } from "@/lib/allma-markers";
+import { facilitySearchInputSchema } from "@/lib/facility-search-input";
 
 
 import {
@@ -312,7 +316,7 @@ export const Route = createFileRoute("/api/chat")({
           ? { latitude: Number(coordMatch[1]), longitude: Number(coordMatch[2]) }
           : deviceCoords;
         const coordBlock = sharedCoords
-          ? `\n\nTHE USER HAS ALREADY SHARED THEIR GPS LOCATION: latitude ${sharedCoords.latitude}, longitude ${sharedCoords.longitude}. find_facilities already uses this GPS automatically — call find_facilities (leave area empty unless the user named a town) when they need nearby help. Do NOT ask them for an area, landmark or district again, and never assume Kampala.`
+          ? `\n\nGPS IS AVAILABLE for this conversation. Do not ask the user for their location again; a place they explicitly named takes priority over GPS.`
           : "";
 
         // ---- Named intent: the reply must open that flow with a step card.
@@ -360,9 +364,10 @@ export const Route = createFileRoute("/api/chat")({
           directService,
           isReporting,
           flowState.flowLabel,
+          Boolean(emergencyIncident),
         );
         const directHelpBlock = shouldShowHelp
-          ? `\n\nTHE USER ASKED DIRECTLY FOR: ${directFacilityTypes.length ? directFacilityTypes.join(" and ") : directService}. Do NOT open a flow or ask which service they need. Call find_facilities ONCE with facility_types=[${directFacilityTypes.length ? directFacilityTypes.join(", ") : directService}] in THIS reply. ${sharedCoords ? "Use their shared GPS location unless they named a town or area, which overrides GPS." : "Use an area they named anywhere in the conversation; otherwise use Kampala and briefly offer location sharing for closer places."} Do not add a media card. The UI renders facility cards, so do not generate a second description after the tool result.`
+          ? `\n\nFACILITY SEARCH REQUIRED THIS TURN: Call find_facilities once with facility_types=[${directFacilityTypes.length ? directFacilityTypes.join(", ") : directService}]. Do not open a flow or ask which service they need. Follow the nearby-help location rules. Do not add a media card or repeat the returned place cards.`
           : "";
         // Keep emergency advice for emergencies outside a guided incident report.
         const emergencyBlock = emergencyIncident
@@ -397,11 +402,11 @@ export const Route = createFileRoute("/api/chat")({
         const isFirstTurn = !uiMessages.some((m) => m.role === "assistant");
         const fullMode = Boolean(activeFlow) || uiMessages.length > 4;
         const isReportFlow = ["Reporting", "Missing person", "Lost & found"].includes(activeFlow ?? "");
-        const hasReportContext =
-          isReportFlow ||
-          Boolean(emergencyIncident) ||
-          Boolean(emergencyKind) ||
-          /\b(report|incident|crime|theft|robbery|assault|burglary|fraud|missing person|lost item|found item|stolen|kidnap|abduct)\b/i.test(intakeText);
+        const hasReportContext = shouldLoadReportingPrompt({
+          isReportFlow,
+          isReporting,
+          intakeText,
+        });
         const needsLocation =
           activeFlow === "Find help" ||
           Boolean(sharedCoords) ||
@@ -428,9 +433,6 @@ export const Route = createFileRoute("/api/chat")({
           memoryBlock ||
           /\b(remember|earlier|previous conversation|last time|my report|my reports|draft)\b/i.test(intakeText)
         ) promptBlocks.push(ALLMA_MEMORY_BLOCK);
-        if (hasReportContext || hasNonFindHelpIntent) {
-          promptBlocks.push(ALLMA_DETAIL_BLOCK);
-        }
         const systemPrompt = promptBlocks.join("\n\n");
         mark("prompt");
 
@@ -693,12 +695,11 @@ export const Route = createFileRoute("/api/chat")({
             find_facilities: tool({
               description:
                 "Find nearby help in ONE call. Include every requested type in facility_types (police, hospital, fire, ambulance, shelter). A named town overrides GPS. The UI renders place cards; do not repeat results after this tool returns.",
-              inputSchema: z.object({
-                facility_types: z.array(z.enum(["police", "hospital", "fire", "ambulance", "shelter"])).min(1).max(5),
-                area: z.string().nullable().describe("Optional district or area name"),
-              }),
+              inputSchema: facilitySearchInputSchema,
               execute: async ({ facility_types, area }) => {
-                const requestedTypes = [...new Set(facility_types)];
+                const requestedTypes = [...new Set(
+                  facility_types.length ? facility_types : ["police", "hospital"],
+                )];
                 const facility_type = requestedTypes[0];
                 reportProgress("finding");
                 const searchStarted = Date.now();

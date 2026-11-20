@@ -18,7 +18,22 @@ export function shouldShowDirectHelp(
   directService: string | null,
   isReporting: boolean,
   activeFlow: string | null,
+  isEmergency = false,
 ) {
   const anotherFlowIsActive = Boolean(activeFlow && activeFlow !== "Find help");
-  return Boolean(directService) && !isReporting && !anotherFlowIsActive;
+  return Boolean(directService) && !isReporting && !anotherFlowIsActive && !isEmergency;
+}
+
+export function shouldLoadReportingPrompt(input: {
+  isReportFlow: boolean;
+  isReporting: boolean;
+  intakeText: string;
+}) {
+  return (
+    input.isReportFlow ||
+    input.isReporting ||
+    /\b(report|incident|crime|theft|robbery|assault|burglary|fraud|missing person|lost item|found item|stolen|kidnap|abduct)\b/i.test(
+      input.intakeText,
+    )
+  );
 }

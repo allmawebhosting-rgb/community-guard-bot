@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isReportingIntent, shouldShowDirectHelp } from "./chat-intent";
+import {
+  isReportingIntent,
+  shouldLoadReportingPrompt,
+  shouldShowDirectHelp,
+} from "./chat-intent";
 
 describe("direct help routing", () => {
   it("keeps a stolen-property report in the reporting flow even when police are mentioned", () => {
@@ -35,7 +39,31 @@ describe("direct help routing", () => {
     expect(shouldShowDirectHelp("hospital", false, "Missing person")).toBe(false);
   });
 
+  it("leaves emergency facility routing to the emergency instructions", () => {
+    expect(shouldShowDirectHelp("ambulance", false, null, true)).toBe(false);
+  });
+
   it("allows the active help flow to search after a service is chosen", () => {
     expect(shouldShowDirectHelp("hospital", false, "Find help")).toBe(true);
+  });
+
+  it("does not load report instructions for an emergency-only request", () => {
+    expect(
+      shouldLoadReportingPrompt({
+        isReportFlow: false,
+        isReporting: false,
+        intakeText: "There is a fire in the building",
+      }),
+    ).toBe(false);
+  });
+
+  it("loads report instructions when a report is actually requested", () => {
+    expect(
+      shouldLoadReportingPrompt({
+        isReportFlow: false,
+        isReporting: false,
+        intakeText: "Please report the theft",
+      }),
+    ).toBe(true);
   });
 });

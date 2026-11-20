@@ -3,7 +3,14 @@ import { chooseSearchOrigin } from "./location-origin";
 import { mentionsUgandaPlace } from "./uganda-places";
 import { facilitiesFromLocationIntel, stripFillerSentences } from "./chat-emergency-view";
 import { ALLMA_EMERGENCY_PLAYBOOK } from "./allma-emergency-playbook";
-import { ALLMA_CORE_PROMPT, ALLMA_LOCATION_BLOCK, ALLMA_SYSTEM_PROMPT } from "./allma-prompt";
+import {
+  ALLMA_CORE_PROMPT,
+  ALLMA_DETAIL_BLOCK,
+  ALLMA_LOCATION_BLOCK,
+  ALLMA_PROCEDURES_BLOCK,
+  ALLMA_REPORTING_BLOCK,
+  ALLMA_SYSTEM_PROMPT,
+} from "./allma-prompt";
 
 const BUGEMBE = { latitude: 0.4686, longitude: 33.2416 };
 
@@ -67,13 +74,24 @@ describe("chat prompt stays compact without dropping essential safety rules", ()
   it("keeps emergency numbers and never-contact boundary in the core", () => {
     expect(ALLMA_CORE_PROMPT).toMatch(/999/);
     expect(ALLMA_CORE_PROMPT).toMatch(/112/);
-    expect(ALLMA_CORE_PROMPT).toMatch(/Never contact emergency services on the user's behalf/);
-    expect(ALLMA_CORE_PROMPT.length).toBeLessThan(5500);
+    expect(ALLMA_CORE_PROMPT).toMatch(/Never claim anyone was contacted or dispatched/);
+    expect(ALLMA_CORE_PROMPT.length).toBeLessThan(2000);
   });
 
-  it("uses one facility call and avoids a second place-results description", () => {
-    expect(ALLMA_CORE_PROMPT).toMatch(/all requested facility categories in one find_facilities call/);
+  it("keeps nearby-help rules in one short, location-aware block", () => {
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/call find_facilities once/i);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/Kampala fallback/i);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/during an active emergency/i);
     expect(ALLMA_LOCATION_BLOCK).toMatch(/do not repeat or regenerate descriptions/i);
+    expect(ALLMA_CORE_PROMPT).not.toMatch(/find_facilities/);
+  });
+
+  it("keeps turn-wide detail guidance compact and avoids false report claims", () => {
+    expect(ALLMA_DETAIL_BLOCK.length).toBeLessThan(500);
+    expect(ALLMA_REPORTING_BLOCK).not.toMatch(/responsible station has received/i);
+    expect(ALLMA_REPORTING_BLOCK).not.toMatch(/there's a fire.*Emergency flow/i);
+    expect(ALLMA_PROCEDURES_BLOCK).toMatch(/Do not start report collection for an emergency-only request/i);
+    expect(ALLMA_PROCEDURES_BLOCK).not.toMatch(/4\) THE REPORT/);
   });
 });
 
@@ -82,7 +100,7 @@ describe("retired Location Intelligence card does not leak into chat", () => {
     expect(ALLMA_SYSTEM_PROMPT).not.toMatch(/location_intelligence/);
     expect(ALLMA_LOCATION_BLOCK).not.toMatch(/Display: "This incident falls under/);
     expect(ALLMA_LOCATION_BLOCK).toMatch(/find_facilities/);
-    expect(ALLMA_LOCATION_BLOCK).toMatch(/The UI renders facility names/);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/The UI renders facility cards/);
   });
 
   it("strips leftover Location Intelligence headings and 'falls under' lines", () => {
