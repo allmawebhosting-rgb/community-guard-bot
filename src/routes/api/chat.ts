@@ -2,6 +2,7 @@ import { classifyEmergency, classifyIncident, emergencyPromptBlock } from "@/lib
 import { facilityKind } from "@/lib/facility-kind";
 import { cleanAddress, KIND_LABEL, refineFacilities } from "@/lib/facility-results";
 import { chooseSearchOrigin } from "@/lib/location-origin";
+import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import {
   isReportingIntent,
   shouldLoadReportingPrompt,
@@ -51,6 +52,9 @@ type ChatRequestBody = {
   /** Device GPS the browser attached to this request, if permitted. */
   coords?: { latitude?: unknown; longitude?: unknown } | null;
 };
+
+const PHYSICAL_SYMPTOM_FIRST_AID_RULE =
+  "PHYSICAL FIRST-AID RULE: When the user describes any physical symptom, pain, or injury (including swelling, bleeding, or burns), write clear numbered first-aid steps and urgent red flags in your message text BEFORE calling any tools. Never call a tool first in these cases.";
 
 function parseEvidence(value: unknown): Array<{ path: string; mediaType: string | null }> {
   if (!Array.isArray(value)) return [];
@@ -490,7 +494,7 @@ export const Route = createFileRoute("/api/chat")({
           maxRetries: 0,
           maxOutputTokens: 384,
           abortSignal: request.signal,
-          system: `${systemPrompt}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}\n\nThe user is ${
+          system: `${systemPrompt}\n\n${PHYSICAL_SYMPTOM_FIRST_AID_RULE}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
           }${
             sharedSosActive
@@ -731,9 +735,43 @@ export const Route = createFileRoute("/api/chat")({
                 const vagueArea = /^(nearby|near me|near|here|around|around me|my area|current location|local|any)?$/i.test(
                   (area ?? "").trim(),
                 );
-                if (!origin && vagueArea) {
+                if (!origin && !sharedCoords && vagueArea) {
                   origin = { lat: 0.3152, lng: 32.5816, label: "Central Kampala (share your location for closer help)" };
                 }
+                if (!origin && sharedCoords) return facilityToolOutput(unconfirmed);
+                const fallbackCenter = origin ?? { lat: 0.3152, lng: 32.5816 };
+                const fallbackArea = origin?.label ?? "Kampala directory fallback (location not confirmed)";
+                const seededFacilityFallback = async (note: string) => {
+                  const seeded = getSeededNearbyFacilities(fallbackCenter, named ? 15_000 : 10_000);
+                  const refinedSeeded = await refineFacilities(
+                    seeded,
+                    requestedTypes,
+                    async () => ({}),
+                    { emergency: medicalEmergency },
+                  );
+                  const facilities = refinedSeeded.map((place) => ({
+                    name: place.name,
+                    facility_type: place.kind,
+                    type_label: place.type_label,
+                    phone: place.phone,
+                    address: place.address,
+                    latitude: place.latitude,
+                    longitude: place.longitude,
+                    open_now: place.open_now,
+                    distance_km: Math.round(place.distance_m / 100) / 10,
+                  }));
+                  return facilityToolOutput({
+                    ok: facilities.length > 0,
+                    resolved_area: fallbackArea,
+                    emergency_type: facility_type,
+                    emergency_types: requestedTypes,
+                    count: facilities.length,
+                    facilities,
+                    note: facilities.length
+                      ? note
+                      : "No nearby facilities could be confirmed. Ask the user to share location or enter a town; keep emergency numbers available.",
+                  });
+                };
                 if (!origin) {
                   const directoryArea = area?.trim() ?? "";
                   const safeArea = directoryArea
@@ -753,7 +791,7 @@ export const Route = createFileRoute("/api/chat")({
                         .limit(8);
                       if (error) {
                         console.warn("Facility directory area search failed", error);
-                        return { ok: false, message: "Directory lookup failed." };
+                        return seededFacilityFallback("The directory was unavailable; showing seeded nearby options.");
                       }
                       if (matchedFacilities?.length) {
                         const facilities = matchedFacilities.map((row) => {
@@ -793,10 +831,10 @@ export const Route = createFileRoute("/api/chat")({
                       }
                     } catch (err) {
                       console.warn("Facility directory area search failed", err);
-                      return { ok: false, message: "Directory lookup failed." };
+                      return seededFacilityFallback("The directory was unavailable; showing seeded nearby options.");
                     }
                   }
-                  if (area || sharedCoords) return facilityToolOutput(unconfirmed);
+                  return seededFacilityFallback("No directory matches were found; showing seeded nearby options.");
                 }
                 if (origin) {
                   try {
@@ -868,37 +906,37 @@ export const Route = createFileRoute("/api/chat")({
                   } catch (err) {
                     console.warn("Nearby places lookup failed; using directory.", err);
                   }
-                  const { data, error } = await supabase
-                    .from("facilities")
-                    .select("name, facility_type, phone, address, district, latitude, longitude")
-                    .in("facility_type", requestedTypes)
-                    .not("latitude", "is", null)
-                    .not("longitude", "is", null);
-                  if (error) return { ok: false, message: "Directory lookup failed." };
-                  const ranked = (data ?? [])
-                    .filter((row) => inUganda(Number(row.latitude), Number(row.longitude)))
-                    .map((row) => ({
-                      ...row,
-                      address: cleanAddress(row.address, Number(row.latitude), Number(row.longitude)),
-                      distance_km: Math.round(haversineKm(origin.lat, origin.lng, Number(row.latitude), Number(row.longitude)) * 10) / 10,
-                    }))
-                    .filter((row) => row.distance_km <= MAX_NEARBY_KM)
-                    .sort((a, b) => a.distance_km - b.distance_km)
-                    .slice(0, 5);
-                  if (ranked.length) {
-                    return facilityToolOutput({ ok: true, resolved_area: origin.label, emergency_type: facility_type, emergency_types: requestedTypes, count: ranked.length, facilities: ranked.map((r) => ({ ...r, type_label: facilityKind(r.facility_type, r.name) })), note: `Showing exactly ${ranked.length} place(s); distance_km is straight-line; never state travel time.` });
+                  try {
+                    const { data, error } = await supabase
+                      .from("facilities")
+                      .select("name, facility_type, phone, address, district, latitude, longitude")
+                      .in("facility_type", requestedTypes)
+                      .not("latitude", "is", null)
+                      .not("longitude", "is", null);
+                    if (error) {
+                      console.warn("Facility coordinate directory search failed", error);
+                      return seededFacilityFallback("The directory was unavailable; showing seeded nearby options.");
+                    }
+                    const ranked = (data ?? [])
+                      .filter((row) => inUganda(Number(row.latitude), Number(row.longitude)))
+                      .map((row) => ({
+                        ...row,
+                        address: cleanAddress(row.address, Number(row.latitude), Number(row.longitude)),
+                        distance_km: Math.round(haversineKm(origin.lat, origin.lng, Number(row.latitude), Number(row.longitude)) * 10) / 10,
+                      }))
+                      .filter((row) => row.distance_km <= MAX_NEARBY_KM)
+                      .sort((a, b) => a.distance_km - b.distance_km)
+                      .slice(0, 5);
+                    if (ranked.length) {
+                      return facilityToolOutput({ ok: true, resolved_area: origin.label, emergency_type: facility_type, emergency_types: requestedTypes, count: ranked.length, facilities: ranked.map((r) => ({ ...r, type_label: facilityKind(r.facility_type, r.name) })), note: `Showing exactly ${ranked.length} place(s); distance_km is straight-line; never state travel time.` });
+                    }
+                  } catch (err) {
+                    console.warn("Facility coordinate directory search failed", err);
+                    return seededFacilityFallback("The directory was unavailable; showing seeded nearby options.");
                   }
-                  return facilityToolOutput(unconfirmed);
+                  return seededFacilityFallback("No directory matches were found; showing seeded nearby options.");
                 }
-                // No area and no GPS: national directory list, no distances.
-                const { data, error } = await supabase
-                  .from("facilities")
-                  .select("name, facility_type, phone, address, district")
-                  .in("facility_type", requestedTypes)
-                  .ilike("district", "%Kampala%")
-                  .limit(5);
-                if (error) return { ok: false, message: "Directory lookup failed." };
-                return facilityToolOutput({ ok: true, resolved_area: "Kampala (share your location for closer places)", emergency_type: facility_type, emergency_types: requestedTypes, count: (data ?? []).length, facilities: data ?? [], note: `Showing exactly ${(data ?? []).length} place(s); don't state a different number.` });
+                return seededFacilityFallback("Showing seeded nearby options.");
               },
             }),
             list_alerts: tool({

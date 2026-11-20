@@ -24,7 +24,11 @@ export const facilitySearchInputSchema = z.object({
     .default(["police", "hospital"]),
   area: z
     .preprocess(
-      (value) => (typeof value === "string" && value.trim().length > 0 ? value.trim() : null),
+      (value) => {
+        if (typeof value !== "string") return null;
+        const area = value.trim();
+        return /^(nearby|near me|here)$/i.test(area) ? null : area || null;
+      },
       z.string().nullable(),
     )
     .nullish()

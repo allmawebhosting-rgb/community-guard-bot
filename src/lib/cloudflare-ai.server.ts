@@ -18,17 +18,17 @@ export function getCloudflareChatModel() {
   return createWorkersAI({ binding: dedupeStreamBinding(binding) as any })(CF_CHAT_MODEL as any);
 }
 
-// Some Workers AI models stream both the legacy `response` field and OpenAI-style
-// `choices[0].delta.content` in the same SSE chunk; the provider emits both, doubling
-// every token. Strip `response` whenever `choices` is present.
+// Some Workers AI models stream legacy response/tool fields alongside OpenAI-style
+// choices in the same SSE chunk; the provider can emit duplicate content and tool calls.
 export function dedupeSseLine(line: string): string {
   if (!line.startsWith("data:")) return line;
   const payload = line.slice(5).trim();
   if (!payload || payload === "[DONE]") return line;
   try {
     const obj = JSON.parse(payload) as Record<string, unknown>;
-    if (Array.isArray(obj["choices"]) && "response" in obj) {
+    if (Array.isArray(obj["choices"])) {
       delete obj["response"];
+      delete obj["tool_calls"];
       return `data: ${JSON.stringify(obj)}`;
     }
   } catch {

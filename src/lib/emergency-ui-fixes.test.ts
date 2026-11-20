@@ -31,6 +31,27 @@ describe("nosebleed and other incidents always get the playbook", () => {
     expect(aid.notDoctor).toMatch(/isn't a doctor/);
   });
 
+  it.each(["my nose is swollen", "I hit my nose", "I have a broken nose", "my nose looks swollen"])(
+    "'%s' → swollen nose",
+    (text) => {
+      expect(matchIncident(text)?.id).toBe("swollen_nose");
+    },
+  );
+
+  it("swollen nose first aid includes steps and urgent red flags", () => {
+    const incident = matchIncident("my nose is swollen")!;
+    expect(incident.category).toBe("medical");
+    expect(incident.marker).toBe("medical");
+    expect(incident.helpTypes).toEqual(["hospital"]);
+    expect(incident.followUp).toBe("Are you having trouble breathing or any bleeding?");
+    const aid = firstAidFor(incident)!;
+    expect(aid.steps.join(" ")).toMatch(/sit upright/i);
+    expect(aid.steps.join(" ")).toMatch(/cold compress/i);
+    expect(aid.steps.join(" ")).toMatch(/do not blow/i);
+    expect(aid.redFlags.join(" ")).toMatch(/trouble breathing/i);
+    expect(aid.redFlags.join(" ")).toMatch(/heavy bleeding/i);
+  });
+
   it("every incident with 'Steps:' parses into 1–6 clean steps", () => {
     for (const incident of INCIDENTS) {
       const aid = firstAidFor(incident);

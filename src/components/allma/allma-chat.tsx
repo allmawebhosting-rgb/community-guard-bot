@@ -553,15 +553,17 @@ function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | nul
 function EmergencyActions({
   type,
   offerMode = false,
+  includeCallLinks = true,
 }: {
   type: "medical" | "crime" | "fire";
   offerMode?: boolean;
+  includeCallLinks?: boolean;
 }) {
   const sosActivity = useContext(SosActivityContext);
   return (
     <InChatSos
       type={type}
-      lines={EMERGENCY_BLOCK_LINES[type]}
+      lines={includeCallLinks ? EMERGENCY_BLOCK_LINES[type] : []}
       threadId={sosActivity.threadId}
       existingActivityId={sosActivity.activityId}
       existingActive={sosActivity.active}
@@ -821,6 +823,8 @@ function ToolCard({
 }) {
   const name = part.type.replace(/^tool-/, "");
   const hasPlaces = useContext(HasPlacesContext);
+  const emergencyShown = useContext(EmergencyShownContext);
+  const incident = useContext(IncidentContext);
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
 
@@ -1098,8 +1102,49 @@ function ToolCard({
     );
   }
 
-  if (name === "find_facilities" && Array.isArray(output?.facilities)) {
-    return <FacilityResults output={output as Record<string, unknown>} />;
+  if (name === "find_facilities") {
+    const facilities = Array.isArray(output?.facilities) ? output.facilities : [];
+    if (facilities.length) {
+      return <FacilityResults output={output as Record<string, unknown>} />;
+    }
+    return (
+      <div className="chat-card w-full space-y-3 p-4">
+        {incident && !emergencyShown ? (
+          <EmergencyActions type={incident.marker} includeCallLinks={false} />
+        ) : null}
+        <div>
+          <p className="font-semibold text-foreground">Emergency help</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            Nearby places could not be loaded. Share your location or type a town in the chat to search again.
+          </p>
+        </div>
+        {onShareLocation ? (
+          <button
+            type="button"
+            onClick={onShareLocation}
+            className="w-full rounded-full border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent"
+          >
+            Share my location
+          </button>
+        ) : null}
+        <div className="grid grid-cols-2 gap-2">
+          <a
+            href="tel:999"
+            aria-label="Call Police 999"
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border bg-background px-3 text-center text-sm font-semibold text-foreground"
+          >
+            <Phone className="h-4 w-4 shrink-0" /> Call Police 999
+          </a>
+          <a
+            href="tel:112"
+            aria-label="Call Toll-Free 112"
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-chat-accent px-3 text-center text-sm font-semibold text-chat-accent-foreground"
+          >
+            <Phone className="h-4 w-4 shrink-0" /> Call Toll-Free 112
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (

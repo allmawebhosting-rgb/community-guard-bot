@@ -32,9 +32,12 @@ describe("facility search tool input", () => {
     ).toEqual(["ambulance", "shelter", "police"]);
   });
 
-  it("trims a supplied area and treats blank or non-string areas as absent", () => {
+  it("trims named areas and treats blank, vague, or non-string areas as absent", () => {
     expect(facilitySearchInputSchema.parse({ area: "  Jinja  " }).area).toBe("Jinja");
     expect(facilitySearchInputSchema.parse({ area: "  " }).area).toBeNull();
+    expect(facilitySearchInputSchema.parse({ area: "nearby" }).area).toBeNull();
+    expect(facilitySearchInputSchema.parse({ area: " near me " }).area).toBeNull();
+    expect(facilitySearchInputSchema.parse({ area: "HERE" }).area).toBeNull();
     expect(facilitySearchInputSchema.parse({ area: 12 }).area).toBeNull();
   });
 });
