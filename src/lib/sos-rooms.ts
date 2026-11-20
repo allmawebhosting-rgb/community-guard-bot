@@ -197,6 +197,30 @@ export async function listConversationMessages(threadId: string): Promise<Shared
   return (data ?? []) as SharedChatMessageRow[];
 }
 
+/** Flush in-memory chat turns into the canonical messages table before SOS fan-out. */
+export async function persistConversationMessages(
+  threadId: string,
+  rows: Array<{ id: string; role: string; parts: unknown; authorId?: string | null }>,
+) {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth.user?.id;
+  if (!userId) throw new Error("Please sign in to save this conversation.");
+  const payload = rows
+    .filter((row) => row.role === "user" || row.role === "assistant")
+    .map((row) => ({
+      thread_id: threadId,
+      user_id: row.authorId || userId,
+      role: row.role,
+      parts: row.parts as never,
+      sdk_message_id: row.id,
+    }));
+  if (payload.length === 0) return;
+  const { error } = await supabase
+    .from("messages")
+    .upsert(payload, { onConflict: "sdk_message_id", ignoreDuplicates: true });
+  if (error) throw new Error(friendly(error.message));
+}
+
 export function sosRoomMessagesQueryOptions(sosActivityId: string | null) {
   return queryOptions({
     queryKey: ["sos-room-messages", sosActivityId],

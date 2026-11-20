@@ -40,6 +40,11 @@ import {
 } from "@/lib/allma-prompt";
 import { ALLMA_MARKER_CONTRACT, parseAllmaMarkers } from "@/lib/allma-markers";
 import { facilitySearchInputSchema } from "@/lib/facility-search-input";
+import {
+  mergeCanonicalChatHistory,
+  sharedThreadHasAssistantHistory,
+  type SharedHistoryRow,
+} from "@/lib/shared-chat-history";
 
 
 import {
@@ -181,14 +186,55 @@ export const Route = createFileRoute("/api/chat")({
         const gateway = createLovableAiGatewayProvider(apiKey, initialRunId);
         const responsesGateway = createLovableAiGatewayResponsesProvider(apiKey, initialRunId);
 
-        const uiMessages = messages as UIMessage[];
-        const lastUserMessage = [...uiMessages].reverse().find((m) => m.role === "user");
+        // Canonical shared history: responders often only have the latest local
+        // turn. Load the original thread from Supabase so everyone shares one timeline.
+        let databaseHistory: SharedHistoryRow[] = [];
+        if (threadId) {
+          const { data: historyRows, error: historyError } = await supabase
+            .from("messages")
+            .select("id, user_id, role, parts, sdk_message_id, created_at")
+            .eq("thread_id", threadId)
+            .order("created_at", { ascending: true })
+            .limit(200);
+          if (historyError) {
+            console.error("Failed to load shared conversation history", historyError);
+          } else {
+            databaseHistory = (historyRows ?? []) as SharedHistoryRow[];
+          }
+        }
+
+        const uiMessages = mergeCanonicalChatHistory(databaseHistory, messages as UIMessage[]);
+        const lastUserMessage = [...(messages as UIMessage[])].reverse().find((m) => m.role === "user")
+          ?? [...uiMessages].reverse().find((m) => m.role === "user");
         const intakeText = lastUserMessage ? textOf(lastUserMessage) : "";
         // Everything the user typed in this conversation — a place counts as "named" only if it's here.
         const userConversationText = uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)).join("\n");
+        const hasSharedAssistantHistory = sharedThreadHasAssistantHistory(databaseHistory);
+
+        // Publish the human turn to the shared messages table immediately so the
+        // other participant(s) see it over Realtime before the AI finishes.
+        if (userId && threadId && lastUserMessage) {
+          const earlyInsert = await supabase.from("messages").upsert(
+            {
+              thread_id: threadId,
+              user_id: userId,
+              role: "user",
+              parts: lastUserMessage.parts as never,
+              sdk_message_id: lastUserMessage.id,
+            },
+            { onConflict: "sdk_message_id", ignoreDuplicates: true },
+          );
+          if (earlyInsert.error) {
+            console.error("Failed to publish shared user message early", earlyInsert.error);
+          }
+        }
 
         // ---- Greeting-only opener: answered locally, no model call, no credits.
+        // Never greet inside an active shared SOS or when the canonical thread
+        // already has Allma history — that was creating a "separate chat" feel.
         const isGreetingOnly =
+          !sharedSosActive &&
+          !hasSharedAssistantHistory &&
           !uiMessages.some((m) => m.role === "assistant") &&
           /^(hi|hey|hello|yo|hola|hei|hie|good (morning|afternoon|evening)|greetings|oli otya|wasup|what'?s up)[\s!.,?]*$/i.test(
             intakeText.trim(),
@@ -207,24 +253,17 @@ export const Route = createFileRoute("/api/chat")({
             },
             onFinish: async ({ responseMessage }) => {
               if (!userId || !body.threadId) return;
-              const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
-              if (lastUserMessage) {
-                rows.push({
+              // User turn is published early for shared realtime; only persist AI here.
+              const { error } = await supabase.from("messages").upsert(
+                {
                   thread_id: body.threadId,
                   user_id: userId,
-                  role: "user",
-                  parts: lastUserMessage.parts as never,
-                  sdk_message_id: lastUserMessage.id,
-                });
-              }
-              rows.push({
-                thread_id: body.threadId,
-                user_id: userId,
-                role: responseMessage.role,
-                parts: responseMessage.parts as never,
-                sdk_message_id: responseMessage.id,
-              });
-              const { error } = await supabase.from("messages").insert(rows);
+                  role: responseMessage.role,
+                  parts: responseMessage.parts as never,
+                  sdk_message_id: responseMessage.id,
+                },
+                { onConflict: "sdk_message_id", ignoreDuplicates: true },
+              );
               if (error) console.error("Failed to persist scripted chat messages", error);
             },
           });
@@ -246,7 +285,10 @@ export const Route = createFileRoute("/api/chat")({
             .filter((m) => m.role === "assistant")
             .map((m) => parseAllmaMarkers(textOf(m)).flow?.label)
             .find(Boolean) ?? null;
-        const scripted = scriptedFlowOpener(intakeText, priorFlowLabel);
+        const scripted =
+          sharedSosActive || hasSharedAssistantHistory
+            ? null
+            : scriptedFlowOpener(intakeText, priorFlowLabel);
         if (scripted) {
           return replyWithFixedText(scripted, "allma-flow");
         }
@@ -1292,29 +1334,21 @@ export const Route = createFileRoute("/api/chat")({
             logTiming(usedModel);
             if (!userId || !threadId) return;
 
-            const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
-
-            if (lastUserMessage) {
-              rows.push({
+            // User message was upserted at request start for shared realtime delivery.
+            const messageInsert = await supabase.from("messages").upsert(
+              {
                 thread_id: threadId,
                 user_id: userId,
-                role: "user",
-                parts: lastUserMessage.parts as never,
-                sdk_message_id: lastUserMessage.id,
-              });
-            }
-            rows.push({
-              thread_id: threadId,
-              user_id: userId,
-              role: responseMessage.role,
-              parts: responseMessage.parts as never,
-              sdk_message_id: responseMessage.id,
-            });
+                role: responseMessage.role,
+                parts: responseMessage.parts as never,
+                sdk_message_id: responseMessage.id,
+              },
+              { onConflict: "sdk_message_id", ignoreDuplicates: true },
+            );
+            if (messageInsert.error) console.error("Failed to persist messages", messageInsert.error);
 
             const title = lastUserMessage ? textOf(lastUserMessage).slice(0, 60) : null;
             const updatedAt = new Date().toISOString();
-            const messageInsert = await supabase.from("messages").insert(rows);
-            if (messageInsert.error) console.error("Failed to persist messages", messageInsert.error);
             // Only the conversation owner can rename/touch the thread row under RLS.
             if (threadIsOwner) {
               const [titleUpdate, threadTouch] = await Promise.all([

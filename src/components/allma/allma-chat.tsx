@@ -1,5 +1,5 @@
 import { InChatSos } from "@/components/allma/in-chat-sos";
-import { SosParticipantStrip } from "@/components/allma/sos-participant-strip";
+import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -97,6 +97,7 @@ import {
   chatThreadContextQueryOptions,
   getSosRoomVoiceNoteUrl,
   listConversationMessages,
+  persistConversationMessages,
   sendSosRoomVoiceNote,
   sosRoomMessagesQueryOptions,
   sosRoomQueryOptions,
@@ -1457,14 +1458,20 @@ export function AllmaChat({
           console.warn("Could not refresh shared conversation messages", syncError);
         });
     };
-    return subscribeConversationMessages(
+    backfillMessages();
+    const poll = window.setInterval(backfillMessages, sosIsActive ? 4_000 : 15_000);
+    const unsubscribe = subscribeConversationMessages(
       threadId,
       (incoming: SharedChatMessageRow) => {
         setMessages((current) => mergeSharedMessages(current, [incoming]));
       },
       backfillMessages,
     );
-  }, [setMessages, threadId]);
+    return () => {
+      window.clearInterval(poll);
+      unsubscribe();
+    };
+  }, [setMessages, sosIsActive, threadId]);
 
   useEffect(() => {
     setVoiceNoteUrls({});
@@ -1520,10 +1527,22 @@ export function AllmaChat({
     () => buildSosParticipantStrip(sosIsActive || sosRoom ? sosRoom : null),
     [sosIsActive, sosRoom],
   );
-  const visibleSosMessages = sosMessages.filter(
-    (message) =>
+  const visibleSosMessages = useMemo(() => {
+    const allowed = sosMessages.filter((message) =>
       ["user_message", "voice_note", "participant_joined", "system"].includes(message.event_type),
-  );
+    );
+    // Deduplicate join / SOS system notices that can be recorded more than once.
+    const seen = new Set<string>();
+    return allowed.filter((message) => {
+      if (message.event_type === "user_message" || message.event_type === "voice_note") {
+        return true;
+      }
+      const key = `${message.event_type}:${message.author_id ?? ""}:${message.body}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [sosMessages]);
 
   useEffect(() => {
     if (status === "ready" || status === "error") setServerProgress([]);
@@ -2030,9 +2049,22 @@ export function AllmaChat({
             : current,
       );
       void queryClient.invalidateQueries({ queryKey: ["chat-thread-context", threadId] });
+      // Persist the original Allma timeline before responders join so they load
+      // the same canonical messages rows — not an empty parallel chat.
+      void persistConversationMessages(
+        threadId,
+        messages.map((message) => ({
+          id: message.id,
+          role: message.role,
+          parts: message.parts,
+          authorId: (message as UIMessage & { authorId?: string }).authorId ?? user?.id ?? null,
+        })),
+      ).catch((persistError) => {
+        console.warn("Could not flush conversation before SOS fan-out", persistError);
+      });
     }
     requestAnimationFrame(() => card?.scrollIntoView({ behavior: "smooth", block: "end" }));
-  }, [queryClient, threadId]);
+  }, [messages, queryClient, threadId, user?.id]);
 
   const handleSosActivityEnded = useCallback((activityId: string) => {
     setActiveSosActivity((current) =>
@@ -2044,11 +2076,31 @@ export function AllmaChat({
   }, [queryClient, threadId]);
 
   const ensureSosThread = useCallback(async () => {
-    if (threadId) return threadId;
+    const flush = async (id: string) => {
+      try {
+        await persistConversationMessages(
+          id,
+          messages.map((message) => ({
+            id: message.id,
+            role: message.role,
+            parts: message.parts,
+            authorId: (message as UIMessage & { authorId?: string }).authorId ?? user?.id ?? null,
+          })),
+        );
+      } catch (persistError) {
+        console.warn("Could not persist conversation before SOS", persistError);
+      }
+    };
+
+    if (threadId) {
+      await flush(threadId);
+      return threadId;
+    }
 
     const openExisting = async (existingId: string) => {
       stashPendingChatMessages(existingId, messages);
       rememberActiveChatThread(existingId);
+      await flush(existingId);
       if (typeof window === "undefined" || window.location.pathname !== `/chat/${existingId}`) {
         await navigate({
           to: "/chat/$threadId",
@@ -2074,6 +2126,7 @@ export function AllmaChat({
     const thread = await createThread(title);
     stashPendingChatMessages(thread.id, messages);
     rememberActiveChatThread(thread.id);
+    await flush(thread.id);
     queryClient.setQueryData(["threads"], (threads: Array<{ id: string }> = []) => [
       thread,
       ...threads.filter((item) => item.id !== thread.id),
@@ -2085,7 +2138,7 @@ export function AllmaChat({
       replace: true,
     });
     return thread.id;
-  }, [messages, navigate, queryClient, threadId]);
+  }, [messages, navigate, queryClient, threadId, user?.id]);
 
   const sosActivityContextValue = useMemo(
     () => ({
@@ -2301,10 +2354,6 @@ export function AllmaChat({
         }}
       />
 
-      {(sosIsActive || (sosRoom && sosParticipants.length > 1)) ? (
-        <SosParticipantStrip participants={sosParticipants} />
-      ) : null}
-
       {activeInlineCall && sosIsActive ? (
         <div
           role="region"
@@ -2383,16 +2432,19 @@ export function AllmaChat({
           </div>
         </div>
       ) : (
-        <Conversation className="min-h-0 flex-1 overscroll-contain">
+        <Conversation className="relative min-h-0 flex-1 overscroll-contain">
           <SosRoomAutoScroll
             active={sosIsActive}
             activityId={sosActivityId}
-            messageCount={visibleSosMessages.length}
+            messageCount={visibleSosMessages.length + messages.length}
           />
+          {(sosIsActive || (sosRoom && sosParticipants.some((person) => person.role !== "ai"))) ? (
+            <SosFloatingChatHeads participants={sosParticipants} />
+          ) : null}
           <ConversationContent
             className={cn(
               "mx-auto w-full max-w-3xl lg:max-w-4xl lg:px-8 lg:pb-10",
-              sosIsActive ? "px-1.5 sm:px-3" : "px-3",
+              sosIsActive ? "px-1.5 pr-[4.5rem] sm:px-3 sm:pr-[5.25rem]" : "px-3",
               "pb-8",
             )}
           >
