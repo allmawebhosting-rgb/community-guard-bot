@@ -5,7 +5,7 @@ import type { UIMessage } from "ai";
 import { Loader2 } from "lucide-react";
 import { AppShell } from "@/components/allma/app-shell";
 import { AllmaChat } from "@/components/allma/allma-chat";
-import { supabase } from "@/integrations/supabase/client";
+import { listConversationMessages } from "@/lib/sos-rooms";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   validateSearch: (search: Record<string, unknown>): { q?: string } =>
@@ -33,17 +33,12 @@ function ChatThreadPage() {
   const { threadId } = useParams({ from: "/_authenticated/chat/$threadId" });
   const { q } = Route.useSearch();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["thread-messages", threadId],
-    queryFn: async () => {
-      const { data: rows, error } = await supabase
-        .from("messages")
-        .select("id, role, parts, created_at, user_id, sdk_message_id")
-        .eq("thread_id", threadId)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return rows;
-    },
+    queryFn: () => listConversationMessages(threadId),
+    // SOS responders must see pre-join history as soon as membership lands.
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const initialMessages = useMemo<UIMessage[]>(
@@ -63,6 +58,10 @@ function ChatThreadPage() {
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
+          This conversation could not be loaded. Open it again from the SOS call or Call centre.
         </div>
       ) : (
         <AllmaChat

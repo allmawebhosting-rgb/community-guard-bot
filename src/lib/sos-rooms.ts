@@ -188,13 +188,20 @@ export async function listSosRoomMessages(sosActivityId: string): Promise<SosRoo
 }
 
 export async function listConversationMessages(threadId: string): Promise<SharedChatMessageRow[]> {
-  const { data, error } = await supabase
+  // Prefer the security-definer RPC so authorised SOS responders always receive
+  // the full original timeline (not an empty chat filtered by their user id).
+  const { data, error } = await (supabase as any).rpc("list_shared_conversation_messages", {
+    p_thread_id: threadId,
+  });
+  if (!error) return (data ?? []) as SharedChatMessageRow[];
+
+  const fallback = await supabase
     .from("messages")
     .select("id, thread_id, user_id, role, parts, sdk_message_id, created_at")
     .eq("thread_id", threadId)
     .order("created_at", { ascending: true });
-  if (error) throw new Error(friendly(error.message));
-  return (data ?? []) as SharedChatMessageRow[];
+  if (fallback.error) throw new Error(friendly(error.message || fallback.error.message));
+  return (fallback.data ?? []) as SharedChatMessageRow[];
 }
 
 /** Flush in-memory chat turns into the canonical messages table before SOS fan-out. */
@@ -208,17 +215,18 @@ export async function persistConversationMessages(
   const payload = rows
     .filter((row) => row.role === "user" || row.role === "assistant")
     .map((row) => ({
-      thread_id: threadId,
-      user_id: row.authorId || userId,
-      role: row.role,
-      parts: row.parts as never,
       sdk_message_id: row.id,
+      role: row.role,
+      parts: row.parts,
+      user_id: row.authorId || userId,
     }));
-  if (payload.length === 0) return;
-  const { error } = await supabase
-    .from("messages")
-    .upsert(payload, { onConflict: "sdk_message_id", ignoreDuplicates: true });
+  if (payload.length === 0) return 0;
+  const { data, error } = await (supabase as any).rpc("publish_conversation_messages", {
+    p_thread_id: threadId,
+    p_messages: payload,
+  });
   if (error) throw new Error(friendly(error.message));
+  return typeof data === "number" ? data : payload.length;
 }
 
 export function sosRoomMessagesQueryOptions(sosActivityId: string | null) {

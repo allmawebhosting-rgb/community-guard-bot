@@ -504,8 +504,10 @@ SOS CALL → ONE SHARED GROUP CHAT
 
 Answering an SOS call admits that Safety Network member into the **original** Allma AI conversation (`messages.thread_id`). There is no second chat and no message copying.
 
-- SOS activation flushes the live Allma timeline into the canonical `messages` table before calls fan out.
-- `claim_sos_emergency_call` / `open_sos_shared_conversation` return that existing thread only — they never mint a parallel “Emergency SOS” conversation for responders.
+- Chat turns are published through `publish_conversation_messages` (idempotent). A broken client upsert path had been silently dropping history, so responders opened the correct thread ID with zero rows.
+- SOS activation flushes the live Allma timeline into that canonical table before calls fan out.
+- Responders load history with `list_shared_conversation_messages` for the original thread — including messages created before SOS.
+- `claim_sos_emergency_call` / `open_sos_shared_conversation` return that existing thread only — they never mint a parallel conversation.
 - `/api/chat` loads the shared DB history for every participant, publishes each human turn immediately for Realtime, and skips private greeting/openers during an active SOS.
 - Ringing, declined, missed, and failed calls do not create chat membership.
 - Floating chat heads on the right show who is in the emergency conversation.

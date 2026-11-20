@@ -2049,8 +2049,7 @@ export function AllmaChat({
             : current,
       );
       void queryClient.invalidateQueries({ queryKey: ["chat-thread-context", threadId] });
-      // Persist the original Allma timeline before responders join so they load
-      // the same canonical messages rows — not an empty parallel chat.
+      // Persist again after activation so late-arriving local turns are shared.
       void persistConversationMessages(
         threadId,
         messages.map((message) => ({
@@ -2059,9 +2058,17 @@ export function AllmaChat({
           parts: message.parts,
           authorId: (message as UIMessage & { authorId?: string }).authorId ?? user?.id ?? null,
         })),
-      ).catch((persistError) => {
-        console.warn("Could not flush conversation before SOS fan-out", persistError);
-      });
+      )
+        .then((inserted) => {
+          if (messages.length > 0 && inserted === 0) {
+            console.warn("SOS flush wrote 0 new rows; history may already be shared");
+          }
+          void queryClient.invalidateQueries({ queryKey: ["thread-messages", threadId] });
+        })
+        .catch((persistError) => {
+          console.error("Could not flush conversation before SOS fan-out", persistError);
+          toast.error("Could not share this chat history with responders. Stay on this screen.");
+        });
     }
     requestAnimationFrame(() => card?.scrollIntoView({ behavior: "smooth", block: "end" }));
   }, [messages, queryClient, threadId, user?.id]);
@@ -2078,7 +2085,7 @@ export function AllmaChat({
   const ensureSosThread = useCallback(async () => {
     const flush = async (id: string) => {
       try {
-        await persistConversationMessages(
+        const inserted = await persistConversationMessages(
           id,
           messages.map((message) => ({
             id: message.id,
@@ -2087,8 +2094,15 @@ export function AllmaChat({
             authorId: (message as UIMessage & { authorId?: string }).authorId ?? user?.id ?? null,
           })),
         );
+        void queryClient.invalidateQueries({ queryKey: ["thread-messages", id] });
+        if (messages.length > 0 && inserted === 0) {
+          // Idempotent republish still means history is on the canonical thread.
+          return;
+        }
       } catch (persistError) {
-        console.warn("Could not persist conversation before SOS", persistError);
+        console.error("Could not persist conversation before SOS", persistError);
+        toast.error("Could not save this conversation for responders. Try again before SOS.");
+        throw persistError;
       }
     };
 

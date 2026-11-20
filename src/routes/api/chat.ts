@@ -45,6 +45,7 @@ import {
   sharedThreadHasAssistantHistory,
   type SharedHistoryRow,
 } from "@/lib/shared-chat-history";
+import { publishConversationMessage } from "@/lib/publish-conversation-message";
 
 
 import {
@@ -190,14 +191,22 @@ export const Route = createFileRoute("/api/chat")({
         // turn. Load the original thread from Supabase so everyone shares one timeline.
         let databaseHistory: SharedHistoryRow[] = [];
         if (threadId) {
-          const { data: historyRows, error: historyError } = await supabase
-            .from("messages")
-            .select("id, user_id, role, parts, sdk_message_id, created_at")
-            .eq("thread_id", threadId)
-            .order("created_at", { ascending: true })
-            .limit(200);
+          const { data: historyRows, error: historyError } = await (supabase as any).rpc(
+            "list_shared_conversation_messages",
+            { p_thread_id: threadId },
+          );
           if (historyError) {
-            console.error("Failed to load shared conversation history", historyError);
+            const fallback = await supabase
+              .from("messages")
+              .select("id, user_id, role, parts, sdk_message_id, created_at")
+              .eq("thread_id", threadId)
+              .order("created_at", { ascending: true })
+              .limit(200);
+            if (fallback.error) {
+              console.error("Failed to load shared conversation history", historyError, fallback.error);
+            } else {
+              databaseHistory = (fallback.data ?? []) as SharedHistoryRow[];
+            }
           } else {
             databaseHistory = (historyRows ?? []) as SharedHistoryRow[];
           }
@@ -211,21 +220,17 @@ export const Route = createFileRoute("/api/chat")({
         const userConversationText = uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)).join("\n");
         const hasSharedAssistantHistory = sharedThreadHasAssistantHistory(databaseHistory);
 
-        // Publish the human turn to the shared messages table immediately so the
-        // other participant(s) see it over Realtime before the AI finishes.
+        // Publish the human turn immediately so other participants see it over Realtime.
         if (userId && threadId && lastUserMessage) {
-          const earlyInsert = await supabase.from("messages").upsert(
-            {
-              thread_id: threadId,
-              user_id: userId,
-              role: "user",
-              parts: lastUserMessage.parts as never,
-              sdk_message_id: lastUserMessage.id,
-            },
-            { onConflict: "sdk_message_id", ignoreDuplicates: true },
-          );
-          if (earlyInsert.error) {
-            console.error("Failed to publish shared user message early", earlyInsert.error);
+          const earlyError = await publishConversationMessage(supabase, {
+            threadId,
+            userId,
+            role: "user",
+            parts: lastUserMessage.parts,
+            sdkMessageId: lastUserMessage.id,
+          });
+          if (earlyError) {
+            console.error("Failed to publish shared user message early", earlyError);
           }
         }
 
@@ -253,17 +258,13 @@ export const Route = createFileRoute("/api/chat")({
             },
             onFinish: async ({ responseMessage }) => {
               if (!userId || !body.threadId) return;
-              // User turn is published early for shared realtime; only persist AI here.
-              const { error } = await supabase.from("messages").upsert(
-                {
-                  thread_id: body.threadId,
-                  user_id: userId,
-                  role: responseMessage.role,
-                  parts: responseMessage.parts as never,
-                  sdk_message_id: responseMessage.id,
-                },
-                { onConflict: "sdk_message_id", ignoreDuplicates: true },
-              );
+              const error = await publishConversationMessage(supabase, {
+                threadId: body.threadId,
+                userId,
+                role: responseMessage.role,
+                parts: responseMessage.parts,
+                sdkMessageId: responseMessage.id,
+              });
               if (error) console.error("Failed to persist scripted chat messages", error);
             },
           });
@@ -1334,18 +1335,15 @@ export const Route = createFileRoute("/api/chat")({
             logTiming(usedModel);
             if (!userId || !threadId) return;
 
-            // User message was upserted at request start for shared realtime delivery.
-            const messageInsert = await supabase.from("messages").upsert(
-              {
-                thread_id: threadId,
-                user_id: userId,
-                role: responseMessage.role,
-                parts: responseMessage.parts as never,
-                sdk_message_id: responseMessage.id,
-              },
-              { onConflict: "sdk_message_id", ignoreDuplicates: true },
-            );
-            if (messageInsert.error) console.error("Failed to persist messages", messageInsert.error);
+            // User message was published at request start for shared realtime delivery.
+            const messageInsertError = await publishConversationMessage(supabase, {
+              threadId,
+              userId,
+              role: responseMessage.role,
+              parts: responseMessage.parts,
+              sdkMessageId: responseMessage.id,
+            });
+            if (messageInsertError) console.error("Failed to persist messages", messageInsertError);
 
             const title = lastUserMessage ? textOf(lastUserMessage).slice(0, 60) : null;
             const updatedAt = new Date().toISOString();
