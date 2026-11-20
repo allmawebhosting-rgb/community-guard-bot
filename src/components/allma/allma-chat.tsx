@@ -77,7 +77,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { EMERGENCY_BLOCK_LINES } from "@/lib/emergency-triage";
 import type { FirstAid, Incident } from "@/lib/allma-emergency-playbook";
-import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, stripFillerSentences } from "@/lib/chat-emergency-view";
+import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, shouldRenderToolCard, stripFillerSentences } from "@/lib/chat-emergency-view";
 import {
   assistantHasVisibleText,
   chatProgressSteps,
@@ -828,6 +828,10 @@ function ToolCard({
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
 
+  // Internal provider/model tool calls have no user-facing card. The matching
+  // first-aid playbook is rendered separately as actionable guidance.
+  if (!shouldRenderToolCard(name)) return null;
+
   const meta: Record<string, { icon: typeof FileText; label: string; busy: string }> = {
     create_report: { icon: FileText, label: "Incident report", busy: "Filing your report…" },
     find_facilities: { icon: MapPin, label: "Nearby help", busy: "Searching the directory…" },
@@ -859,11 +863,6 @@ function ToolCard({
   };
   const entry = meta[name] ?? { icon: FileText, label: name, busy: "Working…" };
   const Icon = entry.icon;
-
-  // Silent background tools — no card once they finish.
-  if (name === "suggest_replies") {
-    return null;
-  }
 
   if (!running && (name === "remember" || name === "recall_history" || name === "get_draft")) {
     return null;

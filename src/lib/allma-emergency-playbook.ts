@@ -120,7 +120,7 @@ export const INCIDENTS: Incident[] = [
     followUp: "Can they breathe okay?", followUpChips: ["Yes, breathing", "No, struggling"],
     guide: "Steps: use their adrenaline auto-injector if they have one; keep them sitting up (or lying with legs raised if faint); go to hospital now." },
   { id: "swollen_nose", label: "Swollen or injured nose", category: "medical", marker: "medical", helpTypes: ["hospital"], lifeThreatening: false,
-    keywords: /swoll(en|ing) (nose|face|lip|cheek)|nose (is |looks )?swoll|hit (my|in the) nose|broken nose|nose injury/i,
+    keywords: /swoll(en|ing) (nose|face|lip|cheek)|nose (is |looks )?swoll|hit (my|in the) nose|broken nose|nose injury|(?:my |the )?nose hurts?|nose pain|pain in (?:my |the )?nose/i,
     followUp: "Are you having trouble breathing or any bleeding?", followUpChips: ["Trouble breathing", "Heavy bleeding", "Neither"],
     guide: "Steps: sit upright; apply a cold compress for 10–15 minutes; do not blow your nose or pinch or straighten crooked bones. Red flags: trouble breathing, heavy bleeding." },
   { id: "asthma", label: "Asthma attack", category: "medical", marker: "medical", helpTypes: ["hospital"], lifeThreatening: false,

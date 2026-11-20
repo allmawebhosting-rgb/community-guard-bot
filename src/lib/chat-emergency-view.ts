@@ -4,6 +4,14 @@ import { firstAidFor, matchIncident, type FirstAid, type Incident } from "@/lib/
 
 type LooseMessage = { role: string; parts?: Array<{ type: string; text?: string; output?: unknown }> };
 
+const NON_USER_FACING_TOOL_NAMES = new Set(["suggest_replies", "physical_firstaid"]);
+
+/** Hide internal/model-only tool calls that have no meaningful user-facing card. */
+export function shouldRenderToolCard(type: string): boolean {
+  const name = type.replace(/^tool-/i, "").toLowerCase();
+  return !NON_USER_FACING_TOOL_NAMES.has(name);
+}
+
 /** Text of the closest user message before `index` (what this reply answers). */
 export function userTextBefore(messages: LooseMessage[], index: number): string {
   for (let i = index - 1; i >= 0; i--) {

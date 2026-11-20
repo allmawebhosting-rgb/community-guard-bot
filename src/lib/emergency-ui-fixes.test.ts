@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ALLMA_EMERGENCY_PLAYBOOK, INCIDENTS, firstAidFor, matchIncident, playbookPromptFor } from "./allma-emergency-playbook";
 import { dedupeRepeatedParts, normalizeChatMarkdown, parseAllmaMarkers } from "./allma-markers";
 import { cleanAddress, filterAndDedupe } from "./facility-results";
-import { firstAidFallback, incidentForReply, messageHasPlaces } from "./chat-emergency-view";
+import { firstAidFallback, incidentForReply, messageHasPlaces, shouldRenderToolCard } from "./chat-emergency-view";
 import { EMERGENCY_NUMBERS } from "./allma";
 
 const user = (text: string) => ({ role: "user", parts: [{ type: "text", text }] });
@@ -52,6 +52,12 @@ describe("nosebleed and other incidents always get the playbook", () => {
     expect(aid.redFlags.join(" ")).toMatch(/heavy bleeding/i);
   });
 
+  it("nose pain gets the swollen-nose first-aid fallback", () => {
+    const incident = matchIncident("My nose hurts");
+    expect(incident?.id).toBe("swollen_nose");
+    expect(firstAidFallback(incident, "")?.steps.join(" ")).toMatch(/cold compress/i);
+  });
+
   it("every incident with 'Steps:' parses into 1–6 clean steps", () => {
     for (const incident of INCIDENTS) {
       const aid = firstAidFor(incident);
@@ -87,6 +93,14 @@ describe("SOS only for described emergencies", () => {
   it("a described emergency is an incident for the reply", () => {
     expect(incidentForReply([user("someone is breaking into my house"), bot("…")], 1)?.id).toBe("break_in");
     expect(incidentForReply([user("there is a fire in our house"), bot("…")], 1)?.id).toBe("fire");
+  });
+});
+
+describe("internal tool cards", () => {
+  it("hides internal first-aid calls instead of showing duplicate Done cards", () => {
+    expect(shouldRenderToolCard("tool-PHYSICAL_FIRSTAID")).toBe(false);
+    expect(shouldRenderToolCard("tool-suggest_replies")).toBe(false);
+    expect(shouldRenderToolCard("tool-find_facilities")).toBe(true);
   });
 });
 

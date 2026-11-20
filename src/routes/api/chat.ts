@@ -54,7 +54,7 @@ type ChatRequestBody = {
 };
 
 const PHYSICAL_SYMPTOM_FIRST_AID_RULE =
-  "PHYSICAL FIRST-AID RULE: When the user describes any physical symptom, pain, or injury (including swelling, bleeding, or burns), write clear numbered first-aid steps and urgent red flags in your message text BEFORE calling any tools. Never call a tool first in these cases.";
+  "PHYSICAL FIRST-AID RULE: When the user describes any physical symptom, pain, or injury (including swelling, bleeding, or burns), write clear numbered first-aid steps and urgent red flags in your message text BEFORE calling any tools. Never call a tool first in these cases. Do not emit a separate PHYSICAL_FIRSTAID tool/card; the guidance must be in your message text.";
 
 function parseEvidence(value: unknown): Array<{ path: string; mediaType: string | null }> {
   if (!Array.isArray(value)) return [];
