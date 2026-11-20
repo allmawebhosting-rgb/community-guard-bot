@@ -15,7 +15,57 @@ export function getCloudflareChatModel() {
   const binding = getCloudflareAiBinding();
   if (!binding) return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return createWorkersAI({ binding: binding as any })(CF_CHAT_MODEL as any);
+  return createWorkersAI({ binding: dedupeStreamBinding(binding) as any })(CF_CHAT_MODEL as any);
+}
+
+// Some Workers AI models stream both the legacy `response` field and OpenAI-style
+// `choices[0].delta.content` in the same SSE chunk; the provider emits both, doubling
+// every token. Strip `response` whenever `choices` is present.
+export function dedupeSseLine(line: string): string {
+  if (!line.startsWith("data:")) return line;
+  const payload = line.slice(5).trim();
+  if (!payload || payload === "[DONE]") return line;
+  try {
+    const obj = JSON.parse(payload) as Record<string, unknown>;
+    if (Array.isArray(obj["choices"]) && "response" in obj) {
+      delete obj["response"];
+      return `data: ${JSON.stringify(obj)}`;
+    }
+  } catch {
+    /* pass through */
+  }
+  return line;
+}
+
+function dedupeStream(src: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const dec = new TextDecoder();
+  const enc = new TextEncoder();
+  let buf = "";
+  return src.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, ctrl) {
+        buf += dec.decode(chunk, { stream: true });
+        const parts = buf.split("\n");
+        buf = parts.pop() ?? "";
+        if (parts.length) ctrl.enqueue(enc.encode(parts.map(dedupeSseLine).join("\n") + "\n"));
+      },
+      flush(ctrl) {
+        buf += dec.decode();
+        if (buf) ctrl.enqueue(enc.encode(dedupeSseLine(buf)));
+      },
+    }),
+  );
+}
+
+function dedupeStreamBinding(binding: AiBinding): AiBinding {
+  return {
+    ...binding,
+    run: async (model: string, input: unknown, ...rest: unknown[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const out = await (binding.run as any)(model, input, ...rest);
+      return out instanceof ReadableStream ? dedupeStream(out) : out;
+    },
+  };
 }
 
 export async function transcribeWithCloudflare(audio: File): Promise<string | null> {
