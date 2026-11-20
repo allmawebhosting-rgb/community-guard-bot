@@ -12,6 +12,26 @@ export function shouldRenderToolCard(type: string): boolean {
   return !NON_USER_FACING_TOOL_NAMES.has(name);
 }
 
+/**
+ * Premature or empty report_summary / create_report calls must not render a
+ * useless "REPORT SUMMARY · Done." card — that is what made crime-report
+ * replies look broken.
+ */
+export function shouldShowToolOutput(
+  type: string,
+  output: Record<string, unknown> | null | undefined,
+): boolean {
+  const name = type.replace(/^tool-/i, "").toLowerCase();
+  if (!shouldRenderToolCard(name)) return false;
+  if (name === "report_summary") {
+    return Boolean(output?.ok && String(output.title ?? "").trim() && String(output.summary ?? "").trim());
+  }
+  if (name === "create_report") {
+    return Boolean(output?.ok && (output.reference || output.title));
+  }
+  return true;
+}
+
 /** Text of the closest user message before `index` (what this reply answers). */
 export function userTextBefore(messages: LooseMessage[], index: number): string {
   for (let i = index - 1; i >= 0; i--) {

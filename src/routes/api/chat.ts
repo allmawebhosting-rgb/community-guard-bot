@@ -5,6 +5,8 @@ import { chooseSearchOrigin } from "@/lib/location-origin";
 import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import {
   isReportingIntent,
+  canUseFilingTools,
+  isFilingToolName,
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
   shouldLoadReportingPrompt,
@@ -321,7 +323,7 @@ export const Route = createFileRoute("/api/chat")({
           { matches: /missing person|missing child|can'?t find (my|our)\s+\w+|disappeared/i, flow: "Missing person", opener: 'Is the missing person an adult or a child? Options: "An adult", "A child".' },
           { matches: /feel(ing)? (unsafe|scared|afraid|followed)|walking (home )?alone|being (followed|watched)|unsafe at night/i, flow: "Safety check", opener: 'FIRST give 4-6 practical safety tips as a bullet list, each on its own line (stay on lit, busy roads; share your live location with a trusted contact; keep your phone ready; avoid shortcuts and earphones; go into an open shop or police post if followed), then the numbers on their own lines (Police 999, Toll-free 112), THEN ask: Are you safe right now? Options: "Yes, I\'m safe", "No, I\'m in danger", "I\'m not sure".' },
           { matches: /sos|immediate danger|being attacked|help me now/i, flow: "Safety check", opener: 'Are you safe right now? Options: "Yes, I\'m safe", "No, I\'m in danger", "I\'m not sure".' },
-          { matches: /report (a )?(crime|theft|robbery|assault|burglar|fraud)|stolen|theft|robb|assault/i, flow: "Reporting", opener: 'What kind of incident is this? Options: "Theft", "Robbery", "Assault", "Something else".' },
+          { matches: /report (a )?(crime|theft|robbery|assault|burglar|fraud)|stolen|theft|robb|assault/i, flow: "Reporting", opener: 'What kind of incident is this? Options: "Theft", "Robbery", "Assault", "Something else". Do NOT call report_summary or create_report yet — only open the ::flow and ask this question.' },
         ];
         const directFacilityTypes = [
           [/\bpolice(?: station| post)?\b/i, "police"],
@@ -486,16 +488,27 @@ export const Route = createFileRoute("/api/chat")({
         mark("prompt");
 
         // ---- Tool budget: greetings and general chat only need the light set.
+        // Filing tools stay locked until the report flow has real answers, so the
+        // model cannot skip straight to an empty report_summary card.
         const LIGHT_TOOL_NAMES = new Set([
           "find_facilities",
           "list_alerts",
         ]);
-        const selectTools = <T extends Record<string, unknown>>(all: T): T =>
-          fullMode
-            ? all
-            : (Object.fromEntries(
-                Object.entries(all).filter(([name]) => LIGHT_TOOL_NAMES.has(name)),
-              ) as T);
+        const filingAllowed = canUseFilingTools({
+          flowLabel: flowState.flowLabel,
+          step: flowState.step,
+          askedTitles: flowState.askedTitles,
+        });
+        const selectTools = <T extends Record<string, unknown>>(all: T): T => {
+          let entries = Object.entries(all);
+          if (!fullMode) {
+            entries = entries.filter(([name]) => LIGHT_TOOL_NAMES.has(name));
+          }
+          if (!filingAllowed) {
+            entries = entries.filter(([name]) => !isFilingToolName(name));
+          }
+          return Object.fromEntries(entries) as T;
+        };
 
         // `openai/*` ids are served on the gateway Responses API; everything
         // else stays on the chat-completions provider.
@@ -605,7 +618,7 @@ export const Route = createFileRoute("/api/chat")({
             }),
             report_summary: tool({
               description:
-                "Show a review card with all collected report details before filing. Use this AFTER collecting all details and BEFORE calling create_report. The user can confirm or ask to edit. Once confirmed, call create_report with the same fields.",
+                "Show a review card with all collected report details before filing. Use this AFTER collecting all details and BEFORE calling create_report. The user can confirm or ask to edit. Once confirmed, call create_report with the same fields. Never call this on the first turn of a report — open the ::flow and ask questions first.",
               inputSchema: z.object({
                 report_type: z.enum([
                   "crime",
@@ -627,7 +640,16 @@ export const Route = createFileRoute("/api/chat")({
                 contact_phone: z.string().nullable(),
                 extra_details_json: z.string().nullable(),
               }),
-              execute: async (input) => ({ ok: true, ...input }),
+              execute: async (input) => {
+                if (!String(input.title ?? "").trim() || !String(input.summary ?? "").trim()) {
+                  return {
+                    ok: false,
+                    error:
+                      "Report summary rejected: title and summary are required. Keep asking guided ::flow questions until details are collected.",
+                  };
+                }
+                return { ok: true, ...input };
+              },
             }),
             create_report: tool({
               description:

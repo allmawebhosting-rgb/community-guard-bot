@@ -77,7 +77,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { EMERGENCY_BLOCK_LINES } from "@/lib/emergency-triage";
 import type { FirstAid, Incident } from "@/lib/allma-emergency-playbook";
-import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, shouldRenderToolCard, stripFillerSentences } from "@/lib/chat-emergency-view";
+import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, shouldRenderToolCard, shouldShowToolOutput, stripFillerSentences } from "@/lib/chat-emergency-view";
 import {
   assistantHasVisibleText,
   chatProgressSteps,
@@ -871,12 +871,17 @@ function ToolCard({
   if (running) {
     // The live checklist already covers find_facilities; other tools keep a short busy line.
     if (name === "find_facilities") return null;
+    // Don't flash a "Report summary" busy card when filing tools are premature.
+    if (name === "report_summary" || name === "create_report") return null;
     return (
       <div className="chat-card p-3">
         <Shimmer className="text-sm">{entry.busy}</Shimmer>
       </div>
     );
   }
+
+  // Empty / rejected report cards must never show as "REPORT SUMMARY · Done."
+  if (!shouldShowToolOutput(name, output)) return null;
 
   // Custom interactive cards for the redesigned AI flows
   if (name === "ask_structured_question" && output?.ok) {
@@ -2582,6 +2587,9 @@ export function AllmaChat({
 
                       }
                       if (part.type.startsWith("tool-")) {
+                        // Skip duplicate consecutive tool parts (model sometimes emits two empty summaries).
+                        const prev = message.parts[index - 1];
+                        if (prev && prev.type === part.type) return null;
                         return (
                           <ToolCard
                             key={index}

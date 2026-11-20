@@ -57,6 +57,27 @@ export function nearbyHelpTypesForTurn(input: {
   return [];
 }
 
+const FILING_TOOL_NAMES = new Set(["report_summary", "create_report"]);
+
+/**
+ * Filing tools are only safe after the guided report has collected real detail.
+ * Exposing them on "I want to report a crime" made the model skip the flow and
+ * emit empty REPORT SUMMARY cards.
+ */
+export function canUseFilingTools(input: {
+  flowLabel: string | null;
+  step: number;
+  askedTitles: string[];
+}) {
+  const reportFlows = new Set(["Reporting", "Report an incident", "Missing person", "Lost & found"]);
+  if (!input.flowLabel || !reportFlows.has(input.flowLabel)) return false;
+  return input.step >= 3 || input.askedTitles.length >= 3;
+}
+
+export function isFilingToolName(name: string) {
+  return FILING_TOOL_NAMES.has(name);
+}
+
 export function shouldLoadReportingPrompt(input: {
   isReportFlow: boolean;
   isReporting: boolean;

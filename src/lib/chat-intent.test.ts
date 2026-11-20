@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canUseFilingTools,
   isReportingIntent,
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
@@ -110,5 +111,17 @@ describe("direct help routing", () => {
         showDirectHelp: false,
       }),
     ).toEqual([]);
+  });
+
+  it("keeps filing tools locked until the report flow has real steps", () => {
+    expect(canUseFilingTools({ flowLabel: null, step: 0, askedTitles: [] })).toBe(false);
+    expect(canUseFilingTools({ flowLabel: "Reporting", step: 1, askedTitles: ["what kind"] })).toBe(false);
+    expect(
+      canUseFilingTools({
+        flowLabel: "Reporting",
+        step: 3,
+        askedTitles: ["what kind", "where", "when"],
+      }),
+    ).toBe(true);
   });
 });

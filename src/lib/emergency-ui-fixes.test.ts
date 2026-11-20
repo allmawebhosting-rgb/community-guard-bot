@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ALLMA_EMERGENCY_PLAYBOOK, INCIDENTS, firstAidFor, matchIncident, playbookPromptFor } from "./allma-emergency-playbook";
 import { dedupeRepeatedParts, normalizeChatMarkdown, parseAllmaMarkers } from "./allma-markers";
 import { cleanAddress, filterAndDedupe } from "./facility-results";
-import { firstAidFallback, incidentForReply, messageHasPlaces, shouldRenderToolCard } from "./chat-emergency-view";
+import { firstAidFallback, incidentForReply, messageHasPlaces, shouldRenderToolCard, shouldShowToolOutput } from "./chat-emergency-view";
 import { EMERGENCY_NUMBERS } from "./allma";
 
 const user = (text: string) => ({ role: "user", parts: [{ type: "text", text }] });
@@ -105,6 +105,18 @@ describe("internal tool cards", () => {
     expect(shouldRenderToolCard("tool-PHYSICAL_FIRSTAID")).toBe(false);
     expect(shouldRenderToolCard("tool-suggest_replies")).toBe(false);
     expect(shouldRenderToolCard("tool-find_facilities")).toBe(true);
+  });
+
+  it("hides empty report_summary Done cards", () => {
+    expect(shouldShowToolOutput("report_summary", { ok: true })).toBe(false);
+    expect(shouldShowToolOutput("report_summary", { ok: false, error: "rejected" })).toBe(false);
+    expect(
+      shouldShowToolOutput("report_summary", {
+        ok: true,
+        title: "Phone stolen",
+        summary: "Phone taken near the market last night.",
+      }),
+    ).toBe(true);
   });
 });
 
