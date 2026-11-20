@@ -148,18 +148,25 @@ export async function listSosCallAttempts(sosActivityId: string): Promise<SosCal
 // These SOS functions exist on the live database but are missing from generated types.
 type UntypedRpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
 
-/** Atomically reserves one responder and closes every sibling SOS call. */
+/** Atomically accepts the SOS call, joins the original shared chat, returns its thread. */
 export async function claimSosEmergencyCall(callId: string) {
   const { data, error } = await (supabase.rpc.bind(supabase) as unknown as UntypedRpc)("claim_sos_emergency_call", {
     p_call_id: callId,
   });
   if (error) throw new Error(friendly(error.message));
   const result = (data?.[0] ?? data) as
-    | { accepted?: boolean; call_session_id?: string }
+    | {
+        accepted?: boolean;
+        call_session_id?: string;
+        thread_id?: string | null;
+        is_voice_primary?: boolean;
+      }
     | null;
   return {
     accepted: Boolean(result?.accepted),
     callId: result?.call_session_id ?? null,
+    threadId: result?.thread_id ?? null,
+    isVoicePrimary: result?.is_voice_primary !== false,
   };
 }
 

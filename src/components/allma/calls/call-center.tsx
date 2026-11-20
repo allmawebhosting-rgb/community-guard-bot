@@ -796,45 +796,72 @@ export function CallCenter() {
   const answer = async () => {
     const id = callIdRef.current;
     if (!id) return;
-    const isSosCall = Boolean(peerRef.current?.sosActivityId);
+    const isSosCall = Boolean(peerRef.current?.sosActivityId || sosRoomId);
     const sosActivityId = peerRef.current?.sosActivityId ?? sosRoomId;
     if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
     try {
-      const invitationId = new URLSearchParams(window.location.search).get("invitation");
-      if (sosRoomId || invitationId) {
+      let joinedThreadId: string | null = null;
+      let isVoicePrimary = true;
+
+      // Answering an SOS call is what authorises chat membership — always claim
+      // when this is an emergency leg, never wait for a second "join chat" invite.
+      if (isSosCall) {
         const result = await claimSosEmergencyCall(id);
         if (!result.accepted) {
-          toast.message("Another responder has already accepted this emergency.");
-          teardown("Another responder has accepted this emergency.");
+          toast.message("This emergency call is no longer available to answer.");
+          teardown("Emergency call unavailable.");
           return;
         }
-      }
-      // Accepting an SOS call always opens the same shared conversation so the
-      // receiver lands in chat with the caller and Allma automatically.
-      if (isSosCall && sosActivityId) {
-        try {
-          const threadId = await openSharedSosConversation(sosActivityId);
+        joinedThreadId = result.threadId;
+        isVoicePrimary = result.isVoicePrimary;
+        if (!joinedThreadId && sosActivityId) {
+          try {
+            joinedThreadId = await openSharedSosConversation(sosActivityId);
+          } catch (navigationError) {
+            console.warn("Shared SOS conversation fallback failed", navigationError);
+          }
+        }
+        if (joinedThreadId) {
           const alreadyThere =
             typeof window !== "undefined" &&
-            window.location.pathname === `/chat/${threadId}`;
+            window.location.pathname === `/chat/${joinedThreadId}`;
           if (!alreadyThere) {
             await navigate({
               to: "/chat/$threadId",
-              params: { threadId },
+              params: { threadId: joinedThreadId },
               replace: true,
             });
           }
-        } catch (navigationError) {
-          console.warn("The accepted SOS call could not open its shared conversation", navigationError);
-          toast.message("Call connected. Open the shared emergency chat from Call centre if it did not open.");
+        } else {
+          toast.message("Call answered. Open the shared emergency chat from Call centre if it did not open.");
         }
       }
+
       if (isSosCall) {
-        setSosCallState("connecting");
+        setSosCallState(isVoicePrimary ? "connecting" : "idle");
         setPhaseState("idle");
       }
+
+      // Non-primary answerers join chat only — skip ZEGO media for their ended leg.
+      if (isSosCall && !isVoicePrimary) {
+        engineRef.current?.close();
+        engineRef.current = null;
+        if (ringTimerRef.current) clearTimeout(ringTimerRef.current);
+        ringTimerRef.current = null;
+        callIdRef.current = null;
+        setCallId(null);
+        setPeer(null);
+        setIsCaller(false);
+        setEmergency(null);
+        setSeconds(0);
+        setEndedNote(null);
+        setCallAudioPhase("idle");
+        toast.message("You're in the emergency chat. Another responder is on the voice call.");
+        return;
+      }
+
       const microphoneStream = await primeMicrophone();
-      if (!sosRoomId && !invitationId) await setCallStatus(id, "connecting");
+      if (!isSosCall) await setCallStatus(id, "connecting");
       await beginEngine(id, false, microphoneStream);
     } catch (error) {
       const message =

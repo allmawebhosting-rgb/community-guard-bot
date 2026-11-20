@@ -30,6 +30,8 @@ export type SosRoomParticipant = {
   name: string;
   avatar_url: string | null;
   role: string;
+  /** Latest SOS call state for this authorised member — never invents membership. */
+  connection_status?: "connected" | "joined" | "disconnected" | string | null;
 };
 
 export type SosRoomDetail = {
@@ -289,6 +291,41 @@ export function subscribeSosRoomMessages(
     });
   return () => {
     void supabase.removeChannel(channel);
+  };
+}
+
+/** Live participant / call-state changes for the shared emergency conversation. */
+export function subscribeSosRoomParticipants(sosActivityId: string, onChange: () => void) {
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const invitations = supabase
+    .channel(`sos-participants-invites-${sosActivityId}-${suffix}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "emergency_call_invitations",
+        filter: `emergency_id=eq.${sosActivityId}`,
+      },
+      () => onChange(),
+    )
+    .subscribe();
+  const calls = supabase
+    .channel(`sos-participants-calls-${sosActivityId}-${suffix}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "emergency_calls",
+        filter: `sos_session_id=eq.${sosActivityId}`,
+      },
+      () => onChange(),
+    )
+    .subscribe();
+  return () => {
+    void supabase.removeChannel(invitations);
+    void supabase.removeChannel(calls);
   };
 }
 

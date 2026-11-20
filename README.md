@@ -500,6 +500,17 @@ Build a modular architecture so this project can later become part of the larger
 
 ------------------------------------------------
 
+SOS CALL → SAME CHAT
+
+Answering an SOS call automatically admits that Safety Network member into the original Allma AI conversation for that emergency (same `thread_id`). There is no second “join chat” invite.
+
+- `claim_sos_emergency_call` verifies the call, marks the invitation `ACCEPTED` only after a real answer, ensures the emergency thread, and records a single `participant_joined` event (idempotent).
+- Ringing, declined, missed, and failed calls do not create chat membership.
+- The first answerer is the voice-primary ZEGOCLOUD leg; later answerers still join the same chat.
+- The chat shows a Messenger-style participant strip (profiles + Allma AI) updated over Supabase Realtime.
+
+------------------------------------------------
+
 ZEGOCLOUD VOICE CALLING
 
 ALLMA uses ZEGOCLOUD RTC for authenticated Safety Network and SOS voice calls. Existing ALLMA authorization, call history, realtime incoming-call UI, and sequential SOS escalation remain the source of truth.

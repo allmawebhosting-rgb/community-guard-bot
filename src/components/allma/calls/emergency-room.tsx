@@ -164,12 +164,31 @@ export function EmergencyRoom({
         )
       ) : null}
 
-      {!compact && room && room.participants.length > 0 ? (
+      {!compact && room ? (
         <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2.5">
           <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <p className="truncate text-[11px] text-muted-foreground">
-            {room.participants.map((person) => person.name).join(", ")}
-          </p>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="flex shrink-0 items-center pl-1">
+              <span className="relative z-[3]">
+                <Avatar name={room.sender_name} url={room.sender_avatar_url} size={28} />
+              </span>
+              {room.participants.map((person, index) => (
+                <span
+                  key={person.user_id}
+                  className="relative -ml-2"
+                  style={{ zIndex: room.participants.length - index }}
+                  title={`${person.name}${person.connection_status === "disconnected" ? " (disconnected)" : ""}`}
+                >
+                  <Avatar name={person.name} url={person.avatar_url} size={28} />
+                </span>
+              ))}
+            </div>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {room.participants.length === 0
+                ? "Waiting for responders to answer"
+                : room.participants.map((person) => person.name).join(", ")}
+            </p>
+          </div>
         </div>
       ) : null}
 

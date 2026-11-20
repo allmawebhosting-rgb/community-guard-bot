@@ -1,4 +1,5 @@
 import { InChatSos } from "@/components/allma/in-chat-sos";
+import { SosParticipantStrip } from "@/components/allma/sos-participant-strip";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -101,10 +102,12 @@ import {
   sosRoomQueryOptions,
   subscribeConversationMessages,
   subscribeSosRoomMessages,
+  subscribeSosRoomParticipants,
   type ChatThreadContext,
   type SharedChatMessageRow,
   type SosRoomMessage,
 } from "@/lib/sos-rooms";
+import { buildSosParticipantStrip } from "@/lib/sos-participants";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { peekActiveChatThread, rememberActiveChatThread } from "@/lib/active-chat-thread";
 import {
@@ -1438,6 +1441,14 @@ export function AllmaChat({
   }, [queryClient, sosActivityId]);
 
   useEffect(() => {
+    if (!sosActivityId) return;
+    const refreshParticipants = () => {
+      void queryClient.invalidateQueries({ queryKey: ["sos-room", sosActivityId] });
+    };
+    return subscribeSosRoomParticipants(sosActivityId, refreshParticipants);
+  }, [queryClient, sosActivityId]);
+
+  useEffect(() => {
     if (!threadId) return;
     const backfillMessages = () => {
       void listConversationMessages(threadId)
@@ -1505,6 +1516,10 @@ export function AllmaChat({
     }
     return people;
   }, [sosRoom]);
+  const sosParticipants = useMemo(
+    () => buildSosParticipantStrip(sosIsActive || sosRoom ? sosRoom : null),
+    [sosIsActive, sosRoom],
+  );
   const visibleSosMessages = sosMessages.filter(
     (message) =>
       ["user_message", "voice_note", "participant_joined", "system"].includes(message.event_type),
@@ -2285,6 +2300,10 @@ export function AllmaChat({
           void uploadFiles(selected);
         }}
       />
+
+      {(sosIsActive || (sosRoom && sosParticipants.length > 1)) ? (
+        <SosParticipantStrip participants={sosParticipants} />
+      ) : null}
 
       {activeInlineCall && sosIsActive ? (
         <div
