@@ -78,46 +78,63 @@ export function isFilingToolName(name: string) {
   return FILING_TOOL_NAMES.has(name);
 }
 
-/** Deterministic first-step openers — no model, no tools, no empty summary cards. */
-const SCRIPTED_FLOW_OPENERS: Array<{ matches: RegExp; reply: string }> = [
-  {
-    matches:
-      /^(report a crime|i want to report( a crime)?|i need to report( a crime)?|report (an )?incident|file a report)[.!]?$/i,
-    reply:
-      '::flow{type=Reporting, step=1, total=5, title="What kind of incident?"}\n\nWhat kind of incident is this?\n\n::suggest[Theft | Robbery | Assault | Something else]',
-  },
-  {
-    matches: /^(missing person|report a missing person|i want to report a missing person)[.!]?$/i,
-    reply:
-      '::flow{type=Missing person, step=1, total=5, title="Adult or child?"}\n\nIs the missing person an adult or a child?\n\n::suggest[An adult | A child]',
-  },
-  {
-    matches: /^(lost (and|&) found|i lost something|i found something|report lost|report found)[.!]?$/i,
-    reply:
-      '::flow{type=Lost & found, step=1, total=4, title="Lost or found?"}\n\nDid you lose something or find something?\n\n::suggest[I lost something | I found something]',
-  },
-  {
-    matches: /^(emergency numbers|get emergency numbers|what (are )?(the )?emergency numbers)[.!]?$/i,
-    reply:
-      "Here are Uganda's emergency numbers:\n\n- Police 999\n- Toll-free emergency 112\n\nIf someone is in immediate danger, call now.\n\n::suggest[Report a crime | Find help nearby | I'm safe now]",
-  },
-];
+export const EMERGENCY_NUMBERS_REPLY =
+  "Here are Uganda's emergency numbers:\n\n- Police 999\n- Toll-free emergency 112\n\nIf someone is in immediate danger, call now.\n\n::suggest[Report a crime | Find help nearby | I'm safe now]";
+
+export const REPORTING_OPENER =
+  '::flow{type=Reporting, step=1, total=5, title="What kind of incident?"}\n\nWhat kind of incident is this?\n\n::suggest[Theft | Robbery | Assault | Something else]';
+
+export const MISSING_PERSON_OPENER =
+  '::flow{type=Missing person, step=1, total=5, title="Adult or child?"}\n\nIs the missing person an adult or a child?\n\n::suggest[An adult | A child]';
+
+export const LOST_FOUND_OPENER =
+  '::flow{type=Lost & found, step=1, total=4, title="Lost or found?"}\n\nDid you lose something or find something?\n\n::suggest[I lost something | I found something]';
+
+/** True when the user is asking for 999/112 — never search alerts or facilities. */
+export function isEmergencyNumbersAsk(text: string) {
+  return /\bemergency numbers?\b|\b(police|call)\s*999\b|\btoll[- ]?free\s*112\b|\bwhat (number|numbers) (do i|should i|to) call\b/i.test(
+    text.trim(),
+  );
+}
 
 /**
- * Returns a fixed reply for clear menu/chip intents when no guided flow is
- * already open. Avoids model/tool misfires like empty REPORT SUMMARY cards.
+ * Deterministic replies for clear chip/menu asks. No model, no tools —
+ * stops empty REPORT SUMMARY / NEARBY HELP / Done cards on common intents.
  */
 export function scriptedFlowOpener(intakeText: string, activeFlowLabel: string | null): string | null {
-  if (activeFlowLabel) return null;
   const text = intakeText.trim();
-  if (!text || text.length > 80) return null;
-  for (const entry of SCRIPTED_FLOW_OPENERS) {
-    if (entry.matches.test(text)) return entry.reply;
+  if (!text || text.length > 120) return null;
+
+  // Always answer emergency-number asks — even mid soft-flow.
+  if (isEmergencyNumbersAsk(text)) {
+    return EMERGENCY_NUMBERS_REPLY;
   }
-  // Slightly looser crime-report phrasing still opens Reporting without tools.
-  if (/report (a )?(crime|theft|robbery|assault|burglary|fraud)/i.test(text) && text.length < 60) {
-    return SCRIPTED_FLOW_OPENERS[0].reply;
+
+  // Hard report flows keep the model for follow-up answers.
+  if (activeFlowLabel && !isSoftGuidedFlow(activeFlowLabel) && activeFlowLabel !== "Find help") {
+    return null;
   }
+
+  if (
+    /^(report a crime|i want to report( a crime)?|i need to report( a crime)?|report (an )?incident|file a report)[.!]?$/i.test(
+      text,
+    ) ||
+    (/report (a )?(crime|theft|robbery|assault|burglary|fraud)/i.test(text) && text.length < 60)
+  ) {
+    return REPORTING_OPENER;
+  }
+
+  if (/missing person|report a missing (person|child)/i.test(text) && text.length < 80) {
+    return MISSING_PERSON_OPENER;
+  }
+
+  if (
+    /^(lost (and|&) found|i lost something|i found something|report lost|report found)[.!]?$/i.test(text) ||
+    (/\b(lost|found)\b/i.test(text) && /report|something|item|property/i.test(text) && text.length < 60)
+  ) {
+    return LOST_FOUND_OPENER;
+  }
+
   return null;
 }
 

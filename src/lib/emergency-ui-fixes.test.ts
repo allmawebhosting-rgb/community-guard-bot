@@ -118,6 +118,11 @@ describe("internal tool cards", () => {
       }),
     ).toBe(true);
   });
+
+  it("hides empty list_alerts Nearby Help stubs", () => {
+    expect(shouldShowToolOutput("list_alerts", { alerts: [] })).toBe(false);
+    expect(shouldShowToolOutput("list_alerts", { alerts: [{ title: "Flood warning" }] })).toBe(true);
+  });
 });
 
 describe("no 911 anywhere user-facing", () => {

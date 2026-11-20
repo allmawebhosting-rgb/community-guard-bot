@@ -133,4 +133,10 @@ describe("direct help routing", () => {
     expect(scriptedFlowOpener("Report a crime", null)).toMatch(/::flow\{type=Reporting/);
     expect(scriptedFlowOpener("I want to report a crime.", "Reporting")).toBeNull();
   });
+
+  it("scripts emergency numbers for natural phrasing and never uses alert tools", () => {
+    expect(scriptedFlowOpener("Show me the emergency numbers", null)).toMatch(/Police 999/);
+    expect(scriptedFlowOpener("Show me the emergency numbers", "Reporting")).toMatch(/Toll-free emergency 112/);
+    expect(scriptedFlowOpener("Emergency numbers", null)).toMatch(/Police 999/);
+  });
 });

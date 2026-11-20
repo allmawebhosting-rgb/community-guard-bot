@@ -835,7 +835,7 @@ function ToolCard({
   const meta: Record<string, { icon: typeof FileText; label: string; busy: string }> = {
     create_report: { icon: FileText, label: "Incident report", busy: "Filing your report…" },
     find_facilities: { icon: MapPin, label: "Nearby help", busy: "Searching the directory…" },
-    list_alerts: { icon: Megaphone, label: "Nearby help", busy: "Checking nearby resources…" },
+    list_alerts: { icon: Megaphone, label: "Community alerts", busy: "Checking alerts…" },
     ask_structured_question: { icon: HelpCircle, label: "Question", busy: "Preparing question…" },
     request_media: { icon: Upload, label: "Upload evidence", busy: "Preparing upload…" },
     recommend_actions: {
@@ -869,10 +869,15 @@ function ToolCard({
   }
 
   if (running) {
-    // The live checklist already covers find_facilities; other tools keep a short busy line.
-    if (name === "find_facilities") return null;
-    // Don't flash a "Report summary" busy card when filing tools are premature.
-    if (name === "report_summary" || name === "create_report") return null;
+    // The live checklist already covers find_facilities; skip noisy busy stubs.
+    if (
+      name === "find_facilities" ||
+      name === "list_alerts" ||
+      name === "report_summary" ||
+      name === "create_report"
+    ) {
+      return null;
+    }
     return (
       <div className="chat-card p-3">
         <Shimmer className="text-sm">{entry.busy}</Shimmer>
@@ -1203,7 +1208,7 @@ function ToolCard({
         </div>
       ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
         <FacilityResults output={output as Record<string, unknown>} />
-      ) : name === "list_alerts" && Array.isArray(output?.alerts) ? (
+      ) : name === "list_alerts" && Array.isArray(output?.alerts) && output.alerts.length > 0 ? (
         <ul className="space-y-2 text-sm">
           {(output.alerts as Array<Record<string, unknown>>).map((alert, index) => (
             <li key={index} className="rounded-xl border border-border/50 bg-background/30 p-3">
@@ -1218,9 +1223,6 @@ function ToolCard({
               ) : null}
             </li>
           ))}
-          {(output.alerts as unknown[]).length === 0 ? (
-            <li className="text-muted-foreground">No active alerts for this area.</li>
-          ) : null}
         </ul>
       ) : (name === "my_reports" && Array.isArray(output?.reports)) ||
         (name === "match_reports" && Array.isArray(output?.matches)) ? (
@@ -2592,9 +2594,9 @@ export function AllmaChat({
 
                       }
                       if (part.type.startsWith("tool-")) {
-                        // Skip duplicate consecutive tool parts (model sometimes emits two empty summaries).
-                        const prev = message.parts[index - 1];
-                        if (prev && prev.type === part.type) return null;
+                        // One card per tool type per message — model often doubles empties.
+                        const firstOfType = message.parts.findIndex((p) => p.type === part.type);
+                        if (firstOfType !== index) return null;
                         return (
                           <ToolCard
                             key={index}

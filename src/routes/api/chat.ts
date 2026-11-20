@@ -9,6 +9,7 @@ import {
   isFilingToolName,
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
+  isEmergencyNumbersAsk,
   scriptedFlowOpener,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
@@ -508,9 +509,12 @@ export const Route = createFileRoute("/api/chat")({
         // ---- Tool budget: greetings and general chat only need the light set.
         // Filing tools stay locked until the report flow has real answers, so the
         // model cannot skip straight to an empty report_summary card.
+        // list_alerts is opt-in only when the user asks about alerts — otherwise
+        // the model was dumping empty "NEARBY HELP · No active alerts" cards.
+        const wantsAlerts = /\balerts?\b|community (news|warning)|safety alert/i.test(intakeText);
         const LIGHT_TOOL_NAMES = new Set([
           "find_facilities",
-          "list_alerts",
+          ...(wantsAlerts ? (["list_alerts"] as const) : []),
         ]);
         const filingAllowed = canUseFilingTools({
           flowLabel: flowState.flowLabel,
@@ -521,9 +525,15 @@ export const Route = createFileRoute("/api/chat")({
           let entries = Object.entries(all);
           if (!fullMode) {
             entries = entries.filter(([name]) => LIGHT_TOOL_NAMES.has(name));
+          } else if (!wantsAlerts) {
+            entries = entries.filter(([name]) => name !== "list_alerts");
           }
           if (!filingAllowed) {
             entries = entries.filter(([name]) => !isFilingToolName(name));
+          }
+          // Emergency-number asks must never trigger facility/alert tools.
+          if (isEmergencyNumbersAsk(intakeText)) {
+            entries = entries.filter(([name]) => name !== "find_facilities" && name !== "list_alerts");
           }
           return Object.fromEntries(entries) as T;
         };

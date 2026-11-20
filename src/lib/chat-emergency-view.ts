@@ -13,9 +13,8 @@ export function shouldRenderToolCard(type: string): boolean {
 }
 
 /**
- * Premature or empty report_summary / create_report calls must not render a
- * useless "REPORT SUMMARY · Done." card — that is what made crime-report
- * replies look broken.
+ * Hide empty / premature tool cards that made chat look broken
+ * (REPORT SUMMARY · Done, NEARBY HELP · No active alerts, etc.).
  */
 export function shouldShowToolOutput(
   type: string,
@@ -28,6 +27,20 @@ export function shouldShowToolOutput(
   }
   if (name === "create_report") {
     return Boolean(output?.ok && (output.reference || output.title));
+  }
+  if (name === "list_alerts") {
+    return Array.isArray(output?.alerts) && output.alerts.length > 0;
+  }
+  if (name === "find_facilities") {
+    // Empty facility results still show the share-location recovery card.
+    return true;
+  }
+  if (name === "my_reports" || name === "match_reports") {
+    const rows = (output?.reports ?? output?.matches) as unknown[] | undefined;
+    return Array.isArray(rows); // empty list is a valid "nothing found" state for reports
+  }
+  if (name === "recommend_actions") {
+    return Array.isArray(output?.actions) && output.actions.length > 0;
   }
   return true;
 }
