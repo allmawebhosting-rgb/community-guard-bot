@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ALLMA_EMERGENCY_PLAYBOOK, INCIDENTS, firstAidFor, matchIncident, playbookPromptFor } from "./allma-emergency-playbook";
 import { dedupeRepeatedParts, normalizeChatMarkdown, parseAllmaMarkers } from "./allma-markers";
 import { cleanAddress, filterAndDedupe } from "./facility-results";
-import { firstAidFallback, incidentForReply, messageHasPlaces, shouldRenderToolCard, shouldShowToolOutput } from "./chat-emergency-view";
+import { firstAidFallback, incidentForReply, messageHasPlaces, preferredFirstAid, shouldRenderToolCard, shouldShowToolOutput, stripDuplicateFirstAidProse } from "./chat-emergency-view";
 import { EMERGENCY_NUMBERS } from "./allma";
 
 const user = (text: string) => ({ role: "user", parts: [{ type: "text", text }] });
@@ -81,6 +81,18 @@ describe("nosebleed and other incidents always get the playbook", () => {
     expect(firstAidFallback(incident, "")).not.toBeNull();
     expect(firstAidFallback(incident, "1. Sit up\n2. Lean forward")).toBeNull();
     expect(firstAidFallback(null, "Here are hospitals.")).toBeNull();
+  });
+
+  it("preferred playbook card strips duplicate model first-aid prose", () => {
+    const incident = matchIncident("my nose is bleeding");
+    expect(preferredFirstAid(incident)?.steps.join(" ")).toMatch(/pinch|lean forward/i);
+    const raw =
+      "1. Sit up straight and lean forward.\n2. Apply pressure.\n\nGet help now if:\n- Still bleeding\n\nAllma isn't a doctor — if it gets worse, get medical help right away.\n\nDid the bleeding stop?\n\nHere are Uganda's emergency numbers:\n\n- Police 999\n- Toll-free emergency 112";
+    const cleaned = stripDuplicateFirstAidProse(raw, incident);
+    expect(cleaned).not.toMatch(/Sit up straight/);
+    expect(cleaned).not.toMatch(/emergency numbers/i);
+    expect(cleaned).not.toMatch(/Did the bleeding stop/i);
+    expect(cleaned).not.toMatch(/isn't a doctor/i);
   });
 });
 

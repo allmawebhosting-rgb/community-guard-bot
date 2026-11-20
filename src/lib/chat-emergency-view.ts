@@ -83,6 +83,23 @@ export function incidentForReply(messages: LooseMessage[], index: number): Incid
 }
 
 const NUMBERED_LIST = /^\s*\d+[.)]\s+\S/m;
+const GET_HELP_BLOCK =
+  /(?:^|\n)\s*(?:\*\*)?(?:Get help now if|Seek (?:medical )?help if|Red flags?)(?:\*\*)?\s*:?\s*\n(?:\s*[-*•].+\n?)+/gi;
+const NOT_DOCTOR_LINE_RE =
+  /(?:^|\n)\s*Allma isn'?t a doctor[^\n]*\n?/gi;
+const EMERGENCY_NUMBERS_BLOCK =
+  /(?:^|\n)\s*Here are Uganda'?s emergency numbers:[\s\S]*?(?=\n\s*::|\n*$)/gi;
+const DO_THIS_NOW_BLOCK =
+  /(?:^|\n)\s*(?:\*\*)?(?:Do this now|First[- ]aid|Immediate steps)(?:\*\*)?\s*:?\s*\n(?:\s*\d+[.)].+\n?)+/gi;
+
+/**
+ * Canonical first-aid card for a matched incident. Prefer this card over free-form
+ * model steps so the SOS block and steps stay in a fixed order.
+ */
+export function preferredFirstAid(incident: Incident | null): FirstAid | null {
+  if (!incident) return null;
+  return firstAidFor(incident);
+}
 
 /**
  * First-aid steps to show when the model skipped them (smaller models sometimes
@@ -93,6 +110,26 @@ export function firstAidFallback(incident: Incident | null, assistantText: strin
   if (!incident) return null;
   if (NUMBERED_LIST.test(assistantText)) return null;
   return firstAidFor(incident);
+}
+
+/**
+ * When the playbook card is on screen, drop duplicate first-aid prose / number
+ * dumps from the model text so the reply does not jump or double up.
+ */
+export function stripDuplicateFirstAidProse(text: string, incident: Incident | null): string {
+  if (!text || !incident || !firstAidFor(incident)) return text;
+  let out = text;
+  out = out.replace(DO_THIS_NOW_BLOCK, "\n");
+  // Whole numbered lists (model restating the playbook).
+  out = out.replace(/(?:^|\n)(?:\s*\d+[.)]\s+.+\n?)+/gm, "\n");
+  out = out.replace(GET_HELP_BLOCK, "\n");
+  out = out.replace(NOT_DOCTOR_LINE_RE, "\n");
+  out = out.replace(EMERGENCY_NUMBERS_BLOCK, "\n");
+  if (incident.followUp) {
+    const q = incident.followUp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`(?:^|\\n)\\s*${q}\\s*`, "i"), "\n");
+  }
+  return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /** True when the reply text already carries the "isn't a doctor" line. */

@@ -77,7 +77,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { EMERGENCY_BLOCK_LINES } from "@/lib/emergency-triage";
 import type { FirstAid, Incident } from "@/lib/allma-emergency-playbook";
-import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, shouldRenderToolCard, shouldShowToolOutput, stripFillerSentences } from "@/lib/chat-emergency-view";
+import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, preferredFirstAid, shouldRenderToolCard, shouldShowToolOutput, stripDuplicateFirstAidProse, stripFillerSentences } from "@/lib/chat-emergency-view";
 import {
   assistantHasVisibleText,
   chatProgressSteps,
@@ -685,13 +685,8 @@ function SosTimelineEvent({
 
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const navigate = useNavigate();
-  const emergencyShown = useContext(EmergencyShownContext);
-  const incident = useContext(IncidentContext);
-  const sosActivity = useContext(SosActivityContext);
   const facilities = output.facilities as Array<Record<string, unknown>>;
   const t = String(output.emergency_type ?? facilities[0]?.facility_type ?? "");
-  // SOS + call buttons only when the user described a real emergency — never for a plain "nearest hospital" search.
-  const kind = incident ? incident.marker : null;
   const [filter, setFilter] = useState<string>("All");
   const labelOf = (f: Record<string, unknown>) =>
     (typeof f.type_label === "string" && f.type_label) ||
@@ -700,22 +695,9 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
     "Other";
   const types = Array.from(new Set(facilities.map(labelOf)));
   const shown = filter === "All" ? facilities : facilities.filter((f) => labelOf(f) === filter);
+  // SOS lives once at the top of the assistant message — never inside place cards.
   return (
     <div className="w-full space-y-2.5">
-      {kind && !emergencyShown ? (
-        <InChatSos
-          type={kind}
-          lines={EMERGENCY_BLOCK_LINES[kind]}
-          threadId={sosActivity.threadId}
-          existingActivityId={sosActivity.activityId}
-          existingActive={sosActivity.active}
-          sharedLocation={sosActivity.sharedLocation}
-          canManage={sosActivity.canManage}
-          onActivityStarted={sosActivity.onActivityStarted}
-          onActivityEnded={sosActivity.onActivityEnded}
-          onEnsureThread={sosActivity.onEnsureThread}
-        />
-      ) : null}
       {facilities.length === 0 ? (
         <p className="rounded-2xl border border-border/60 bg-card p-3.5 text-[14px] leading-relaxed text-foreground">{output.location_unconfirmed ? "I couldn't confirm where you are, so I won't show places that may be far away. Tap Share my location or type your town or area." : "No places found nearby. Share your location or type your town or area."}</p>
       ) : (
@@ -823,8 +805,6 @@ function ToolCard({
 }) {
   const name = part.type.replace(/^tool-/, "");
   const hasPlaces = useContext(HasPlacesContext);
-  const emergencyShown = useContext(EmergencyShownContext);
-  const incident = useContext(IncidentContext);
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
 
@@ -1118,11 +1098,8 @@ function ToolCard({
     }
     return (
       <div className="chat-card w-full space-y-3 p-4">
-        {incident && !emergencyShown ? (
-          <EmergencyActions type={incident.marker} includeCallLinks={false} />
-        ) : null}
         <div>
-          <p className="font-semibold text-foreground">Emergency help</p>
+          <p className="font-semibold text-foreground">Nearby help</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             Nearby places could not be loaded. Share your location or type a town in the chat to search again.
           </p>
@@ -1958,12 +1935,6 @@ export function AllmaChat({
     ].filter((step, index, all) => all.indexOf(step) === index),
     findFacilities: findFacilitiesProgress(streamingParts),
   });
-  const waitingOrFailed = status === "submitted" || Boolean(error);
-  const pendingIncident = waitingOrFailed
-    ? incidentForReply([...messages, { role: "assistant", parts: [] }], messages.length)
-    : null;
-  const pendingAid = pendingIncident ? firstAidFallback(pendingIncident, "") : null;
-  const pendingEmergencyType = pendingIncident?.lifeThreatening ? pendingIncident.marker : null;
 
   // If the user opened with a concrete request, drop any "I'm Allma Safety AI"
   // lead-in from replies so the answer starts on topic.
@@ -2437,9 +2408,19 @@ export function AllmaChat({
                     : null;
                 const replyIncident =
                   message.role === "assistant" ? incidentForReply(messages, msgIndex) : null;
+                const playbookAid =
+                  message.role === "assistant" ? preferredFirstAid(replyIncident) : null;
+                // Soft SOS for non-life-threatening medical; hard block only when life-threatening.
                 const emergencyType =
                   emergencyMarker?.type ??
-                  (replyIncident?.lifeThreatening ? replyIncident.marker : null);
+                  (replyIncident?.lifeThreatening
+                    ? replyIncident.marker
+                    : playbookAid
+                      ? replyIncident!.marker
+                      : null);
+                const offerMode =
+                  Boolean(emergencyMarker?.offer) ||
+                  Boolean(replyIncident && !replyIncident.lifeThreatening && emergencyType);
                 const wideSosLayout =
                   message.role === "assistant" && Boolean(emergencyType) && sosIsActive;
                 return (
@@ -2488,18 +2469,17 @@ export function AllmaChat({
                     {(() => {
                       if (message.role !== "assistant") return null;
                       const type = emergencyType;
-                      const offerMode =
-                        Boolean(emergencyMarker?.offer) && !replyIncident?.lifeThreatening;
                       const streaming = busy && msgIndex === messages.length - 1;
                       const allText = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : "")).join("\n");
-                      // Show first aid as soon as the incident is known, not after the model finishes.
-                      const aid = firstAidFallback(replyIncident, allText);
-                      const followUp = !streaming && aid && replyIncident && !/\?/.test(allText) ? replyIncident.followUp : null;
+                      // Always prefer the canonical playbook card — never stack model steps under it.
+                      const aid = playbookAid ?? firstAidFallback(replyIncident, allText);
+                      const followUp = !streaming && aid && replyIncident ? replyIncident.followUp : null;
                       if (aid && hasNotDoctorLine(allText)) aid.notDoctor = null;
                       const showProgress =
                         streaming &&
                         progressSteps &&
-                        !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>);
+                        !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>) &&
+                        !aid;
                       return type || aid || showProgress ? (
                         <div className={cn("space-y-3", !wideSosLayout && "mb-3")}>
                           {type ? <EmergencyActions type={type} offerMode={offerMode} /> : null}
@@ -2510,11 +2490,15 @@ export function AllmaChat({
                     })()}
                     <IncidentContext.Provider value={message.role === "assistant" ? incidentForReply(messages, msgIndex) : null}>
                     <HasPlacesContext.Provider value={message.role === "assistant" && messageHasPlaces(message.parts as never)}>
-                    <EmergencyShownContext.Provider value={message.role === "assistant" && (message.parts.some((p) => p.type === "text" && /::(?:emergency|sos_offer)/i.test(p.text)) || Boolean(incidentForReply(messages, msgIndex)?.lifeThreatening))}>
+                    <EmergencyShownContext.Provider value={message.role === "assistant" && Boolean(emergencyType)}>
                     {(() => {
                       // Text parts with a repeated block (steps written before AND after the place cards) render it once.
                       const raw = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : ""));
-                      const deduped = message.role === "assistant" ? dedupeRepeatedParts(raw).map(stripFillerSentences) : raw;
+                      const deduped = message.role === "assistant"
+                        ? dedupeRepeatedParts(raw)
+                            .map(stripFillerSentences)
+                            .map((t) => stripDuplicateFirstAidProse(t, replyIncident))
+                        : raw;
                       return message.parts.map((part, index) => {
                       if (part.type === "text") {
                         if (message.role !== "assistant") {
@@ -2675,23 +2659,19 @@ export function AllmaChat({
                 </motion.div>
                 );
               })}
-              {status === "submitted" || (error && pendingAid) ? (
+              {status === "submitted" ? (
                 <div className="flex max-w-full flex-row items-start gap-2.5">
                   <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
                   <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3 sm:max-w-[85%]">
-                    <div className="space-y-3">
-                      {pendingEmergencyType ? <EmergencyActions type={pendingEmergencyType} /> : null}
-                      {pendingAid ? <FirstAidCard aid={pendingAid} followUp={pendingIncident?.followUp ?? null} /> : null}
-                      {status === "submitted" ? (
-                        progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : (
-                          <span className="flex h-7 items-center gap-1" role="status" aria-label="Allma is typing">
-                            {[0, 1, 2].map((d) => (
-                              <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-foreground/40" style={{ animationDelay: `${d * 0.15}s` }} />
-                            ))}
-                          </span>
-                        )
-                      ) : null}
-                    </div>
+                    {progressSteps ? (
+                      <ChatProgressChecklist steps={progressSteps} />
+                    ) : (
+                      <span className="flex h-7 items-center gap-1" role="status" aria-label="Allma is typing">
+                        {[0, 1, 2].map((d) => (
+                          <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-foreground/40" style={{ animationDelay: `${d * 0.15}s` }} />
+                        ))}
+                      </span>
+                    )}
                   </div>
                 </div>
               ) : null}
