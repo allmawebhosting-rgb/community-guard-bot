@@ -457,8 +457,8 @@ export const Route = createFileRoute("/api/chat")({
             return {
               providerOptions: {
                 openai: {
-                  forceReasoning: true,
-                  reasoningEffort: "low" as const,
+                  forceReasoning: false,
+                  reasoningEffort: "minimal" as const,
                   reasoningSummary: "auto" as const,
                   store: false,
                   include: ["reasoning.encrypted_content"],
