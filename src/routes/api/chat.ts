@@ -725,7 +725,14 @@ export const Route = createFileRoute("/api/chat")({
                 // A place the USER named wins over GPS; a model-filled default never does. GPS outside Uganda is ignored.
                 const picked = chooseSearchOrigin({ area, userText: userConversationText, gps: sharedCoords });
                 const named = picked.kind === "named";
-                const origin = picked.kind === "none" ? null : { lat: picked.lat, lng: picked.lng, label: picked.label };
+                let origin: { lat: number; lng: number; label: string } | null =
+                  picked.kind === "none" ? null : { lat: picked.lat, lng: picked.lng, label: picked.label };
+                const vagueArea = /^(nearby|near me|near|here|around|around me|my area|current location|local|any)?$/i.test(
+                  (area ?? "").trim(),
+                );
+                if (!origin && vagueArea) {
+                  origin = { lat: 0.3152, lng: 32.5816, label: "Central Kampala (share your location for closer help)" };
+                }
                 if (!origin) {
                   const directoryArea = area?.trim() ?? "";
                   const safeArea = directoryArea

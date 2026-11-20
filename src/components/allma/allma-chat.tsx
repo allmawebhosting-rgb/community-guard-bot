@@ -1205,7 +1205,7 @@ function ToolCard({
       ) : name === "save_draft" && output?.ok ? (
         <p className="text-sm text-muted-foreground">Saved — you can pick this up any time.</p>
       ) : (
-        <p className="text-sm text-muted-foreground">Done.</p>
+        <p className="text-sm text-muted-foreground">{name === "find_facilities" ? "I couldn't load places right now. Tap Share my location or type your town. In danger, call 999 or 112." : "Done."}</p>
       )}
     </div>
   );
