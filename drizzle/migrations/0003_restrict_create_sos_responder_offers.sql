@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.create_sos_responder_offers(uuid, double precision) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_sos_responder_offers(uuid, double precision) TO authenticated, service_role;
