@@ -1551,7 +1551,6 @@ export type Database = {
           created_at: string
           id: string
           parts: Json
-          recipient: string | null
           role: string
           sdk_message_id: string | null
           thread_id: string
@@ -1561,7 +1560,6 @@ export type Database = {
           created_at?: string
           id?: string
           parts?: Json
-          recipient?: string | null
           role: string
           sdk_message_id?: string | null
           thread_id: string
@@ -1571,7 +1569,6 @@ export type Database = {
           created_at?: string
           id?: string
           parts?: Json
-          recipient?: string | null
           role?: string
           sdk_message_id?: string | null
           thread_id?: string
@@ -1654,7 +1651,6 @@ export type Database = {
           body: string | null
           created_at: string
           id: string
-          idempotency_key: string | null
           is_read: boolean
           kind: string
           link: string | null
@@ -1665,7 +1661,6 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
-          idempotency_key?: string | null
           is_read?: boolean
           kind?: string
           link?: string | null
@@ -1676,57 +1671,11 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
-          idempotency_key?: string | null
           is_read?: boolean
           kind?: string
           link?: string | null
           title?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      notification_delivery_attempts: {
-        Row: {
-          created_at: string
-          detail: string | null
-          devices_accepted: number
-          devices_targeted: number
-          error_code: string | null
-          event_id: string | null
-          id: string
-          idempotency_key: string
-          kind: string
-          provider: string
-          recipient_user_id: string
-          stage: string
-        }
-        Insert: {
-          created_at?: string
-          detail?: string | null
-          devices_accepted?: number
-          devices_targeted?: number
-          error_code?: string | null
-          event_id?: string | null
-          id?: string
-          idempotency_key: string
-          kind: string
-          provider?: string
-          recipient_user_id: string
-          stage: string
-        }
-        Update: {
-          created_at?: string
-          detail?: string | null
-          devices_accepted?: number
-          devices_targeted?: number
-          error_code?: string | null
-          event_id?: string | null
-          id?: string
-          idempotency_key?: string
-          kind?: string
-          provider?: string
-          recipient_user_id?: string
-          stage?: string
         }
         Relationships: []
       }
