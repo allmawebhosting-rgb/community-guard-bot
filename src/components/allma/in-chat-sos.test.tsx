@@ -189,7 +189,7 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   });
   vi.useRealTimers();
 
-  expect(await screen.findByText("SOS live")).toBeTruthy();
+  expect(await screen.findByText("SOS activated")).toBeTruthy();
   expect(screen.getByTestId("live-map").getAttribute("data-height")).toBe("h-44");
   expect(await screen.findByText("Nearby help")).toBeTruthy();
   expect(screen.getByText("Choose a category to show places.")).toBeTruthy();
@@ -263,7 +263,7 @@ it("keeps SOS on the same safety conversation instead of a blank emergency page"
     params: { threadId: "emergency-thread-1" },
     replace: true,
   });
-  expect(await screen.findByText("SOS live")).toBeTruthy();
+  expect(await screen.findByText("SOS activated")).toBeTruthy();
   expect(insertMock).toHaveBeenCalledWith(
     expect.objectContaining({
       details: expect.objectContaining({ thread_id: "emergency-thread-1" }),

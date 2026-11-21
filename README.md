@@ -510,8 +510,10 @@ Answering an SOS call admits that Safety Network member into the **original** Al
 - `claim_sos_emergency_call` / `open_sos_shared_conversation` return that existing thread only — they never mint a parallel conversation.
 - `/api/chat` loads the shared DB history for every participant, publishes each human turn immediately for Realtime, and skips private greeting/openers during an active SOS.
 - Ringing, declined, missed, and failed calls do not create chat membership.
-- Floating chat heads on the right show who is in the emergency conversation.
+- Floating chat heads on the right show who is in the emergency conversation (animated join, call vs chat status).
+- When a verified responder answers and joins, the person needing help gets a join popup (deduped; system notification if the tab is hidden).
 - During SOS, the composer recipient selector chooses **Ask Allma AI** or **Message Responders** on the same conversation (`messages.recipient`).
+- SOS activation no longer waits on GPS; failures are auditable in `sos_activation_events` and show an actionable retry.
 
 ------------------------------------------------
 

@@ -40,9 +40,13 @@ import { primeMicrophone } from "@/lib/zego-call";
 import { setActiveSos } from "@/lib/sos-active";
 import { peekActiveChatThread } from "@/lib/active-chat-thread";
 import { createThread, type ThreadSummary } from "@/lib/threads";
+import {
+  activateCanonicalSos,
+  type SosActivationStage,
+} from "@/lib/sos-activation";
 
 type Line = { number: string };
-type Phase = "idle" | "countdown" | "active" | "ended";
+type Phase = "idle" | "countdown" | "activating" | "active" | "failed" | "ended";
 const COUNTDOWN = 3;
 const TYPE_MAP = { medical: "medical", crime: "crime", fire: "fire", other: "other" } as const;
 
@@ -131,10 +135,13 @@ export function InChatSos({
   const [openHelpKind, setOpenHelpKind] = useState<HelpKind | null>(null);
   const [mapVisible, setMapVisible] = useState(true);
   const [networkNotified, setNetworkNotified] = useState<boolean | null>(null);
+  const [activationStage, setActivationStage] = useState<SosActivationStage>("idle");
+  const [activationError, setActivationError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [ending, setEnding] = useState(false);
   const inlineCall = useSosInlineCall();
   const timer = useRef<number | null>(null);
+  const activatingRef = useRef(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const detailsRef = useRef<Record<string, unknown>>({});
   const lastLocationSync = useRef<{ lat: number; lng: number; at: number } | null>(null);
@@ -337,9 +344,12 @@ export function InChatSos({
 
   function startCountdown() {
     if (!user) { toast.error("Sign in so Allma can alert your safety network."); return; }
+    if (activatingRef.current || phase === "activating" || phase === "countdown") return;
     threadCreationErrorShownRef.current = false;
     setLeft(COUNTDOWN);
     setNetworkNotified(null);
+    setActivationError(null);
+    setActivationStage("idle");
     setMapVisible(true);
     setPhase("countdown");
     if (!effectiveThreadIdRef.current) {
@@ -366,6 +376,7 @@ export function InChatSos({
   }
 
   function abortCountdown() {
+    if (activatingRef.current) return;
     if (timer.current) window.clearInterval(timer.current);
     timer.current = null;
     setPhase("idle");
@@ -382,133 +393,79 @@ export function InChatSos({
     }
   }, [canManage, existingActive, phase, requestActivation]);
 
-  function getPosition(): Promise<GeolocationPosition | null> {
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
-      navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), {
-        enableHighAccuracy: true, timeout: 8000, maximumAge: 15000,
-      });
-    });
-  }
-
   async function activate() {
-    if (!user) return;
+    if (!user || activatingRef.current) return;
+    activatingRef.current = true;
     setSaving(true);
+    setActivationError(null);
+    setActivationStage("validating");
+    setPhase("activating");
+
     let activeThreadId: string;
     try {
       activeThreadId = await ensureEmergencyThread();
     } catch (error) {
       console.error("Could not create an emergency thread for SOS", error);
+      activatingRef.current = false;
       setSaving(false);
-      setPhase("idle");
+      setActivationStage("failed");
+      setActivationError("Could not create an emergency chat. Call 999 or 112 now.");
+      setPhase("failed");
       showThreadCreationError();
       return;
     }
-    setPhase("active");
+
     void primeMicrophone().then(setMic).catch(() => undefined);
-
-    if (activeThreadId) {
-      try {
-        const { data: contextRows, error: contextError } = await (supabase as any).rpc("get_chat_thread_context",
-          { p_thread_id: activeThreadId },
-        );
-        if (!contextError) {
-          const existing = contextRows?.[0];
-          if (existing?.sos_active && existing.sos_activity_id) {
-            setActivityId(existing.sos_activity_id);
-            setStartedAt(Date.now());
-            setSaving(false);
-            stayOnConversation(activeThreadId);
-            return;
-          }
-        }
-      } catch (error) {
-        console.warn("Could not check for an existing SOS session", error);
-      }
-    }
-
-    const pos = await getPosition();
-    const coords = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy } : null;
-    setLoc(coords);
-    const activatedAt = new Date().toISOString();
-    const details = {
+    detailsRef.current = {
       channel: "chat",
       emergency_type: TYPE_MAP[type],
       thread_id: activeThreadId,
-      location_consent: !!coords,
       responder_notification_consent: true,
-      accuracy_m: coords?.acc ?? null,
       activation_mode: "manual",
     };
-    detailsRef.current = details;
-    const baseInsert = {
-      user_id: user.id,
-      activity_type: "sos_activated" as const,
-      title: "Emergency SOS activated",
-      summary: `SOS activated from chat (${type}).`,
-      severity: "critical",
-      sos_status: "active",
-      activated_at: activatedAt,
-      location_text: coords ? "Live GPS location" : "Location pending",
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
-      thread_id: activeThreadId,
-      details: details as never,
-    };
-    const insertResult = await (supabase as any)
-      .from("safety_activity")
-      .insert(baseInsert)
-      .select("id")
-      .single();
-    let { data, error } = insertResult;
-    if (error && isMissingSosColumnError(error, ["thread_id"])) {
-      const { thread_id: _ignored, ...withoutThreadColumn } = baseInsert;
-      const fallbackThread = await (supabase as any)
-        .from("safety_activity")
-        .insert(withoutThreadColumn)
-        .select("id")
-        .single();
-      data = fallbackThread.data;
-      error = fallbackThread.error;
-    }
-    if (error && isMissingSosColumnError(error, ["activated_at", "sos_status"])) {
-      const { sos_status: _s, activated_at: _a, thread_id: threadColumn, ...rest } = baseInsert;
-      const fallbackResult = await (supabase as any)
-        .from("safety_activity")
-        .insert({
-          ...rest,
-          ...(threadColumn ? { thread_id: threadColumn } : {}),
-          details: { ...details, sos_status: "active", activated_at: activatedAt } as never,
-        })
-        .select("id")
-        .single();
-      data = fallbackResult.data;
-      error = fallbackResult.error;
-    }
-    if (error && activeThreadId && (error as { code?: string }).code === "23505") {
-      const { data: contextRows, error: contextError } = await (supabase as any).rpc("get_chat_thread_context",
-        { p_thread_id: activeThreadId },
-      );
-      const existing = !contextError ? contextRows?.[0] : null;
-      if (existing?.sos_active && existing.sos_activity_id) {
-        setActivityId(existing.sos_activity_id);
-        setStartedAt(Date.now());
-        setSaving(false);
-        stayOnConversation(activeThreadId);
-        return;
+
+    try {
+      const result = await activateCanonicalSos({
+        supabase,
+        userId: user.id,
+        threadId: activeThreadId,
+        emergencyType: TYPE_MAP[type],
+        channel: "chat",
+        onStage: setActivationStage,
+      });
+      setActivityId(result.activityId);
+      setStartedAt(Date.now());
+      setNetworkNotified(result.notified ? result.notifyDelivered > 0 : false);
+      setPhase("active");
+      setActivationStage("activated");
+      if (!result.locationCaptured) {
+        // Live watch may still attach GPS; do not treat missing location as failure.
+        setLoc(null);
       }
+      if (!result.notified) {
+        toast.message(
+          "SOS is active, but Safety Network push could not be confirmed. Keep calling 999/112 if needed.",
+        );
+      } else if (result.notifyDelivered === 0 && result.notifyRecipients === 0) {
+        toast.message("SOS is active. Add Safety Network contacts to notify them next time.");
+      } else if (result.notifyDelivered === 0) {
+        toast.message("SOS is active. Network alerts were prepared, but no device confirmed delivery.");
+      }
+      stayOnConversation(activeThreadId);
+    } catch (error) {
+      console.error("SOS activation failed", error);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "SOS could not be started. Call 999 or 112 now.";
+      setActivationError(message);
+      setActivationStage("failed");
+      setPhase("failed");
+      toast.error(message);
+    } finally {
+      activatingRef.current = false;
+      setSaving(false);
     }
-    setSaving(false);
-    if (error || !data) {
-      console.error("SOS activation insert failed", error);
-      toast.error("SOS could not be started. Call 999 or 112 now.");
-      setPhase("idle");
-      return;
-    }
-    setActivityId(data.id);
-    setStartedAt(Date.now());
-    void notifySosActivity({ data: { activityId: data.id } }).catch(() => {});
-    stayOnConversation(activeThreadId);
   }
 
   async function endSos() {
@@ -628,6 +585,53 @@ export function InChatSos({
     );
   }
 
+  if (phase === "activating") {
+    const stageLabel =
+      activationStage === "notifying"
+        ? "Notifying Safety Network…"
+        : activationStage === "creating"
+          ? "Creating your emergency case…"
+          : "Validating your session…";
+    return (
+      <div className="space-y-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-3.5" role="status" aria-live="polite">
+        <p className="flex items-center gap-2 text-[15px] font-semibold text-destructive">
+          <Loader2 className="h-5 w-5 animate-spin" /> Activating SOS
+        </p>
+        <p className="text-sm text-muted-foreground">{stageLabel}</p>
+        <p className="text-xs text-muted-foreground">
+          Location is optional — SOS continues even if GPS is denied or slow.
+        </p>
+        {dials}
+      </div>
+    );
+  }
+
+  if (phase === "failed") {
+    return (
+      <div className="space-y-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-3.5" role="alert">
+        <p className="flex items-center gap-2 text-[15px] font-semibold text-destructive">
+          <ShieldAlert className="h-5 w-5" /> SOS activation failed
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {activationError ?? "Allma could not confirm SOS with the server. Call emergency services now."}
+        </p>
+        <div className="grid gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setActivationError(null);
+              void activate();
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-[15px] font-semibold text-destructive-foreground"
+          >
+            <ShieldAlert className="h-4 w-4" /> Retry SOS
+          </button>
+          {dials}
+        </div>
+      </div>
+    );
+  }
+
   if (phase === "active") {
     return (
       <div ref={cardRef} className="sos-live-card">
@@ -638,18 +642,23 @@ export function InChatSos({
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-destructive" />
               </span>
-              {saving ? "Starting SOS" : "SOS live"}
+              {saving ? "Activating SOS" : "SOS activated"}
             </span>
             <p className="sos-live-meta mt-1.5 flex min-w-0 items-center gap-1">
               <MapPin className="h-3 w-3 shrink-0" />
               <span className="truncate">
-                {saving
-                  ? "Getting location…"
-                  : loc
-                    ? `Shared · ±${Math.round(loc.acc)} m · ${time(startedAt)}`
-                    : `Location unavailable · ${time(startedAt)}`}
+                {loc
+                  ? `Location shared · ±${Math.round(loc.acc)} m · ${time(startedAt)}`
+                  : `Location pending · ${time(startedAt)}`}
               </span>
             </p>
+            {networkNotified === true ? (
+              <p className="mt-1 text-[11px] font-medium text-success">Contact notifications sent</p>
+            ) : networkNotified === false ? (
+              <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+                Waiting for a responder to answer — notifications may still be in progress
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -672,11 +681,7 @@ export function InChatSos({
             />
           ) : null}
 
-          {saving ? (
-            <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving your SOS…
-            </div>
-          ) : activeCall?.status === "connected" ? (
+          {activeCall?.status === "connected" ? (
             <section
               id={`sos-call-${activityId}`}
               aria-label="Active emergency call"

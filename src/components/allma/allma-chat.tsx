@@ -1,5 +1,9 @@
 import { InChatSos } from "@/components/allma/in-chat-sos";
 import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
+import {
+  SosResponderJoinedToast,
+  useResponderJoinedNotifications,
+} from "@/components/allma/sos-responder-joined-toast";
 import { ComposerRecipientSelector } from "@/components/allma/composer-recipient-selector";
 import {
   chatRecipientLabel,
@@ -1545,6 +1549,37 @@ export function AllmaChat({
     () => buildSosParticipantStrip(sosIsActive || sosRoom ? sosRoom : null),
     [sosIsActive, sosRoom],
   );
+  const [highlightedJoinerId, setHighlightedJoinerId] = useState<string | null>(null);
+  const isSosConversationOwner = Boolean(
+    threadContext?.is_owner || (sosRoom && user?.id && sosRoom.owner_id === user.id),
+  );
+  const responderJoin = useResponderJoinedNotifications({
+    enabled: Boolean(sosIsActive && sosActivityId),
+    isOwner: isSosConversationOwner,
+    ownerId: sosRoom?.owner_id ?? user?.id ?? null,
+    participants: sosParticipants,
+    onHighlight: (userId) => {
+      setHighlightedJoinerId(userId);
+      window.setTimeout(() => {
+        setHighlightedJoinerId((current) => (current === userId ? null : current));
+      }, 4500);
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        try {
+          if ("Notification" in window && Notification.permission === "granted") {
+            const person = sosParticipants.find((item) => item.id === userId);
+            if (person) {
+              new Notification("Responder joined your emergency", {
+                body: `${person.name} has joined the conversation.`,
+                tag: `sos-join-${userId}`,
+              });
+            }
+          }
+        } catch {
+          /* optional system notification */
+        }
+      }
+    },
+  });
   const visibleSosMessages = useMemo(() => {
     const allowed = sosMessages.filter((message) =>
       ["user_message", "voice_note", "participant_joined", "system"].includes(message.event_type),
@@ -2550,8 +2585,15 @@ export function AllmaChat({
             messageCount={visibleSosMessages.length + messages.length}
           />
           {(sosIsActive || (sosRoom && sosParticipants.some((person) => person.role !== "ai"))) ? (
-            <SosFloatingChatHeads participants={sosParticipants} />
+            <SosFloatingChatHeads
+              participants={sosParticipants}
+              highlightUserId={highlightedJoinerId}
+            />
           ) : null}
+          <SosResponderJoinedToast
+            participant={responderJoin.current}
+            onDismiss={responderJoin.dismiss}
+          />
           <ConversationContent
             className={cn(
               "mx-auto w-full max-w-3xl lg:max-w-4xl lg:px-8 lg:pb-10",

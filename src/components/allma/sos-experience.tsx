@@ -51,6 +51,7 @@ import { getNearbyPlaces } from "@/lib/places.functions";
 import type { NearbyPlace } from "@/lib/places.types";
 import { toast } from "sonner";
 import { consumeSosIntent, withTimeout } from "@/lib/sos-intent";
+import { peekActiveChatThread } from "@/lib/active-chat-thread";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1203,6 +1204,20 @@ export function SOSExperience({
     setPhase("consent");
   }
 
+  async function ensureSosConversationThread(): Promise<string | null> {
+    if (conversationThreadId) return conversationThreadId;
+    const remembered = peekActiveChatThread();
+    if (remembered) return remembered;
+    try {
+      const { createThread } = await import("@/lib/threads");
+      const thread = await createThread("Safety conversation");
+      return thread.id;
+    } catch (error) {
+      console.error("Could not create SOS conversation thread", error);
+      return null;
+    }
+  }
+
   async function recordSosActivity(
     userId: string,
     type: string,
@@ -1212,7 +1227,11 @@ export function SOSExperience({
   ) {
     if (activityRecording.current) return null;
     activityRecording.current = true;
-    const linkedThreadId = conversationThreadId ?? null;
+    const linkedThreadId = await ensureSosConversationThread();
+    if (!linkedThreadId) {
+      activityRecording.current = false;
+      return null;
+    }
     const details = {
       channel: linkedThreadId ? "chat" : "sos",
       emergency_type: type,
@@ -1285,7 +1304,7 @@ export function SOSExperience({
     const notificationConsent = options?.notifyResponders ?? notifyResponders;
     if (activated.current) return;
     activated.current = true;
-    // Show the active SOS screen (Stop + Call) immediately; nothing below may block it.
+    // Activating UI until the backend confirms the emergency case.
     setPhase("help");
     void primeMicrophone()
       .then(setMicrophoneStream)
@@ -1300,21 +1319,47 @@ export function SOSExperience({
     setLocationState(locationConsent ? "finding" : "skipped");
 
     let activityId: string | null = null;
-    if (user) {
-      activityId = await recordSosActivity(
-        user.id,
-        type,
-        locationConsent ? location : null,
-        locationConsent,
-        notificationConsent,
-      );
-      setSosActivityId(activityId);
+    if (!user) {
+      activated.current = false;
+      setPhase("idle");
+      toast.error("Sign in so Allma can alert your Safety Network. Call 999 or 112 now.");
+      return;
     }
 
-    if (activityId && notificationConsent) {
-      void notifySosActivity({ data: { activityId } }).catch((error) => {
-        console.error("[ALLMA PUSH] SOS activity notification failed", error);
-      });
+    activityId = await recordSosActivity(
+      user.id,
+      type,
+      locationConsent ? location : null,
+      locationConsent,
+      notificationConsent,
+    );
+    setSosActivityId(activityId);
+
+    if (!activityId) {
+      activated.current = false;
+      activityRecording.current = false;
+      setPhase("idle");
+      toast.error("SOS could not be started on the server. Call 999 or 112 now, then retry.");
+      return;
+    }
+
+    if (notificationConsent) {
+      void notifySosActivity({ data: { activityId } })
+        .then((result) => {
+          if (result.delivered === 0) {
+            toast.message(
+              result.recipients === 0
+                ? "SOS is active. Add Safety Network contacts to notify them next time."
+                : "SOS is active, but no device confirmed the alert yet.",
+            );
+          }
+        })
+        .catch((error) => {
+          console.error("[ALLMA PUSH] SOS activity notification failed", error);
+          toast.message(
+            "SOS is active, but Safety Network push could not be confirmed. Keep calling emergency services if needed.",
+          );
+        });
     }
 
 
