@@ -222,8 +222,15 @@ export const Route = createFileRoute("/api/chat")({
         const userConversationText = uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)).join("\n");
         const hasSharedAssistantHistory = sharedThreadHasAssistantHistory(databaseHistory);
 
-        const requestRecipient =
-          body.recipient === "responders" ? ("responders" as const) : ("allma" as const);
+        const { resolveMessageRecipient } = await import("@/lib/chat-recipient");
+        const requestRecipient = resolveMessageRecipient({
+          bodyRecipient: body.recipient,
+          message: lastUserMessage as {
+            metadata?: unknown;
+            recipient?: unknown;
+            parts?: unknown;
+          } | null,
+        });
 
         // Publish the human turn immediately so other participants see it over Realtime.
         if (userId && threadId && lastUserMessage) {
@@ -240,14 +247,12 @@ export const Route = createFileRoute("/api/chat")({
           }
         }
 
-        // Responders / human-only turns must not invoke Allma.
+        // Human-only turns must never invoke Allma (no model, no empty assistant bubble).
         if (requestRecipient === "responders") {
-          const ackId = `human-only-${Date.now()}`;
           const stream = createUIMessageStream({
             originalMessages: uiMessages,
-            execute: async ({ writer }) => {
-              writer.write({ type: "start", messageId: ackId });
-              writer.write({ type: "finish" });
+            execute: async () => {
+              /* no assistant turn */
             },
           });
           return createUIMessageStreamResponse({ stream });

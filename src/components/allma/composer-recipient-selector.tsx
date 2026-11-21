@@ -24,13 +24,13 @@ export function ComposerRecipientSelector({
         [
           {
             id: "allma" as const,
-            label: "Ask Allma AI",
-            hint: "Get guidance in this chat",
+            label: "To: Allma AI",
+            hint: "Ask Allma for guidance",
             icon: Bot,
           },
           {
             id: "responders" as const,
-            label: "Message Responders",
+            label: "To: Safety Responders",
             hint:
               respondersJoined > 0
                 ? `${respondersJoined} in this chat`

@@ -177,8 +177,12 @@ export function InChatSos({
     return () => setActiveSos(null);
   }, [activityId, loc, phase, sharedLocation, type]);
 
+  const announcedActivityRef = useRef<string | null>(null);
   useEffect(() => {
-    if (phase === "active" && activityId) onActivityStarted?.(activityId, cardRef.current);
+    if (phase !== "active" || !activityId) return;
+    if (announcedActivityRef.current === activityId) return;
+    announcedActivityRef.current = activityId;
+    onActivityStarted?.(activityId, cardRef.current);
   }, [activityId, onActivityStarted, phase]);
 
   useEffect(() => {

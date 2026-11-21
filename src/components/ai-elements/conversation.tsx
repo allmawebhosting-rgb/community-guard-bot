@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { UIMessage } from "ai";
 import { ArrowDownIcon, DownloadIcon } from "lucide-react";
 import type { ComponentProps } from "react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
@@ -14,7 +14,8 @@ export const Conversation = ({ className, ...props }: ConversationProps) => (
   <StickToBottom
     className={cn("relative flex h-full min-h-0 flex-1 overflow-hidden", className)}
     initial="smooth"
-    resize="smooth"
+    // Instant resize avoids fighting the user when SOS cards / images change height.
+    resize="instant"
     role="log"
     {...props}
   />
@@ -100,6 +101,56 @@ export const ConversationScrollButton = ({
     )
   );
 };
+
+/** Near-bottom-aware "New messages" control — never forces scroll on its own. */
+export function ConversationNewMessagesButton({
+  messageCount,
+  className,
+}: {
+  messageCount: number;
+  className?: string;
+}) {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
+  const [unseen, setUnseen] = useState(0);
+  const prevCountRef = useRef(messageCount);
+  const wasAtBottomRef = useRef(isAtBottom);
+
+  useEffect(() => {
+    const grew = messageCount > prevCountRef.current;
+    const delta = messageCount - prevCountRef.current;
+    prevCountRef.current = messageCount;
+    if (!grew || delta <= 0) return;
+    if (wasAtBottomRef.current || isAtBottom) {
+      setUnseen(0);
+      return;
+    }
+    setUnseen((count) => count + delta);
+  }, [isAtBottom, messageCount]);
+
+  useEffect(() => {
+    wasAtBottomRef.current = isAtBottom;
+    if (isAtBottom) setUnseen(0);
+  }, [isAtBottom]);
+
+  if (isAtBottom || unseen <= 0) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setUnseen(0);
+        scrollToBottom();
+      }}
+      className={cn(
+        "absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border/70 bg-card/95 px-3.5 py-2 text-[12px] font-semibold text-foreground shadow-lift backdrop-blur-md",
+        className,
+      )}
+    >
+      New messages
+      <ArrowDownIcon className="size-3.5" />
+    </button>
+  );
+}
 
 const getMessageText = (message: UIMessage): string =>
   message.parts

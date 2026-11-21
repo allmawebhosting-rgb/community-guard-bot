@@ -6,6 +6,12 @@ import {
 } from "@/components/allma/sos-responder-joined-toast";
 import { ComposerRecipientSelector } from "@/components/allma/composer-recipient-selector";
 import {
+  Conversation,
+  ConversationContent,
+  ConversationNewMessagesButton,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import {
   chatRecipientLabel,
   normalizeChatRecipient,
   type ChatRecipient,
@@ -68,12 +74,6 @@ import {
 import { setVoiceMode } from "@/components/allma/voice-mode-toggle";
 
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
-import { useStickToBottomContext } from "use-stick-to-bottom";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import robotAvatar from "@/assets/allma-robot.png";
 import {
@@ -166,26 +166,6 @@ function mergeSharedMessages(
     const rightTime = rightDate ? new Date(rightDate).getTime() : Number.MAX_SAFE_INTEGER;
     return leftTime - rightTime;
   });
-}
-
-function SosRoomAutoScroll({
-  active,
-  activityId,
-  messageCount,
-}: {
-  active: boolean;
-  activityId: string | null;
-  messageCount: number;
-}) {
-  const { scrollToBottom } = useStickToBottomContext();
-
-  useEffect(() => {
-    if (!active) return;
-    const frame = requestAnimationFrame(() => scrollToBottom());
-    return () => cancelAnimationFrame(frame);
-  }, [active, activityId, messageCount, scrollToBottom]);
-
-  return null;
 }
 
 const DEFAULT_MEDIA_TIPS: Record<string, string> = {
@@ -1629,7 +1609,14 @@ export function AllmaChat({
     (text: string, overrideAttachments?: Attachment[]) => {
       const trimmed = text.trim();
       const files = overrideAttachments ?? attachments;
-      if ((!trimmed && files.length === 0) || busy) return;
+      const recipient: ChatRecipient =
+        sosIsActive &&
+        (composerRecipient === "responders" || threadContext?.is_owner === false)
+          ? "responders"
+          : "allma";
+
+      // Responder-directed turns stay available even while Allma is streaming.
+      if ((!trimmed && files.length === 0) || (busy && recipient === "allma")) return;
       if (
         threadId &&
         threadContext &&
@@ -1647,6 +1634,11 @@ export function AllmaChat({
         (hasImage
           ? "I took a photo of an injury that may be bleeding. Please look at the photo carefully, tell me what you see, and give clear first-aid steps right away."
           : "Here is the file.");
+      // Durable recipient intent (explicit metadata — never inferred from text).
+      parts.push({
+        type: "data-chat-recipient",
+        data: { recipient },
+      } as UIMessage["parts"][number]);
       parts.push({ type: "text", text: caption });
 
       for (const attachment of files) {
@@ -1658,13 +1650,7 @@ export function AllmaChat({
         });
       }
 
-      const recipient: ChatRecipient =
-        sosIsActive &&
-        (composerRecipient === "responders" || threadContext?.is_owner === false)
-          ? "responders"
-          : "allma";
-
-      // Human-only SOS turn: same canonical thread, no Allma model call.
+      // Human-only SOS turn: same canonical thread, no /api/chat, no Allma model call.
       if (recipient === "responders") {
         if (!threadId || !user?.id) {
           toast.error("Sign in and keep this emergency chat open to message responders.");
@@ -1680,6 +1666,7 @@ export function AllmaChat({
           parts,
           authorId: user.id,
           recipient,
+          metadata: { recipient },
           createdAt: new Date().toISOString(),
         } as UIMessage;
         setMessages((current) => [...current, localMessage]);
@@ -1712,7 +1699,11 @@ export function AllmaChat({
         return;
       }
 
-      void sendMessage({ role: "user", parts });
+      void sendMessage({
+        role: "user",
+        parts,
+        metadata: { recipient: "allma" },
+      } as Parameters<typeof sendMessage>[0]);
       setAttachments([]);
       setAttachMenuOpen(false);
       focusInput();
@@ -2170,6 +2161,10 @@ export function AllmaChat({
     );
   }, [send]);
 
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const scrolledSosCardRef = useRef<string | null>(null);
+
   const handleSosActivityStarted = useCallback((activityId: string, card: HTMLDivElement | null) => {
     setActiveSosActivity({ id: activityId, active: true });
     if (threadId) {
@@ -2181,18 +2176,22 @@ export function AllmaChat({
             : current,
       );
       void queryClient.invalidateQueries({ queryKey: ["chat-thread-context", threadId] });
+      const snapshot = messagesRef.current;
       // Persist again after activation so late-arriving local turns are shared.
       void persistConversationMessages(
         threadId,
-        messages.map((message) => ({
+        snapshot.map((message) => ({
           id: message.id,
           role: message.role,
           parts: message.parts,
           authorId: (message as UIMessage & { authorId?: string }).authorId ?? user?.id ?? null,
+          recipient: normalizeChatRecipient(
+            (message as UIMessage & { recipient?: string }).recipient,
+          ),
         })),
       )
         .then((inserted) => {
-          if (messages.length > 0 && inserted === 0) {
+          if (snapshot.length > 0 && inserted === 0) {
             console.warn("SOS flush wrote 0 new rows; history may already be shared");
           }
           void queryClient.invalidateQueries({ queryKey: ["thread-messages", threadId] });
@@ -2202,8 +2201,14 @@ export function AllmaChat({
           toast.error("Could not share this chat history with responders. Stay on this screen.");
         });
     }
-    requestAnimationFrame(() => card?.scrollIntoView({ behavior: "smooth", block: "end" }));
-  }, [messages, queryClient, threadId, user?.id]);
+    // Scroll to the SOS card once on activation only — never on every message update.
+    if (scrolledSosCardRef.current !== activityId) {
+      scrolledSosCardRef.current = activityId;
+      requestAnimationFrame(() =>
+        card?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+      );
+    }
+  }, [queryClient, threadId, user?.id]);
 
   const handleSosActivityEnded = useCallback((activityId: string) => {
     setActiveSosActivity((current) =>
@@ -2579,11 +2584,6 @@ export function AllmaChat({
         </div>
       ) : (
         <Conversation className="relative min-h-0 flex-1 overscroll-contain">
-          <SosRoomAutoScroll
-            active={sosIsActive}
-            activityId={sosActivityId}
-            messageCount={visibleSosMessages.length + messages.length}
-          />
           {(sosIsActive || (sosRoom && sosParticipants.some((person) => person.role !== "ai"))) ? (
             <SosFloatingChatHeads
               participants={sosParticipants}
@@ -2740,6 +2740,9 @@ export function AllmaChat({
                             .map((t) => stripDuplicateFirstAidProse(t, replyIncident))
                         : raw;
                       return message.parts.map((part, index) => {
+                      if ((part as { type?: string }).type === "data-chat-recipient") {
+                        return null;
+                      }
                       if (part.type === "text") {
                         if (message.role !== "assistant") {
                           return (
@@ -2925,6 +2928,10 @@ export function AllmaChat({
               ) : null}
             </div>
           </ConversationContent>
+          <ConversationNewMessagesButton
+            messageCount={messages.length + visibleSosMessages.length}
+            className="bottom-3"
+          />
           <ConversationScrollButton className="bottom-3 left-auto right-3 translate-x-0 border-border/70 bg-background/95 shadow-soft" />
         </Conversation>
       )}
@@ -3175,7 +3182,13 @@ export function AllmaChat({
                   type="button"
                   whileTap={{ scale: 0.92 }}
                   disabled={sosVoiceNoteUploading || uploading}
-                  aria-label={sosIsActive ? "Send to responders" : "Send message"}
+                  aria-label={
+                    sosIsActive
+                      ? composerRecipient === "responders"
+                        ? "Send to Safety Responders"
+                        : "Send to Allma AI"
+                      : "Send message"
+                  }
                   className="composer-voice-btn disabled:opacity-60"
                   onClick={() => {
                     const text = composerText.trim();
