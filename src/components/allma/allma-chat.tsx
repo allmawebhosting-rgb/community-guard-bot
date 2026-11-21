@@ -2670,7 +2670,7 @@ export function AllmaChat({
                   )}
                 >
                   {message.role === "assistant" && !wideSosLayout ? (
-                    <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
+                    <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
                   ) : isOtherHuman ? (
                     <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={30} />
                   ) : null}
@@ -2700,13 +2700,16 @@ export function AllmaChat({
                       message.role === "assistant"
                         ? wideSosLayout
                           ? "w-full max-w-none rounded-none border-0 bg-transparent p-0 shadow-none"
-                          : "w-full max-w-[92%] rounded-[1.35rem] border-0 bg-muted px-3.5 py-3 shadow-none sm:max-w-[85%]"
+                          : cn("w-full max-w-[92%] rounded-[1.35rem] border-0 px-3.5 py-3 sm:max-w-[85%]", sosIsActive ? "rounded-tl-md bg-card shadow-sm ring-1 ring-border/60" : "bg-muted shadow-none")
                         : cn(
                             "w-fit max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[80%]",
                             isOwnUserMessage ? "ml-auto" : "mr-auto",
                           )
                     }
                   >
+                    {message.role === "assistant" && sosIsActive && !wideSosLayout ? (
+                      <span className="mb-1 block text-[13px] font-bold text-primary">Allma AI</span>
+                    ) : null}
                     {(() => {
                       if (message.role !== "assistant") return null;
                       const type = emergencyType;
@@ -2758,10 +2761,15 @@ export function AllmaChat({
                                 className={cn(
                                   "max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-[1.55]",
                                   isOwnUserMessage
-                                    ? "rounded-[1.25rem] rounded-br-md bg-foreground text-background"
-                                    : "rounded-[1.25rem] rounded-bl-md bg-muted text-foreground",
+                                    ? "rounded-[1.4rem] rounded-br-md bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20"
+                                    : "rounded-[1.4rem] rounded-bl-md bg-card text-foreground shadow-sm ring-1 ring-border/60",
                                 )}
                               >
+                                {sosIsActive ? (
+                                  <span className={cn("mb-0.5 block text-[13px] font-bold", isOwnUserMessage ? "text-primary" : "text-sky-600 dark:text-sky-400")}>
+                                    {isOwnUserMessage ? "You" : author?.name ?? "Responder"}
+                                  </span>
+                                ) : null}
                                 {part.text}
                               </p>
                               <span className="mt-1 text-[11px] leading-none text-muted-foreground" suppressHydrationWarning>
@@ -2905,7 +2913,7 @@ export function AllmaChat({
               })}
               {status === "submitted" ? (
                 <div className="flex max-w-full flex-row items-start gap-2.5">
-                  <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
+                  <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
                   <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3 sm:max-w-[85%]">
                     {progressSteps ? (
                       <ChatProgressChecklist steps={progressSteps} />

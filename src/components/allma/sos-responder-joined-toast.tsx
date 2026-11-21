@@ -114,12 +114,11 @@ export function SosResponderJoinedToast({
     if (!participant) return null;
     return (
       <>
-        <p className="text-[13px] font-semibold tracking-tight text-foreground">
+        <p className="text-[14px] font-bold tracking-tight text-primary-foreground">
           Responder joined your emergency
         </p>
-        <p className="mt-1 text-[12.5px] leading-snug text-muted-foreground">
-          <span className="font-medium text-foreground">{participant.name}</span> has joined the
-          conversation and can communicate with you and other authorised participants.
+        <p className="mt-0.5 text-[12.5px] leading-snug text-primary-foreground/85">
+          {participant.name} is now part of this conversation.
         </p>
       </>
     );
@@ -137,11 +136,11 @@ export function SosResponderJoinedToast({
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
           transition={{ duration: reduceMotion ? 0.01 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           className={cn(
-            "pointer-events-auto absolute left-1/2 top-3 z-40 w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-lift backdrop-blur-md",
+            "pointer-events-auto absolute left-1/2 top-3 z-40 w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-full border border-primary/40 bg-gradient-to-r from-primary to-primary/80 py-2 pl-2 pr-3 shadow-[0_12px_32px_-8px_hsl(142_70%_35%/0.55)] backdrop-blur-md",
             className,
           )}
         >
-          <div className="flex items-start gap-3">
+          <div className="flex items-center gap-3">
             <span className="relative mt-0.5 shrink-0 rounded-full bg-gradient-to-br from-emerald-400/30 via-background to-card p-[2px] shadow-sm">
               <span className="block overflow-hidden rounded-full border-2 border-background">
                 <Avatar name={participant.name} url={participant.avatarUrl} size={44} />
@@ -153,7 +152,7 @@ export function SosResponderJoinedToast({
               type="button"
               aria-label="Dismiss"
               onClick={onDismiss}
-              className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="rounded-full p-1 text-primary-foreground/90 transition-colors hover:bg-primary-foreground/15"
             >
               <X className="h-4 w-4" />
             </button>
