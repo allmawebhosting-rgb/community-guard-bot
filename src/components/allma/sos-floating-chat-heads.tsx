@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Phone } from "lucide-react";
+import allmaRobot from "@/assets/allma-robot.png";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import {
   participantConnectionLabel,
@@ -17,7 +18,10 @@ export function SosFloatingChatHeads({
   participants,
   className,
   highlightUserId,
+  currentUserId,
 }: {
+  /** Signed-in user; never shown as an extra responder. */
+  currentUserId?: string | null;
   participants: ConversationParticipant[];
   className?: string;
   /** Briefly emphasize a newly joined participant. */
@@ -25,7 +29,18 @@ export function SosFloatingChatHeads({
 }) {
   const reduceMotion = useReducedMotion();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const humans = participants.filter((person) => person.role !== "ai");
+  const seen = new Set<string>();
+  const ordered = [
+    ...participants.filter((p) => p.role === "ai"),
+    ...participants.filter((p) => p.role !== "ai"),
+  ];
+  const humans = ordered.filter((person) => {
+    if (seen.has(person.id)) return false;
+    seen.add(person.id);
+    if (person.role === "ai") return true;
+    return !currentUserId || person.id !== currentUserId;
+  });
+  const realPeople = humans.filter((p) => p.role !== "ai");
 
   useEffect(() => {
     if (!highlightUserId) return;
@@ -36,7 +51,7 @@ export function SosFloatingChatHeads({
     return () => window.clearTimeout(timer);
   }, [highlightUserId]);
 
-  if (humans.length === 0) return null;
+  if (realPeople.length === 0) return null;
 
   const selected = humans.find((person) => person.id === selectedId) ?? null;
 
@@ -45,7 +60,7 @@ export function SosFloatingChatHeads({
       role="group"
       aria-label="Conversation participants"
       className={cn(
-        "pointer-events-none absolute inset-y-0 right-0 z-20 flex w-[4.5rem] items-center justify-center sm:w-[5rem]",
+        "pointer-events-none absolute inset-y-0 right-0 z-20 flex w-[4.75rem] items-center justify-center sm:w-[5.5rem]",
         className,
       )}
     >
@@ -110,7 +125,7 @@ export function SosFloatingChatHeads({
                 >
                   <span
                     className={cn(
-                      "block overflow-hidden rounded-full border-[2.5px] border-background bg-card ring-1",
+                      "block overflow-hidden rounded-full border-[2.5px] border-background bg-card ring-1 shadow-[0_0_14px_hsl(var(--success)/0.35)]",
                       onCall
                         ? "ring-success/55"
                         : offline
@@ -118,7 +133,17 @@ export function SosFloatingChatHeads({
                           : "ring-border/60",
                     )}
                   >
-                    <Avatar name={person.name} url={person.avatarUrl} size={46} />
+                    {person.role === "ai" ? (
+                      <img
+                        src={allmaRobot}
+                        alt=""
+                        className="h-12 w-12 object-cover sm:h-14 sm:w-14"
+                      />
+                    ) : (
+                      <span className="block h-12 w-12 sm:h-14 sm:w-14 [&>*]:!h-full [&>*]:!w-full">
+                        <Avatar name={person.name} url={person.avatarUrl} size={56} />
+                      </span>
+                    )}
                   </span>
                 </span>
 
@@ -158,6 +183,18 @@ export function SosFloatingChatHeads({
             </p>
             <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground">
               {participantRoleLabel(selected.role)}
+            </p>
+            <p className="mt-1 text-[10.5px] text-muted-foreground">
+              {selected.role === "ai"
+                ? "Always here in this chat"
+                : selected.connection === "disconnected"
+                  ? "Offline"
+                  : "Online"}
+              {selected.role !== "ai"
+                ? selected.connection === "connected"
+                  ? " · Connected to emergency call"
+                  : " · Participating in chat only"
+                : ""}
             </p>
             <p
               className={cn(

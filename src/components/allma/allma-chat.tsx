@@ -2588,6 +2588,7 @@ export function AllmaChat({
             <SosFloatingChatHeads
               participants={sosParticipants}
               highlightUserId={highlightedJoinerId}
+              currentUserId={user?.id ?? null}
             />
           ) : null}
           <SosResponderJoinedToast
