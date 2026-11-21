@@ -14,7 +14,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CallCenter } from "@/components/allma/calls/call-center";
 import { SmartSosGuardian } from "@/components/allma/sos/smart-sos-guardian";
-import { ensurePushRegistered, isStandalone } from "@/lib/push";
+import { ensurePushRegistered, isStandalone, startPushRegistrationHeartbeat } from "@/lib/push";
 import { VoiceAssistant } from "@/components/allma/voice-assistant";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 import appCss from "@/styles.css?url";
@@ -187,20 +187,35 @@ function RootComponent() {
   }, []);
 
   useEffect(() => {
+    let stopHeartbeat: (() => void) | undefined;
     const repairPush = () => {
       void ensurePushRegistered().catch((error) => {
         console.warn("[ALLMA PUSH] background subscription repair failed", error);
       });
     };
     void supabase.auth.getUser().then(({ data }) => {
-      if (data.user) repairPush();
-    });
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
+      if (data.user) {
         repairPush();
+        stopHeartbeat = startPushRegistrationHeartbeat();
       }
     });
-    return () => data.subscription.unsubscribe();
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      // Do not wipe device tokens on SIGNED_OUT — re-association on SIGNED_IN
+      // reassigns the same endpoint to the authenticated account.
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
+        repairPush();
+        stopHeartbeat?.();
+        stopHeartbeat = startPushRegistrationHeartbeat();
+      }
+      if (event === "SIGNED_OUT") {
+        stopHeartbeat?.();
+        stopHeartbeat = undefined;
+      }
+    });
+    return () => {
+      stopHeartbeat?.();
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   return (

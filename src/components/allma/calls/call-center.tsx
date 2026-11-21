@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/allma/brand";
 import { supabase } from "@/integrations/supabase/client";
-import { notifyIncomingCall } from "@/lib/push.functions";
+import { notifyIncomingCall, notifyResponderJoined } from "@/lib/push.functions";
 import { setCallAudioPhase } from "@/lib/call-audio-state";
 import {
   setSosInlineCall,
@@ -691,6 +691,43 @@ export function CallCenter() {
     })();
   }, [presentIncomingCall, userId]);
 
+  // Service worker push → foreground ring when realtime was missed.
+  useEffect(() => {
+    if (!userId || typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (!data || data.source !== "allma-sw") return;
+      if (data.type !== "allma-push" && data.type !== "allma-notification-open") return;
+      const payload = data.payload as {
+        type?: string;
+        callId?: string;
+        invitationId?: string;
+        activityId?: string;
+      };
+      if (payload?.type === "incoming_emergency_call" && payload.callId) {
+        void (async () => {
+          const { data: row } = await supabase
+            .from("emergency_calls")
+            .select("id, caller_id, recipient_id, caller_display_name, status, sos_session_id")
+            .eq("id", payload.callId!)
+            .eq("recipient_id", userId)
+            .in("status", ["initiating", "ringing", "connecting"])
+            .maybeSingle<{
+              id: string;
+              caller_id: string | null;
+              recipient_id: string;
+              caller_display_name: string | null;
+              status: string;
+              sos_session_id: string | null;
+            }>();
+          if (row) presentIncomingCall(row);
+        })();
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [presentIncomingCall, userId]);
+
   // Realtime can miss inserts when the tab is backgrounded. Poll for live
   // inbound SOS/voice rows so receivers still see the ring UI.
   useEffect(() => {
@@ -834,6 +871,13 @@ export function CallCenter() {
           }
         } else {
           toast.message("Call answered. Open the shared emergency chat from Call centre if it did not open.");
+        }
+        if (sosActivityId) {
+          void notifyResponderJoined({
+            data: { activityId: sosActivityId, callId: id },
+          }).catch((notifyError) => {
+            console.warn("[ALLMA PUSH] responder-joined notify failed", notifyError);
+          });
         }
       }
 

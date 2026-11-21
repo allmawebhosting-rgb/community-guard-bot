@@ -116,23 +116,56 @@ export async function ensurePushRegistered(): Promise<PushState> {
   const reg = await registration();
   // Permission already granted: recreate a missing PushManager subscription so
   // Safety Network SOS alerts keep working after browser data clears.
-  const subscription =
-    (await reg.pushManager.getSubscription()) ??
-    (await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(config.publicKey),
-    }));
+  let subscription = await reg.pushManager.getSubscription();
+  try {
+    if (!subscription) {
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.publicKey),
+      });
+    }
+  } catch (error) {
+    console.warn("[ALLMA PUSH] subscribe failed", error);
+    return "prompt";
+  }
   const json = subscription.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) return "prompt";
-  await savePushSubscription({
-    data: {
-      endpoint: json.endpoint,
-      p256dh: json.keys.p256dh,
-      auth: json.keys.auth,
-      userAgent: navigator.userAgent,
-    },
-  });
+  try {
+    await savePushSubscription({
+      data: {
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+        userAgent: navigator.userAgent,
+      },
+    });
+  } catch (error) {
+    console.warn("[ALLMA PUSH] save subscription failed", error);
+    return "prompt";
+  }
   return "enabled";
+}
+
+/** Keep registration fresh when the tab becomes visible again after sign-in. */
+export function startPushRegistrationHeartbeat() {
+  if (typeof window === "undefined") return () => undefined;
+  let last = 0;
+  const tick = () => {
+    const now = Date.now();
+    if (now - last < 60_000) return;
+    last = now;
+    void ensurePushRegistered().catch(() => undefined);
+  };
+  const onVisible = () => {
+    if (document.visibilityState === "visible") tick();
+  };
+  document.addEventListener("visibilitychange", onVisible);
+  window.addEventListener("focus", tick);
+  tick();
+  return () => {
+    document.removeEventListener("visibilitychange", onVisible);
+    window.removeEventListener("focus", tick);
+  };
 }
 
 export async function disableBackgroundCallAlerts() {

@@ -512,6 +512,7 @@ Answering an SOS call admits that Safety Network member into the **original** Al
 - Ringing, declined, missed, and failed calls do not create chat membership.
 - Floating chat heads on the right show who is in the emergency conversation (animated join, call vs chat status).
 - When a verified responder answers and joins, the person needing help gets a join popup (deduped; system notification if the tab is hidden).
+- Emergency alerts use **Web Push (VAPID)** via `public/sw.js` — not native FCM/APNs/CallKit apps. Devices must enable notifications (and on iPhone, Add to Home Screen). Delivery attempts are audited in `notification_delivery_attempts`.
 - During SOS, the composer recipient selector chooses **Ask Allma AI** or **Message Responders** on the same conversation (`messages.recipient`).
 - SOS activation no longer waits on GPS; failures are auditable in `sos_activation_events` and show an actionable retry.
 
