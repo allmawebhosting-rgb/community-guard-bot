@@ -102,7 +102,7 @@ async function ensureCallInvitation(
     sent_at: new Date().toISOString(),
   };
   try {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("emergency_call_invitations")
       .upsert(payload, { onConflict: "call_session_id,recipient_user_id" })
       .select("id")
@@ -112,7 +112,7 @@ async function ensureCallInvitation(
     /* fall through */
   }
   try {
-    const { data, error } = await admin
+    const { data, error } = await (admin as any)
       .from("emergency_call_invitations")
       .upsert(payload, { onConflict: "call_session_id,recipient_user_id" })
       .select("id")
@@ -295,7 +295,7 @@ export const notifySosActivity = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const resolved = data.status === "resolved";
-    const { data: activity, error: activityError } = await context.supabase
+    const { data: activity, error: activityError } = await (context.supabase as any)
       .from("safety_activity")
       .select("id, user_id, location_text, details, activity_type, thread_id")
       .eq("id", data.activityId)
@@ -422,7 +422,7 @@ export const notifyResponderJoined = createServerFn({ method: "POST" })
     return { activityId: input.activityId, callId: input.callId ?? null };
   })
   .handler(async ({ data, context }) => {
-    const { data: activity, error } = await context.supabase
+    const { data: activity, error } = await (context.supabase as any)
       .from("safety_activity")
       .select("id, user_id, thread_id, details")
       .eq("id", data.activityId)
