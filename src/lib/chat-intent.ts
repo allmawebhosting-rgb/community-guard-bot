@@ -90,11 +90,45 @@ export const MISSING_PERSON_OPENER =
 export const LOST_FOUND_OPENER =
   '::flow{type=Lost & found, step=1, total=4, title="Lost or found?"}\n\nDid you lose something or find something?\n\n::suggest[I lost something | I found something]';
 
+export const FIRST_AID_OPENER =
+  "I can guide you through first aid. What happened?\n\nTell me the injury or symptoms in a short sentence — for example a cut, burn, nosebleed, or someone who is unconscious.\n\n::suggest[Cut or bleeding | Burn | Unconscious | Something else]";
+
 /** True when the user is asking for 999/112 — never search alerts or facilities. */
 export function isEmergencyNumbersAsk(text: string) {
   return /\bemergency numbers?\b|\b(police|call)\s*999\b|\btoll[- ]?free\s*112\b|\bwhat (number|numbers) (do i|should i|to) call\b/i.test(
     text.trim(),
   );
+}
+
+/** Vague first-aid asks that need clarification before playbook steps. */
+export function isFirstAidTopicAsk(text: string) {
+  const t = text.trim();
+  if (!t || t.length > 100) return false;
+  // Concrete injuries are handled by the emergency playbook, not this opener.
+  if (
+    /\b(bleed|blood|burn|unconscious|faint|cut|wound|nose|fracture|broken|chok|seiz|snake|sting|poison|swell|sprain|head injury)\b/i.test(
+      t,
+    )
+  ) {
+    return false;
+  }
+  return (
+    /^(show|give|need|want|start|open)?\s*(me\s+)?(some\s+)?first[- ]?aid\b/i.test(t) ||
+    /\b(first[- ]?aid|firstaid)\b/i.test(t)
+  );
+}
+
+/** Case Timeline is only for active report progress — never for first aid or greetings. */
+export function canUseCaseTimelineTool(input: {
+  flowLabel: string | null;
+  step: number;
+  intakeText: string;
+}) {
+  if (/\b(case )?timeline|progress (on|of) (my )?(case|report)\b/i.test(input.intakeText)) {
+    return true;
+  }
+  const reportFlows = new Set(["Reporting", "Report an incident", "Missing person", "Lost & found"]);
+  return Boolean(input.flowLabel && reportFlows.has(input.flowLabel) && input.step >= 2);
 }
 
 /**
@@ -113,6 +147,10 @@ export function scriptedFlowOpener(intakeText: string, activeFlowLabel: string |
   // Hard report flows keep the model for follow-up answers.
   if (activeFlowLabel && !isSoftGuidedFlow(activeFlowLabel) && activeFlowLabel !== "Find help") {
     return null;
+  }
+
+  if (isFirstAidTopicAsk(text)) {
+    return FIRST_AID_OPENER;
   }
 
   if (

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  canUseCaseTimelineTool,
   canUseFilingTools,
+  isFirstAidTopicAsk,
   isReportingIntent,
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
@@ -8,6 +10,7 @@ import {
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
 } from "./chat-intent";
+import { matchIncident } from "./allma-emergency-playbook";
 
 describe("direct help routing", () => {
   it("keeps a stolen-property report in the reporting flow even when police are mentioned", () => {
@@ -138,5 +141,32 @@ describe("direct help routing", () => {
     expect(scriptedFlowOpener("Show me the emergency numbers", null)).toMatch(/Police 999/);
     expect(scriptedFlowOpener("Show me the emergency numbers", "Reporting")).toMatch(/Toll-free emergency 112/);
     expect(scriptedFlowOpener("Emergency numbers", null)).toMatch(/Police 999/);
+  });
+
+  it("scripts a first-aid clarification opener without Case Timeline", () => {
+    expect(isFirstAidTopicAsk("Show first aid.")).toBe(true);
+    expect(isFirstAidTopicAsk("I have cut my hand.")).toBe(false);
+    const reply = scriptedFlowOpener("Show first aid.", null);
+    expect(reply).toMatch(/first aid/i);
+    expect(reply).toMatch(/What happened/i);
+    expect(reply).not.toMatch(/Case Timeline|case_timeline/i);
+  });
+
+  it("keeps Case Timeline locked until a report has real steps", () => {
+    expect(
+      canUseCaseTimelineTool({ flowLabel: null, step: 0, intakeText: "Show first aid." }),
+    ).toBe(false);
+    expect(
+      canUseCaseTimelineTool({ flowLabel: "Reporting", step: 1, intakeText: "Theft" }),
+    ).toBe(false);
+    expect(
+      canUseCaseTimelineTool({ flowLabel: "Reporting", step: 3, intakeText: "Near the market" }),
+    ).toBe(true);
+  });
+
+  it("matches cut-hand injuries for the bleeding playbook", () => {
+    expect(matchIncident("I have cut my hand.")?.id).toBe("bleeding");
+    expect(matchIncident("How do I stop the bleeding?")?.id).toBe("bleeding");
+    expect(matchIncident("What should I do if someone is unconscious?")?.id).toBe("unconscious");
   });
 });

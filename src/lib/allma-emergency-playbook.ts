@@ -176,7 +176,7 @@ export const INCIDENTS: Incident[] = [
     followUp: "Are they breathing normally?", followUpChips: ["Yes, breathing", "No, not breathing"],
     guide: "Steps: check breathing; recovery position (on their side, head tilted back to keep the airway open); loosen tight clothing; nothing by mouth; stay with them. If not breathing, start CPR. Red flags: not waking, not breathing normally, after a fall or head injury, pregnant, diabetic." },
   { id: "bleeding", label: "Severe bleeding", category: "medical", marker: "medical", helpTypes: ["hospital"], lifeThreatening: true,
-    keywords: /bleed|blood|deep cut|wound|gash/i,
+    keywords: /bleed|blood|deep cut|\bcuts?\b|cutting|wound|gash|lacerat/i,
     followUp: "Did the bleeding stop?", followUpChips: ["Yes, it stopped", "No, still bleeding"],
     guide: "Steps: firm direct pressure with a clean cloth; don't lift to check; add more cloth on top if it soaks through; raise the limb if no fracture; keep them warm. Tourniquet ONLY for life-threatening limb bleeding that pressure can't control and the person knows how. Red flags: spurting blood, won't stop after 10 min of pressure, pale/cold/confused." },
   { id: "fever_malaria", label: "High fever / malaria signs", category: "medical", marker: "medical", helpTypes: ["hospital"], lifeThreatening: false,

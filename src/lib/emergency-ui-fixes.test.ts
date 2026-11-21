@@ -131,6 +131,16 @@ describe("internal tool cards", () => {
     ).toBe(true);
   });
 
+  it("hides empty or unrelated Case Timeline cards", () => {
+    expect(shouldShowToolOutput("tool-case_timeline", { ok: true, events: [] })).toBe(false);
+    expect(
+      shouldShowToolOutput("tool-case_timeline", {
+        ok: true,
+        events: [{ label: "Location received" }],
+      }),
+    ).toBe(true);
+  });
+
   it("hides empty list_alerts Nearby Help stubs", () => {
     expect(shouldShowToolOutput("list_alerts", { alerts: [] })).toBe(false);
     expect(shouldShowToolOutput("list_alerts", { alerts: [{ title: "Flood warning" }] })).toBe(true);

@@ -42,6 +42,19 @@ export function shouldShowToolOutput(
   if (name === "recommend_actions") {
     return Array.isArray(output?.actions) && output.actions.length > 0;
   }
+  if (name === "case_timeline") {
+    return Boolean(
+      output?.ok &&
+        Array.isArray(output.events) &&
+        output.events.some(
+          (event) =>
+            event &&
+            typeof event === "object" &&
+            typeof (event as { label?: unknown }).label === "string" &&
+            String((event as { label?: unknown }).label).trim().length > 0,
+        ),
+    );
+  }
   return true;
 }
 

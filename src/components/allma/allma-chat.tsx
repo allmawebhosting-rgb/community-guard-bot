@@ -1031,7 +1031,12 @@ function ToolCard({
 
   // ── case_timeline card ───────────────────────────────────────
   if (name === "case_timeline" && output?.ok) {
-    const events = Array.isArray(output.events) ? (output.events as Array<{ label: string }>) : [];
+    const events = Array.isArray(output.events)
+      ? (output.events as Array<{ label?: string }>).filter(
+          (event) => typeof event?.label === "string" && event.label.trim().length > 0,
+        )
+      : [];
+    if (events.length === 0) return null;
     const generatedAt = output.generated_at ? new Date(String(output.generated_at)) : new Date();
 
     const baseTime = new Date(generatedAt.getTime() - events.length * 90000);
@@ -1580,6 +1585,43 @@ export function AllmaChat({
   useEffect(() => {
     if (status === "ready" || status === "error") setServerProgress([]);
   }, [status]);
+
+  // Recover silent/empty Allma bubbles so the user always gets a usable reply or retry.
+  useEffect(() => {
+    if (status !== "ready" && status !== "error") return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") return;
+    if (assistantHasVisibleText(last.parts as Array<{ type: string; text?: string }>)) return;
+    const hasUsefulTool = (last.parts ?? []).some((part) => {
+      const type = String((part as { type?: string }).type ?? "");
+      if (!type.startsWith("tool-")) return false;
+      return shouldShowToolOutput(
+        type,
+        (part as { output?: Record<string, unknown> }).output,
+      );
+    });
+    if (hasUsefulTool) return;
+    setMessages((current) => {
+      const tip = current[current.length - 1];
+      if (!tip || tip.id !== last.id || tip.role !== "assistant") return current;
+      if (assistantHasVisibleText(tip.parts as Array<{ type: string; text?: string }>)) {
+        return current;
+      }
+      return [
+        ...current.slice(0, -1),
+        {
+          ...tip,
+          parts: [
+            ...tip.parts,
+            {
+              type: "text",
+              text: "I could not finish that answer. Please try again, or tell me more about what you need — first aid, reporting, or nearby help.",
+            },
+          ],
+        },
+      ];
+    });
+  }, [messages, setMessages, status]);
 
   const focusInput = useCallback(() => {
     requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }));

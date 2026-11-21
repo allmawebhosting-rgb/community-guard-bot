@@ -6,6 +6,7 @@ import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
 import {
   isReportingIntent,
   canUseFilingTools,
+  canUseCaseTimelineTool,
   isFilingToolName,
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
@@ -14,6 +15,8 @@ import {
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
 } from "@/lib/chat-intent";
+import { assistantHasVisibleText } from "@/lib/chat-progress";
+import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
 import { createFileRoute } from "@tanstack/react-router";
@@ -114,9 +117,43 @@ function createSupabase(accessToken?: string) {
 
 function textOf(message: UIMessage) {
   return message.parts
+    .filter((part) => part.type === "text")
     .map((part) => ("text" in part && typeof part.text === "string" ? part.text : ""))
     .join(" ")
     .trim();
+}
+
+/** Strip non-model parts (recipient metadata) before convertToModelMessages. */
+function modelFacingMessages(messages: UIMessage[]): UIMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    parts: message.parts.filter((part) => {
+      const type = (part as { type?: string }).type;
+      return type !== "data-chat-recipient" && type !== "data-chat-progress";
+    }),
+  }));
+}
+
+function emptyReplyFallback(intakeText: string): string {
+  const incident = matchIncident(intakeText);
+  if (incident) {
+    const aid = firstAidFor(incident);
+    if (aid?.steps.length) {
+      const steps = aid.steps.map((step, index) => `${index + 1}. ${step}`).join("\n");
+      const flags = aid.redFlags.length
+        ? `\n\n**Get help now if:**\n${aid.redFlags.map((flag) => `- ${flag}`).join("\n")}`
+        : "";
+      const notDoctor = aid.notDoctor ? `\n\n${aid.notDoctor}` : "";
+      return `${steps}${flags}${notDoctor}\n\n${incident.followUp}\n\n::suggest[${incident.followUpChips.join(" | ")}]`;
+    }
+  }
+  if (/\breport\b|\bstolen\b|\btheft\b|\bcrime\b/i.test(intakeText)) {
+    return 'I can guide you through reporting. What kind of incident is this?\n\n::suggest[Theft | Robbery | Assault | Something else]';
+  }
+  if (/\bhospital|police station|nearest|near me|find help\b/i.test(intakeText)) {
+    return "Tell me a town or share your location, and I will look for the nearest help.\n\n::suggest[Share my location | Type a town | Emergency numbers]";
+  }
+  return "I am here to help with first aid, reporting, missing persons, lost & found, and nearby hospitals or police. What do you need right now?\n\n::suggest[First aid | Report a crime | Find help nearby | Emergency numbers]";
 }
 
 export const Route = createFileRoute("/api/chat")({
@@ -530,7 +567,23 @@ export const Route = createFileRoute("/api/chat")({
           ? `\n\nYOUR PREVIOUS MESSAGE IN THIS CONVERSATION WAS: "${lastAssistantText}". Never repeat it or re-introduce yourself. Move the conversation forward instead.`
           : "";
 
-        const modelMessages = await convertToModelMessages(uiMessages);
+        const modelMessages = await convertToModelMessages(modelFacingMessages(uiMessages));
+
+        // Keep the active topic sticky so first-aid / reporting do not jump mid-thread.
+        const priorUserTexts = uiMessages
+          .filter((message) => message.role === "user")
+          .slice(-4)
+          .map((message) => textOf(message));
+        const topicSticky =
+          flowState.flowLabel === "Reporting" ||
+          flowState.flowLabel === "Missing person" ||
+          flowState.flowLabel === "Lost & found"
+            ? `\n\nTOPIC LOCK: Stay on the "${flowState.flowLabel}" process until the user clearly changes subject. Ask the next missing detail. Do not open Case Timeline, first-aid cards, or unrelated tools.`
+            : priorUserTexts.some((text) =>
+                  /\b(first[- ]?aid|bleed|blood|cut|burn|unconscious|wound|injury|hurt)\b/i.test(text),
+                ) && !isReporting
+              ? `\n\nTOPIC LOCK: The user is seeking first-aid / medical guidance. Continue that subject with clear steps and one follow-up question. Do not open Case Timeline, crime-report flows, or unrelated cards unless they ask.`
+              : "";
 
         // ---- Prompt budget: send the compact core always, topic detail only when
         // that topic is actually live. A one-word "hi" no longer pays for the
@@ -589,6 +642,11 @@ export const Route = createFileRoute("/api/chat")({
           step: flowState.step,
           askedTitles: flowState.askedTitles,
         });
+        const caseTimelineAllowed = canUseCaseTimelineTool({
+          flowLabel: flowState.flowLabel,
+          step: flowState.step,
+          intakeText,
+        });
         const selectTools = <T extends Record<string, unknown>>(all: T): T => {
           let entries = Object.entries(all);
           if (!fullMode) {
@@ -598,6 +656,9 @@ export const Route = createFileRoute("/api/chat")({
           }
           if (!filingAllowed) {
             entries = entries.filter(([name]) => !isFilingToolName(name));
+          }
+          if (!caseTimelineAllowed) {
+            entries = entries.filter(([name]) => name !== "case_timeline");
           }
           // Emergency-number asks must never trigger facility/alert tools.
           if (isEmergencyNumbersAsk(intakeText)) {
@@ -646,7 +707,7 @@ export const Route = createFileRoute("/api/chat")({
         const buildStream = (modelId: string) => streamText({
           model: resolveModel(modelId),
           maxRetries: 0,
-          maxOutputTokens: 384,
+          maxOutputTokens: emergencyIncident || requireNearbyHelp ? 700 : 512,
           abortSignal: request.signal,
           system: `${systemPrompt}\n\n${PHYSICAL_SYMPTOM_FIRST_AID_RULE}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
@@ -656,7 +717,7 @@ export const Route = createFileRoute("/api/chat")({
                 ? " This sender is the conversation owner during an active SOS."
                 : " This sender is an authorized Safety Network responder in the shared SOS conversation."
               : ""
-          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}\n\nTURN BUDGET: exactly one reply per turn. Write your one message with its inline markers, then stop and wait for the user. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
+          }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}${topicSticky}\n\nRESPONSE RULES: Always write a clear user-facing text reply in this turn. Never return an empty message. Never call case_timeline unless the user is mid-report and needs progress milestones. Never invent unrelated Case Timeline / Done cards. Ask one clarifying question when details are missing instead of guessing.\n\nTURN BUDGET: exactly one reply per turn. Write your one message with its inline markers, then stop and wait for the user. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
 
 
           messages: modelMessages,
@@ -1300,19 +1361,27 @@ export const Route = createFileRoute("/api/chat")({
             }),
             case_timeline: tool({
               description:
-                "Show a timestamped case progress timeline after major milestones — location received, evidence uploaded, AI summary generated, report submitted. Call this to give the user a sense of progress. Pass ALL events collected so far each time.",
+                "ONLY for an active crime / missing-person / lost-found report after real milestones exist (location collected, evidence uploaded, summary ready, report submitted). Never use for first aid, greetings, hospital search, or SOS. Pass ALL events collected so far each time. If you have no real milestones yet, do not call this tool — ask the next report question instead.",
               inputSchema: z.object({
                 events: z.array(
                   z.object({
                     label: z.string().describe("What happened, e.g. 'Location received', 'Evidence uploaded'"),
                   }),
-                ).describe("All timeline events so far, in chronological order"),
+                ).min(1).describe("All timeline events so far, in chronological order"),
               }),
-              execute: async (input) => ({
-                ok: true,
-                events: input.events,
-                generated_at: new Date().toISOString(),
-              }),
+              execute: async (input) => {
+                const events = (input.events ?? []).filter(
+                  (event) => typeof event?.label === "string" && event.label.trim().length > 0,
+                );
+                if (!events.length) {
+                  return { ok: false, message: "No timeline events yet." };
+                }
+                return {
+                  ok: true,
+                  events,
+                  generated_at: new Date().toISOString(),
+                };
+              },
             }),
           }),
 
@@ -1354,18 +1423,39 @@ export const Route = createFileRoute("/api/chat")({
                 },
               }),
             );
+            // Never leave the user with a silent/empty assistant bubble.
+            try {
+              const finalText = (await result.text).trim();
+              if (!finalText) {
+                const fallback = emptyReplyFallback(intakeText);
+                const fallbackId = `allma-empty-fallback-${Date.now()}`;
+                writer.write({ type: "text-start", id: fallbackId });
+                writer.write({ type: "text-delta", id: fallbackId, delta: fallback });
+                writer.write({ type: "text-end", id: fallbackId });
+              }
+            } catch (fallbackError) {
+              console.error("Empty-reply fallback failed", fallbackError);
+            }
           },
           onFinish: async ({ responseMessage }) => {
             mark("stream_finish");
             logTiming(usedModel);
             if (!userId || !threadId) return;
 
+            let parts = responseMessage.parts;
+            if (!assistantHasVisibleText(parts as Array<{ type: string; text?: string }>)) {
+              parts = [
+                ...parts,
+                { type: "text", text: emptyReplyFallback(intakeText) },
+              ] as typeof responseMessage.parts;
+            }
+
             // User message was published at request start for shared realtime delivery.
             const messageInsertError = await publishConversationMessage(supabase, {
               threadId,
               userId,
               role: responseMessage.role,
-              parts: responseMessage.parts,
+              parts,
               sdkMessageId: responseMessage.id,
               recipient: "allma",
             });
