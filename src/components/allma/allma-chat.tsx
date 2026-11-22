@@ -699,17 +699,17 @@ function SosTimelineEvent({
       className={cn("flex items-end gap-1.5", mine && "justify-end")}
     >
       {!mine ? (
-        <span className="shrink-0">
+        <span className="shrink-0 overflow-hidden rounded-full shadow-sm ring-1 ring-black/5">
           <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={40} />
         </span>
       ) : null}
       <div className="min-w-0 max-w-[84%]">
         <div
           className={cn(
-            "relative px-3.5 py-2.5 text-left text-[14px] leading-relaxed shadow-sm",
+            "relative px-3 py-2 text-left text-[14px] leading-relaxed shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)]",
             mine
-              ? "rounded-[1.25rem] rounded-br-md bg-[#d9fdd3] text-foreground ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
-              : "rounded-[1.25rem] rounded-bl-md bg-card text-foreground ring-1 ring-border/60",
+              ? "rounded-[1.3rem] rounded-br-md bg-[#d9fdd3] text-foreground ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
+              : "rounded-[1.3rem] rounded-bl-md bg-card text-foreground ring-1 ring-border/50",
           )}
         >
           {!mine ? (
@@ -740,7 +740,7 @@ function SosTimelineEvent({
           ) : (
             <p className="whitespace-pre-wrap break-words">{message.body}</p>
           )}
-          <span className="mt-1 block text-right text-[10px] leading-none text-muted-foreground">
+          <span className="mt-0.5 block text-right text-[10px] leading-none tabular-nums text-muted-foreground">
             <time dateTime={message.created_at}>{timestamp}</time>
           </span>
         </div>
@@ -755,7 +755,7 @@ function SosTimelineEvent({
               })
             }
             className={cn(
-              "mt-1 flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
+              "mt-0.5 flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
               mine && "ml-auto",
             )}
             aria-label="Reply to this message"
@@ -3034,7 +3034,7 @@ export function AllmaChat({
               "pb-8",
             )}
           >
-            <div className={cn("flex flex-col pt-16 lg:pt-8", sosIsActive ? "gap-4" : "gap-5")}>
+            <div className={cn("flex flex-col pt-16 lg:pt-8", sosIsActive ? "gap-2.5" : "gap-5")}>
               {timelineItems.map((item) => {
                 if (item.kind === "sos") {
                   const mine = item.message.author_id === user?.id;
@@ -3118,7 +3118,7 @@ export function AllmaChat({
                   from={message.role}
                   className={cn(
                     message.role === "assistant"
-                      ? "flex-row items-start gap-2.5"
+                      ? "flex-row items-start gap-2"
                       : undefined,
                     wideSosLayout ? "!max-w-none w-full" : "max-w-full sm:max-w-full",
                     isOtherHuman &&
@@ -3132,20 +3132,23 @@ export function AllmaChat({
                   {message.role === "assistant" && !wideSosLayout ? (
                     <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
                   ) : isOtherHuman ? (
-                    <span className="shrink-0">
+                    <span className="shrink-0 overflow-hidden rounded-full shadow-sm ring-1 ring-black/5">
                       <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={sosIsActive ? 40 : 32} />
                     </span>
                   ) : null}
-                  <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
+                  <div className={cn("flex min-w-0 flex-1 flex-col gap-1", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
                   <MessageContent
                     className={
                       message.role === "assistant"
                         ? wideSosLayout
                           ? "w-full max-w-none rounded-none border-0 bg-transparent p-0 shadow-none"
-                          : cn("w-full max-w-[92%] rounded-[1.35rem] border-0 px-3.5 py-3 sm:max-w-[85%]", sosIsActive ? "rounded-tl-md bg-card shadow-sm ring-1 ring-border/60" : "bg-muted shadow-none")
+                          : cn("w-full max-w-[92%] rounded-[1.35rem] border-0 px-3.5 py-2.5 sm:max-w-[85%]", sosIsActive ? "rounded-tl-md bg-card shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50" : "bg-muted shadow-none")
                         : cn(
                             "w-fit max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[80%]",
-                            isOwnUserMessage ? "ml-auto" : "mr-auto",
+                            // Other people's bubbles must hug their avatar on the
+                            // left — the ai-elements base pushes user content to
+                            // the right (ml-auto), which left a big empty gap.
+                            isOwnUserMessage ? "ml-auto" : "mr-auto !ml-0",
                           )
                     }
                   >
@@ -3168,7 +3171,7 @@ export function AllmaChat({
                         !aid;
                       const showCards = showCardStack && Boolean(type || aid);
                       return showCards || showProgress ? (
-                        <div className={cn("space-y-3", !wideSosLayout && "mb-3")}>
+                        <div className={cn("space-y-2.5", !wideSosLayout && "mb-2.5")}>
                           {showCards && type ? <EmergencyActions type={type} offerMode={offerMode} /> : null}
                           {showCards && aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
                           {showProgress && progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : null}
@@ -3210,14 +3213,14 @@ export function AllmaChat({
                             >
                               <p
                                 className={cn(
-                                  "max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-[1.55]",
+                                  "max-w-full whitespace-pre-wrap px-3 py-2 text-[15px] leading-[1.5]",
                                   sosIsActive && "relative",
                                   isOwnUserMessage
                                     ? sosIsActive
                                       ? // WhatsApp-style own bubble: soft green.
-                                        "rounded-[1.4rem] rounded-br-md bg-[#d9fdd3] text-foreground shadow-sm ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
-                                      : "rounded-[1.4rem] rounded-br-md bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20"
-                                    : "rounded-[1.4rem] rounded-bl-md bg-card text-foreground shadow-sm ring-1 ring-border/60",
+                                        "rounded-[1.3rem] rounded-br-md bg-[#d9fdd3] text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
+                                      : "rounded-[1.3rem] rounded-br-md bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20"
+                                    : "rounded-[1.3rem] rounded-bl-md bg-card text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50",
                                 )}
                               >
                                 {replyQuote && index === firstTextIndex ? (
@@ -3242,7 +3245,7 @@ export function AllmaChat({
                                 ) : null}
                                 {part.text}
                                 {sosIsActive ? (
-                                  <span className="mt-1 block text-right text-[10px] leading-none text-muted-foreground" suppressHydrationWarning>
+                                  <span className="mt-0.5 block text-right text-[10px] leading-none tabular-nums text-muted-foreground" suppressHydrationWarning>
                                     {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                                   </span>
                                 ) : null}
@@ -3263,7 +3266,7 @@ export function AllmaChat({
                                     });
                                     focusInput();
                                   }}
-                                  className="mt-1 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                  className="mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
                                   aria-label="Reply to this message"
                                 >
                                   <Reply className="h-3.5 w-3.5" /> Reply
