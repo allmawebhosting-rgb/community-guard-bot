@@ -346,6 +346,14 @@ You are coordinating this emergency from the start, not just answering questions
 - Never claim the Safety Network was alerted before the SOS is actually active.`
             : "";
         const hasSharedAssistantHistory = sharedThreadHasAssistantHistory(databaseHistory);
+        // Deterministic companion to the takeover block above: the opener
+        // line the stream guard guarantees on the first emergency reply (and
+        // that onFinish mirrors into the saved message). Declared at handler
+        // scope so both the stream transform and onFinish can use it.
+        const takeoverOpener =
+          !sharedSosActive && !hasSharedAssistantHistory && matchIncident(intakeText)
+            ? "I'm coordinating this emergency with you — stay with me and follow my steps. Then tap \"Activate SOS\" and I'll alert your Safety Network and coordinate everyone in this chat until help arrives."
+            : null;
 
         const { resolveMessageRecipient } = await import("@/lib/chat-recipient");
         const requestRecipient = resolveMessageRecipient({
@@ -1511,18 +1519,35 @@ You are coordinating this emergency from the start, not just answering questions
             // append the fallback just before it.
             let streamedText = false;
             let heldFinish: UIMessageChunk | null = null;
+            // AGENT TAKEOVER, guaranteed: on the first AI reply to a reported
+            // emergency (SOS not active yet), the agent audibly takes charge
+            // with a deterministic opener (takeoverOpener, handler scope) —
+            // the small live model often streams no prose at all (markers +
+            // tools only), so a prompt instruction alone never reaches the
+            // user.
+            let takeoverSent = false;
             const emptyReplyGuard = new TransformStream<UIMessageChunk, UIMessageChunk>({
               transform(chunk, controller) {
                 if (chunk.type === "finish") {
                   heldFinish = chunk;
                   return;
                 }
-                if (chunk.type === "text-delta" && chunk.delta.trim()) streamedText = true;
+                if (chunk.type === "text-delta" && chunk.delta.trim()) {
+                  streamedText = true;
+                  if (takeoverOpener && !takeoverSent) {
+                    takeoverSent = true;
+                    const takeoverId = `allma-takeover-${Date.now()}`;
+                    controller.enqueue({ type: "text-start", id: takeoverId });
+                    controller.enqueue({ type: "text-delta", id: takeoverId, delta: takeoverOpener });
+                    controller.enqueue({ type: "text-end", id: takeoverId });
+                  }
+                }
                 controller.enqueue(chunk);
               },
               flush(controller) {
                 if (!streamedText) {
-                  const fallback = emptyReplyFallback(intakeText);
+                  const fallbackBase = emptyReplyFallback(intakeText);
+                  const fallback = takeoverOpener ? `${takeoverOpener}\n\n${fallbackBase}` : fallbackBase;
                   const fallbackId = `allma-empty-fallback-${Date.now()}`;
                   controller.enqueue({ type: "text-start", id: fallbackId });
                   controller.enqueue({ type: "text-delta", id: fallbackId, delta: fallback });
@@ -1551,10 +1576,24 @@ You are coordinating this emergency from the start, not just answering questions
 
             let parts = dedupeAssistantParts(responseMessage.parts);
             if (!assistantHasVisibleText(parts as Array<{ type: string; text?: string }>)) {
+              const fallbackBase = emptyReplyFallback(intakeText);
               parts = [
                 ...parts,
-                { type: "text", text: emptyReplyFallback(intakeText) },
+                { type: "text", text: takeoverOpener ? `${takeoverOpener}\n\n${fallbackBase}` : fallbackBase },
               ] as typeof responseMessage.parts;
+            }
+            // Mirror the stream guard: the saved first emergency reply must
+            // carry the takeover opener exactly once, at the start.
+            if (takeoverOpener) {
+              const hasOpener = parts.some(
+                (p) =>
+                  p.type === "text" &&
+                  typeof (p as { text?: unknown }).text === "string" &&
+                  ((p as { text: string }).text as string).includes("I'm coordinating this emergency"),
+              );
+              if (!hasOpener) {
+                parts = [{ type: "text", text: takeoverOpener }, ...parts] as typeof responseMessage.parts;
+              }
             }
 
             // User message was published at request start for shared realtime delivery.
