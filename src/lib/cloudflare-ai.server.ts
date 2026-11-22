@@ -20,7 +20,9 @@ export function getCloudflareChatModel() {
 
 // Some Workers AI models stream legacy response/tool fields alongside OpenAI-style
 // choices in the same SSE chunk; the provider can emit duplicate content and tool calls.
-export function dedupeSseLine(line: string): string {
+// The legacy fields can also arrive in their own chunk within a choices stream, so
+// once any chunk in the stream carries `choices`, strip them from later chunks too.
+export function dedupeSseLine(line: string, choicesSeen = false): string {
   if (!line.startsWith("data:")) return line;
   const payload = line.slice(5).trim();
   if (!payload || payload === "[DONE]") return line;
@@ -31,27 +33,49 @@ export function dedupeSseLine(line: string): string {
       delete obj["tool_calls"];
       return `data: ${JSON.stringify(obj)}`;
     }
+    if (choicesSeen && ("response" in obj || "tool_calls" in obj)) {
+      delete obj["response"];
+      delete obj["tool_calls"];
+      return `data: ${JSON.stringify(obj)}`;
+    }
   } catch {
     /* pass through */
   }
   return line;
 }
 
+function sseLineHasChoices(line: string): boolean {
+  if (!line.startsWith("data:")) return false;
+  const payload = line.slice(5).trim();
+  if (!payload || payload === "[DONE]") return false;
+  try {
+    return Array.isArray((JSON.parse(payload) as Record<string, unknown>)["choices"]);
+  } catch {
+    return false;
+  }
+}
+
 function dedupeStream(src: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
   const dec = new TextDecoder();
   const enc = new TextEncoder();
   let buf = "";
+  let choicesSeen = false;
+  const processLine = (line: string): string => {
+    const out = dedupeSseLine(line, choicesSeen);
+    if (!choicesSeen && sseLineHasChoices(line)) choicesSeen = true;
+    return out;
+  };
   return src.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, ctrl) {
         buf += dec.decode(chunk, { stream: true });
         const parts = buf.split("\n");
         buf = parts.pop() ?? "";
-        if (parts.length) ctrl.enqueue(enc.encode(parts.map(dedupeSseLine).join("\n") + "\n"));
+        if (parts.length) ctrl.enqueue(enc.encode(parts.map(processLine).join("\n") + "\n"));
       },
       flush(ctrl) {
         buf += dec.decode();
-        if (buf) ctrl.enqueue(enc.encode(dedupeSseLine(buf)));
+        if (buf) ctrl.enqueue(enc.encode(processLine(buf)));
       },
     }),
   );
@@ -63,7 +87,20 @@ function dedupeStreamBinding(binding: AiBinding): AiBinding {
     run: async (model: string, input: unknown, ...rest: unknown[]) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const out = await (binding.run as any)(model, input, ...rest);
-      return out instanceof ReadableStream ? dedupeStream(out) : out;
+      if (out instanceof ReadableStream) return dedupeStream(out);
+      // Non-streamed replies can carry the same duplicate fields on one object.
+      if (
+        out &&
+        typeof out === "object" &&
+        Array.isArray((out as Record<string, unknown>)["choices"]) &&
+        ("response" in out || "tool_calls" in out)
+      ) {
+        const copy = { ...(out as Record<string, unknown>) };
+        delete copy["response"];
+        delete copy["tool_calls"];
+        return copy;
+      }
+      return out;
     },
   };
 }

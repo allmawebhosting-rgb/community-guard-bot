@@ -184,6 +184,11 @@ describe("repeated steps render once", () => {
     expect(b).not.toMatch(/Get help now if/);
     expect(b).toMatch(/closest is Jinja Central/);
   });
+  it("drops a block repeated within a single part", () => {
+    const steps = "1. Don't confront them\n2. Go to a room you can lock";
+    const [out] = dedupeRepeatedParts([`${steps}\n\n${steps}`]);
+    expect(out.match(/Go to a room you can lock/g)).toHaveLength(1);
+  });
 });
 
 describe("place results", () => {

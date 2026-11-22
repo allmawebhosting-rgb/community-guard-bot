@@ -162,17 +162,18 @@ function lineKey(line: string): string {
 /**
  * When a model writes its steps before a tool call and then repeats them after
  * the results, the second copy is dropped so each block shows once.
- * Lines (≥ 12 chars) already shown in an earlier text part are removed.
+ * Lines (≥ 12 chars) already shown earlier — in an earlier text part or
+ * earlier in the same part — are removed.
  */
 export function dedupeRepeatedParts(texts: string[]): string[] {
   const seen = new Set<string>();
   return texts.map((text) => {
     const kept: string[] = [];
-    const added: string[] = [];
+    const added = new Set<string>();
     for (const line of text.split("\n")) {
       const key = lineKey(line);
-      if (key.length >= 12 && seen.has(key)) continue;
-      if (key.length >= 12) added.push(key);
+      if (key.length >= 12 && (seen.has(key) || added.has(key))) continue;
+      if (key.length >= 12) added.add(key);
       kept.push(line);
     }
     for (const k of added) seen.add(k);

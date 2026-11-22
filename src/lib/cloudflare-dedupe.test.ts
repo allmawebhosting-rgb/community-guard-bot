@@ -19,3 +19,13 @@ test("preserves tool calls when choices are absent", () => {
   const line = 'data: {"tool_calls":[{"id":"call-1"}]}';
   expect(dedupeSseLine(line)).toBe(line);
 });
+
+test("strips legacy response from a later chunk once choices were seen", () => {
+  const out = dedupeSseLine('data: {"response":"Po"}', true);
+  expect(out).not.toContain('"response"');
+});
+
+test("keeps a response-only chunk before any choices chunk", () => {
+  const line = 'data: {"response":"Po"}';
+  expect(dedupeSseLine(line)).toBe(line);
+});
