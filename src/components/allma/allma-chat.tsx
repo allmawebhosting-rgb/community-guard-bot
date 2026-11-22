@@ -3299,8 +3299,8 @@ export function AllmaChat({
                       aria-label={
                         sosIsActive
                           ? sosVoiceNoteRecording
-                            ? "Stop voice note recording"
-                            : "Record a voice note for responders"
+                            ? "Stop voice message recording"
+                            : "Record a voice message"
                           : recording
                             ? "Stop recording"
                             : "Voice input"
@@ -3319,7 +3319,17 @@ export function AllmaChat({
               </div>
             </div>
 
-            {!composerRecording ? (
+            {composerRecording && sosIsActive ? (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.92 }}
+                onClick={() => stopSosVoiceNote()}
+                aria-label="Send voice message"
+                className="composer-voice-btn"
+              >
+                <SendHorizontal className="h-5 w-5" />
+              </motion.button>
+            ) : !composerRecording ? (
               busy ? (
                 <button
                   type="button"
@@ -3354,6 +3364,17 @@ export function AllmaChat({
                   }}
                 >
                   <SendHorizontal className="h-5 w-5" />
+                </motion.button>
+              ) : sosIsActive ? (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.92 }}
+                  onClick={toggleSosVoiceNote}
+                  disabled={sosVoiceNoteUploading}
+                  className="composer-voice-btn disabled:opacity-60"
+                  aria-label="Record a voice message"
+                >
+                  <Mic className="h-5 w-5" />
                 </motion.button>
               ) : (
                 <motion.button
