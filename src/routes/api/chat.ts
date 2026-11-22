@@ -41,7 +41,7 @@ import {
   ALLMA_PROCEDURES_BLOCK,
   ALLMA_REPORTING_BLOCK,
 } from "@/lib/allma-prompt";
-import { ALLMA_MARKER_CONTRACT, parseAllmaMarkers } from "@/lib/allma-markers";
+import { ALLMA_MARKER_CONTRACT, dedupeRepeatedParts, parseAllmaMarkers } from "@/lib/allma-markers";
 import { facilitySearchInputSchema } from "@/lib/facility-search-input";
 import {
   mergeCanonicalChatHistory,
@@ -132,6 +132,30 @@ function modelFacingMessages(messages: UIMessage[]): UIMessage[] {
       return type !== "data-chat-recipient" && type !== "data-chat-progress";
     }),
   }));
+}
+
+/**
+ * Drop blocks the model repeated across (or within) this reply's text parts,
+ * so the persisted/shared copy — and the history the model reads next turn —
+ * shows each block once, matching what the chat UI renders.
+ */
+function dedupeAssistantParts(parts: UIMessage["parts"]): UIMessage["parts"] {
+  const textIndexes: number[] = [];
+  const texts: string[] = [];
+  parts.forEach((part, index) => {
+    if (part.type === "text") {
+      textIndexes.push(index);
+      texts.push(part.text);
+    }
+  });
+  if (texts.length === 0) return parts;
+  const cleaned = dedupeRepeatedParts(texts);
+  if (cleaned.every((text, i) => text === texts[i])) return parts;
+  const next = [...parts];
+  textIndexes.forEach((partIndex, i) => {
+    next[partIndex] = { ...next[partIndex], text: cleaned[i] } as (typeof parts)[number];
+  });
+  return next;
 }
 
 function emptyReplyFallback(intakeText: string): string {
@@ -1442,7 +1466,7 @@ export const Route = createFileRoute("/api/chat")({
             logTiming(usedModel);
             if (!userId || !threadId) return;
 
-            let parts = responseMessage.parts;
+            let parts = dedupeAssistantParts(responseMessage.parts);
             if (!assistantHasVisibleText(parts as Array<{ type: string; text?: string }>)) {
               parts = [
                 ...parts,
