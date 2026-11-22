@@ -81,7 +81,10 @@ export function SosHeaderStatus({ sos }: { sos: ActiveSos }) {
   const total = callable.length;
   let callLine: string;
   if (call?.status === "connecting") callLine = `${call.name} is picking up…`;
-  else if (state.loading) callLine = "Loading your Safety Network…";
+  // The escalation controller only runs on the person in need's device; for a
+  // responder who joined the room it never loads, so a "Loading…" line would
+  // sit there forever. "Alerting…" is true for everyone watching the SOS.
+  else if (state.loading) callLine = "Alerting the Safety Network…";
   else if (state.noTargets) callLine = "No callable contacts";
   else if (ringing.length) {
     // One entry per person (attempts repeat across rounds), tidy casing and a

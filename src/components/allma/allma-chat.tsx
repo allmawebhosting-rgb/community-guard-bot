@@ -12,7 +12,6 @@ import {
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import {
-  chatRecipientLabel,
   normalizeChatRecipient,
   type ChatRecipient,
 } from "@/lib/chat-recipient";
@@ -640,7 +639,7 @@ function SosTimelineEvent({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto flex max-w-[92%] items-center justify-center gap-2 px-1 py-0.5"
+        className="mx-auto flex max-w-[92%] items-center justify-center gap-2 py-0.5 pl-1 pr-[4.75rem] sm:pr-[5.5rem]"
       >
         <span
           className={cn(
@@ -687,15 +686,6 @@ function SosTimelineEvent({
               : "rounded-[1.25rem] rounded-bl-md bg-card text-foreground ring-1 ring-border/60",
           )}
         >
-          <span
-            aria-hidden
-            className={cn(
-              "absolute bottom-0 h-3 w-[7px]",
-              mine
-                ? "-right-[5px] bg-[#d9fdd3] [clip-path:polygon(0_0,0_100%,100%_100%)] dark:bg-[#005c4b]"
-                : "-left-[5px] bg-card [clip-path:polygon(100%_0,100%_100%,0_100%)]",
-            )}
-          />
           {!mine ? (
             <span className={cn("mb-0.5 block text-[13px] font-bold", sosNameColor(person?.name ?? "Allma member"))}>
               {person?.name ?? "Allma member"}
@@ -2749,7 +2739,7 @@ export function AllmaChat({
                   return (
                     <div
                       key={message.id}
-                      className="mx-auto flex max-w-[92%] items-center justify-center px-1 py-0.5"
+                      className={cn("mx-auto flex max-w-[92%] items-center justify-center px-1 py-0.5", sosIsActive && "pr-[4.75rem] sm:pr-[5.5rem]")}
                     >
                       <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/50 bg-muted/55 px-3 py-1.5 text-center text-[11px] font-medium text-muted-foreground">
                         <ShieldAlert className="h-3 w-3 shrink-0" />
@@ -2759,13 +2749,9 @@ export function AllmaChat({
                   );
                 }
                 const authorId = (message as UIMessage & { authorId?: string }).authorId;
-                const messageRecipient = normalizeChatRecipient(
-                  (message as UIMessage & { recipient?: string }).recipient,
-                );
                 const isOwnUserMessage = message.role === "user" && (!authorId || authorId === user?.id);
                 const author = authorId ? sosRoomPeople.get(authorId) : undefined;
                 const isOtherHuman = message.role === "user" && !isOwnUserMessage;
-                const showRecipientLabel = sosIsActive && message.role === "user";
                 const emergencyMarker =
                   message.role === "assistant"
                     ? message.parts
@@ -2819,20 +2805,6 @@ export function AllmaChat({
                     </span>
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
-                  {message.role === "user" && !isOwnUserMessage && showRecipientLabel ? (
-                    <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-                      <span className="rounded-full border border-border/70 bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        {chatRecipientLabel(messageRecipient)}
-                      </span>
-                    </p>
-                  ) : null}
-                  {showRecipientLabel && isOwnUserMessage ? (
-                    <p className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-                      <span className="rounded-full border border-border/70 bg-background/90 px-1.5 py-0.5">
-                        {chatRecipientLabel(messageRecipient)}
-                      </span>
-                    </p>
-                  ) : null}
                   <MessageContent
                     className={
                       message.role === "assistant"
@@ -2907,18 +2879,6 @@ export function AllmaChat({
                                     : "rounded-[1.4rem] rounded-bl-md bg-card text-foreground shadow-sm ring-1 ring-border/60",
                                 )}
                               >
-                                {sosIsActive ? (
-                                  // WhatsApp-style bubble tail on the avatar side.
-                                  <span
-                                    aria-hidden
-                                    className={cn(
-                                      "absolute bottom-0 h-3 w-[7px]",
-                                      isOwnUserMessage
-                                        ? "-right-[5px] bg-[#d9fdd3] [clip-path:polygon(0_0,0_100%,100%_100%)] dark:bg-[#005c4b]"
-                                        : "-left-[5px] bg-card [clip-path:polygon(100%_0,100%_100%,0_100%)]",
-                                    )}
-                                  />
-                                ) : null}
                                 {sosIsActive && !isOwnUserMessage ? (
                                   <span className={cn("mb-0.5 block text-[13px] font-bold", sosNameColor(author?.name ?? "Responder"))}>
                                     {author?.name ?? "Responder"}
