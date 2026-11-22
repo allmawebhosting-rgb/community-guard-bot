@@ -3122,11 +3122,12 @@ export function AllmaChat({
                       : undefined,
                     wideSosLayout ? "!max-w-none w-full" : "max-w-full sm:max-w-full",
                     isOtherHuman &&
-                      (sosIsActive
-                        ? // WhatsApp group row: the sender's profile picture sits
-                          // beside their bubble (bottom-aligned), on the left.
-                          "!flex-row items-end gap-1.5 ml-0 mr-auto justify-start"
-                        : "ml-0 mr-auto justify-start"),
+                      // WhatsApp group row in EVERY state (active SOS or ended
+                      // history): the sender's profile picture sits beside
+                      // their bubble (bottom-aligned), on the left. Keeping
+                      // the column layout after an SOS ends stretched the
+                      // avatar wrapper across the full width as an empty bar.
+                      "!flex-row items-end gap-1.5 ml-0 mr-auto justify-start",
                   )}
                 >
                   {message.role === "assistant" && !wideSosLayout ? (
