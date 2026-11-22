@@ -69,11 +69,7 @@ export function SosParticipantStrip({
                     <span
                       className={cn(
                         "block rounded-full border-2 border-background shadow-sm ring-1",
-                        person.connection === "connected"
-                          ? "ring-success/70"
-                          : person.connection === "disconnected"
-                            ? "ring-muted-foreground/35 opacity-80"
-                            : "ring-border/70",
+                        person.connection === "connected" ? "ring-success/70" : "ring-border/70",
                       )}
                     >
                       <Avatar name={person.name} url={person.avatarUrl} size={36} />
@@ -82,11 +78,6 @@ export function SosParticipantStrip({
                   {person.connection === "connected" ? (
                     <span
                       className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-success"
-                      aria-hidden
-                    />
-                  ) : person.connection === "disconnected" ? (
-                    <span
-                      className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-muted-foreground/55"
                       aria-hidden
                     />
                   ) : null}
@@ -104,11 +95,7 @@ export function SosParticipantStrip({
             </p>
             <p className="truncate text-[10px] leading-tight text-muted-foreground">
               {participants
-                .map((person) =>
-                  person.role === "ai"
-                    ? "Allma AI"
-                    : `${person.name}${person.connection === "disconnected" ? " (away)" : ""}`,
-                )
+                .map((person) => (person.role === "ai" ? "Allma AI" : person.name))
                 .join(" · ")}
             </p>
           </div>

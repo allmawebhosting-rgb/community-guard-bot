@@ -69,7 +69,6 @@ export function SosFloatingChatHeads({
           {humans.map((person, index) => {
             const active = selectedId === person.id;
             const onCall = person.connection === "connected";
-            const offline = person.connection === "disconnected";
             const isHighlight = highlightUserId === person.id;
             return (
               <motion.button
@@ -85,9 +84,9 @@ export function SosFloatingChatHeads({
                   reduceMotion
                     ? { opacity: 1, scale: 1 }
                     : {
-                        opacity: offline ? 0.72 : 1,
+                        opacity: 1,
                         x: 0,
-                        y: onCall && !offline ? [0, -3, 0] : 0,
+                        y: onCall ? [0, -3, 0] : 0,
                         scale: isHighlight ? [1, 1.08, 1] : 1,
                       }
                 }
@@ -119,18 +118,13 @@ export function SosFloatingChatHeads({
                   className={cn(
                     "relative block rounded-full bg-gradient-to-br from-background via-card to-muted p-[2.5px] shadow-[0_10px_28px_rgba(15,23,42,0.22)]",
                     onCall && "from-success/40 via-background to-success/20",
-                    offline && "from-muted via-background to-muted",
                     active && "scale-[1.04]",
                   )}
                 >
                   <span
                     className={cn(
                       "block overflow-hidden rounded-full border-[2.5px] border-background bg-card ring-1 shadow-[0_0_14px_hsl(var(--success)/0.35)]",
-                      onCall
-                        ? "ring-success/55"
-                        : offline
-                          ? "ring-muted-foreground/25"
-                          : "ring-border/60",
+                      onCall ? "ring-success/55" : "ring-border/60",
                     )}
                   >
                     {person.role === "ai" ? (
@@ -151,11 +145,6 @@ export function SosFloatingChatHeads({
                   <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-background bg-success text-success-foreground shadow-sm">
                     <Phone className="h-2.5 w-2.5" strokeWidth={2.5} />
                   </span>
-                ) : offline ? (
-                  <span
-                    className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-muted-foreground/55"
-                    aria-hidden
-                  />
                 ) : (
                   <span
                     className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500"
@@ -185,11 +174,7 @@ export function SosFloatingChatHeads({
               {participantRoleLabel(selected.role)}
             </p>
             <p className="mt-1 text-[10.5px] text-muted-foreground">
-              {selected.role === "ai"
-                ? "Always here in this chat"
-                : selected.connection === "disconnected"
-                  ? "Offline"
-                  : "Online"}
+              {selected.role === "ai" ? "Always here in this chat" : "Online"}
               {selected.role !== "ai"
                 ? selected.connection === "connected"
                   ? " · Connected to emergency call"
@@ -201,9 +186,7 @@ export function SosFloatingChatHeads({
                 "mt-1 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
                 selected.connection === "connected"
                   ? "bg-success/15 text-success"
-                  : selected.connection === "disconnected"
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
               )}
             >
               {participantConnectionLabel(selected.connection)}

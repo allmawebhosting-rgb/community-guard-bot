@@ -83,10 +83,22 @@ export function SosHeaderStatus({ sos }: { sos: ActiveSos }) {
   if (call?.status === "connecting") callLine = `${call.name} is picking up…`;
   else if (state.loading) callLine = "Loading your Safety Network…";
   else if (state.noTargets) callLine = "No callable contacts";
-  else if (ringing.length)
-    callLine = `Ringing ${ringing.map((a) => a.full_name.split(" ")[0]).join(", ")}`;
-  else if (state.waitSeconds) callLine = `Next round in ${state.waitSeconds}s`;
-  else callLine = "Waiting for Safety Network to join";
+  else if (ringing.length) {
+    // One entry per person (attempts repeat across rounds), tidy casing and a
+    // short list — a raw name dump with duplicates looks broken in the header.
+    const names = new Map<string, string>();
+    for (const attempt of ringing) {
+      const first = attempt.full_name.trim().split(/\s+/)[0];
+      if (!first) continue;
+      const key = attempt.recipient_id ?? first.toLowerCase();
+      if (names.has(key)) continue;
+      names.set(key, first.charAt(0).toUpperCase() + first.slice(1));
+    }
+    const list = [...names.values()];
+    callLine = `Ringing ${list.slice(0, 3).join(", ")}${list.length > 3 ? ` +${list.length - 3} more` : ""}`;
+  } else if (state.waitSeconds) callLine = `Next round in ${state.waitSeconds}s`;
+  else if (tried > 0) callLine = "Waiting for someone to answer";
+  else callLine = "Alerting your Safety Network…";
 
   return (
     <div className="flex min-w-0 items-center justify-center gap-2.5" role="status" aria-live="polite">
