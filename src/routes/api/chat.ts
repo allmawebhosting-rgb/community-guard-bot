@@ -1526,28 +1526,40 @@ You are coordinating this emergency from the start, not just answering questions
             // tools only), so a prompt instruction alone never reaches the
             // user.
             let takeoverSent = false;
+            const emitTakeover = (controller: TransformStreamDefaultController<UIMessageChunk>) => {
+              if (!takeoverOpener || takeoverSent) return;
+              takeoverSent = true;
+              const takeoverId = `allma-takeover-${Date.now()}`;
+              controller.enqueue({ type: "text-start", id: takeoverId });
+              controller.enqueue({ type: "text-delta", id: takeoverId, delta: takeoverOpener });
+              controller.enqueue({ type: "text-end", id: takeoverId });
+            };
             const emptyReplyGuard = new TransformStream<UIMessageChunk, UIMessageChunk>({
               transform(chunk, controller) {
                 if (chunk.type === "finish") {
                   heldFinish = chunk;
                   return;
                 }
+                // The opener must be the FIRST part of the message: emit it
+                // right after the message start (before any tool chunks), or
+                // just before the first text delta if no start was seen.
+                // Parts render in order — an opener appended at the end
+                // reads as an afterthought, not as taking charge.
+                if (takeoverOpener && !takeoverSent && chunk.type === "start") {
+                  controller.enqueue(chunk);
+                  emitTakeover(controller);
+                  return;
+                }
                 if (chunk.type === "text-delta" && chunk.delta.trim()) {
                   streamedText = true;
-                  if (takeoverOpener && !takeoverSent) {
-                    takeoverSent = true;
-                    const takeoverId = `allma-takeover-${Date.now()}`;
-                    controller.enqueue({ type: "text-start", id: takeoverId });
-                    controller.enqueue({ type: "text-delta", id: takeoverId, delta: takeoverOpener });
-                    controller.enqueue({ type: "text-end", id: takeoverId });
-                  }
+                  if (takeoverOpener && !takeoverSent) emitTakeover(controller);
                 }
                 controller.enqueue(chunk);
               },
               flush(controller) {
                 if (!streamedText) {
-                  const fallbackBase = emptyReplyFallback(intakeText);
-                  const fallback = takeoverOpener ? `${takeoverOpener}\n\n${fallbackBase}` : fallbackBase;
+                  emitTakeover(controller);
+                  const fallback = emptyReplyFallback(intakeText);
                   const fallbackId = `allma-empty-fallback-${Date.now()}`;
                   controller.enqueue({ type: "text-start", id: fallbackId });
                   controller.enqueue({ type: "text-delta", id: fallbackId, delta: fallback });
@@ -1576,22 +1588,51 @@ You are coordinating this emergency from the start, not just answering questions
 
             let parts = dedupeAssistantParts(responseMessage.parts);
             if (!assistantHasVisibleText(parts as Array<{ type: string; text?: string }>)) {
-              const fallbackBase = emptyReplyFallback(intakeText);
               parts = [
                 ...parts,
-                { type: "text", text: takeoverOpener ? `${takeoverOpener}\n\n${fallbackBase}` : fallbackBase },
+                { type: "text", text: emptyReplyFallback(intakeText) },
               ] as typeof responseMessage.parts;
             }
-            // Mirror the stream guard: the saved first emergency reply must
-            // carry the takeover opener exactly once, at the start.
+            // Mirror the stream guard in the saved message: the takeover
+            // opener must be the FIRST part, exactly once. It can arrive as
+            // a standalone part (stream guard), embedded at the start of
+            // the fallback text, or not at all — normalize all three.
             if (takeoverOpener) {
-              const hasOpener = parts.some(
-                (p) =>
-                  p.type === "text" &&
-                  typeof (p as { text?: unknown }).text === "string" &&
-                  ((p as { text: string }).text as string).includes("I'm coordinating this emergency"),
-              );
-              if (!hasOpener) {
+              parts = parts
+                .map((p) => {
+                  if (
+                    p.type === "text" &&
+                    typeof (p as { text?: unknown }).text === "string" &&
+                    ((p as { text: string }).text as string).startsWith(`${takeoverOpener}\n\n`)
+                  ) {
+                    return {
+                      ...p,
+                      text: ((p as { text: string }).text as string).slice(takeoverOpener.length + 2),
+                    };
+                  }
+                  return p;
+                })
+                .filter(
+                  (p) =>
+                    !(
+                      p.type === "text" &&
+                      typeof (p as { text?: unknown }).text === "string" &&
+                      ((p as { text: string }).text as string).trim() === ""
+                    ),
+                ) as typeof responseMessage.parts;
+              const first = parts[0] as { type?: string; text?: unknown } | undefined;
+              const openerAlreadyFirst =
+                first?.type === "text" && typeof first.text === "string" && first.text === takeoverOpener;
+              if (!openerAlreadyFirst) {
+                // Drop any other standalone copy before prepending.
+                parts = parts.filter(
+                  (p) =>
+                    !(
+                      p.type === "text" &&
+                      typeof (p as { text?: unknown }).text === "string" &&
+                      ((p as { text: string }).text as string) === takeoverOpener
+                    ),
+                ) as typeof responseMessage.parts;
                 parts = [{ type: "text", text: takeoverOpener }, ...parts] as typeof responseMessage.parts;
               }
             }
