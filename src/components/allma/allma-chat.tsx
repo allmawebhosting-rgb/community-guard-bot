@@ -2241,6 +2241,37 @@ export function AllmaChat({
     return [...chatItems, ...sosItems].sort((left, right) => left.timestamp - right.timestamp);
   }, [messages, visibleSosMessages]);
 
+  // The SOS + first-aid card stack belongs to the FIRST AI reply after the
+  // user message that reported the emergency. Later AI messages in the same
+  // stretch (the agent's situation brief, follow-up answers) resolve the
+  // same incident and used to repeat the whole stack, making the chat look
+  // disorganized — one stack per reported emergency is enough.
+  const cardStackMessageIds = useMemo(() => {
+    const shown = new Set<string>();
+    const coveredSources = new Set<number>();
+    messages.forEach((message, index) => {
+      if (message.role !== "assistant") return;
+      const incident = incidentForReply(messages, index);
+      const marker = message.parts
+        .map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).emergency : null))
+        .find(Boolean);
+      if (!incident && !marker) return;
+      let source = -1;
+      for (let j = index - 1; j >= 0; j--) {
+        if (messages[j].role === "user") {
+          source = j;
+          break;
+        }
+      }
+      if (source >= 0) {
+        if (coveredSources.has(source)) return;
+        coveredSources.add(source);
+      }
+      shown.add(message.id);
+    });
+    return shown;
+  }, [messages]);
+
   // Bodies of room-timeline notices (joined / SOS state). A system notice
   // that exists in both stores renders once — as the room timeline's pill.
   const sosNoticeBodies = useMemo(
@@ -2800,7 +2831,83 @@ export function AllmaChat({
 
   return (
     <SosActivityContext.Provider value={sosActivityContextValue}>
-    <div className={cn("chat-canvas flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
+    <div className={cn("chat-canvas relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
+      {/* Desktop-only pinned side panel for an active SOS: fills the empty
+          space beside the chat with the emergency facts and the Safety
+          Network calling status. Read-only — the live SOS card (with the
+          calling controls) stays in the conversation, so nothing is
+          mounted twice. */}
+      {sosIsActive && sosRoom ? (
+        <aside className="absolute bottom-0 right-0 top-14 z-30 hidden w-[320px] flex-col gap-3 overflow-y-auto border-l border-border/60 bg-background/95 p-3 backdrop-blur lg:flex">
+          <div className="rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Emergency</p>
+            <p className="mt-2 text-sm font-semibold leading-tight">{sosRoom.sender_name}</p>
+            <p className="text-xs text-muted-foreground">Person in need</p>
+            <dl className="mt-3 space-y-1.5 text-xs">
+              <div className="flex items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">Type</dt>
+                <dd className="text-right font-medium">{EMERGENCY_TYPE_LABELS[sosRoom.emergency_type] ?? sosRoom.emergency_type}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">Severity</dt>
+                <dd className="text-right font-medium capitalize">{sosRoom.severity}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">Area</dt>
+                <dd className="text-right font-medium">{sosRoom.area}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">Location</dt>
+                <dd className="text-right font-medium">{sosRoom.location_shared ? "Shared" : "Not shared yet"}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">Started</dt>
+                <dd className="text-right font-medium">
+                  {new Date(sosRoom.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <div className="rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Safety Network</p>
+            <div className="mt-2.5 space-y-2.5">
+              {sosParticipants.map((person) => (
+                <div key={person.id} className="flex items-center gap-2.5">
+                  {person.role === "ai" ? (
+                    <img aria-hidden src={robotAvatar} alt="" className="h-8 w-8 shrink-0 rounded-full border border-border/50 object-cover" />
+                  ) : (
+                    <Avatar name={person.name} url={person.avatarUrl} size={32} />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold leading-tight">{person.name}</p>
+                    <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                      {person.role === "owner"
+                        ? "Person in need"
+                        : person.role === "ai"
+                          ? "AI coordinator"
+                          : person.role === "responder"
+                            ? "Responder"
+                            : "Safety contact"}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 text-[11px] font-medium",
+                      person.connection === "disconnected" ? "text-muted-foreground" : "text-success",
+                    )}
+                  >
+                    {person.connection === "connected"
+                      ? "On a live call"
+                      : person.connection === "joined"
+                        ? "In chat"
+                        : "Not answered yet"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+      ) : null}
       {/* Hidden file input for attachment sheet */}
       <input
         ref={attachInputRef}
@@ -2911,6 +3018,8 @@ export function AllmaChat({
             // WhatsApp-style chat wallpaper behind the shared emergency
             // conversation (and any chat with an SOS room attached).
             (sosIsActive || sosRoom) && "bg-[#ece5dd] dark:bg-[#0b141a]",
+            // Keep the conversation clear of the pinned desktop side panel.
+            sosIsActive && sosRoom && "lg:mr-[320px]",
           )}
         >
           {(sosIsActive || (sosRoom && sosParticipants.some((person) => person.role !== "ai"))) ? (
@@ -3002,8 +3111,11 @@ export function AllmaChat({
                 const offerMode =
                   Boolean(emergencyMarker?.offer) ||
                   Boolean(replyIncident && !replyIncident.lifeThreatening && emergencyType);
+                // Only the first AI reply after the emergency report carries
+                // the SOS + first-aid card stack (see cardStackMessageIds).
+                const showCardStack = cardStackMessageIds.has(message.id);
                 const wideSosLayout =
-                  message.role === "assistant" && Boolean(emergencyType) && sosIsActive;
+                  message.role === "assistant" && Boolean(emergencyType) && sosIsActive && showCardStack;
                 return (
                 <motion.div
                   key={message.id}
@@ -3063,10 +3175,11 @@ export function AllmaChat({
                         progressSteps &&
                         !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>) &&
                         !aid;
-                      return type || aid || showProgress ? (
+                      const showCards = showCardStack && Boolean(type || aid);
+                      return showCards || showProgress ? (
                         <div className={cn("space-y-3", !wideSosLayout && "mb-3")}>
-                          {type ? <EmergencyActions type={type} offerMode={offerMode} /> : null}
-                          {aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
+                          {showCards && type ? <EmergencyActions type={type} offerMode={offerMode} /> : null}
+                          {showCards && aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
                           {showProgress && progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : null}
                         </div>
                       ) : null;
@@ -3341,6 +3454,8 @@ export function AllmaChat({
           // never floats over (and hides) the end of the conversation.
           "chat-composer-dock no-print relative z-20 w-full min-w-0 shrink-0 sm:px-4",
           sosIsActive ? "chat-composer-dock-sos px-1.5" : "px-2.5",
+          // Keep the composer clear of the pinned desktop side panel.
+          sosIsActive && sosRoom && "lg:mr-[320px]",
         )}
         data-fixed-composer={fixedComposer ? "true" : undefined}
         onPointerDownCapture={(event) => {
