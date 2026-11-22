@@ -926,7 +926,11 @@ function ToolCard({
     },
     case_timeline: { icon: Clock, label: "Case timeline", busy: "Building timeline…" },
   };
-  const entry = meta[name] ?? { icon: FileText, label: name, busy: "Working…" };
+  const entry = meta[name];
+  // Unknown tool names are model hallucinations (for example a call to a
+  // "get_room_state" tool that does not exist). Never render them as cards —
+  // a generic card labelled with the raw tool name looks like a system leak.
+  if (!entry) return null;
   const Icon = entry.icon;
 
   if (!running && (name === "remember" || name === "recall_history" || name === "get_draft")) {
