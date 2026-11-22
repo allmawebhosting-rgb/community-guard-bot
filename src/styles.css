@@ -706,9 +706,9 @@
 }
 
 @utility composer-shell-sos {
-  border-color: color-mix(in oklab, var(--destructive) 22%, var(--border));
+  border-color: color-mix(in oklab, var(--success) 28%, var(--border));
   box-shadow:
-    0 0 0 1px color-mix(in oklab, var(--destructive) 10%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--success) 10%, transparent),
     0 10px 28px -16px color-mix(in oklab, var(--foreground) 22%, transparent);
 }
 
@@ -1733,6 +1733,18 @@
     radial-gradient(120% 60% at 100% 0%, color-mix(in oklab, var(--chat-user) 90%, transparent), transparent 60%),
     radial-gradient(100% 50% at 0% 100%, color-mix(in oklab, var(--chat-user) 80%, transparent), transparent 60%),
     var(--background);
+}
+
+.chat-canvas-sos {
+  background:
+    radial-gradient(115% 52% at 100% 0%, color-mix(in oklab, var(--success) 11%, transparent), transparent 66%),
+    radial-gradient(105% 48% at 0% 100%, color-mix(in oklab, var(--chat-user) 94%, transparent), transparent 64%),
+    var(--background);
+}
+
+.chat-canvas-sos .chat-composer-dock-sos {
+  background: color-mix(in oklab, var(--background) 94%, transparent);
+  border-top: 1px solid color-mix(in oklab, var(--success) 12%, var(--border));
 }
 
 /* Chat replies: readable typography and green check bullets */

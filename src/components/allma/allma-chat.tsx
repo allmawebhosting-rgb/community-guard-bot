@@ -593,25 +593,42 @@ function SosTimelineEvent({
 }) {
   if (message.event_type !== "user_message" && message.event_type !== "voice_note") {
     const joined = message.event_type === "participant_joined";
+    const timestamp = new Date(message.created_at).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
     return (
       <motion.div
         key={message.id}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto flex max-w-[92%] items-center justify-center gap-2 px-1 py-0.5"
+        className={cn("mx-auto flex max-w-[92%] items-center gap-2 px-1 py-0.5", joined && "w-full max-w-[min(92%,38rem)] items-end")}
       >
-        <span
-          className={cn(
-            "inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-center text-[11px] font-medium",
-            joined
-              ? "border-success/30 bg-success/10 text-success"
-              : "border-border/50 bg-muted/55 text-muted-foreground",
-          )}
-        >
-          {joined ? <Users className="h-3 w-3 shrink-0" /> : <ShieldAlert className="h-3 w-3 shrink-0" />}
-          <span className="min-w-0">{message.body}</span>
-        </span>
+        {joined ? (
+          <>
+            <img
+              aria-hidden
+              src={robotAvatar}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-full border border-success/15 bg-card object-cover shadow-sm"
+            />
+            <div className="min-w-0 max-w-[85%]">
+              <p className="mb-1 ml-1 text-[11px] font-bold text-success">Allma AI</p>
+              <div className="rounded-[22px] rounded-bl-[7px] bg-card px-4 py-3 shadow-sm ring-1 ring-border/60">
+                <p className="text-[14px] leading-[1.5] text-foreground">{message.body}</p>
+                <time className="mt-1.5 block text-[10px] font-medium text-muted-foreground" dateTime={message.created_at}>
+                  {timestamp}
+                </time>
+              </div>
+            </div>
+          </>
+        ) : (
+          <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/50 bg-muted/55 px-3 py-1.5 text-center text-[11px] font-medium text-muted-foreground">
+            <ShieldAlert className="h-3 w-3 shrink-0" />
+            <span className="min-w-0">{message.body}</span>
+          </span>
+        )}
       </motion.div>
     );
   }
@@ -645,8 +662,8 @@ function SosTimelineEvent({
           className={cn(
             "px-3.5 py-2.5 text-left text-[14px] leading-relaxed",
             mine
-              ? "rounded-[1.25rem] rounded-br-md bg-foreground text-background"
-              : "rounded-[1.25rem] bg-muted text-foreground",
+              ? "rounded-[1.25rem] rounded-br-md bg-chat-user text-foreground ring-1 ring-chat-accent/20"
+              : "rounded-[1.25rem] bg-card text-foreground ring-1 ring-border/60",
           )}
         >
           {message.event_type === "voice_note" ? (
@@ -2520,7 +2537,7 @@ export function AllmaChat({
 
   return (
     <SosActivityContext.Provider value={sosActivityContextValue}>
-    <div className={cn("chat-canvas flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
+    <div className={cn("chat-canvas flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", sosIsActive && "chat-canvas-sos", className)}>
       {/* Hidden file input for attachment sheet */}
       <input
         ref={attachInputRef}
@@ -2750,7 +2767,7 @@ export function AllmaChat({
                     }
                   >
                     {message.role === "assistant" && sosIsActive && !wideSosLayout ? (
-                      <span className="mb-1 block text-[13px] font-bold text-primary">Allma AI</span>
+                      <span className="mb-1 block text-[13px] font-bold text-success">Allma AI</span>
                     ) : null}
                     {(() => {
                       if (message.role !== "assistant") return null;
@@ -2803,12 +2820,12 @@ export function AllmaChat({
                                 className={cn(
                                   "max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-[1.55]",
                                   isOwnUserMessage
-                                    ? "rounded-[1.4rem] rounded-br-md bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20"
+                                    ? "rounded-[1.4rem] rounded-br-md bg-chat-user text-foreground shadow-sm ring-1 ring-chat-accent/25"
                                     : "rounded-[1.4rem] rounded-bl-md bg-card text-foreground shadow-sm ring-1 ring-border/60",
                                 )}
                               >
                                 {sosIsActive ? (
-                                  <span className={cn("mb-0.5 block text-[13px] font-bold", isOwnUserMessage ? "text-primary" : "text-sky-600 dark:text-sky-400")}>
+                                  <span className={cn("mb-0.5 block text-[13px] font-bold", isOwnUserMessage ? "text-success" : "text-sky-600 dark:text-sky-400")}>
                                     {isOwnUserMessage ? "You" : author?.name ?? "Responder"}
                                   </span>
                                 ) : null}

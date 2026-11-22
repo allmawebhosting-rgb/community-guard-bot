@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { X } from "lucide-react";
-import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
+import { Users, X } from "lucide-react";
 import type { ConversationParticipant } from "@/lib/sos-participants";
 import { cn } from "@/lib/utils";
 
@@ -136,23 +135,20 @@ export function SosResponderJoinedToast({
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
           transition={{ duration: reduceMotion ? 0.01 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           className={cn(
-            "pointer-events-auto absolute left-1/2 top-3 z-40 w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-full border border-primary/40 bg-gradient-to-r from-primary to-primary/80 py-2 pl-2 pr-3 shadow-[0_12px_32px_-8px_hsl(142_70%_35%/0.55)] backdrop-blur-md",
+            "pointer-events-auto absolute left-1/2 top-auto bottom-3 z-40 w-[min(38rem,calc(100%-1rem))] -translate-x-1/2 rounded-full border border-success/40 bg-gradient-to-r from-success to-emerald-700 py-2.5 pl-2.5 pr-3 shadow-[0_12px_32px_-8px_hsl(var(--success)/0.55)] backdrop-blur-md",
             className,
           )}
         >
           <div className="flex items-center gap-3">
-            <span className="relative mt-0.5 shrink-0 rounded-full bg-gradient-to-br from-emerald-400/30 via-background to-card p-[2px] shadow-sm">
-              <span className="block overflow-hidden rounded-full border-2 border-background">
-                <Avatar name={participant.name} url={participant.avatarUrl} size={44} />
-              </span>
-              <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/20 bg-white/15 text-white shadow-inner">
+              <Users className="h-6 w-6" />
             </span>
             <div className="min-w-0 flex-1">{body}</div>
             <button
               type="button"
               aria-label="Dismiss"
               onClick={onDismiss}
-              className="rounded-full p-1 text-primary-foreground/90 transition-colors hover:bg-primary-foreground/15"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/90 transition-colors hover:bg-white/15"
             >
               <X className="h-4 w-4" />
             </button>
