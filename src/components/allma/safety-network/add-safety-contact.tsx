@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BadgeCheck, Check, Loader2, LockKeyhole, Search, Send, ShieldCheck, UserPlus, UserRound } from "lucide-react";
+import { BadgeCheck, Check, Loader2, LockKeyhole, Search, Send, ShieldCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { UG_DIAL_CODE, formatLocalInput, formatPhoneDisplay, isLikelyValidPhone, normalizePhone } from "@/lib/phone";
 import { type MemberMatch, inviteMessage, searchMemberByPhone, sendConnectionRequest } from "@/lib/safety-network";
+import robotAvatar from "@/assets/allma-robot.png";
 import { ImportContacts } from "./import-contacts";
 import { WhatsAppInvite } from "./whatsapp-invite";
 import { ContactSetupSheet, savePendingSetup } from "./contact-setup-sheet";
@@ -282,9 +283,11 @@ export function AddSafetyContactDialog({
 }
 
 export function Avatar({ name, url, size = 48 }: { name: string; url?: string | null; size?: number }) {
-  return url ? (
+  // Until members upload their own photos, everyone uses the Allma AI
+  // picture — a bare initial letter looks unfinished next to real photos.
+  return (
     <img
-      src={url}
+      src={url ?? robotAvatar}
       alt=""
       width={size}
       height={size}
@@ -292,12 +295,5 @@ export function Avatar({ name, url, size = 48 }: { name: string; url?: string | 
       className="shrink-0 rounded-full object-cover"
       style={{ width: size, height: size }}
     />
-  ) : (
-    <div
-      className="grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-trusted/30 to-primary/20 font-bold text-trusted"
-      style={{ width: size, height: size, fontSize: size / 2.8 }}
-    >
-      {name.trim().slice(0, 1).toUpperCase() || <UserRound className="h-4 w-4" />}
-    </div>
   );
 }
