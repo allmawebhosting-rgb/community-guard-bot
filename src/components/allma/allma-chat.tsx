@@ -119,7 +119,7 @@ import {
   type SharedChatMessageRow,
   type SosRoomMessage,
 } from "@/lib/sos-rooms";
-import { buildSosParticipantStrip } from "@/lib/sos-participants";
+import { buildSosParticipantStrip, participantConnectionLabel } from "@/lib/sos-participants";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { peekActiveChatThread, rememberActiveChatThread } from "@/lib/active-chat-thread";
 import {
@@ -2890,17 +2890,8 @@ export function AllmaChat({
                             : "Safety contact"}
                     </p>
                   </div>
-                  <span
-                    className={cn(
-                      "shrink-0 text-[11px] font-medium",
-                      person.connection === "disconnected" ? "text-muted-foreground" : "text-success",
-                    )}
-                  >
-                    {person.connection === "connected"
-                      ? "On a live call"
-                      : person.connection === "joined"
-                        ? "In chat"
-                        : "Not answered yet"}
+                  <span className="shrink-0 text-[11px] font-medium text-success">
+                    {participantConnectionLabel(person.connection)}
                   </span>
                 </div>
               ))}
