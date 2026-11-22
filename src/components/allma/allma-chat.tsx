@@ -578,6 +578,25 @@ function roleLabel(role?: string) {
   return "Safety contact";
 }
 
+const SYSTEM_NOTICE_RE =
+  /^(?:.+ joined the shared conversation\.|.+ left the shared conversation\.|Emergency SOS (?:activated|ended)\b[\s\S]*|SOS ended\b[\s\S]*)$/;
+
+/**
+ * Full text of an assistant message that is really a group system notice
+ * (a responder joined, the SOS ended). In the shared conversation these
+ * render as a centred pill, WhatsApp-group style — not as an Allma AI
+ * bubble. Returns null for ordinary replies and anything with tool parts.
+ */
+function systemNoticeText(message: UIMessage): string | null {
+  if (message.role !== "assistant") return null;
+  if (message.parts.some((p) => p.type !== "text")) return null;
+  const text = message.parts
+    .map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : ""))
+    .join("\n")
+    .trim();
+  return SYSTEM_NOTICE_RE.test(text) ? text : null;
+}
+
 function SosTimelineEvent({
   message,
   person,
@@ -593,42 +612,25 @@ function SosTimelineEvent({
 }) {
   if (message.event_type !== "user_message" && message.event_type !== "voice_note") {
     const joined = message.event_type === "participant_joined";
-    const timestamp = new Date(message.created_at).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-    });
     return (
       <motion.div
         key={message.id}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className={cn("mx-auto flex max-w-[92%] items-center gap-2 px-1 py-0.5", joined && "w-full max-w-[min(92%,38rem)] items-end")}
+        className="mx-auto flex max-w-[92%] items-center justify-center gap-2 px-1 py-0.5"
       >
-        {joined ? (
-          <>
-            <img
-              aria-hidden
-              src={robotAvatar}
-              alt=""
-              className="h-9 w-9 shrink-0 rounded-full border border-success/15 bg-card object-cover shadow-sm"
-            />
-            <div className="min-w-0 max-w-[85%]">
-              <p className="mb-1 ml-1 text-[11px] font-bold text-success">Allma AI</p>
-              <div className="rounded-[22px] rounded-bl-[7px] bg-card px-4 py-3 shadow-sm ring-1 ring-border/60">
-                <p className="text-[14px] leading-[1.5] text-foreground">{message.body}</p>
-                <time className="mt-1.5 block text-[10px] font-medium text-muted-foreground" dateTime={message.created_at}>
-                  {timestamp}
-                </time>
-              </div>
-            </div>
-          </>
-        ) : (
-          <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/50 bg-muted/55 px-3 py-1.5 text-center text-[11px] font-medium text-muted-foreground">
-            <ShieldAlert className="h-3 w-3 shrink-0" />
-            <span className="min-w-0">{message.body}</span>
-          </span>
-        )}
+        <span
+          className={cn(
+            "inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-center text-[11px] font-medium",
+            joined
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-border/50 bg-muted/55 text-muted-foreground",
+          )}
+        >
+          {joined ? <Users className="h-3 w-3 shrink-0" /> : <ShieldAlert className="h-3 w-3 shrink-0" />}
+          <span className="min-w-0">{message.body}</span>
+        </span>
       </motion.div>
     );
   }
@@ -650,25 +652,23 @@ function SosTimelineEvent({
       className={cn("flex items-end gap-2", mine && "flex-row-reverse")}
     >
       <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={30} />
-      <div className={cn("min-w-0 max-w-[84%]", mine && "text-right")}>
-        <div className={cn("mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px]", mine && "justify-end")}>
-          <span className="font-semibold text-foreground">{mine ? "You" : person?.name ?? "Allma member"}</span>
-          <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
-            {roleLabel(person?.role)}
-          </span>
-          <time className="text-muted-foreground" dateTime={message.created_at}>{timestamp}</time>
-        </div>
+      <div className="min-w-0 max-w-[84%]">
         <div
           className={cn(
-            "px-3.5 py-2.5 text-left text-[14px] leading-relaxed",
+            "px-3.5 py-2.5 text-left text-[14px] leading-relaxed shadow-sm",
             mine
-              ? "rounded-[1.25rem] rounded-br-md bg-chat-user text-foreground ring-1 ring-chat-accent/20"
-              : "rounded-[1.25rem] bg-card text-foreground ring-1 ring-border/60",
+              ? "rounded-[1.25rem] rounded-br-md bg-primary/15 text-foreground ring-1 ring-primary/20"
+              : "rounded-[1.25rem] rounded-bl-md bg-card text-foreground ring-1 ring-border/60",
           )}
         >
+          {!mine ? (
+            <span className="mb-0.5 block text-[13px] font-bold text-sky-600 dark:text-sky-400">
+              {person?.name ?? "Allma member"}
+            </span>
+          ) : null}
           {message.event_type === "voice_note" ? (
             <div className="flex min-w-[180px] items-center gap-2">
-              <span className={cn("grid h-8 w-8 place-items-center rounded-full", mine ? "bg-primary-foreground/15" : "bg-muted")}>
+              <span className={cn("grid h-8 w-8 place-items-center rounded-full", mine ? "bg-primary/20" : "bg-muted")}>
                 <Mic className="h-4 w-4 shrink-0" />
               </span>
               {voiceUrl ? (
@@ -689,6 +689,9 @@ function SosTimelineEvent({
           ) : (
             <p className="whitespace-pre-wrap break-words">{message.body}</p>
           )}
+          <span className="mt-1 block text-right text-[10px] leading-none text-muted-foreground">
+            <time dateTime={message.created_at}>{timestamp}</time>
+          </span>
         </div>
       </div>
     </motion.div>
@@ -1995,6 +1998,18 @@ export function AllmaChat({
     return [...chatItems, ...sosItems].sort((left, right) => left.timestamp - right.timestamp);
   }, [messages, visibleSosMessages]);
 
+  // Bodies of room-timeline notices (joined / SOS state). A system notice
+  // that exists in both stores renders once — as the room timeline's pill.
+  const sosNoticeBodies = useMemo(
+    () =>
+      new Set(
+        visibleSosMessages
+          .filter((m) => m.event_type !== "user_message" && m.event_type !== "voice_note")
+          .map((m) => m.body.trim()),
+      ),
+    [visibleSosMessages],
+  );
+
   // Contextual chips come from the ::suggest marker in the last assistant reply
   // (legacy threads fall back to the old suggest_replies tool output).
   const contextualChips = useMemo(() => {
@@ -2537,7 +2552,7 @@ export function AllmaChat({
 
   return (
     <SosActivityContext.Provider value={sosActivityContextValue}>
-    <div className={cn("chat-canvas flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", sosIsActive && "chat-canvas-sos", className)}>
+    <div className={cn("chat-canvas flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
       {/* Hidden file input for attachment sheet */}
       <input
         ref={attachInputRef}
@@ -2657,7 +2672,10 @@ export function AllmaChat({
           <ConversationContent
             className={cn(
               "mx-auto w-full max-w-3xl lg:max-w-4xl lg:px-8 lg:pb-10",
-              sosIsActive ? "px-1.5 pr-[4.5rem] sm:px-3 sm:pr-[5.25rem]" : "px-3",
+              // Chat content always spans the full width — the floating chat
+              // heads overlay it (Messenger-style) instead of reserving a
+              // right-hand column that squeezes every bubble and card.
+              "px-3",
               "pb-8",
             )}
           >
@@ -2680,6 +2698,22 @@ export function AllmaChat({
                   );
                 }
                 const { message, msgIndex } = item;
+                const noticeText = systemNoticeText(message);
+                if (noticeText) {
+                  // Already shown as the room timeline's pill — don't double it.
+                  if (sosNoticeBodies.has(noticeText)) return null;
+                  return (
+                    <div
+                      key={message.id}
+                      className="mx-auto flex max-w-[92%] items-center justify-center px-1 py-0.5"
+                    >
+                      <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/50 bg-muted/55 px-3 py-1.5 text-center text-[11px] font-medium text-muted-foreground">
+                        <ShieldAlert className="h-3 w-3 shrink-0" />
+                        <span className="min-w-0">{noticeText}</span>
+                      </span>
+                    </div>
+                  );
+                }
                 const authorId = (message as UIMessage & { authorId?: string }).authorId;
                 const messageRecipient = normalizeChatRecipient(
                   (message as UIMessage & { recipient?: string }).recipient,
@@ -2734,17 +2768,11 @@ export function AllmaChat({
                     <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={30} />
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
-                  {message.role === "user" && !isOwnUserMessage ? (
+                  {message.role === "user" && !isOwnUserMessage && showRecipientLabel ? (
                     <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-                      <span>{author?.name ?? "Responder"}</span>
-                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                        {roleLabel(author?.role)}
+                      <span className="rounded-full border border-border/70 bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {chatRecipientLabel(messageRecipient)}
                       </span>
-                      {showRecipientLabel ? (
-                        <span className="rounded-full border border-border/70 bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          {chatRecipientLabel(messageRecipient)}
-                        </span>
-                      ) : null}
                     </p>
                   ) : null}
                   {showRecipientLabel && isOwnUserMessage ? (
@@ -2767,7 +2795,7 @@ export function AllmaChat({
                     }
                   >
                     {message.role === "assistant" && sosIsActive && !wideSosLayout ? (
-                      <span className="mb-1 block text-[13px] font-bold text-success">Allma AI</span>
+                      <span className="mb-1 block text-[13px] font-bold text-primary">Allma AI</span>
                     ) : null}
                     {(() => {
                       if (message.role !== "assistant") return null;
@@ -2820,20 +2848,27 @@ export function AllmaChat({
                                 className={cn(
                                   "max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-[1.55]",
                                   isOwnUserMessage
-                                    ? "rounded-[1.4rem] rounded-br-md bg-chat-user text-foreground shadow-sm ring-1 ring-chat-accent/25"
+                                    ? "rounded-[1.4rem] rounded-br-md bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20"
                                     : "rounded-[1.4rem] rounded-bl-md bg-card text-foreground shadow-sm ring-1 ring-border/60",
                                 )}
                               >
-                                {sosIsActive ? (
-                                  <span className={cn("mb-0.5 block text-[13px] font-bold", isOwnUserMessage ? "text-success" : "text-sky-600 dark:text-sky-400")}>
-                                    {isOwnUserMessage ? "You" : author?.name ?? "Responder"}
+                                {sosIsActive && !isOwnUserMessage ? (
+                                  <span className="mb-0.5 block text-[13px] font-bold text-sky-600 dark:text-sky-400">
+                                    {author?.name ?? "Responder"}
                                   </span>
                                 ) : null}
                                 {part.text}
+                                {sosIsActive ? (
+                                  <span className="mt-1 block text-right text-[10px] leading-none text-muted-foreground" suppressHydrationWarning>
+                                    {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                                  </span>
+                                ) : null}
                               </p>
-                              <span className="mt-1 text-[11px] leading-none text-muted-foreground" suppressHydrationWarning>
-                                {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                              </span>
+                              {!sosIsActive ? (
+                                <span className="mt-1 text-[11px] leading-none text-muted-foreground" suppressHydrationWarning>
+                                  {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                                </span>
+                              ) : null}
                             </div>
                           );
                         }
