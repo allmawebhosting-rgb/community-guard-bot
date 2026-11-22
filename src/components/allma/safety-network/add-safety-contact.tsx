@@ -8,7 +8,35 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { UG_DIAL_CODE, formatLocalInput, formatPhoneDisplay, isLikelyValidPhone, normalizePhone } from "@/lib/phone";
 import { type MemberMatch, inviteMessage, searchMemberByPhone, sendConnectionRequest } from "@/lib/safety-network";
-import robotAvatar from "@/assets/allma-robot.png";
+import memberAvatar1 from "@/assets/avatars/member-1.jpg";
+import memberAvatar2 from "@/assets/avatars/member-2.jpg";
+import memberAvatar3 from "@/assets/avatars/member-3.jpg";
+import memberAvatar4 from "@/assets/avatars/member-4.jpg";
+import memberAvatar5 from "@/assets/avatars/member-5.jpg";
+import memberAvatar6 from "@/assets/avatars/member-6.jpg";
+import memberAvatar7 from "@/assets/avatars/member-7.jpg";
+import memberAvatar8 from "@/assets/avatars/member-8.jpg";
+
+// Generated stand-in portraits: until a member uploads their own photo,
+// each person gets one of these realistic faces — picked by a stable hash
+// of their name, so the same person shows the same face everywhere.
+const MEMBER_AVATARS = [
+  memberAvatar1,
+  memberAvatar2,
+  memberAvatar3,
+  memberAvatar4,
+  memberAvatar5,
+  memberAvatar6,
+  memberAvatar7,
+  memberAvatar8,
+];
+
+function memberAvatarFor(name: string): string {
+  let hash = 0;
+  const key = name.trim().toLowerCase();
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  return MEMBER_AVATARS[hash % MEMBER_AVATARS.length];
+}
 import { ImportContacts } from "./import-contacts";
 import { WhatsAppInvite } from "./whatsapp-invite";
 import { ContactSetupSheet, savePendingSetup } from "./contact-setup-sheet";
@@ -283,11 +311,11 @@ export function AddSafetyContactDialog({
 }
 
 export function Avatar({ name, url, size = 48 }: { name: string; url?: string | null; size?: number }) {
-  // Until members upload their own photos, everyone uses the Allma AI
-  // picture — a bare initial letter looks unfinished next to real photos.
+  // Until members upload their own photos, everyone gets a realistic
+  // stand-in portrait (see MEMBER_AVATARS above).
   return (
     <img
-      src={url ?? robotAvatar}
+      src={url ?? memberAvatarFor(name)}
       alt=""
       width={size}
       height={size}
