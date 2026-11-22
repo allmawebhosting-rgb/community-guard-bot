@@ -29,6 +29,7 @@ import {
   stepCountIs,
   tool,
   type UIMessage,
+  type UIMessageChunk,
 } from "ai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
@@ -1437,29 +1438,48 @@ export const Route = createFileRoute("/api/chat")({
             };
             emit("understanding");
             progressSink = emit;
+            // Never leave the user with a silent/empty assistant bubble — but
+            // the fallback must land INSIDE this message, after its start
+            // chunk. Writing it via a parallel `await result.text` raced the
+            // merged stream: the fallback text arrived before the start
+            // chunk, so the client rendered it as a separate bubble and the
+            // same answer appeared twice. Instead, watch the chunks as they
+            // flow past: hold the finish chunk, and if no text ever streamed,
+            // append the fallback just before it.
+            let streamedText = false;
+            let heldFinish: UIMessageChunk | null = null;
+            const emptyReplyGuard = new TransformStream<UIMessageChunk, UIMessageChunk>({
+              transform(chunk, controller) {
+                if (chunk.type === "finish") {
+                  heldFinish = chunk;
+                  return;
+                }
+                if (chunk.type === "text-delta" && chunk.delta.trim()) streamedText = true;
+                controller.enqueue(chunk);
+              },
+              flush(controller) {
+                if (!streamedText) {
+                  const fallback = emptyReplyFallback(intakeText);
+                  const fallbackId = `allma-empty-fallback-${Date.now()}`;
+                  controller.enqueue({ type: "text-start", id: fallbackId });
+                  controller.enqueue({ type: "text-delta", id: fallbackId, delta: fallback });
+                  controller.enqueue({ type: "text-end", id: fallbackId });
+                }
+                if (heldFinish) controller.enqueue(heldFinish);
+              },
+            });
             writer.merge(
-              result.toUIMessageStream({
-                sendReasoning: false,
-                // Plain-language surface for gateway failures, instead of a silent stall.
-                onError: (error) => {
-                  console.error("Chat stream error", error);
-                  return getGatewayFailure(error).message;
-                },
-              }),
+              result
+                .toUIMessageStream({
+                  sendReasoning: false,
+                  // Plain-language surface for gateway failures, instead of a silent stall.
+                  onError: (error) => {
+                    console.error("Chat stream error", error);
+                    return getGatewayFailure(error).message;
+                  },
+                })
+                .pipeThrough(emptyReplyGuard),
             );
-            // Never leave the user with a silent/empty assistant bubble.
-            try {
-              const finalText = (await result.text).trim();
-              if (!finalText) {
-                const fallback = emptyReplyFallback(intakeText);
-                const fallbackId = `allma-empty-fallback-${Date.now()}`;
-                writer.write({ type: "text-start", id: fallbackId });
-                writer.write({ type: "text-delta", id: fallbackId, delta: fallback });
-                writer.write({ type: "text-end", id: fallbackId });
-              }
-            } catch (fallbackError) {
-              console.error("Empty-reply fallback failed", fallbackError);
-            }
           },
           onFinish: async ({ responseMessage }) => {
             mark("stream_finish");
