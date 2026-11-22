@@ -104,6 +104,7 @@ import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import {
+  EMERGENCY_TYPE_LABELS,
   chatThreadContextQueryOptions,
   getSosRoomVoiceNoteUrl,
   listConversationMessages,
@@ -1833,6 +1834,69 @@ export function AllmaChat({
     setReplyTarget(null);
   }, [threadId]);
 
+  // SOS AGENT BRIEF: when an SOS starts, the person in need's client posts
+  // one situation brief from Allma AI — who needs help, what happened,
+  // where, and who is already in the chat — so responders opening the room
+  // understand the emergency before anyone types. Posted once per SOS,
+  // only for rooms started in the last 10 minutes, and marked with a
+  // data-sos-brief part so reloads never post it twice.
+  const briefPostedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!sosIsActive || !sosRoom || !threadId || !user?.id) return;
+    if (sosRoom.owner_id !== user.id) return;
+    if (briefPostedForRef.current === sosRoom.sos_activity_id) return;
+    const startedMs = new Date(sosRoom.created_at).getTime();
+    if (!Number.isFinite(startedMs) || Date.now() - startedMs > 10 * 60 * 1000) return;
+    const alreadyPosted = messagesRef.current.some((message) =>
+      message.parts.some((part) => (part as { type?: string }).type === "data-sos-brief"),
+    );
+    if (alreadyPosted) {
+      briefPostedForRef.current = sosRoom.sos_activity_id;
+      return;
+    }
+    briefPostedForRef.current = sosRoom.sos_activity_id;
+    const typeLabel = EMERGENCY_TYPE_LABELS[sosRoom.emergency_type] ?? "Emergency";
+    const brief = [
+      "Situation brief — I am coordinating this emergency.",
+      "",
+      `• Person in need: ${sosRoom.sender_name}`,
+      `• Emergency: ${typeLabel}`,
+      `• Area: ${sosRoom.area}${sosRoom.location_shared ? "" : " (exact location not shared yet)"}`,
+      sosRoom.participants.length > 0
+        ? `• In this chat now: ${sosRoom.participants.map((person) => person.name).join(", ")}`
+        : "• The Safety Network is being called now.",
+      "",
+      "Responders: please stay in this chat, share your location if you are close, and say when you are on your way. If anyone is in immediate danger, call 999 or 112.",
+    ].join("\n");
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `sos-brief-${Date.now()}`;
+    const briefParts = [
+      { type: "data-sos-brief", data: { activityId: sosRoom.sos_activity_id } },
+      { type: "text", text: brief },
+    ] as UIMessage["parts"];
+    const briefMessage = {
+      id,
+      role: "assistant" as const,
+      parts: briefParts,
+      authorId: user.id,
+      recipient: "responders",
+      metadata: { recipient: "responders" },
+      createdAt: new Date().toISOString(),
+    } as UIMessage;
+    setMessages((current) => [...current, briefMessage]);
+    void persistConversationMessages(threadId, [
+      { id, role: "assistant", parts: briefParts, authorId: user.id, recipient: "responders" },
+    ])
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["thread-messages", threadId] });
+      })
+      .catch((briefError) => {
+        console.error("Could not post the SOS situation brief", briefError);
+      });
+  }, [sosIsActive, sosRoom, threadId, user?.id, queryClient, setMessages]);
+
   const send = useCallback(
     (text: string, overrideAttachments?: Attachment[]) => {
       const trimmed = text.trim();
@@ -3021,6 +3085,9 @@ export function AllmaChat({
                         return null;
                       }
                       if ((part as { type?: string }).type === "data-reply") {
+                        return null;
+                      }
+                      if ((part as { type?: string }).type === "data-sos-brief") {
                         return null;
                       }
                       if (part.type === "text") {
