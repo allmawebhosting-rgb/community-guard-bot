@@ -670,11 +670,11 @@ function SosTimelineEvent({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className={cn("flex items-end gap-2", mine && "justify-end")}
+      className={cn("flex items-end gap-1.5", mine && "justify-end")}
     >
       {!mine ? (
         <span className="shrink-0">
-          <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={32} />
+          <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={40} />
         </span>
       ) : null}
       <div className="min-w-0 max-w-[84%]">
@@ -1702,6 +1702,87 @@ export function AllmaChat({
     setComposerRecipient("responders");
   }, [sosIsActive, threadContext?.is_owner, threadId]);
 
+  // Typing indicators for the shared emergency conversation: while someone
+  // types, their client broadcasts a lightweight "typing" ping on a
+  // per-thread realtime channel; everyone else shows "… is typing" until
+  // the pings stop (4.5s without one clears the name).
+  const [typists, setTypists] = useState<Record<string, { name: string; at: number }>>({});
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingActiveRef = useRef(false);
+  const lastTypingSentRef = useRef(0);
+  const sosRoomId = sosRoom?.sos_activity_id ?? null;
+  const myTypingName =
+    (user?.id ? sosRoomPeople.get(user.id)?.name : undefined) ??
+    (user?.user_metadata?.full_name as string | undefined) ??
+    "Someone";
+
+  useEffect(() => {
+    if (!threadId || !sosRoomId || !user?.id) return;
+    const channel = supabase.channel(`chat-typing:${threadId}`, {
+      config: { broadcast: { self: false } },
+    });
+    channel.on("broadcast", { event: "typing" }, (message) => {
+      const payload = message.payload as { user_id?: string; name?: string; typing?: boolean };
+      if (!payload?.user_id || payload.user_id === user.id) return;
+      setTypists((current) => {
+        const next = { ...current };
+        if (payload.typing) next[payload.user_id!] = { name: payload.name || "Someone", at: Date.now() };
+        else delete next[payload.user_id!];
+        return next;
+      });
+    });
+    channel.subscribe();
+    typingChannelRef.current = channel;
+    return () => {
+      typingChannelRef.current = null;
+      void supabase.removeChannel(channel);
+      setTypists({});
+    };
+  }, [threadId, sosRoomId, user?.id]);
+
+  useEffect(() => {
+    if (!Object.keys(typists).length) return;
+    const timer = window.setInterval(() => {
+      setTypists((current) => {
+        const now = Date.now();
+        const next = Object.fromEntries(Object.entries(current).filter(([, v]) => now - v.at < 4500));
+        return Object.keys(next).length === Object.keys(current).length ? current : next;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [typists]);
+
+  useEffect(() => {
+    const channel = typingChannelRef.current;
+    if (!channel || !user?.id) return;
+    const sendState = (typing: boolean) => {
+      void channel.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { user_id: user.id, name: myTypingName, typing },
+      });
+    };
+    if (composerText.trim()) {
+      const now = Date.now();
+      if (!typingActiveRef.current || now - lastTypingSentRef.current > 2500) {
+        typingActiveRef.current = true;
+        lastTypingSentRef.current = now;
+        sendState(true);
+      }
+    } else if (typingActiveRef.current) {
+      typingActiveRef.current = false;
+      sendState(false);
+    }
+  }, [composerText, user?.id, myTypingName]);
+
+  const typingLabel = (() => {
+    const names = Object.values(typists).map((t) => t.name.trim().split(/\s+/)[0]).filter(Boolean);
+    if (!names.length) return null;
+    if (names.length === 1) return `${names[0]} is typing`;
+    if (names.length === 2) return `${names[0]} and ${names[1]} are typing`;
+    return "Several people are typing";
+  })();
+
   const send = useCallback(
     (text: string, overrideAttachments?: Attachment[]) => {
       const trimmed = text.trim();
@@ -2475,7 +2556,10 @@ export function AllmaChat({
   }, []);
 
   const startSosVoiceNote = useCallback(async () => {
-    if (!sosActivityId || !sosIsActive || sosVoiceNoteUploading) return;
+    if (!sosActivityId || !sosIsActive || sosVoiceNoteUploading) {
+      if (!sosVoiceNoteUploading) toast.error("Voice messages need this emergency conversation open.");
+      return;
+    }
     if (recording || transcribing) {
       toast.message("Stop voice input before recording a responder voice note.");
       return;
@@ -2803,7 +2887,7 @@ export function AllmaChat({
                       (sosIsActive
                         ? // WhatsApp group row: the sender's profile picture sits
                           // beside their bubble (bottom-aligned), on the left.
-                          "!flex-row items-end gap-2 ml-0 mr-auto justify-start"
+                          "!flex-row items-end gap-1.5 ml-0 mr-auto justify-start"
                         : "ml-0 mr-auto justify-start"),
                   )}
                 >
@@ -2811,7 +2895,7 @@ export function AllmaChat({
                     <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
                   ) : isOtherHuman ? (
                     <span className="shrink-0">
-                      <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={32} />
+                      <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={sosIsActive ? 40 : 32} />
                     </span>
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
@@ -3129,6 +3213,17 @@ export function AllmaChat({
                 </span>
               ) : null}
             </div>
+          ) : null}
+
+          {typingLabel ? (
+            <p className="mb-1.5 flex items-center gap-1.5 px-1 text-[12px] font-medium text-muted-foreground" role="status" aria-live="polite">
+              <span className="flex items-end gap-[3px]" aria-hidden>
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
+              </span>
+              {typingLabel}…
+            </p>
           ) : null}
 
           {sosIsActive ? (
