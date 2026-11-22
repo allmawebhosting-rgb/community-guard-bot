@@ -41,6 +41,8 @@ const EMERGENCY_RE = /::emergency(?:\{([^}]*)\})?/gi;
 const SOS_OFFER_RE = /::sos_offer(?:\{([^}]*)\})?/gi;
 /** Model sometimes pastes a fake tool call as text (::find_facilities{…}). Strip it. */
 const LEAKED_TOOL_MARKER_RE = /::[a-z_][a-z0-9_]*(?:\{[^}]*\}|\[[^\]]*\])/gi;
+/** Model sometimes pastes a bare tool label as its own line (GET_ROOM_STATE). Strip it. */
+const LEAKED_TOOL_LABEL_RE = /^[ \t]*[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+[ \t]*$/gm;
 const KNOWN_MARKER_PREFIX =
   /^::(?:flow|media|suggest|emergency|sos_offer)\b/i;
 
@@ -170,7 +172,7 @@ export function dedupeRepeatedParts(texts: string[]): string[] {
   return texts.map((text) => {
     const kept: string[] = [];
     const added = new Set<string>();
-    for (const line of text.split("\n")) {
+    for (const line of text.replace(LEAKED_TOOL_LABEL_RE, "").split("\n")) {
       const key = lineKey(line);
       if (key.length >= 12 && (seen.has(key) || added.has(key))) continue;
       if (key.length >= 12) added.add(key);
@@ -247,6 +249,8 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
     .replace(FLOW_RE, "")
     .replace(MEDIA_RE, "")
     .replace(SUGGEST_RE, "")
+    // Drop bare tool labels the model sometimes pastes as their own line (GET_ROOM_STATE).
+    .replace(LEAKED_TOOL_LABEL_RE, "")
     // Drop fake tool-call markers the model sometimes pastes (::find_facilities{…}).
     .replace(LEAKED_TOOL_MARKER_RE, (m) => (KNOWN_MARKER_PREFIX.test(m) ? m : ""));
 
