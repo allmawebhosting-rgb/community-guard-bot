@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Phone } from "lucide-react";
 import allmaRobot from "@/assets/allma-robot.png";
@@ -29,6 +29,80 @@ export function SosFloatingChatHeads({
 }) {
   const reduceMotion = useReducedMotion();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // The heads can be dragged anywhere on screen (Messenger-style). The
+  // offset is remembered between visits; a real drag suppresses the tap
+  // that would otherwise open the participant card on pointer-up.
+  const [offset, setOffset] = useState<{ x: number; y: number }>(() => {
+    try {
+      const raw = window.localStorage.getItem("allma.sosHeadsOffset");
+      if (raw) {
+        const parsed = JSON.parse(raw) as { x?: unknown; y?: unknown };
+        if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+          return { x: parsed.x, y: parsed.y };
+        }
+      }
+    } catch {
+      // storage unavailable — start at the default right-edge position
+    }
+    return { x: 0, y: 0 };
+  });
+  const offsetRef = useRef(offset);
+  offsetRef.current = offset;
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+    moved: boolean;
+  } | null>(null);
+  const draggedRef = useRef(false);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      baseX: offsetRef.current.x,
+      baseY: offsetRef.current.y,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+    drag.moved = true;
+    draggedRef.current = true;
+    const minX = -(window.innerWidth - 110);
+    const maxY = Math.max(0, window.innerHeight / 2 - 110);
+    setOffset({
+      x: Math.min(4, Math.max(minX, drag.baseX + dx)),
+      y: Math.min(maxY, Math.max(-maxY, drag.baseY + dy)),
+    });
+  };
+  const handlePointerEnd = () => {
+    if (dragRef.current?.moved) {
+      try {
+        window.localStorage.setItem("allma.sosHeadsOffset", JSON.stringify(offsetRef.current));
+      } catch {
+        // position just won't persist
+      }
+    }
+    dragRef.current = null;
+    window.setTimeout(() => {
+      draggedRef.current = false;
+    }, 0);
+  };
+  const handleClickCapture = (event: React.SyntheticEvent) => {
+    if (draggedRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      draggedRef.current = false;
+    }
+  };
   const seen = new Set<string>();
   const ordered = [
     ...participants.filter((p) => p.role === "ai"),
@@ -59,12 +133,20 @@ export function SosFloatingChatHeads({
     <div
       role="group"
       aria-label="Conversation participants"
+      style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
       className={cn(
         "pointer-events-none absolute inset-y-0 right-0 z-20 flex w-[4.75rem] items-center justify-center sm:w-[5.5rem]",
         className,
       )}
     >
-      <div className="pointer-events-auto flex max-h-[52vh] flex-col items-center gap-3.5 overflow-y-auto overscroll-contain py-3 pr-1.5 sm:gap-4 sm:pr-2.5">
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onClickCapture={handleClickCapture}
+        className="pointer-events-auto flex max-h-[52vh] cursor-grab touch-none select-none flex-col items-center gap-3.5 overflow-y-auto overscroll-contain py-3 pr-1.5 active:cursor-grabbing sm:gap-4 sm:pr-2.5"
+      >
         <AnimatePresence initial={false}>
           {humans.map((person, index) => {
             const active = selectedId === person.id;
@@ -116,29 +198,22 @@ export function SosFloatingChatHeads({
               >
                 <span
                   className={cn(
-                    "relative block rounded-full bg-gradient-to-br from-background via-card to-muted p-[2.5px] shadow-[0_10px_28px_rgba(15,23,42,0.22)]",
-                    onCall && "from-success/40 via-background to-success/20",
-                    active && "scale-[1.04]",
+                    "block overflow-hidden rounded-full border-2 border-background bg-card shadow-md",
+                    onCall ? "ring-2 ring-success/60" : "ring-1 ring-border/60",
+                    active && "scale-[1.05]",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "block overflow-hidden rounded-full border-[2.5px] border-background bg-card ring-1 shadow-[0_0_14px_hsl(var(--success)/0.35)]",
-                      onCall ? "ring-success/55" : "ring-border/60",
-                    )}
-                  >
-                    {person.role === "ai" ? (
-                      <img
-                        src={allmaRobot}
-                        alt=""
-                        className="h-12 w-12 object-cover sm:h-14 sm:w-14"
-                      />
-                    ) : (
-                      <span className="block h-12 w-12 sm:h-14 sm:w-14 [&>*]:!h-full [&>*]:!w-full">
-                        <Avatar name={person.name} url={person.avatarUrl} size={56} />
-                      </span>
-                    )}
-                  </span>
+                  {person.role === "ai" ? (
+                    <img
+                      src={allmaRobot}
+                      alt=""
+                      className="h-12 w-12 object-cover sm:h-14 sm:w-14"
+                    />
+                  ) : (
+                    <span className="block h-12 w-12 sm:h-14 sm:w-14 [&>*]:!h-full [&>*]:!w-full">
+                      <Avatar name={person.name} url={person.avatarUrl} size={56} />
+                    </span>
+                  )}
                 </span>
 
                 {onCall ? (
@@ -165,7 +240,14 @@ export function SosFloatingChatHeads({
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 8, scale: 0.96 }}
             transition={{ duration: reduceMotion ? 0.01 : 0.22 }}
-            className="pointer-events-none absolute right-[4.75rem] top-1/2 z-30 max-w-[11.5rem] -translate-y-1/2 rounded-2xl border border-border/70 bg-card/95 px-3 py-2.5 shadow-lift backdrop-blur-md sm:right-[5.35rem]"
+            className={cn(
+              "pointer-events-none absolute top-1/2 z-30 max-w-[11.5rem] -translate-y-1/2 rounded-2xl border border-border/70 bg-card/95 px-3 py-2.5 shadow-lift backdrop-blur-md",
+              // When the heads are dragged to the left half of the screen, the
+              // card opens on their right so it never runs off-screen.
+              offset.x < -140
+                ? "left-[4.75rem] sm:left-[5.35rem]"
+                : "right-[4.75rem] sm:right-[5.35rem]",
+            )}
           >
             <p className="truncate text-[12.5px] font-semibold tracking-tight text-foreground">
               {selected.name}

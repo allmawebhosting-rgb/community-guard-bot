@@ -86,6 +86,7 @@ export function InChatSos({
   existingActive,
   sharedLocation,
   canManage = true,
+  ownerName,
   requestActivation = false,
   hideIdle = false,
   offerMode = false,
@@ -100,6 +101,8 @@ export function InChatSos({
   existingActive?: boolean;
   sharedLocation?: { latitude: number; longitude: number; accuracy_m: number | null } | null;
   canManage?: boolean;
+  /** Name of the person who needs help — shown to responders on the map card. */
+  ownerName?: string | null;
   requestActivation?: boolean;
   hideIdle?: boolean;
   /** Softer CTA: "Would you like to alert your Safety Network?" + Activate SOS */
@@ -653,7 +656,9 @@ export function InChatSos({
               <span className="truncate">
                 {loc
                   ? `Location shared · ±${Math.round(loc.acc)} m · ${time(startedAt)}`
-                  : `Location pending · ${time(startedAt)}`}
+                  : canManage
+                    ? `Location pending · ${time(startedAt)}`
+                    : `Waiting for their location · ${time(startedAt)}`}
               </span>
             </p>
             {networkNotified === true ? (
@@ -744,7 +749,7 @@ export function InChatSos({
                 <div className="sos-live-map">
                   <LiveLocationMap
                     location={{ lat: loc.lat, lng: loc.lng, accuracy: loc.acc }}
-                    badge="Your location"
+                    badge={canManage ? "Your location" : `${ownerName ?? "Person in need"}'s location`}
                     heightClassName="h-44"
                     places={mapPlaces}
                     selectedPlaceId={selectedPlaceId}
@@ -757,9 +762,22 @@ export function InChatSos({
                 <p className="rounded-2xl bg-muted/50 px-3 py-2.5 text-[12px] text-muted-foreground">
                   {saving || placesLoading
                     ? "Waiting for GPS to show nearby help…"
-                    : "Turn on location access to show nearby help."}
+                    : canManage
+                      ? "Turn on location access to show nearby help."
+                      : `Waiting for ${ownerName ?? "the person who needs help"} to share their location…`}
                 </p>
               )}
+              {!canManage && loc ? (
+                <a
+                  href={directionsUrl(null, { latitude: loc.lat, longitude: loc.lng })}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 flex min-h-10 items-center justify-center gap-2 rounded-full bg-success px-4 text-[13px] font-bold text-success-foreground transition-opacity hover:opacity-90"
+                >
+                  <Navigation2 className="h-4 w-4" />
+                  Get directions to {ownerName ?? "the person who needs help"}
+                </a>
+              ) : null}
               {loc ? (
                 <div className="sos-live-help">
                   <div className="flex items-center justify-between gap-2 px-3 pt-2.5">

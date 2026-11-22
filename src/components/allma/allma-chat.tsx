@@ -511,6 +511,8 @@ const SosActivityContext = createContext<{
   active: boolean;
   canManage: boolean;
   sharedLocation: { latitude: number; longitude: number; accuracy_m: number | null } | null;
+  /** Name of the person who needs help (the SOS owner), for responder views. */
+  ownerName: string | null;
   onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
   onActivityEnded?: (activityId: string) => void;
   onEnsureThread?: () => Promise<string>;
@@ -520,6 +522,7 @@ const SosActivityContext = createContext<{
   active: false,
   canManage: false,
   sharedLocation: null,
+  ownerName: null,
 });
 
 /** Numbered first-aid steps + red flags, shown when the reply itself skipped them. */
@@ -564,6 +567,7 @@ function EmergencyActions({
       existingActive={sosActivity.active}
       sharedLocation={sosActivity.sharedLocation}
       canManage={sosActivity.canManage}
+      ownerName={sosActivity.ownerName}
       offerMode={offerMode}
       onActivityStarted={sosActivity.onActivityStarted}
       onActivityEnded={sosActivity.onActivityEnded}
@@ -595,6 +599,24 @@ function systemNoticeText(message: UIMessage): string | null {
     .join("\n")
     .trim();
   return SYSTEM_NOTICE_RE.test(text) ? text : null;
+}
+
+/** WhatsApp assigns each group member a stable name colour — do the same. */
+const SOS_NAME_COLORS = [
+  "text-sky-600 dark:text-sky-400",
+  "text-rose-600 dark:text-rose-400",
+  "text-emerald-600 dark:text-emerald-400",
+  "text-amber-600 dark:text-amber-400",
+  "text-violet-600 dark:text-violet-400",
+  "text-orange-600 dark:text-orange-400",
+  "text-teal-600 dark:text-teal-400",
+  "text-fuchsia-600 dark:text-fuchsia-400",
+] as const;
+
+function sosNameColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return SOS_NAME_COLORS[hash % SOS_NAME_COLORS.length];
 }
 
 function SosTimelineEvent({
@@ -649,26 +671,39 @@ function SosTimelineEvent({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className={cn("flex items-end gap-2", mine && "flex-row-reverse")}
+      className={cn("flex items-end gap-2", mine && "justify-end")}
     >
-      <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={30} />
+      {!mine ? (
+        <span className="shrink-0">
+          <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={32} />
+        </span>
+      ) : null}
       <div className="min-w-0 max-w-[84%]">
         <div
           className={cn(
-            "px-3.5 py-2.5 text-left text-[14px] leading-relaxed shadow-sm",
+            "relative px-3.5 py-2.5 text-left text-[14px] leading-relaxed shadow-sm",
             mine
-              ? "rounded-[1.25rem] rounded-br-md bg-primary/15 text-foreground ring-1 ring-primary/20"
+              ? "rounded-[1.25rem] rounded-br-md bg-[#d9fdd3] text-foreground ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
               : "rounded-[1.25rem] rounded-bl-md bg-card text-foreground ring-1 ring-border/60",
           )}
         >
+          <span
+            aria-hidden
+            className={cn(
+              "absolute bottom-0 h-3 w-[7px]",
+              mine
+                ? "-right-[5px] bg-[#d9fdd3] [clip-path:polygon(0_0,0_100%,100%_100%)] dark:bg-[#005c4b]"
+                : "-left-[5px] bg-card [clip-path:polygon(100%_0,100%_100%,0_100%)]",
+            )}
+          />
           {!mine ? (
-            <span className="mb-0.5 block text-[13px] font-bold text-sky-600 dark:text-sky-400">
+            <span className={cn("mb-0.5 block text-[13px] font-bold", sosNameColor(person?.name ?? "Allma member"))}>
               {person?.name ?? "Allma member"}
             </span>
           ) : null}
           {message.event_type === "voice_note" ? (
             <div className="flex min-w-[180px] items-center gap-2">
-              <span className={cn("grid h-8 w-8 place-items-center rounded-full", mine ? "bg-primary/20" : "bg-muted")}>
+              <span className={cn("grid h-8 w-8 place-items-center rounded-full", mine ? "bg-black/10 dark:bg-white/15" : "bg-muted")}>
                 <Mic className="h-4 w-4 shrink-0" />
               </span>
               {voiceUrl ? (
@@ -2379,6 +2414,7 @@ export function AllmaChat({
               accuracy_m: sosRoom.accuracy_m,
             }
           : null,
+      ownerName: sosParticipants.find((person) => person.role === "owner")?.name ?? null,
       onActivityStarted: handleSosActivityStarted,
       onActivityEnded: handleSosActivityEnded,
       onEnsureThread: ensureSosThread,
@@ -2390,6 +2426,7 @@ export function AllmaChat({
       handleSosActivityStarted,
       sosActivityId,
       sosIsActive,
+      sosParticipants,
       sosRoom,
       threadId,
     ],
@@ -2657,7 +2694,14 @@ export function AllmaChat({
           </div>
         </div>
       ) : (
-        <Conversation className="relative min-h-0 flex-1 overscroll-contain">
+        <Conversation
+          className={cn(
+            "relative min-h-0 flex-1 overscroll-contain",
+            // WhatsApp-style chat wallpaper behind the shared emergency
+            // conversation (and any chat with an SOS room attached).
+            (sosIsActive || sosRoom) && "bg-[#ece5dd] dark:bg-[#0b141a]",
+          )}
+        >
           {(sosIsActive || (sosRoom && sosParticipants.some((person) => person.role !== "ai"))) ? (
             <SosFloatingChatHeads
               participants={sosParticipants}
@@ -2759,13 +2803,20 @@ export function AllmaChat({
                       ? "flex-row items-start gap-2.5"
                       : undefined,
                     wideSosLayout ? "!max-w-none w-full" : "max-w-full sm:max-w-full",
-                    isOtherHuman && "ml-0 mr-auto justify-start",
+                    isOtherHuman &&
+                      (sosIsActive
+                        ? // WhatsApp group row: the sender's profile picture sits
+                          // beside their bubble (bottom-aligned), on the left.
+                          "!flex-row items-end gap-2 ml-0 mr-auto justify-start"
+                        : "ml-0 mr-auto justify-start"),
                   )}
                 >
                   {message.role === "assistant" && !wideSosLayout ? (
                     <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
                   ) : isOtherHuman ? (
-                    <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={30} />
+                    <span className="shrink-0">
+                      <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={32} />
+                    </span>
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
                   {message.role === "user" && !isOwnUserMessage && showRecipientLabel ? (
@@ -2847,13 +2898,29 @@ export function AllmaChat({
                               <p
                                 className={cn(
                                   "max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-[1.55]",
+                                  sosIsActive && "relative",
                                   isOwnUserMessage
-                                    ? "rounded-[1.4rem] rounded-br-md bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20"
+                                    ? sosIsActive
+                                      ? // WhatsApp-style own bubble: soft green.
+                                        "rounded-[1.4rem] rounded-br-md bg-[#d9fdd3] text-foreground shadow-sm ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
+                                      : "rounded-[1.4rem] rounded-br-md bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20"
                                     : "rounded-[1.4rem] rounded-bl-md bg-card text-foreground shadow-sm ring-1 ring-border/60",
                                 )}
                               >
+                                {sosIsActive ? (
+                                  // WhatsApp-style bubble tail on the avatar side.
+                                  <span
+                                    aria-hidden
+                                    className={cn(
+                                      "absolute bottom-0 h-3 w-[7px]",
+                                      isOwnUserMessage
+                                        ? "-right-[5px] bg-[#d9fdd3] [clip-path:polygon(0_0,0_100%,100%_100%)] dark:bg-[#005c4b]"
+                                        : "-left-[5px] bg-card [clip-path:polygon(100%_0,100%_100%,0_100%)]",
+                                    )}
+                                  />
+                                ) : null}
                                 {sosIsActive && !isOwnUserMessage ? (
-                                  <span className="mb-0.5 block text-[13px] font-bold text-sky-600 dark:text-sky-400">
+                                  <span className={cn("mb-0.5 block text-[13px] font-bold", sosNameColor(author?.name ?? "Responder"))}>
                                     {author?.name ?? "Responder"}
                                   </span>
                                 ) : null}
