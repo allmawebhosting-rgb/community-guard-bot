@@ -1692,15 +1692,25 @@ export function AllmaChat({
     }
   }, [composerRecipient, sosIsActive]);
 
+  const responderDefaultThreadRef = useRef<string | null>(null);
+  useEffect(() => {
+    // A responder opening the room usually wants the people in it, not the
+    // AI — start them on the shared chat; they can switch to Allma AI.
+    if (!sosIsActive || threadContext?.is_owner !== false || !threadId) return;
+    if (responderDefaultThreadRef.current === threadId) return;
+    responderDefaultThreadRef.current = threadId;
+    setComposerRecipient("responders");
+  }, [sosIsActive, threadContext?.is_owner, threadId]);
+
   const send = useCallback(
     (text: string, overrideAttachments?: Attachment[]) => {
       const trimmed = text.trim();
       const files = overrideAttachments ?? attachments;
+      // During an SOS everyone in the room — the person in need and the
+      // responders alike — chooses where a message goes with the composer
+      // selector: Allma AI, or the shared emergency chat.
       const recipient: ChatRecipient =
-        sosIsActive &&
-        (composerRecipient === "responders" || threadContext?.is_owner === false)
-          ? "responders"
-          : "allma";
+        sosIsActive && composerRecipient === "responders" ? "responders" : "allma";
 
       // Responder-directed turns stay available even while Allma is streaming.
       if ((!trimmed && files.length === 0) || (busy && recipient === "allma")) return;
@@ -3121,12 +3131,22 @@ export function AllmaChat({
             </div>
           ) : null}
 
-          {sosIsActive && threadContext?.is_owner !== false ? (
+          {sosIsActive ? (
             <ComposerRecipientSelector
               value={composerRecipient}
               onChange={setComposerRecipient}
               disabled={busy || sosVoiceNoteUploading || uploading}
               respondersJoined={joinedResponderCount}
+              peopleLabel={
+                threadContext?.is_owner === false
+                  ? sosRoom?.sender_name
+                    ? `Message ${sosRoom.sender_name.trim().split(/\s+/)[0]}`
+                    : "Message the person in need"
+                  : undefined
+              }
+              peopleHint={
+                threadContext?.is_owner === false ? "The person who needs help" : undefined
+              }
             />
           ) : null}
 
@@ -3204,7 +3224,9 @@ export function AllmaChat({
                     placeholder={
                       sosIsActive
                         ? composerRecipient === "responders"
-                          ? "Message your Safety Network…"
+                          ? threadContext?.is_owner === false
+                            ? "Message in this emergency…"
+                            : "Message your Safety Network…"
                           : "Ask Allma in this emergency…"
                         : "Ask Allma"
                     }
