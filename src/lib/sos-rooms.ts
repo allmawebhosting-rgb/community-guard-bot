@@ -300,6 +300,18 @@ export async function sendSosRoomVoiceNote(
   }
 }
 
+/**
+ * A responder leaves the emergency: records a participant_left event (via
+ * the leave_sos_room RPC) so the room shows "… left the emergency", drops
+ * them from the participant list, and removes the room from their inbox.
+ */
+export async function leaveSosRoom(sosActivityId: string): Promise<void> {
+  const { error } = await (supabase as any).rpc("leave_sos_room", {
+    p_sos_id: sosActivityId,
+  });
+  if (error) throw new Error(friendly(error.message));
+}
+
 export async function getSosRoomVoiceNoteUrl(path: string) {
   const { data, error } = await supabase.storage
     .from("emergency-chat-voice")
