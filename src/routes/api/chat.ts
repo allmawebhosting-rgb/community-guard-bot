@@ -330,6 +330,21 @@ You are the coordinator of this emergency room, not just a chatbot:
         const intakeText = lastUserMessage ? textOf(lastUserMessage) : "";
         // Everything the user typed in this conversation — a place counts as "named" only if it's here.
         const userConversationText = uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)).join("\n");
+        // AGENT FROM THE START: when an emergency has been reported but SOS
+        // is not active yet, the agent still takes charge of the
+        // conversation — coordinating first aid, location, and the move to
+        // alert the Safety Network — instead of only answering questions.
+        const agentTakeoverBlock =
+          !sharedSosActive && (matchIncident(intakeText) ?? matchIncident(userConversationText))
+            ? `\n\nAGENT TAKEOVER — AN EMERGENCY WAS REPORTED AND SOS IS NOT ACTIVE YET:
+You are coordinating this emergency from the start, not just answering questions:
+- Open by taking charge in one short line: say you are coordinating this with them and give the first thing to do.
+- Give the first-aid steps for this emergency (the playbook guidance applies).
+- Ask for their location once, so help can find them.
+- Tell them clearly: tap "Activate SOS" and you will alert their Safety Network and coordinate everyone in this chat until help arrives.
+- Keep that coordinator stance for the rest of the conversation: short, calm, one clear next step at a time.
+- Never claim the Safety Network was alerted before the SOS is actually active.`
+            : "";
         const hasSharedAssistantHistory = sharedThreadHasAssistantHistory(databaseHistory);
 
         const { resolveMessageRecipient } = await import("@/lib/chat-recipient");
@@ -782,7 +797,7 @@ You are the coordinator of this emergency room, not just a chatbot:
           maxRetries: 0,
           maxOutputTokens: emergencyIncident || requireNearbyHelp ? 700 : 512,
           abortSignal: request.signal,
-          system: `${systemPrompt}\n\n${PHYSICAL_SYMPTOM_FIRST_AID_RULE}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}${sosAgentBlock}\n\nThe user is ${
+          system: `${systemPrompt}\n\n${PHYSICAL_SYMPTOM_FIRST_AID_RULE}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}${sosAgentBlock}${agentTakeoverBlock}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
           }${
             sharedSosActive
