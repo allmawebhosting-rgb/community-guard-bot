@@ -219,6 +219,7 @@ export const Route = createFileRoute("/api/chat")({
         const threadId = userId && body.threadId ? body.threadId : null;
         let threadIsOwner = Boolean(userId && threadId);
         let sharedSosActive = false;
+        let sosActivityId: string | null = null;
         if (threadId) {
           const { data: contextRows, error: contextError } = await (supabase as any).rpc("get_chat_thread_context",
             { p_thread_id: threadId },
@@ -232,6 +233,7 @@ export const Route = createFileRoute("/api/chat")({
           }
           threadIsOwner = context.is_owner;
           sharedSosActive = Boolean(context.sos_active);
+          sosActivityId = context.sos_activity_id ?? null;
         }
         const evidence = parseEvidence(body.evidence);
         const sharedEmergencyBlock = sharedSosActive
@@ -245,6 +247,43 @@ export const Route = createFileRoute("/api/chat")({
 - Continue first-aid / safety guidance for the owner when relevant.
 - Do not claim emergency services were contacted unless confirmed.`
           : "";
+
+        // SOS AGENT: on an active SOS the AI coordinates the room, so give
+        // it the live room state (who needs help, who has joined, where)
+        // straight from get_sos_room. Best-effort — the chat must never
+        // fail because the agent layer could not load.
+        let sosAgentBlock = "";
+        if (sharedSosActive && sosActivityId) {
+          try {
+            const { data: roomRows } = await (supabase as any).rpc("get_sos_room", {
+              p_sos_id: sosActivityId,
+            });
+            const room = roomRows?.[0];
+            if (room) {
+              const participants = Array.isArray(room.participants) ? room.participants : [];
+              const people = participants.length
+                ? participants
+                    .map(
+                      (person: { name?: string; role?: string; connection_status?: string | null }) =>
+                        `${person.name ?? "Allma member"} (${person.role === "responder" ? "responder" : "safety contact"}, ${person.connection_status ?? "joined"})`,
+                    )
+                    .join("; ")
+                : "none yet — the Safety Network is still being called";
+              sosAgentBlock = `\n\nSOS AGENT — LIVE ROOM STATE (facts from the emergency system; never invent people, places, or statuses):
+- Person in need: ${room.sender_name}.
+- Emergency type: ${room.emergency_type}. Severity: ${room.severity}. Area: ${room.area}. Exact location shared: ${room.location_shared ? "yes" : "no"}.
+- SOS started at ${room.created_at}.
+- In this chat now (${participants.length}): ${people}.
+You are the coordinator of this emergency room, not just a chatbot:
+- Answer questions about this emergency (who has joined, where it is, what is happening) from the room state above and the conversation.
+- When a responder asks what to do, give them one clear job (for example: call 999/112, go to the person in need, share your location, or stay in the chat and keep the person calm).
+- Keep every reply short, calm, and in plain language. In a fast-moving emergency, tell people to call 999 or 112.
+- Never claim anyone was dispatched, called, or is on the way unless the room state or the conversation confirms it.`;
+            }
+          } catch {
+            sosAgentBlock = "";
+          }
+        }
 
 
         const initialRunId = getLovableAiGatewayRunId(request);
@@ -734,7 +773,7 @@ export const Route = createFileRoute("/api/chat")({
           maxRetries: 0,
           maxOutputTokens: emergencyIncident || requireNearbyHelp ? 700 : 512,
           abortSignal: request.signal,
-          system: `${systemPrompt}\n\n${PHYSICAL_SYMPTOM_FIRST_AID_RULE}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}\n\nThe user is ${
+          system: `${systemPrompt}\n\n${PHYSICAL_SYMPTOM_FIRST_AID_RULE}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}${sosAgentBlock}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
           }${
             sharedSosActive
