@@ -649,6 +649,7 @@ function SosTimelineEvent({
   voiceUrl,
   voiceUrlError,
   onReply,
+  entranceDelay = 0,
 }: {
   message: SosRoomMessage;
   person?: { name: string; avatar: string | null; role: string };
@@ -656,15 +657,16 @@ function SosTimelineEvent({
   voiceUrl?: string;
   voiceUrlError: boolean;
   onReply?: (target: ReplyTarget) => void;
+  entranceDelay?: number;
 }) {
   if (message.event_type !== "user_message" && message.event_type !== "voice_note") {
     const joined = message.event_type === "participant_joined";
     return (
       <motion.div
         key={message.id}
-        initial={{ opacity: 0, y: 6 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.5, delay: entranceDelay, ease: [0.22, 1, 0.36, 1] }}
         className="mx-auto flex max-w-[92%] items-center justify-center gap-2 py-0.5 pl-1 pr-[4.75rem] sm:pr-[5.5rem]"
       >
         <span
@@ -693,9 +695,9 @@ function SosTimelineEvent({
   return (
     <motion.div
       key={message.id}
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.55, delay: entranceDelay, ease: [0.22, 1, 0.36, 1] }}
       className={cn("flex items-end gap-1.5", mine && "justify-end")}
     >
       {!mine ? (
@@ -3035,7 +3037,13 @@ export function AllmaChat({
             )}
           >
             <div className={cn("flex flex-col pt-16 lg:pt-8", sosIsActive ? "gap-2.5" : "gap-5")}>
-              {timelineItems.map((item) => {
+              {timelineItems.map((item, itemIndex) => {
+                // Messages should drift in slowly, not land all at once like
+                // a bomb: the newest dozen items cascade in from the end of
+                // the list (the part on screen when a chat opens), while a
+                // message arriving live gets no delay — just the slow fade.
+                const fromEnd = timelineItems.length - 1 - itemIndex;
+                const entranceDelay = fromEnd > 0 && fromEnd < 12 ? fromEnd * 0.05 : 0;
                 if (item.kind === "sos") {
                   const mine = item.message.author_id === user?.id;
                   const person = item.message.author_id
@@ -3047,6 +3055,7 @@ export function AllmaChat({
                       message={item.message}
                       person={person}
                       mine={mine}
+                      entranceDelay={entranceDelay}
                       voiceUrl={voiceNoteUrls[item.message.id]}
                       voiceUrlError={voiceNoteUrlErrors.has(item.message.id)}
                       onReply={
@@ -3110,9 +3119,9 @@ export function AllmaChat({
                 return (
                 <motion.div
                   key={message.id}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.55, delay: entranceDelay, ease: [0.22, 1, 0.36, 1] }}
                 >
                 <Message
                   from={message.role}
