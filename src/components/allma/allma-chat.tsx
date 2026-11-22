@@ -61,6 +61,7 @@ import {
   X,
   Check,
   Copy,
+  Reply,
   RotateCcw,
   Square,
   Volume2,
@@ -600,6 +601,28 @@ function systemNoticeText(message: UIMessage): string | null {
   return SYSTEM_NOTICE_RE.test(text) ? text : null;
 }
 
+/** A message the composer is currently replying to (WhatsApp-style quote). */
+type ReplyTarget = { id: string; author: string; text: string };
+
+/** The quote a sent message carries, stored as a data-reply part. */
+function replyQuoteOf(message: UIMessage): ReplyTarget | null {
+  const part = message.parts.find((p) => (p as { type?: string }).type === "data-reply");
+  const data = (part as { data?: Partial<ReplyTarget> } | undefined)?.data;
+  if (!data?.author) return null;
+  return { id: data.id ?? "", author: data.author, text: data.text ?? "" };
+}
+
+/** Short plain-text preview of a message, used as the reply quote body. */
+function messageSnippet(message: UIMessage): string {
+  const text = message.parts
+    .map((p) => (p.type === "text" ? p.text : ""))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text) return text.slice(0, 140);
+  return message.parts.some((p) => p.type === "file") ? "Photo" : "";
+}
+
 /** WhatsApp assigns each group member a stable name colour — do the same. */
 const SOS_NAME_COLORS = [
   "text-sky-600 dark:text-sky-400",
@@ -624,12 +647,14 @@ function SosTimelineEvent({
   mine,
   voiceUrl,
   voiceUrlError,
+  onReply,
 }: {
   message: SosRoomMessage;
   person?: { name: string; avatar: string | null; role: string };
   mine: boolean;
   voiceUrl?: string;
   voiceUrlError: boolean;
+  onReply?: (target: ReplyTarget) => void;
 }) {
   if (message.event_type !== "user_message" && message.event_type !== "voice_note") {
     const joined = message.event_type === "participant_joined";
@@ -718,6 +743,25 @@ function SosTimelineEvent({
             <time dateTime={message.created_at}>{timestamp}</time>
           </span>
         </div>
+        {onReply ? (
+          <button
+            type="button"
+            onClick={() =>
+              onReply({
+                id: message.id,
+                author: mine ? "You" : (person?.name ?? "Allma member"),
+                text: message.event_type === "voice_note" ? "Voice message" : message.body.slice(0, 140),
+              })
+            }
+            className={cn(
+              "mt-1 flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
+              mine && "ml-auto",
+            )}
+            aria-label="Reply to this message"
+          >
+            <Reply className="h-3.5 w-3.5" /> Reply
+          </button>
+        ) : null}
       </div>
     </motion.div>
   );
@@ -1612,7 +1656,7 @@ export function AllmaChat({
   });
   const visibleSosMessages = useMemo(() => {
     const allowed = sosMessages.filter((message) =>
-      ["user_message", "voice_note", "participant_joined", "system"].includes(message.event_type),
+      ["user_message", "voice_note", "participant_joined", "participant_left", "system"].includes(message.event_type),
     );
     // Deduplicate join / SOS system notices that can be recorded more than once.
     const seen = new Set<string>();
@@ -1783,6 +1827,12 @@ export function AllmaChat({
     return "Several people are typing";
   })();
 
+  // WhatsApp-style reply: the next sent message quotes this one.
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  useEffect(() => {
+    setReplyTarget(null);
+  }, [threadId]);
+
   const send = useCallback(
     (text: string, overrideAttachments?: Attachment[]) => {
       const trimmed = text.trim();
@@ -1817,6 +1867,12 @@ export function AllmaChat({
         type: "data-chat-recipient",
         data: { recipient },
       } as UIMessage["parts"][number]);
+      if (replyTarget) {
+        parts.push({
+          type: "data-reply",
+          data: { id: replyTarget.id, author: replyTarget.author, text: replyTarget.text },
+        } as UIMessage["parts"][number]);
+      }
       parts.push({ type: "text", text: caption });
 
       for (const attachment of files) {
@@ -1868,6 +1924,7 @@ export function AllmaChat({
                 : "Message could not be sent to responders.",
             );
           });
+        setReplyTarget(null);
         if (joinedResponderCount === 0) {
           toast.message("No responder has joined yet — they will see this once they answer the SOS.");
         }
@@ -1882,6 +1939,7 @@ export function AllmaChat({
         parts,
         metadata: { recipient: "allma" },
       } as Parameters<typeof sendMessage>[0]);
+      setReplyTarget(null);
       setAttachments([]);
       setAttachMenuOpen(false);
       focusInput();
@@ -1893,6 +1951,7 @@ export function AllmaChat({
       focusInput,
       joinedResponderCount,
       queryClient,
+      replyTarget,
       sendMessage,
       setMessages,
       sosIsActive,
@@ -2822,6 +2881,14 @@ export function AllmaChat({
                       mine={mine}
                       voiceUrl={voiceNoteUrls[item.message.id]}
                       voiceUrlError={voiceNoteUrlErrors.has(item.message.id)}
+                      onReply={
+                        sosIsActive
+                          ? (target) => {
+                              setReplyTarget(target);
+                              focusInput();
+                            }
+                          : undefined
+                      }
                     />
                   );
                 }
@@ -2941,6 +3008,8 @@ export function AllmaChat({
                     <EmergencyShownContext.Provider value={message.role === "assistant" && Boolean(emergencyType)}>
                     {(() => {
                       // Text parts with a repeated block (steps written before AND after the place cards) render it once.
+                      const replyQuote = replyQuoteOf(message);
+                      const firstTextIndex = message.parts.findIndex((p) => p.type === "text");
                       const raw = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : ""));
                       const deduped = message.role === "assistant"
                         ? dedupeRepeatedParts(raw)
@@ -2949,6 +3018,9 @@ export function AllmaChat({
                         : raw;
                       return message.parts.map((part, index) => {
                       if ((part as { type?: string }).type === "data-chat-recipient") {
+                        return null;
+                      }
+                      if ((part as { type?: string }).type === "data-reply") {
                         return null;
                       }
                       if (part.type === "text") {
@@ -2973,6 +3045,21 @@ export function AllmaChat({
                                     : "rounded-[1.4rem] rounded-bl-md bg-card text-foreground shadow-sm ring-1 ring-border/60",
                                 )}
                               >
+                                {replyQuote && index === firstTextIndex ? (
+                                  <span
+                                    className={cn(
+                                      "mb-1.5 block rounded-md border-l-[3px] px-2 py-1",
+                                      isOwnUserMessage
+                                        ? "border-emerald-700/50 bg-black/[0.06] dark:border-emerald-300/50 dark:bg-white/10"
+                                        : "border-primary/50 bg-muted",
+                                    )}
+                                  >
+                                    <span className={cn("block text-[12px] font-bold leading-tight", sosNameColor(replyQuote.author))}>
+                                      {replyQuote.author}
+                                    </span>
+                                    <span className="block truncate text-[12px] leading-snug opacity-75">{replyQuote.text}</span>
+                                  </span>
+                                ) : null}
                                 {sosIsActive && !isOwnUserMessage ? (
                                   <span className={cn("mb-0.5 block text-[13px] font-bold", sosNameColor(author?.name ?? "Responder"))}>
                                     {author?.name ?? "Responder"}
@@ -2989,6 +3076,23 @@ export function AllmaChat({
                                 <span className="mt-1 text-[11px] leading-none text-muted-foreground" suppressHydrationWarning>
                                   {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                                 </span>
+                              ) : null}
+                              {sosIsActive ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReplyTarget({
+                                      id: message.id,
+                                      author: isOwnUserMessage ? "You" : (author?.name ?? "Responder"),
+                                      text: messageSnippet(message),
+                                    });
+                                    focusInput();
+                                  }}
+                                  className="mt-1 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                  aria-label="Reply to this message"
+                                >
+                                  <Reply className="h-3.5 w-3.5" /> Reply
+                                </button>
                               ) : null}
                             </div>
                           );
@@ -3212,6 +3316,23 @@ export function AllmaChat({
                   <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
                 </span>
               ) : null}
+            </div>
+          ) : null}
+
+          {replyTarget ? (
+            <div className="mb-1.5 flex items-center gap-2 rounded-lg border-l-4 border-primary/60 bg-muted/60 px-2.5 py-1.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold text-primary">Replying to {replyTarget.author}</p>
+                <p className="truncate text-[12px] text-muted-foreground">{replyTarget.text}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyTarget(null)}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                aria-label="Cancel reply"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           ) : null}
 

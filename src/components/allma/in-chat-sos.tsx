@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Flame,
   Loader2,
+  LogOut,
   MapPin,
   Mic,
   MicOff,
@@ -38,6 +39,7 @@ import { getNearbyPlaces } from "@/lib/places.functions";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { primeMicrophone } from "@/lib/zego-call";
 import { setActiveSos } from "@/lib/sos-active";
+import { leaveSosRoom } from "@/lib/sos-rooms";
 import { peekActiveChatThread } from "@/lib/active-chat-thread";
 import { createThread, type ThreadSummary } from "@/lib/threads";
 import {
@@ -142,6 +144,8 @@ export function InChatSos({
   const [activationError, setActivationError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const inlineCall = useSosInlineCall();
   const timer = useRef<number | null>(null);
   const activatingRef = useRef(false);
@@ -472,6 +476,24 @@ export function InChatSos({
     } finally {
       activatingRef.current = false;
       setSaving(false);
+    }
+  }
+
+  async function leaveEmergency() {
+    if (!activityId || leaving) return;
+    if (!confirmLeave) {
+      setConfirmLeave(true);
+      return;
+    }
+    setLeaving(true);
+    try {
+      await leaveSosRoom(activityId);
+      toast.success("You have left this emergency.");
+      void navigate({ to: "/chat" });
+    } catch (leaveError) {
+      toast.error(leaveError instanceof Error ? leaveError.message : "Could not leave the emergency.");
+      setLeaving(false);
+      setConfirmLeave(false);
     }
   }
 
@@ -914,7 +936,17 @@ export function InChatSos({
               {ending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
               {ending ? "Ending…" : "I'm safe · End SOS"}
             </button>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={() => void leaveEmergency()}
+              disabled={leaving}
+              className="flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-background px-3 text-[13px] font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
+            >
+              {leaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+              {leaving ? "Leaving…" : confirmLeave ? "Tap again to confirm leaving" : "Leave emergency"}
+            </button>
+          )}
         </div>
       </div>
     );
