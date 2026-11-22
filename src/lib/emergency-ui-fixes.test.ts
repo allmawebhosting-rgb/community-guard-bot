@@ -94,6 +94,19 @@ describe("nosebleed and other incidents always get the playbook", () => {
     expect(cleaned).not.toMatch(/Did the bleeding stop/i);
     expect(cleaned).not.toMatch(/isn't a doctor/i);
   });
+
+  it("strips the red-flag block when the heading is bold with the colon inside", () => {
+    // The playbook tells the model to write "**Get help now if:**" — the
+    // colon inside the bold markers used to defeat the strip regex, so the
+    // red flags showed twice: once in the text, once in the card.
+    const incident = matchIncident("my nose is bleeding");
+    const raw =
+      "I am sorry your nose is bleeding. Do this now:\n\n1. Sit up and lean forward.\n2. Pinch the soft part of your nose for 10 to 15 minutes.\n\n**Get help now if:**\n- It is still bleeding after 20 minutes\n- You feel dizzy or faint\n\nDid the bleeding stop?";
+    const cleaned = stripDuplicateFirstAidProse(raw, incident);
+    expect(cleaned).not.toMatch(/Get help now if/);
+    expect(cleaned).not.toMatch(/still bleeding after 20 minutes/);
+    expect(cleaned).not.toMatch(/Sit up and lean forward/);
+  });
 });
 
 describe("SOS only for described emergencies", () => {

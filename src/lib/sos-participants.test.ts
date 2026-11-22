@@ -92,6 +92,9 @@ describe("sos participants", () => {
     expect(participantRoleLabel("ai")).toBe("Allma AI");
     expect(participantRoleLabel("owner")).toBe("Needs help");
     expect(participantConnectionLabel("connected")).toBe("On call");
-    expect(participantConnectionLabel("disconnected")).toBe("Disconnected");
+    // "disconnected" is a call state (latest call attempt not live), not a
+    // chat state — a joined member chatting here is presented as "In chat".
+    expect(participantConnectionLabel("disconnected")).toBe("In chat");
+    expect(participantConnectionLabel("joined")).toBe("In chat");
   });
 });

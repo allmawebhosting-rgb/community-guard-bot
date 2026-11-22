@@ -100,9 +100,11 @@ export function participantConnectionLabel(connection: ParticipantConnection) {
   switch (connection) {
     case "connected":
       return "On call";
-    case "disconnected":
-      return "Disconnected";
     default:
+      // Everyone in the strip has joined this conversation. "disconnected"
+      // only means their latest call attempt is not live — labelling a person
+      // "Disconnected" while they are chatting here is wrong, so chat
+      // surfaces present every joined member as "In chat".
       return "In chat";
   }
 }

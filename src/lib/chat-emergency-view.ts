@@ -97,13 +97,13 @@ export function incidentForReply(messages: LooseMessage[], index: number): Incid
 
 const NUMBERED_LIST = /^\s*\d+[.)]\s+\S/m;
 const GET_HELP_BLOCK =
-  /(?:^|\n)\s*(?:\*\*)?(?:Get help now if|Seek (?:medical )?help if|Red flags?)(?:\*\*)?\s*:?\s*\n(?:\s*[-*•].+\n?)+/gi;
+  /(?:^|\n)\s*(?:\*\*)?(?:Get help now if|Seek (?:medical )?help if|Red flags?)(?:\s*\*\*)?\s*:?\s*(?:\*\*)?\s*\n(?:\s*[-*•].+\n?)+/gi;
 const NOT_DOCTOR_LINE_RE =
   /(?:^|\n)\s*Allma isn'?t a doctor[^\n]*\n?/gi;
 const EMERGENCY_NUMBERS_BLOCK =
   /(?:^|\n)\s*Here are Uganda'?s emergency numbers:[\s\S]*?(?=\n\s*::|\n*$)/gi;
 const DO_THIS_NOW_BLOCK =
-  /(?:^|\n)\s*(?:\*\*)?(?:Do this now|First[- ]aid|Immediate steps)(?:\*\*)?\s*:?\s*\n(?:\s*\d+[.)].+\n?)+/gi;
+  /(?:^|\n)\s*(?:\*\*)?(?:Do this now|First[- ]aid|Immediate steps)(?:\s*\*\*)?\s*:?\s*(?:\*\*)?\s*\n(?:\s*\d+[.)].+\n?)+/gi;
 
 /**
  * Canonical first-aid card for a matched incident. Prefer this card over free-form
