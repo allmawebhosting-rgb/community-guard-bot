@@ -264,8 +264,15 @@ export const Route = createFileRoute("/api/chat")({
               const people = participants.length
                 ? participants
                     .map(
-                      (person: { name?: string; role?: string; connection_status?: string | null }) =>
-                        `${person.name ?? "Allma member"} (${person.role === "responder" ? "responder" : "safety contact"}, ${person.connection_status ?? "joined"})`,
+                      (person: { name?: string; role?: string; connection_status?: string | null }) => {
+                        // connection_status is the VOICE CALL state, not chat
+                        // presence: everyone in this list has joined the room.
+                        // Saying "disconnected" to the model made it describe
+                        // people who were actively chatting as absent.
+                        const status = (person.connection_status ?? "").toLowerCase();
+                        const onCall = status === "connected" || status === "live" || status === "in_call";
+                        return `${person.name ?? "Allma member"} (${person.role === "responder" ? "responder" : "safety contact"}, in this chat${onCall ? ", on a live voice call" : ""})`;
+                      },
                     )
                     .join("; ")
                 : "none yet — the Safety Network is still being called";
@@ -278,7 +285,9 @@ You are the coordinator of this emergency room, not just a chatbot:
 - Answer questions about this emergency (who has joined, where it is, what is happening) from the room state above and the conversation.
 - When a responder asks what to do, give them one clear job (for example: call 999/112, go to the person in need, share your location, or stay in the chat and keep the person calm).
 - Keep every reply short, calm, and in plain language. In a fast-moving emergency, tell people to call 999 or 112.
-- Never claim anyone was dispatched, called, or is on the way unless the room state or the conversation confirms it.`;
+- Never claim anyone was dispatched, called, or is on the way unless the room state or the conversation confirms it.
+- Everyone listed above as "in this chat" is present and can read messages, even when they are not on a voice call — never describe them as disconnected or absent.
+- Never print tool names, function names, or system labels (for example GET_ROOM_STATE). Speak only in plain words to the people in the room.`;
             }
           } catch {
             sosAgentBlock = "";
