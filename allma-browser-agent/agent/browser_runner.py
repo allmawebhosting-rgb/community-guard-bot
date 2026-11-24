@@ -52,6 +52,131 @@ def _cf_model_name() -> str:
     ).strip()
 
 
+def _flatten_message_content(content: Any) -> str:
+    """Workers AI chat models expect string content, not OpenAI multimodal arrays."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict):
+                if part.get("type") == "text" or "text" in part:
+                    parts.append(str(part.get("text") or ""))
+                elif part.get("type") == "image_url":
+                    parts.append("[image omitted]")
+                else:
+                    parts.append(str(part))
+            else:
+                text = getattr(part, "text", None)
+                parts.append(str(text) if text is not None else str(part))
+        return "\n".join(p for p in parts if p)
+    return str(content)
+
+
+def _normalize_messages_for_workers_ai(messages: Any) -> Any:
+    """Copy LangChain messages with flattened string content for Cloudflare."""
+    if not isinstance(messages, list):
+        return messages
+    out = []
+    for msg in messages:
+        try:
+            content = _flatten_message_content(getattr(msg, "content", msg))
+            if hasattr(msg, "model_copy"):
+                out.append(msg.model_copy(update={"content": content}))
+            elif hasattr(msg, "copy"):
+                cloned = msg.copy()
+                cloned.content = content
+                out.append(cloned)
+            else:
+                out.append(msg)
+        except Exception:  # noqa: BLE001
+            out.append(msg)
+    return out
+
+
+def _normalize_openai_request_messages(messages: Any) -> list[dict[str, Any]]:
+    """Rewrite OpenAI-wire messages for Workers AI (string content only)."""
+    out: list[dict[str, Any]] = []
+    if not isinstance(messages, list):
+        return messages
+    for msg in messages:
+        if not isinstance(msg, dict):
+            out.append(msg)
+            continue
+        fixed = dict(msg)
+        fixed["content"] = _flatten_message_content(fixed.get("content"))
+        # Drop null tool fields that confuse Workers AI schema validation.
+        if fixed.get("tool_calls") is None:
+            fixed.pop("tool_calls", None)
+        if fixed.get("function_call") is None:
+            fixed.pop("function_call", None)
+        out.append(fixed)
+    return out
+
+
+def _wrap_workers_ai_llm(llm: Any) -> Any:
+    """
+    Patch the underlying OpenAI client so every chat.completions call flattens
+    multimodal/null content. LangChain/browser-use otherwise POST arrays that
+    Cloudflare Llama rejects.
+    """
+
+    def _patch_client(client: Any) -> None:
+        if client is None or getattr(client, "_allma_cf_patched", False):
+            return
+        completions = client.chat.completions
+        original_create = completions.create
+
+        def create(*args: Any, **kwargs: Any):
+            if "messages" in kwargs:
+                kwargs["messages"] = _normalize_openai_request_messages(kwargs["messages"])
+            # Workers AI ignores/breaks on some OpenAI-only fields.
+            kwargs.pop("stream_options", None)
+            return original_create(*args, **kwargs)
+
+        completions.create = create  # type: ignore[method-assign]
+        object.__setattr__(client, "_allma_cf_patched", True)
+
+    # Force client construction (langchain may lazy-init), then patch wire calls.
+    try:
+        _ = llm.client
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        _ = llm.async_client
+    except Exception:  # noqa: BLE001
+        pass
+    for attr in ("client", "async_client", "root_client", "root_async_client"):
+        try:
+            _patch_client(getattr(llm, attr, None))
+        except Exception:  # noqa: BLE001
+            logger.debug("cf_llm_patch_skip attr=%s", attr)
+
+    # Also normalize at LangChain message layer when possible.
+    original_ainvoke = llm.__class__.ainvoke
+    original_invoke = llm.__class__.invoke
+
+    async def ainvoke(self, input, config=None, **kwargs):  # noqa: ANN001,A002
+        return await original_ainvoke(
+            self, _normalize_messages_for_workers_ai(input), config=config, **kwargs
+        )
+
+    def invoke(self, input, config=None, **kwargs):  # noqa: ANN001,A002
+        return original_invoke(
+            self, _normalize_messages_for_workers_ai(input), config=config, **kwargs
+        )
+
+    import types
+
+    object.__setattr__(llm, "ainvoke", types.MethodType(ainvoke, llm))
+    object.__setattr__(llm, "invoke", types.MethodType(invoke, llm))
+    return llm
+
+
 def _resolve_llm() -> tuple[Any, str, bool]:
     """
     Build a LangChain chat model for browser-use.
@@ -83,11 +208,13 @@ def _resolve_llm() -> tuple[Any, str, bool]:
         or ""
     ).strip()
     if proxy_base and not _is_placeholder_secret(proxy_key):
-        llm = ChatOpenAI(
-            model=cf_model,
-            api_key=proxy_key,
-            base_url=proxy_base,
-            temperature=0,
+        llm = _wrap_workers_ai_llm(
+            ChatOpenAI(
+                model=cf_model,
+                api_key=proxy_key,
+                base_url=proxy_base,
+                temperature=0,
+            )
         )
         return llm, f"allma-workers-ai-proxy:{cf_model}", use_vision_cf
 
@@ -100,11 +227,13 @@ def _resolve_llm() -> tuple[Any, str, bool]:
     ).strip()
     if cf_account and not _is_placeholder_secret(cf_token):
         base_url = f"https://api.cloudflare.com/client/v4/accounts/{cf_account}/ai/v1"
-        llm = ChatOpenAI(
-            model=cf_model,
-            api_key=cf_token,
-            base_url=base_url,
-            temperature=0,
+        llm = _wrap_workers_ai_llm(
+            ChatOpenAI(
+                model=cf_model,
+                api_key=cf_token,
+                base_url=base_url,
+                temperature=0,
+            )
         )
         return llm, f"cloudflare-workers-ai:{cf_model}", use_vision_cf
 
@@ -331,12 +460,17 @@ async def run_booking_task(
             "browser": browser,
             "use_vision": use_vision,
             "max_actions_per_step": 6,
+            # mem0 defaults to OpenAI embeddings; disable so Cloudflare-only works
+            "enable_memory": False,
+            # Workers AI tool-calling is prompt/JSON oriented, not OpenAI tools
+            "tool_calling_method": "raw" if "cloudflare" in provider_label or "workers-ai" in provider_label else "auto",
         }
         if sensitive_data:
             agent_kwargs["sensitive_data"] = sensitive_data
 
         agent = Agent(**agent_kwargs)
-        history = await agent.run(max_steps=40)
+        max_steps = int(os.getenv("BROWSER_AGENT_MAX_STEPS", "40") or "40")
+        history = await agent.run(max_steps=max_steps)
 
         final_text = ""
         try:
