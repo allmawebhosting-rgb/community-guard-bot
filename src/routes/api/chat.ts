@@ -16,6 +16,7 @@ import {
   shouldShowDirectHelp,
 } from "@/lib/chat-intent";
 import { assistantHasVisibleText } from "@/lib/chat-progress";
+import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
@@ -126,11 +127,14 @@ function textOf(message: UIMessage) {
 
 /** Strip non-model parts (recipient metadata) before convertToModelMessages. */
 function modelFacingMessages(messages: UIMessage[]): UIMessage[] {
-  return messages.map((message) => ({
+  // Drop stale inline photos so follow-up turns stay under body limits and
+  // do not re-bill vision on every message after a media upload.
+  const slim = slimMessagesForTransport(messages);
+  return slim.map((message) => ({
     ...message,
     parts: message.parts.filter((part) => {
       const type = (part as { type?: string }).type;
-      return type !== "data-chat-recipient" && type !== "data-chat-progress";
+      return type !== "data-chat-recipient" && type !== "data-chat-progress" && type !== "data-reply" && type !== "data-sos-brief";
     }),
   }));
 }

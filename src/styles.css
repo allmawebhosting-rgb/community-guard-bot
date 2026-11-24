@@ -1728,6 +1728,32 @@
 .chat-typing-dot { animation: chat-typing 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .chat-typing-dot { animation: none; opacity: .7; } }
 
+/* Grok-style message cards — soft AI gray, solid user brand, 15px body */
+.chat-msg-card {
+  font-size: 15px;
+  line-height: 1.55;
+}
+.chat-msg-card-ai {
+  background: #f2f2f2;
+}
+.dark .chat-msg-card-ai {
+  background: var(--muted);
+}
+.chat-msg-body p {
+  font-size: 15px;
+  line-height: 1.55;
+}
+@keyframes chat-msg-type-in {
+  from { opacity: 0.35; filter: blur(0.4px); }
+  to { opacity: 1; filter: blur(0); }
+}
+.chat-msg-typing {
+  animation: chat-msg-type-in 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-msg-typing { animation: none; }
+}
+
 @utility chat-canvas {
   background:
     radial-gradient(120% 60% at 100% 0%, color-mix(in oklab, var(--chat-user) 90%, transparent), transparent 60%),
@@ -1749,8 +1775,8 @@
 
 /* Chat replies: readable typography and green check bullets */
 .chat-checklist {
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.55;
 }
 .chat-checklist ul { list-style: none; padding-left: 0; margin: 0.7rem 0; }
 .chat-checklist ul > li { position: relative; padding-left: 2rem; margin: 0.45rem 0; }

@@ -54,7 +54,7 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2.5 overflow-hidden text-[0.95rem] leading-7",
+      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2.5 overflow-hidden text-[15px] leading-[1.55]",
       "group-[.is-user]:ml-auto group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground",
       className
     )}
@@ -326,7 +326,7 @@ export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
       className={cn(
-        "size-full text-[0.95rem] leading-7 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        "size-full text-[15px] leading-[1.55] [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className
       )}
       plugins={streamdownPlugins}

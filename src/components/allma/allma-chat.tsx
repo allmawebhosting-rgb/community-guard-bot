@@ -98,6 +98,13 @@ import {
   type ChatProgressStep,
   type ChatProgressStepId,
 } from "@/lib/chat-progress";
+import {
+  CHAT_IMAGE_JPEG_QUALITY,
+  CHAT_IMAGE_MAX_EDGE,
+  CHAT_INLINE_IMAGE_MAX_CHARS,
+  dataUrlTooLarge,
+  slimMessagesForTransport,
+} from "@/lib/chat-media";
 import { KIND_LABEL } from "@/lib/facility-results";
 import { facilityKind } from "@/lib/facility-kind";
 import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
@@ -1457,10 +1464,12 @@ export function AllmaChat({
           const token = data.session?.access_token;
           const headers: Record<string, string> = {};
           if (token) headers.Authorization = `Bearer ${token}`;
+          // Slim prior inline photos so a failed/huge upload cannot break later turns.
+          const transportMessages = slimMessagesForTransport(messages as UIMessage[]);
           return {
             body: {
               ...body,
-              messages,
+              messages: transportMessages,
               threadId,
               evidence: evidencePathsRef.current,
               coords: coordsRef.current,
@@ -1498,6 +1507,39 @@ export function AllmaChat({
   });
 
   const busy = status === "submitted" || status === "streaming";
+  const lastAssistant = messages[messages.length - 1];
+  const lastAssistantThinking =
+    busy &&
+    (!lastAssistant ||
+      lastAssistant.role !== "assistant" ||
+      !assistantHasVisibleText(lastAssistant.parts as Array<{ type: string; text?: string }>));
+
+  // After a failed media/chat turn, drop oversized inlines and clear the upload
+  // spinner so the composer and AI stay usable without a page reload.
+  useEffect(() => {
+    if (status !== "error") return;
+    setUploading(false);
+    setMessages((current) => {
+      let changed = false;
+      const next = current.map((message) => {
+        let messageChanged = false;
+        const parts = message.parts.map((part) => {
+          if (part.type !== "file") return part;
+          const url = "url" in part && typeof part.url === "string" ? part.url : "";
+          if (!url.startsWith("data:image/") || !dataUrlTooLarge(url)) return part;
+          messageChanged = true;
+          changed = true;
+          return {
+            ...part,
+            url: "",
+            mediaType: part.mediaType || "image/jpeg",
+          } as typeof part;
+        });
+        return messageChanged ? { ...message, parts } : message;
+      });
+      return changed ? next : current;
+    });
+  }, [setMessages, status]);
   useEffect(() => {
     rememberActiveChatThread(threadId);
     return () => {
@@ -2004,11 +2046,28 @@ export function AllmaChat({
         return;
       }
 
-      void sendMessage({
-        role: "user",
-        parts,
-        metadata: { recipient: "allma" },
-      } as Parameters<typeof sendMessage>[0]);
+      try {
+        void Promise.resolve(
+          sendMessage({
+            role: "user",
+            parts,
+            metadata: { recipient: "allma" },
+          } as Parameters<typeof sendMessage>[0]),
+        ).catch((sendError) => {
+          console.error("Allma send failed", sendError);
+          setAttachments(files);
+          toast.error(
+            sendError instanceof Error
+              ? sendError.message
+              : "Message could not be sent. Your attachment is still ready — tap send to retry.",
+          );
+        });
+      } catch (sendError) {
+        console.error("Allma send failed", sendError);
+        setAttachments(files);
+        toast.error("Message could not be sent. Your attachment is still ready — tap send to retry.");
+        return;
+      }
       setReplyTarget(null);
       setAttachments([]);
       setAttachMenuOpen(false);
@@ -2064,6 +2123,7 @@ export function AllmaChat({
 
   // Images are inlined as compressed data URLs so the assistant always receives
   // the pixels instead of depending on a link fetch of a private storage object.
+  // Kept small on purpose — large inlines blow the chat request and freeze AI.
   const inlineImage = useCallback(async (file: File) => {
     const readAsDataUrl = () =>
       new Promise<string>((resolve, reject) => {
@@ -2080,8 +2140,7 @@ export function AllmaChat({
           window.setTimeout(() => reject(new Error("createImageBitmap timed out")), 4000),
         ),
       ]);
-      const maxEdge = 1280;
-      const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+      const scale = Math.min(1, CHAT_IMAGE_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(bitmap.width * scale));
       canvas.height = Math.max(1, Math.round(bitmap.height * scale));
@@ -2089,12 +2148,24 @@ export function AllmaChat({
       if (!ctx) throw new Error("Canvas unavailable");
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       bitmap.close?.();
-      return canvas.toDataURL("image/jpeg", 0.82);
+      let quality = CHAT_IMAGE_JPEG_QUALITY;
+      let dataUrl = canvas.toDataURL("image/jpeg", quality);
+      while (dataUrl.length > CHAT_INLINE_IMAGE_MAX_CHARS && quality > 0.45) {
+        quality -= 0.08;
+        dataUrl = canvas.toDataURL("image/jpeg", quality);
+      }
+      if (dataUrl.length > CHAT_INLINE_IMAGE_MAX_CHARS) {
+        throw new Error("Image still too large after compression");
+      }
+      return dataUrl;
     } catch (error) {
       console.warn("[allma-upload] createImageBitmap failed, using FileReader", error);
       const dataUrl = await readAsDataUrl();
       if (!dataUrl.startsWith("data:image/")) {
         throw error instanceof Error ? error : new Error("Image read failed");
+      }
+      if (dataUrlTooLarge(dataUrl)) {
+        throw new Error("Image is too large to send inline");
       }
       return dataUrl;
     }
@@ -2143,11 +2214,12 @@ export function AllmaChat({
               url = await inlineImage(file);
             } catch (error) {
               console.error("Image inlining failed", error);
+              // Fall through to storage — do not hard-fail the whole chat.
             }
           }
 
           if (userId) {
-            // Keep a durable copy in storage for the report record.
+            // Keep a durable copy in storage for the report record / oversized photos.
             path = `${userId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
             const { error: uploadError } = await supabase.storage
               .from("evidence")
@@ -2177,7 +2249,11 @@ export function AllmaChat({
           }
 
           if (!url) {
-            toast.error(`Could not attach ${file.name}. Please try again.`);
+            toast.error(
+              isImage
+                ? `Could not attach ${file.name}. Try a smaller photo, or sign in and retry.`
+                : `Could not attach ${file.name}. Please try again.`,
+            );
             continue;
           }
 
@@ -2202,11 +2278,17 @@ export function AllmaChat({
         const typedCaption = (textareaRef.current?.value ?? composerText).trim();
         if (onlyImages && !busy) {
           // Send injury/scene photos immediately so Allma can look at them and give first aid.
-          send(typedCaption, ready);
-          setComposerText("");
-          if (textareaRef.current) {
-            textareaRef.current.value = "";
-            textareaRef.current.style.height = "";
+          try {
+            send(typedCaption, ready);
+            setComposerText("");
+            if (textareaRef.current) {
+              textareaRef.current.value = "";
+              textareaRef.current.style.height = "";
+            }
+          } catch (sendError) {
+            console.error("Photo send failed after upload", sendError);
+            setAttachments((current) => [...current, ...ready]);
+            toast.error("Photo attached — tap send to try again.");
           }
         } else {
           setAttachments((current) => [...current, ...ready]);
@@ -3070,6 +3152,16 @@ export function AllmaChat({
                   );
                 }
                 const { message, msgIndex } = item;
+                // Hold the empty streaming shell until Allma finishes thinking —
+                // the dedicated thinking card below is what the user should see.
+                if (
+                  lastAssistantThinking &&
+                  message.role === "assistant" &&
+                  msgIndex === messages.length - 1 &&
+                  !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>)
+                ) {
+                  return null;
+                }
                 const noticeText = systemNoticeText(message);
                 if (noticeText) {
                   // Already shown as the room timeline's pill — don't double it.
@@ -3152,7 +3244,12 @@ export function AllmaChat({
                       message.role === "assistant"
                         ? wideSosLayout
                           ? "w-full max-w-none rounded-none border-0 bg-transparent p-0 shadow-none"
-                          : cn("w-full max-w-[92%] rounded-[1.35rem] border-0 px-3.5 py-2.5 sm:max-w-[85%]", sosIsActive ? "rounded-tl-md bg-card shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50" : "bg-muted shadow-none")
+                          : cn(
+                              "chat-msg-card chat-msg-card-ai w-full max-w-[92%] border-0 px-3.5 py-3 sm:max-w-[85%]",
+                              sosIsActive
+                                ? "rounded-[1.25rem] rounded-tl-md bg-card shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50"
+                                : "rounded-[1.25rem] bg-[#F2F2F2] text-foreground shadow-none dark:bg-muted",
+                            )
                         : cn(
                             "w-fit max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[80%]",
                             // Other people's bubbles must hug their avatar on the
@@ -3223,14 +3320,15 @@ export function AllmaChat({
                             >
                               <p
                                 className={cn(
-                                  "max-w-full whitespace-pre-wrap px-3 py-2 text-[15px] leading-[1.5]",
+                                  "chat-msg-card max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-[1.55]",
                                   sosIsActive && "relative",
                                   isOwnUserMessage
                                     ? sosIsActive
                                       ? // WhatsApp-style own bubble: soft green.
-                                        "rounded-[1.3rem] rounded-br-md bg-[#d9fdd3] text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
-                                      : "rounded-[1.3rem] rounded-br-md bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/20"
-                                    : "rounded-[1.3rem] rounded-bl-md bg-card text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50",
+                                        "rounded-[1.25rem] rounded-br-md bg-[#d9fdd3] text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
+                                      : // Grok-style solid brand bubble with white text.
+                                        "chat-msg-card-user rounded-[1.25rem] bg-primary text-primary-foreground shadow-sm"
+                                    : "rounded-[1.25rem] rounded-bl-md bg-card text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50",
                                 )}
                               >
                                 {replyQuote && index === firstTextIndex ? (
@@ -3238,11 +3336,13 @@ export function AllmaChat({
                                     className={cn(
                                       "mb-1.5 block rounded-md border-l-[3px] px-2 py-1",
                                       isOwnUserMessage
-                                        ? "border-emerald-700/50 bg-black/[0.06] dark:border-emerald-300/50 dark:bg-white/10"
+                                        ? sosIsActive
+                                          ? "border-emerald-700/50 bg-black/[0.06] dark:border-emerald-300/50 dark:bg-white/10"
+                                          : "border-primary-foreground/40 bg-black/15"
                                         : "border-primary/50 bg-muted",
                                     )}
                                   >
-                                    <span className={cn("block text-[12px] font-bold leading-tight", sosNameColor(replyQuote.author))}>
+                                    <span className={cn("block text-[12px] font-bold leading-tight", sosIsActive ? sosNameColor(replyQuote.author) : isOwnUserMessage ? "text-primary-foreground" : sosNameColor(replyQuote.author))}>
                                       {replyQuote.author}
                                     </span>
                                     <span className="block truncate text-[12px] leading-snug opacity-75">{replyQuote.text}</span>
@@ -3302,7 +3402,13 @@ export function AllmaChat({
                               />
                             ) : null}
                             {text ? (
-                              <MessageResponse className="chat-checklist px-0 py-0 text-base leading-[1.6] text-foreground">
+                              <MessageResponse
+                                className={cn(
+                                  "chat-checklist chat-msg-body px-0 py-0 text-[15px] leading-[1.55] text-foreground",
+                                  busy && msgIndex === messages.length - 1 && "chat-msg-typing",
+                                )}
+                                isAnimating={busy && msgIndex === messages.length - 1}
+                              >
                                 {text}
                               </MessageResponse>
                             ) : null}
@@ -3320,17 +3426,29 @@ export function AllmaChat({
 
 
                       if (part.type === "file") {
+                        const fileUrl = typeof part.url === "string" ? part.url : "";
+                        if (!fileUrl) {
+                          return (
+                            <span
+                              key={index}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 bg-muted/60 px-2.5 py-1.5 text-[12px] text-muted-foreground"
+                            >
+                              <ImageIcon className="h-3.5 w-3.5" />
+                              {part.filename ?? "Photo attached"}
+                            </span>
+                          );
+                        }
                         return part.mediaType?.startsWith("image/") ? (
                           <img
                             key={index}
-                            src={part.url}
+                            src={fileUrl}
                             alt={part.filename ?? "Attached evidence"}
                             className="max-h-56 w-auto rounded-xl border border-border/60 object-cover"
                           />
                         ) : (
                           <FileAttachmentChip
                             key={index}
-                            url={part.url}
+                            url={fileUrl}
                             filename={part.filename ?? "Attachment"}
                           />
                         );
@@ -3418,21 +3536,29 @@ export function AllmaChat({
                 </motion.div>
                 );
               })}
-              {status === "submitted" ? (
-                <div className="flex max-w-full flex-row items-start gap-2.5">
+              {lastAssistantThinking ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex max-w-full flex-row items-start gap-2.5"
+                >
                   <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
-                  <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3 sm:max-w-[85%]">
+                  <div className="chat-msg-card chat-msg-card-ai min-w-0 max-w-[92%] rounded-[1.25rem] bg-[#F2F2F2] px-3.5 py-3 dark:bg-muted sm:max-w-[85%]">
                     {progressSteps ? (
                       <ChatProgressChecklist steps={progressSteps} />
                     ) : (
-                      <span className="flex h-7 items-center gap-1" role="status" aria-label="Allma is typing">
-                        {[0, 1, 2].map((d) => (
-                          <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-foreground/40" style={{ animationDelay: `${d * 0.15}s` }} />
-                        ))}
+                      <span className="flex min-h-7 items-center gap-2.5" role="status" aria-label="Allma is thinking">
+                        <span className="flex items-center gap-1">
+                          {[0, 1, 2].map((d) => (
+                            <span key={d} className="chat-typing-dot h-1.5 w-1.5 rounded-full bg-foreground/40" style={{ animationDelay: `${d * 0.15}s` }} />
+                          ))}
+                        </span>
+                        <span className="text-[13px] font-medium text-muted-foreground">Allma is thinking…</span>
                       </span>
                     )}
                   </div>
-                </div>
+                </motion.div>
               ) : null}
               {error && !sosIsActive ? (
                 <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">

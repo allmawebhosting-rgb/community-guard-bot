@@ -139,20 +139,20 @@ function UiPreviewPage() {
             <div className="mx-auto flex max-w-3xl flex-col gap-5 px-3 py-6">
               <div className="flex items-start gap-2.5">
                 <img src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 rounded-full border border-border/50 object-cover shadow-sm" />
-                <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3">
+                <div className="chat-msg-card chat-msg-card-ai min-w-0 max-w-[92%] rounded-[1.25rem] bg-[#F2F2F2] px-3.5 py-3">
                   <p className="text-[15px] leading-[1.55]">
                     Hello, I&apos;m Allma Safety AI. How can I help you today?
                   </p>
                 </div>
               </div>
               <div className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
-                <p className="rounded-[1.25rem] rounded-br-md bg-foreground px-3.5 py-2.5 text-[15px] leading-[1.55] text-background">
+                <p className="chat-msg-card chat-msg-card-user rounded-[1.25rem] bg-primary px-3.5 py-2.5 text-[15px] leading-[1.55] text-primary-foreground">
                   Hi Allma, my nose is bleeding.
                 </p>
               </div>
               <div className="flex items-start gap-2.5">
                 <img src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 rounded-full border border-border/50 object-cover shadow-sm" />
-                <div className="min-w-0 max-w-[92%] rounded-[1.35rem] bg-muted px-3.5 py-3">
+                <div className="chat-msg-card chat-msg-card-ai min-w-0 max-w-[92%] rounded-[1.25rem] bg-[#F2F2F2] px-3.5 py-3">
                   <p className="text-[15px] leading-[1.55]">
                     Sit upright and lean slightly forward. Pinch the soft part of your nose for 10 minutes.
                     Avoid tilting your head back.
@@ -168,7 +168,7 @@ function UiPreviewPage() {
           <ChatCanvas>
             <div className="mx-auto flex max-w-3xl flex-col gap-5 px-3 py-6">
               <div className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
-                <p className="rounded-[1.25rem] rounded-br-md bg-foreground px-3.5 py-2.5 text-[15px] leading-[1.55] text-background">
+                <p className="chat-msg-card chat-msg-card-user rounded-[1.25rem] bg-primary px-3.5 py-2.5 text-[15px] leading-[1.55] text-primary-foreground">
                   It keeps bleeding and I feel dizzy.
                 </p>
               </div>
