@@ -130,6 +130,38 @@ def _resolve_llm() -> tuple[Any, str, bool]:
     )
 
 
+async def _preflight_llm(llm: Any, provider_label: str) -> str | None:
+    """
+    Cheap connectivity check. Returns an error summary if the LLM path is dead,
+    so we fail before launching Playwright.
+    """
+    try:
+        # LangChain ChatOpenAI supports ainvoke with a simple HumanMessage.
+        from langchain_core.messages import HumanMessage
+
+        await asyncio.wait_for(
+            llm.ainvoke([HumanMessage(content="Reply with exactly: ok")]),
+            timeout=45,
+        )
+        return None
+    except Exception as exc:  # noqa: BLE001
+        err = str(exc)
+        lower = err.lower()
+        if "404" in err or "not found" in lower:
+            return (
+                f"LLM provider {provider_label} is unreachable (404). "
+                "Redeploy Allma so /api/browser-llm/v1/chat/completions exists, "
+                "or set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN on the VPS."
+            )
+        if "401" in err or "403" in err or "unauthorized" in lower:
+            return (
+                f"LLM provider {provider_label} rejected the API token. "
+                "Check VPS_AGENT_SECRET_TOKEN matches the Allma Worker secret, "
+                "or refresh CLOUDFLARE_API_TOKEN."
+            )
+        return f"LLM provider {provider_label} failed: {type(exc).__name__}: {_safe_summary(err, 240)}"
+
+
 def _build_task_prompt(
     *,
     hospital_name: str,
@@ -232,6 +264,18 @@ async def run_booking_task(
         }
 
     logger.info("booking_llm provider=%s use_vision=%s", provider_label, use_vision)
+
+    preflight_err = await _preflight_llm(llm, provider_label)
+    if preflight_err:
+        logger.error("booking_llm_preflight_failed provider=%s", provider_label)
+        return {
+            "status": "failed",
+            "hospital": hospital_name,
+            "summary": preflight_err,
+            "screenshot_url": None,
+            "success": False,
+            "payment_required": False,
+        }
 
     task = _build_task_prompt(
         hospital_name=hospital_name,
