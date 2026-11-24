@@ -147,11 +147,17 @@ async def _preflight_llm(llm: Any, provider_label: str) -> str | None:
     except Exception as exc:  # noqa: BLE001
         err = str(exc)
         lower = err.lower()
-        if "404" in err or "not found" in lower:
+        if (
+            "404" in err
+            or "406" in err
+            or "not found" in lower
+            or "only html requests" in lower
+        ):
             return (
-                f"LLM provider {provider_label} is unreachable (404). "
-                "Redeploy Allma so /api/browser-llm/v1/chat/completions exists, "
-                "or set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN on the VPS."
+                "Workers AI proxy is not live on Allma yet "
+                "(redeploy after the /api/browser-llm route landed). "
+                "Until then set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN "
+                "on the VPS agent .env — same Cloudflare account as Workers AI."
             )
         if "401" in err or "403" in err or "unauthorized" in lower:
             return (
