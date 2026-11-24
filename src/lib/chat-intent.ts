@@ -126,7 +126,7 @@ export function isSosSituationQuestion(text: string) {
 
 /**
  * Fallback SOS situation brief when the model cannot answer.
- * Sounds like a human coordinator — never a roster dump or system log.
+ * Calm human dispatcher tone — never a roster dump or system log.
  */
 export function sosSituationReply(input: {
   personName?: string | null;
@@ -136,6 +136,7 @@ export function sosSituationReply(input: {
   situationCue?: string | null;
   participants?: string[];
   askerName?: string | null;
+  personActiveInChat?: boolean | null;
 }) {
   const person = (input.personName || "The person in need").trim();
   const firstName = person.split(/\s+/)[0] || person;
@@ -148,28 +149,51 @@ export function sosSituationReply(input: {
     if (raw) return `a ${raw} emergency`;
     return "an active emergency";
   })();
-  const cue = (input.situationCue || "").trim();
+  const cue = (input.situationCue || "").trim().replace(/\s+/g, " ");
   const cueLine = cue
     ? cue.length > 140
       ? `${cue.slice(0, 137)}…`
       : cue
     : null;
-  const where = input.area
-    ? input.locationShared
-      ? input.area
-      : `${input.area} (pin still updating)`
-    : input.locationShared
-      ? "their shared live location"
-      : null;
 
-  const opener = asker
-    ? `${asker}, ${firstName} needs help with ${typeLabel}${where ? ` at ${where}` : ""}.`
-    : `${firstName} needs help with ${typeLabel}${where ? ` at ${where}` : ""}.`;
-  const reported = cueLine ? `They reported: "${cueLine}".` : null;
+  const locationLine = input.locationShared
+    ? input.area && !/^live gps/i.test(input.area)
+      ? `Their live GPS pin is on the map near ${input.area}.`
+      : "Their live GPS pin is updating on the map in this chat."
+    : input.area
+      ? `We're still waiting on a precise pin — last area noted was ${input.area}.`
+      : "We're still waiting for them to share a live location pin.";
+
+  const activityLine =
+    input.personActiveInChat === true
+      ? `${firstName} has been messaging in this chat, so stay with them here.`
+      : input.personActiveInChat === false
+        ? `I haven't seen a fresh message from ${firstName} just now — keep checking in with them here.`
+        : null;
+
+  // Soft rewrite for first-person cues: "my nose is bleeding" → "their nose is bleeding"
+  const reportedNatural = (() => {
+    if (!cueLine) {
+      return asker
+        ? `${asker}, ${firstName} needs help with ${typeLabel}.`
+        : `${firstName} needs help with ${typeLabel}.`;
+    }
+    let detail = cueLine;
+    detail = detail.replace(/\bI('m| am)\b/gi, "they're");
+    detail = detail.replace(/\bI'm\b/gi, "they're");
+    detail = detail.replace(/\bmy\b/gi, "their");
+    if (/^[a-z]/.test(detail)) {
+      detail = detail.charAt(0).toLowerCase() + detail.slice(1);
+    }
+    return asker
+      ? `${asker}, ${firstName} needs help with ${typeLabel} — they reported ${detail}.`
+      : `${firstName} needs help with ${typeLabel} — they reported ${detail}.`;
+  })();
+
   const next =
-    "Stay in this chat with us — tell me if you are with them, on the way, or need first-aid guidance. If anyone is in immediate danger, call Police 999 or Toll-free 112.";
+    "Are you close enough to reach them, or should someone call Police 999 / Toll-free 112 while I stay with them here? I can also walk you through first aid.";
 
-  return [opener, reported, next, "", "::suggest[First aid steps | What should I do? | Call 999]"]
+  return [reportedNatural, locationLine, activityLine, next, "", "::suggest[I'm close by | First aid steps | Call 999]"]
     .filter(Boolean)
     .join("\n");
 }
