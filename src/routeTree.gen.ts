@@ -69,6 +69,7 @@ import { Route as AuthenticatedPoliceSearchRouteImport } from './routes/_authent
 import { Route as AuthenticatedPoliceSettingsRouteImport } from './routes/_authenticated/police.settings'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
+import { Route as ApiBrowserLlmV1ChatCompletionsRouteImport } from './routes/api/browser-llm/v1/chat/completions'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -391,6 +392,12 @@ const AuthenticatedPoliceCasesCaseIdRoute =
     path: '/cases/$caseId',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const ApiBrowserLlmV1ChatCompletionsRoute =
+  ApiBrowserLlmV1ChatCompletionsRouteImport.update({
+    id: '/api/browser-llm/v1/chat/completions',
+    path: '/api/browser-llm/v1/chat/completions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -452,6 +459,7 @@ export interface FileRoutesByFullPath {
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
+  '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -511,6 +519,7 @@ export interface FileRoutesByTo {
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
+  '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -574,6 +583,7 @@ export interface FileRoutesById {
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
   '/_authenticated/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
+  '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -637,6 +647,7 @@ export interface FileRouteTypes {
     | '/chat/'
     | '/police/'
     | '/police/cases/$caseId'
+    | '/api/browser-llm/v1/chat/completions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -696,6 +707,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/police'
     | '/police/cases/$caseId'
+    | '/api/browser-llm/v1/chat/completions'
   id:
     | '__root__'
     | '/'
@@ -758,6 +770,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
     | '/_authenticated/police/cases/$caseId'
+    | '/api/browser-llm/v1/chat/completions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -792,6 +805,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  ApiBrowserLlmV1ChatCompletionsRoute: typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1216,6 +1230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceCasesCaseIdRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/api/browser-llm/v1/chat/completions': {
+      id: '/api/browser-llm/v1/chat/completions'
+      path: '/api/browser-llm/v1/chat/completions'
+      fullPath: '/api/browser-llm/v1/chat/completions'
+      preLoaderRoute: typeof ApiBrowserLlmV1ChatCompletionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1336,17 +1357,8 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  ApiBrowserLlmV1ChatCompletionsRoute: ApiBrowserLlmV1ChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

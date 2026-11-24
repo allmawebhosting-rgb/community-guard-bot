@@ -32,6 +32,104 @@ def _safe_summary(text: str, limit: int = 1200) -> str:
     return cleaned
 
 
+def _is_placeholder_secret(value: str) -> bool:
+    v = (value or "").strip()
+    if not v:
+        return True
+    lower = v.lower()
+    return (
+        "your_" in lower
+        or lower.endswith("_here")
+        or lower in {"changeme", "replace_me", "xxx", "todo"}
+    )
+
+
+def _cf_model_name() -> str:
+    return (
+        os.getenv("BROWSER_AGENT_MODEL")
+        or os.getenv("CLOUDFLARE_BROWSER_MODEL")
+        or "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    ).strip()
+
+
+def _resolve_llm() -> tuple[Any, str, bool]:
+    """
+    Build a LangChain chat model for browser-use.
+
+    Preference:
+      1) Allma Workers AI proxy (BROWSER_AGENT_LLM_BASE_URL) — reuses the
+         Cloudflare Workers AI binding already powering Allma chat
+      2) Cloudflare Workers AI REST API (CLOUDFLARE_ACCOUNT_ID + API token)
+      3) OpenAI (OPENAI_API_KEY)
+
+    Returns (llm, provider_label, use_vision).
+    """
+    from langchain_openai import ChatOpenAI
+
+    use_vision_cf = os.getenv("BROWSER_AGENT_USE_VISION", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    cf_model = _cf_model_name()
+    if not cf_model.startswith("@cf/") and not cf_model.startswith("@hf/"):
+        cf_model = f"@cf/{cf_model.lstrip('@')}"
+
+    # 1) Proxy through the Allma Cloudflare Worker (same AI binding as chat)
+    proxy_base = (os.getenv("BROWSER_AGENT_LLM_BASE_URL") or "").strip().rstrip("/")
+    proxy_key = (
+        os.getenv("BROWSER_AGENT_LLM_API_KEY")
+        or os.getenv("VPS_AGENT_SECRET_TOKEN")
+        or ""
+    ).strip()
+    if proxy_base and not _is_placeholder_secret(proxy_key):
+        llm = ChatOpenAI(
+            model=cf_model,
+            api_key=proxy_key,
+            base_url=proxy_base,
+            temperature=0,
+        )
+        return llm, f"allma-workers-ai-proxy:{cf_model}", use_vision_cf
+
+    # 2) Direct Cloudflare Workers AI OpenAI-compatible REST API
+    cf_account = (os.getenv("CLOUDFLARE_ACCOUNT_ID") or "").strip()
+    cf_token = (
+        os.getenv("CLOUDFLARE_API_TOKEN")
+        or os.getenv("CLOUDFLARE_API_KEY")
+        or ""
+    ).strip()
+    if cf_account and not _is_placeholder_secret(cf_token):
+        base_url = f"https://api.cloudflare.com/client/v4/accounts/{cf_account}/ai/v1"
+        llm = ChatOpenAI(
+            model=cf_model,
+            api_key=cf_token,
+            base_url=base_url,
+            temperature=0,
+        )
+        return llm, f"cloudflare-workers-ai:{cf_model}", use_vision_cf
+
+    # 3) OpenAI
+    openai_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not _is_placeholder_secret(openai_key):
+        model_name = (os.getenv("BROWSER_AGENT_MODEL") or "gpt-4o").strip() or "gpt-4o"
+        if model_name.startswith("@cf/") or model_name.startswith("@hf/"):
+            model_name = "gpt-4o"
+        use_vision = os.getenv("BROWSER_AGENT_USE_VISION", "true").lower() not in {
+            "0",
+            "false",
+            "no",
+        }
+        llm = ChatOpenAI(model=model_name, api_key=openai_key, temperature=0)
+        return llm, f"openai:{model_name}", use_vision
+
+    raise RuntimeError(
+        "No LLM configured. Use Cloudflare Workers AI: set "
+        "BROWSER_AGENT_LLM_BASE_URL=https://allmasafetyai.online/api/browser-llm/v1 "
+        "(after deploy) with VPS_AGENT_SECRET_TOKEN, OR set "
+        "CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN, OR a real OPENAI_API_KEY."
+    )
+
+
 def _build_task_prompt(
     *,
     hospital_name: str,
@@ -121,23 +219,20 @@ async def run_booking_task(
         has_credentials,
     )
 
-    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-    placeholder_key = (
-        not openai_key
-        or "your_openai" in openai_key.lower()
-        or openai_key.lower().endswith("_here")
-    )
-    if placeholder_key:
+    try:
+        llm, provider_label, use_vision = _resolve_llm()
+    except RuntimeError as exc:
         return {
             "status": "failed",
             "hospital": hospital_name,
-            "summary": "Browser agent needs a real OPENAI_API_KEY on the VPS before it can book appointments.",
+            "summary": str(exc),
             "screenshot_url": None,
             "success": False,
             "payment_required": False,
         }
 
-    model_name = os.getenv("BROWSER_AGENT_MODEL", "gpt-4o").strip() or "gpt-4o"
+    logger.info("booking_llm provider=%s use_vision=%s", provider_label, use_vision)
+
     task = _build_task_prompt(
         hospital_name=hospital_name,
         patient_name=patient_name,
@@ -156,7 +251,6 @@ async def run_booking_task(
 
     try:
         from browser_use import Agent, Browser, BrowserConfig
-        from langchain_openai import ChatOpenAI
     except ImportError as exc:
         logger.error("browser_use_import_failed err=%s", type(exc).__name__)
         return {
@@ -180,13 +274,12 @@ async def run_booking_task(
             ],
         )
         browser = Browser(config=browser_config)
-        llm = ChatOpenAI(model=model_name, api_key=openai_key, temperature=0)
 
         agent_kwargs: dict[str, Any] = {
             "task": task,
             "llm": llm,
             "browser": browser,
-            "use_vision": True,
+            "use_vision": use_vision,
             "max_actions_per_step": 6,
         }
         if sensitive_data:

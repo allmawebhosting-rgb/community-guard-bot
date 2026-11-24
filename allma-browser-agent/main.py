@@ -67,9 +67,49 @@ class BookAppointmentIn(BaseModel):
     reason_for_visit: str = Field(..., min_length=1)
 
 
+def _llm_provider_status() -> str:
+    """Report which LLM path is configured (never returns secret values)."""
+    proxy = (os.getenv("BROWSER_AGENT_LLM_BASE_URL") or "").strip()
+    proxy_key = (
+        os.getenv("BROWSER_AGENT_LLM_API_KEY")
+        or os.getenv("VPS_AGENT_SECRET_TOKEN")
+        or ""
+    ).strip()
+    cf_account = (os.getenv("CLOUDFLARE_ACCOUNT_ID") or "").strip()
+    cf_token = (
+        os.getenv("CLOUDFLARE_API_TOKEN") or os.getenv("CLOUDFLARE_API_KEY") or ""
+    ).strip()
+    openai_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+
+    def _placeholder(v: str) -> bool:
+        if not v:
+            return True
+        lower = v.lower()
+        return "your_" in lower or lower.endswith("_here") or lower in {
+            "changeme",
+            "replace_me",
+            "xxx",
+            "todo",
+        }
+
+    model = (
+        os.getenv("BROWSER_AGENT_MODEL")
+        or os.getenv("CLOUDFLARE_BROWSER_MODEL")
+        or "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    )
+    if proxy and not _placeholder(proxy_key):
+        return f"allma-workers-ai-proxy:{model}"
+    if cf_account and not _placeholder(cf_token):
+        return f"cloudflare-workers-ai:{model}"
+    if not _placeholder(openai_key):
+        model = os.getenv("BROWSER_AGENT_MODEL") or "gpt-4o"
+        return f"openai:{model}"
+    return "none"
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "online"}
+    return {"status": "online", "llm": _llm_provider_status()}
 
 
 @app.post("/api/vault/credentials", dependencies=[Depends(require_bearer)])
