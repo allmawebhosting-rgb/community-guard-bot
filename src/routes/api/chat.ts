@@ -249,7 +249,8 @@ export const Route = createFileRoute("/api/chat")({
 - Acknowledge when a responder joins or shares location/status, without repeating the same automated sentence.
 - Prefer clarifying questions that help responders act safely.
 - Continue first-aid / safety guidance for the owner when relevant.
-- Do not claim emergency services were contacted unless confirmed.`
+- Do not claim emergency services were contacted unless confirmed.
+- TOPIC LOCK (HARD): Stay on THIS emergency only. Read the latest human message and the room situation, then do exactly what they asked (first aid, who joined, location, what to do next, call instructions). Do NOT open crime-report wizards, lost & found, Case Timeline, greetings, onboarding menus, or unrelated tools unless someone clearly asks for that by name.`
           : "";
 
         // SOS AGENT: on an active SOS the AI coordinates the room, so give
@@ -257,6 +258,7 @@ export const Route = createFileRoute("/api/chat")({
         // straight from get_sos_room. Best-effort — the chat must never
         // fail because the agent layer could not load.
         let sosAgentBlock = "";
+        let sosEmergencyType: string | null = null;
         if (sharedSosActive && sosActivityId) {
           try {
             const { data: roomRows } = await (supabase as any).rpc("get_sos_room", {
@@ -264,6 +266,7 @@ export const Route = createFileRoute("/api/chat")({
             });
             const room = roomRows?.[0];
             if (room) {
+              sosEmergencyType = typeof room.emergency_type === "string" ? room.emergency_type : null;
               const participants = Array.isArray(room.participants) ? room.participants : [];
               const people = participants.length
                 ? participants
@@ -280,17 +283,27 @@ export const Route = createFileRoute("/api/chat")({
                     )
                     .join("; ")
                 : "none yet — the Safety Network is still being called";
+              const typeFocus =
+                sosEmergencyType === "medical"
+                  ? "Focus on medical first aid, bleeding control, breathing, and getting an ambulance if needed."
+                  : sosEmergencyType === "crime"
+                    ? "Focus on personal safety, escaping danger, describing the threat, and calling police 999/112."
+                    : sosEmergencyType === "fire"
+                      ? "Focus on getting people out safely, smoke/fire steps, and calling fire services / 999/112."
+                      : "Focus on the danger described in the chat and the next safest action.";
               sosAgentBlock = `\n\nSOS AGENT — LIVE ROOM STATE (facts from the emergency system; never invent people, places, or statuses):
 - Person in need: ${room.sender_name}.
 - Emergency type: ${room.emergency_type}. Severity: ${room.severity}. Area: ${room.area}. Exact location shared: ${room.location_shared ? "yes" : "no"}.
 - SOS started at ${room.created_at}.
 - In this chat now (${participants.length}): ${people}.
 You are the coordinator of this emergency room, not just a chatbot:
-- Answer questions about this emergency (who has joined, where it is, what is happening) from the room state above and the conversation.
+- Read the latest human message carefully. Answer THAT ask first (situation update, first aid, instructions for responders, location, who has joined).
+- ${typeFocus}
 - When a responder asks what to do, give them one clear job (for example: call 999/112, go to the person in need, share your location, or stay in the chat and keep the person calm).
 - Keep every reply short, calm, and in plain language. In a fast-moving emergency, tell people to call 999 or 112.
 - Never claim anyone was dispatched, called, or is on the way unless the room state or the conversation confirms it.
 - Everyone listed above as "in this chat" is present and can read messages, even when they are not on a voice call — never describe them as disconnected or absent.
+- Never change the subject to reporting, lost & found, Case Timeline, or product onboarding while this SOS is active.
 - The room state above is given to you directly in this prompt. There is no tool that fetches it, so never try to call any tool for it, and never print tool names, function names, or system labels. Speak only in plain words to the people in the room.`;
             }
           } catch {
@@ -574,13 +587,25 @@ You are coordinating this emergency from the start, not just answering questions
           );
         const emergencyFromIntake = hardFlowBlocksEmergency ? null : classifyIncident(intakeText);
         const emergencyFromThread =
-          softFlowActive && !emergencyFromIntake && !directService && shortSoftAnswer
+          ((softFlowActive && !emergencyFromIntake && !directService && shortSoftAnswer) ||
+            (sharedSosActive && !emergencyFromIntake))
             ? uiMessages
                 .filter((m) => m.role === "user")
                 .map((m) => classifyIncident(textOf(m)))
                 .find(Boolean) ?? null
             : null;
-        const emergencyIncident = emergencyFromIntake ?? emergencyFromThread;
+        const emergencyFromSosType =
+          sharedSosActive && !emergencyFromIntake && !emergencyFromThread && sosEmergencyType
+            ? sosEmergencyType === "fire"
+              ? classifyIncident("there is a fire smoke burning")
+              : sosEmergencyType === "crime"
+                ? classifyIncident("someone attacked me crime assault danger")
+                : sosEmergencyType === "medical"
+                  ? classifyIncident("I am bleeding injured medical emergency first aid")
+                  : null
+            : null;
+        const emergencyIncident =
+          emergencyFromIntake ?? emergencyFromThread ?? emergencyFromSosType;
         const emergencyKind = emergencyIncident
           ? emergencyIncident.marker === "fire"
             ? "fire"
@@ -588,7 +613,11 @@ You are coordinating this emergency from the start, not just answering questions
               ? "violence"
               : "medical"
           : null;
-        const matchedIntent = emergencyKind ? undefined : INTENTS.find((i) => i.matches.test(intakeText));
+        // During a live SOS, never divert into report / lost-found / onboarding intents.
+        const matchedIntent =
+          sharedSosActive || emergencyKind
+            ? undefined
+            : INTENTS.find((i) => i.matches.test(intakeText));
         const isReporting = isReportingIntent({
           flowLabel: flowState.flowLabel,
           matchedFlow: matchedIntent?.flow,
@@ -674,10 +703,11 @@ You are coordinating this emergency from the start, not just answering questions
           .filter((message) => message.role === "user")
           .slice(-4)
           .map((message) => textOf(message));
-        const topicSticky =
-          flowState.flowLabel === "Reporting" ||
-          flowState.flowLabel === "Missing person" ||
-          flowState.flowLabel === "Lost & found"
+        const topicSticky = sharedSosActive
+          ? `\n\nTOPIC LOCK: SOS is active (${sosEmergencyType || "emergency"}). Stay on this emergency. Read the latest message and the earlier situation in this thread, then respond to what was asked. Do not open Case Timeline, crime-report wizards, lost & found, greetings, or unrelated cards.`
+          : flowState.flowLabel === "Reporting" ||
+              flowState.flowLabel === "Missing person" ||
+              flowState.flowLabel === "Lost & found"
             ? `\n\nTOPIC LOCK: Stay on the "${flowState.flowLabel}" process until the user clearly changes subject. Ask the next missing detail. Do not open Case Timeline, first-aid cards, or unrelated tools.`
             : priorUserTexts.some((text) =>
                   /\b(first[- ]?aid|bleed|blood|cut|burn|unconscious|wound|injury|hurt)\b/i.test(text),
@@ -705,10 +735,16 @@ You are coordinating this emergency from the start, not just answering questions
             intakeText,
           );
         const promptBlocks = [ALLMA_CORE_PROMPT];
-        if (isFirstTurn && !intent && !emergencyIncident && !directService) {
+        if (
+          isFirstTurn &&
+          !sharedSosActive &&
+          !intent &&
+          !emergencyIncident &&
+          !directService
+        ) {
           promptBlocks.push(ALLMA_ONBOARDING_BLOCK);
         }
-        if (hasReportContext) promptBlocks.push(ALLMA_REPORTING_BLOCK);
+        if (hasReportContext && !sharedSosActive) promptBlocks.push(ALLMA_REPORTING_BLOCK);
         // Situation playbooks: loaded whenever a real safety situation is live.
         const needsProcedures =
           (Boolean(activeFlow) && activeFlow !== "Find help") ||

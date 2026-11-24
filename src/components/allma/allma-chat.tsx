@@ -129,6 +129,8 @@ import {
 import { buildSosParticipantStrip, participantConnectionLabel } from "@/lib/sos-participants";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { peekActiveChatThread, rememberActiveChatThread } from "@/lib/active-chat-thread";
+import { consumeSosChatStart, peekSosChatStart } from "@/lib/sos-chat-request";
+import { matchIncident } from "@/lib/allma-emergency-playbook";
 import {
   stashPendingChatMessages,
   takePendingChatMessages,
@@ -1392,12 +1394,17 @@ export function AllmaChat({
   initialPrompt,
   fixedComposer = false,
   className,
+  requestSosActivation = false,
+  onSosActivationConsumed,
 }: {
   threadId: string | null;
   initialMessages?: UIMessage[];
   initialPrompt?: string;
   fixedComposer?: boolean;
   className?: string;
+  /** Header SOS button: start SOS in this chat and invite Safety Network here. */
+  requestSosActivation?: boolean;
+  onSosActivationConsumed?: () => void;
 }) {
   const navigate = useNavigate();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1408,6 +1415,8 @@ export function AllmaChat({
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
   const [composerRecipient, setComposerRecipient] = useState<ChatRecipient>("allma");
+  const [headerSosRequest, setHeaderSosRequest] = useState(false);
+  const headerSosConsumedRef = useRef(false);
   const [activeSosActivity, setActiveSosActivity] = useState<{ id: string; active: boolean } | null>(null);
   const [voiceNoteUrls, setVoiceNoteUrls] = useState<Record<string, string>>({});
   const [voiceNoteUrlErrors, setVoiceNoteUrlErrors] = useState<Set<string>>(() => new Set());
@@ -1513,6 +1522,16 @@ export function AllmaChat({
     (!lastAssistant ||
       lastAssistant.role !== "assistant" ||
       !assistantHasVisibleText(lastAssistant.parts as Array<{ type: string; text?: string }>));
+
+  // Header SOS button lands here with ?sos=1 (or a fresh chat-start flag).
+  useEffect(() => {
+    if (headerSosConsumedRef.current) return;
+    if (!requestSosActivation && !peekSosChatStart()) return;
+    headerSosConsumedRef.current = true;
+    consumeSosChatStart();
+    setHeaderSosRequest(true);
+    onSosActivationConsumed?.();
+  }, [onSosActivationConsumed, requestSosActivation]);
 
   // After a failed media/chat turn, drop oversized inlines and clear the upload
   // spinner so the composer and AI stay usable without a page reload.
@@ -2913,9 +2932,61 @@ export function AllmaChat({
   const composerRecordingSeconds = sosIsActive ? sosVoiceNoteSeconds : seconds;
   const composerMicBusy = sosIsActive ? sosVoiceNoteUploading : transcribing;
 
+  const headerSosType = useMemo(() => {
+    const recentUserText = messages
+      .filter((message) => message.role === "user")
+      .slice(-6)
+      .map((message) =>
+        message.parts
+          .filter((part) => part.type === "text")
+          .map((part) => ("text" in part ? part.text : ""))
+          .join(" "),
+      )
+      .join("\n");
+    const incident = matchIncident(recentUserText);
+    if (incident?.marker === "crime" || incident?.marker === "fire" || incident?.marker === "medical") {
+      return incident.marker;
+    }
+    return "other" as const;
+  }, [messages]);
+
+  // Only mount the header activator while a header SOS is in flight. Once the
+  // room is live, the in-message / side-panel SOS card owns the UI.
+  const showHeaderSosActivator = headerSosRequest && !sosIsActive;
+
   return (
     <SosActivityContext.Provider value={sosActivityContextValue}>
     <div className={cn("chat-canvas relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
+      {/* Header SOS button activates here — same chat, Safety Network joins this room. */}
+      {showHeaderSosActivator ? (
+        <div className="z-20 w-full shrink-0 border-b border-destructive/20 bg-background/95 px-3 py-2 sm:px-4">
+          <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
+            <InChatSos
+              type={headerSosType}
+              lines={
+                EMERGENCY_BLOCK_LINES[
+                  headerSosType === "crime" || headerSosType === "fire" ? headerSosType : "medical"
+                ]
+              }
+              threadId={threadId}
+              existingActivityId={sosActivityId}
+              existingActive={sosIsActive}
+              sharedLocation={sosActivityContextValue.sharedLocation}
+              canManage={canManageSos}
+              ownerName={sosActivityContextValue.ownerName}
+              requestActivation
+              immediateActivation
+              hideIdle={false}
+              onActivityStarted={(activityId, card) => {
+                setHeaderSosRequest(false);
+                handleSosActivityStarted(activityId, card);
+              }}
+              onActivityEnded={handleSosActivityEnded}
+              onEnsureThread={ensureSosThread}
+            />
+          </div>
+        </div>
+      ) : null}
       {/* Desktop-only pinned side panel for an active SOS: fills the empty
           space beside the chat with the emergency facts and the Safety
           Network calling status. Read-only — the live SOS card (with the

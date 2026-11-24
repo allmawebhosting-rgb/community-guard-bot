@@ -8,8 +8,18 @@ import { createThread, threadsQueryOptions } from "@/lib/threads";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/chat/")({
-  validateSearch: (search: Record<string, unknown>): { q?: string } =>
-    typeof search.q === "string" ? { q: search.q } : {},
+  validateSearch: (search: Record<string, unknown>): { q?: string; sos?: true } => {
+    const q = typeof search.q === "string" ? search.q : undefined;
+    const sos =
+      search.sos === true ||
+      search.sos === "true" ||
+      search.sos === 1 ||
+      search.sos === "1";
+    return {
+      ...(q ? { q } : {}),
+      ...(sos ? { sos: true as const } : {}),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Allma Safety AI — Chat" },
@@ -31,7 +41,7 @@ export const Route = createFileRoute("/_authenticated/chat/")({
 });
 
 function ChatHome() {
-  const { q } = Route.useSearch();
+  const { q, sos } = Route.useSearch();
   const navigate = useNavigate();
   useRequireOnboarding();
   const queryClient = useQueryClient();
@@ -45,23 +55,35 @@ function ChatHome() {
     void (async () => {
       try {
         const existing = await queryClient.fetchQuery(threadsQueryOptions());
-        const thread = q ? await createThread() : (existing[0] ?? (await createThread()));
+        const thread =
+          q || sos ? await createThread(sos ? "Emergency SOS" : undefined) : (existing[0] ?? (await createThread()));
         await queryClient.invalidateQueries({ queryKey: ["threads"] });
         navigate({
           to: "/chat/$threadId",
           params: { threadId: thread.id },
-          search: q ? { q } : {},
+          search: {
+            ...(q ? { q } : {}),
+            ...(sos ? { sos: true as const } : {}),
+          },
           replace: true,
         });
       } catch {
         started.current = false;
       }
     })();
-  }, [isAuthenticated, navigate, queryClient, q]);
+  }, [isAuthenticated, navigate, queryClient, q, sos]);
 
   return (
     <AppShell>
-      <AllmaChat key={q ?? "guest"} threadId={null} initialPrompt={q} />
+      {/* When sos=1, wait for the redirect into /chat/$threadId?sos=1 so SOS
+          starts once in that conversation (avoid a guest-thread double start). */}
+      {sos ? (
+        <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
+          Opening your emergency chat…
+        </div>
+      ) : (
+        <AllmaChat key={q ?? "guest"} threadId={null} initialPrompt={q} />
+      )}
     </AppShell>
   );
 }

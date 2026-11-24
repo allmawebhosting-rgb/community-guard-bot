@@ -1,29 +1,47 @@
 import { motion } from "motion/react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import { markSosIntent } from "@/lib/sos-intent";
+import { markSosChatStart } from "@/lib/sos-chat-request";
 import { peekActiveChatThread } from "@/lib/active-chat-thread";
+import { useAuth } from "@/hooks/useAuth";
 
+/**
+ * Top / floating SOS control. Starts SOS inside the current (or last) chat so
+ * the Safety Network joins that same conversation — not a separate SOS page.
+ */
 export function SosButton({ inline = false }: { inline?: boolean }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { isAuthenticated } = useAuth();
 
   return (
     <motion.button
       type="button"
       aria-label="Emergency SOS"
       onClick={() => {
+        if (!isAuthenticated) {
+          toast.error("Sign in so Allma can alert your Safety Network.");
+          void navigate({ to: "/auth" });
+          return;
+        }
         markSosIntent();
+        markSosChatStart();
         const chatMatch = pathname.match(/^\/chat\/([^/?#]+)/);
         const threadId = chatMatch?.[1] || peekActiveChatThread();
         if (threadId) {
           void navigate({
-            to: "/sos",
-            search: { instant: true, threadId },
+            to: "/chat/$threadId",
+            params: { threadId },
+            search: { sos: true },
+            replace: Boolean(chatMatch?.[1]),
           });
           return;
         }
-        void navigate({ to: "/sos", search: { instant: true } });
+        // No open thread yet — open chat home with sos=1 so it creates/uses one
+        // and activates in that conversation.
+        void navigate({ to: "/chat", search: { sos: true } });
       }}
       whileTap={{ scale: 0.92 }}
       className={

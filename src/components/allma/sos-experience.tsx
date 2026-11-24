@@ -1150,20 +1150,35 @@ export function SOSExperience({
   // Wait for the session before auto-activating: activating first meant the
   // emergency session row was never written, so the dialer had no session id
   // and never placed a call.
+  // Prefer sending people into the chat SOS path when a thread is known — the
+  // header button now starts in-chat; this keeps /sos?instant working once.
+  const instantArmedRef = useRef(false);
   useEffect(() => {
-    if (!instant || authLoading || activated.current) return;
+    if (authLoading || activated.current || instantArmedRef.current) return;
+    const hasIntent = consumeSosIntent();
+    if (!instant && !hasIntent) return;
+    instantArmedRef.current = true;
+    const rememberedThread = conversationThreadId || peekActiveChatThread();
+    if (rememberedThread) {
+      void navigate({
+        to: "/chat/$threadId",
+        params: { threadId: rememberedThread },
+        search: { sos: true },
+        replace: true,
+      });
+      return;
+    }
     // Strip ?instant so reloads/back never restart SOS.
     void navigate({
       to: "/sos",
       search: {
         ...(smartCheckId ? { check: smartCheckId } : {}),
-        ...(conversationThreadId ? { threadId: conversationThreadId } : {}),
       },
       replace: true,
     });
-    if (consumeSosIntent()) setPhase("countdown");
+    setPhase("countdown");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instant, authLoading]);
+  }, [instant, authLoading, conversationThreadId]);
 
   // Safety net: if SOS was activated before the session hydrated, record the
   // emergency as soon as the user is known so responder calling can start.

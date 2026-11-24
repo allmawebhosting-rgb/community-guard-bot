@@ -90,6 +90,7 @@ export function InChatSos({
   canManage = true,
   ownerName,
   requestActivation = false,
+  immediateActivation = false,
   hideIdle = false,
   offerMode = false,
   onActivityStarted,
@@ -106,6 +107,8 @@ export function InChatSos({
   /** Name of the person who needs help — shown to responders on the map card. */
   ownerName?: string | null;
   requestActivation?: boolean;
+  /** Skip the 3s cancel window (header SOS already confirmed the intent). */
+  immediateActivation?: boolean;
   hideIdle?: boolean;
   /** Softer CTA: "Would you like to alert your Safety Network?" + Activate SOS */
   offerMode?: boolean;
@@ -353,26 +356,35 @@ export function InChatSos({
     toast.error("Could not create an emergency chat. Call 999 or 112 now.");
   }
 
-  function startCountdown() {
+  function startCountdown(options?: { immediate?: boolean }) {
     if (!user) { toast.error("Sign in so Allma can alert your safety network."); return; }
     if (activatingRef.current || phase === "activating" || phase === "countdown") return;
     threadCreationErrorShownRef.current = false;
-    setLeft(COUNTDOWN);
     setNetworkNotified(null);
     setActivationError(null);
     setActivationStage("idle");
     setMapVisible(true);
-    setPhase("countdown");
+    // Pre-create the thread while the countdown runs so activation rarely fails
+    // on the first tap (missing thread was a common double-press cause).
     if (!effectiveThreadIdRef.current) {
       void ensureEmergencyThread().catch(() => {
         if (timer.current) {
           window.clearInterval(timer.current);
           timer.current = null;
-          setPhase("idle");
         }
         showThreadCreationError();
+        setPhase("failed");
+        setActivationError("Could not create an emergency chat. Call 999 or 112 now.");
       });
     }
+    if (options?.immediate || immediateActivation) {
+      setLeft(0);
+      setPhase("activating");
+      void activate();
+      return;
+    }
+    setLeft(COUNTDOWN);
+    setPhase("countdown");
     timer.current = window.setInterval(() => {
       setLeft((s) => {
         if (s <= 1) {
@@ -393,16 +405,23 @@ export function InChatSos({
     setPhase("idle");
   }
 
+  const headerStartAttemptsRef = useRef(0);
   useEffect(() => {
-    if (!requestActivation || !canManage || existingActive) return;
-    if (phase === "idle") {
-      startCountdown();
-    } else if (phase === "ended") {
-      setActivityId(null);
-      setPhase("idle");
-      startCountdown();
+    if (!requestActivation) {
+      headerStartAttemptsRef.current = 0;
+      return;
     }
-  }, [canManage, existingActive, phase, requestActivation]);
+    if (!canManage || existingActive) return;
+    if (activatingRef.current || phase === "countdown" || phase === "activating" || phase === "active") {
+      return;
+    }
+    if (headerStartAttemptsRef.current >= 2) return;
+    headerStartAttemptsRef.current += 1;
+    if (phase === "ended") setActivityId(null);
+    startCountdown({ immediate: immediateActivation || requestActivation });
+    // Fire on the header request edge — not on every phase tick (that caused double-start races).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManage, existingActive, immediateActivation, requestActivation]);
 
   async function activate() {
     if (!user || activatingRef.current) return;
@@ -469,14 +488,26 @@ export function InChatSos({
         error instanceof Error && error.message
           ? error.message
           : "SOS could not be started. Call 999 or 112 now.";
+      // One quiet retry — first attempts often race thread creation / session.
+      if (headerStartAttemptsRef.current < 2) {
+        headerStartAttemptsRef.current += 1;
+        activatingRef.current = false;
+        setSaving(false);
+        window.setTimeout(() => {
+          void activate();
+        }, 450);
+        return;
+      }
       setActivationError(message);
       setActivationStage("failed");
       setPhase("failed");
       toast.error(message);
-    } finally {
       activatingRef.current = false;
       setSaving(false);
+      return;
     }
+    activatingRef.current = false;
+    setSaving(false);
   }
 
   async function leaveEmergency() {

@@ -7,9 +7,20 @@ import { AppShell } from "@/components/allma/app-shell";
 import { AllmaChat } from "@/components/allma/allma-chat";
 import { listConversationMessages } from "@/lib/sos-rooms";
 
+
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
-  validateSearch: (search: Record<string, unknown>): { q?: string } =>
-    typeof search.q === "string" ? { q: search.q } : {},
+  validateSearch: (search: Record<string, unknown>): { q?: string; sos?: true } => {
+    const q = typeof search.q === "string" ? search.q : undefined;
+    const sos =
+      search.sos === true ||
+      search.sos === "true" ||
+      search.sos === 1 ||
+      search.sos === "1";
+    return {
+      ...(q ? { q } : {}),
+      ...(sos ? { sos: true as const } : {}),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Conversation — Allma Safety AI" },
@@ -31,7 +42,8 @@ export const Route = createFileRoute("/_authenticated/chat/$threadId")({
 
 function ChatThreadPage() {
   const { threadId } = useParams({ from: "/_authenticated/chat/$threadId" });
-  const { q } = Route.useSearch();
+  const { q, sos } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["thread-messages", threadId],
@@ -70,6 +82,15 @@ function ChatThreadPage() {
           threadId={threadId}
           initialMessages={initialMessages}
           initialPrompt={q}
+          requestSosActivation={Boolean(sos)}
+          onSosActivationConsumed={() => {
+            void navigate({
+              to: "/chat/$threadId",
+              params: { threadId },
+              search: q ? { q } : {},
+              replace: true,
+            });
+          }}
         />
       )}
     </AppShell>
