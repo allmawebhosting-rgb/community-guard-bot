@@ -42,6 +42,9 @@ export function shouldShowToolOutput(
   if (name === "recommend_actions") {
     return Array.isArray(output?.actions) && output.actions.length > 0;
   }
+  if (name === "book_hospital_appointment") {
+    return Boolean(output && (output.summary || output.hospital || output.status));
+  }
   if (name === "case_timeline") {
     return Boolean(
       output?.ok &&

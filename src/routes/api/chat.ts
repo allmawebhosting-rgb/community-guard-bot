@@ -53,6 +53,10 @@ import {
   type SharedHistoryRow,
 } from "@/lib/shared-chat-history";
 import { publishConversationMessage } from "@/lib/publish-conversation-message";
+import {
+  bookHospitalAppointment,
+  isBrowserAgentConfigured,
+} from "@/lib/vps-browser-agent";
 
 
 import {
@@ -890,9 +894,14 @@ You are coordinating this emergency from the start, not just answering questions
         // list_alerts is opt-in only when the user asks about alerts — otherwise
         // the model was dumping empty "NEARBY HELP · No active alerts" cards.
         const wantsAlerts = /\balerts?\b|community (news|warning)|safety alert/i.test(intakeText);
+        const wantsBooking =
+          isBrowserAgentConfigured() &&
+          /\b(book|booking|appoint(?:ment)?|reserve|schedule)\b/i.test(intakeText) &&
+          /\b(hospital|clinic|doctor|medical)\b/i.test(intakeText);
         const LIGHT_TOOL_NAMES = new Set([
           "find_facilities",
           ...(wantsAlerts ? (["list_alerts"] as const) : []),
+          ...(wantsBooking ? (["book_hospital_appointment"] as const) : []),
         ]);
         const filingAllowed = canUseFilingTools({
           flowLabel: flowState.flowLabel,
@@ -924,6 +933,9 @@ You are coordinating this emergency from the start, not just answering questions
           // Live SOS situation turns: keep the model off clinic search unless asked.
           if (sharedSosActive && !requireNearbyHelp) {
             entries = entries.filter(([name]) => name !== "find_facilities" && name !== "list_alerts");
+          }
+          if (!isBrowserAgentConfigured() || (!wantsBooking && !fullMode)) {
+            entries = entries.filter(([name]) => name !== "book_hospital_appointment");
           }
           return Object.fromEntries(entries) as T;
         };
@@ -1208,6 +1220,38 @@ You are coordinating this emergency from the start, not just answering questions
 
 
                 return { ok: true, ...data };
+              },
+            }),
+            book_hospital_appointment: tool({
+              description:
+                "Dispatches the autonomous VPS browser agent to search Google, log in with stored credentials if required, fill the appointment form, and reserve a medical appointment. Use when the user asks to book / schedule / reserve a hospital or clinic appointment. Never invent a confirmation — only report what the agent returns. Never ask the user to paste portal passwords into chat.",
+              inputSchema: z.object({
+                hospital_name: z.string().describe("Name of the clinic or hospital"),
+                preferred_time: z.string().describe("Preferred appointment time slot"),
+                reason_for_visit: z.string().describe("Medical reason or symptoms"),
+                patient_name: z.string().optional().describe("Patient full name if known"),
+                phone_number: z.string().optional().describe("Patient phone if known"),
+              }),
+              execute: async ({
+                hospital_name,
+                preferred_time,
+                reason_for_visit,
+                patient_name,
+                phone_number,
+              }) => {
+                reportProgress("finding");
+                const result = await bookHospitalAppointment({
+                  hospital_name,
+                  preferred_time,
+                  reason_for_visit,
+                  patient_name,
+                  phone_number,
+                });
+                reportProgress("writing");
+                return {
+                  ok: Boolean(result.success),
+                  ...result,
+                };
               },
             }),
             find_facilities: tool({

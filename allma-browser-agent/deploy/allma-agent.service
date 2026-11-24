@@ -1,0 +1,18 @@
+[Unit]
+Description=Allma Safety AI browser booking agent
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/allma-browser-agent
+EnvironmentFile=/opt/allma-browser-agent/.env
+ExecStart=/opt/allma-browser-agent/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+# Do not leak env into journal beyond what uvicorn logs.
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

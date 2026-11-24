@@ -1,4 +1,5 @@
 import { InChatSos } from "@/components/allma/in-chat-sos";
+import { BookingResultCard } from "@/components/allma/booking-result-card";
 import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
 import {
   SosResponderJoinedToast,
@@ -919,6 +920,11 @@ function ToolCard({
   const meta: Record<string, { icon: typeof FileText; label: string; busy: string }> = {
     create_report: { icon: FileText, label: "Incident report", busy: "Filing your report…" },
     find_facilities: { icon: MapPin, label: "Nearby help", busy: "Searching the directory…" },
+    book_hospital_appointment: {
+      icon: MapPin,
+      label: "Hospital booking",
+      busy: "Booking appointment via browser agent…",
+    },
     list_alerts: { icon: Megaphone, label: "Community alerts", busy: "Checking alerts…" },
     ask_structured_question: { icon: HelpCircle, label: "Question", busy: "Preparing question…" },
     request_media: { icon: Upload, label: "Upload evidence", busy: "Preparing upload…" },
@@ -965,6 +971,13 @@ function ToolCard({
       name === "create_report"
     ) {
       return null;
+    }
+    if (name === "book_hospital_appointment") {
+      return (
+        <div className="chat-card p-3">
+          <Shimmer className="text-sm">Booking appointment via browser agent…</Shimmer>
+        </div>
+      );
     }
     return (
       <div className="chat-card p-3">
@@ -1201,6 +1214,24 @@ function ToolCard({
           })}
         </div>
       </div>
+    );
+  }
+
+  if (name === "book_hospital_appointment") {
+    return (
+      <BookingResultCard
+        hospital={String(output?.hospital ?? "Hospital")}
+        summary={String(output?.summary ?? "No booking summary returned.")}
+        success={Boolean(output?.success ?? output?.ok)}
+        status={output?.status ? String(output.status) : undefined}
+        screenshotUrl={
+          typeof output?.screenshot_url === "string" ? output.screenshot_url : null
+        }
+        preferredTime={
+          typeof output?.preferred_time === "string" ? output.preferred_time : null
+        }
+        paymentRequired={Boolean(output?.payment_required)}
+      />
     );
   }
 

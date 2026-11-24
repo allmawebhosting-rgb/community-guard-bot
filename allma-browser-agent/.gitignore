@@ -1,0 +1,6 @@
+storage/
+venv/
+.env
+vault_store.enc
+__pycache__/
+*.pyc
