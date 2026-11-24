@@ -270,6 +270,32 @@ it("uses a compact dock bar so the chat stays usable during SOS", async () => {
   expect(screen.getByRole("button", { name: /End SOS/ })).toBeTruthy();
 });
 
+it("keeps End SOS clickable when the details panel is closed", async () => {
+  const onActivityEnded = vi.fn();
+  render(
+    <InChatSos
+      type="medical"
+      lines={[{ number: "999" }, { number: "112" }]}
+      threadId="thread-1"
+      detailsVisible={false}
+      onActivityEnded={onActivityEnded}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Activate SOS" }));
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+  vi.useRealTimers();
+
+  expect(await screen.findByRole("button", { name: /^End$/ })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Call 999 Police" }).getAttribute("href")).toBe("tel:999");
+  expect(screen.queryByTestId("live-map")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /^End$/ }));
+  expect(await screen.findByText(/SOS ended/)).toBeTruthy();
+  expect(onActivityEnded).toHaveBeenCalled();
+});
+
 it("keeps SOS on the same safety conversation instead of a blank emergency page", async () => {
   render(<InChatSos type="medical" lines={[{ number: "112" }]} />);
 

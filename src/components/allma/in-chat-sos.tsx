@@ -702,9 +702,42 @@ export function InChatSos({
     );
   }
 
+  // Panel closed: keep End / Leave / call links clickable in the chat-heads column.
   if (phase === "active" && !detailsVisible && !compact) {
     return (
-      <div ref={cardRef} className="hidden" aria-hidden>
+      <div ref={cardRef} className="flex w-full flex-col items-stretch gap-1">
+        {lines.slice(0, 2).map((h) => (
+          <a
+            key={h.number}
+            href={`tel:${h.number}`}
+            aria-label={`Call ${h.number} ${lineLabel(h.number)}`}
+            className="inline-flex min-h-8 items-center justify-center gap-0.5 rounded-full border border-destructive/30 bg-background px-1 text-[10px] font-bold text-destructive shadow-sm"
+          >
+            <Phone className="h-3 w-3 shrink-0" />
+            {h.number}
+          </a>
+        ))}
+        {canManage ? (
+          <button
+            type="button"
+            onClick={() => void endSos()}
+            disabled={saving || ending}
+            className="inline-flex min-h-8 items-center justify-center gap-0.5 rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground shadow-sm disabled:opacity-50"
+          >
+            {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+            {ending ? "…" : "End"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void leaveEmergency()}
+            disabled={leaving}
+            className="inline-flex min-h-8 items-center justify-center gap-0.5 rounded-full border border-border bg-background px-1 text-[10px] font-bold shadow-sm disabled:opacity-50"
+          >
+            {leaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <LogOut className="h-3 w-3" />}
+            {leaving ? "…" : confirmLeave ? "Sure?" : "Leave"}
+          </button>
+        )}
         {canManage ? (
           <EmergencyCallEscalation
             activityId={activityId}

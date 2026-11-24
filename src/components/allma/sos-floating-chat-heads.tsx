@@ -19,8 +19,8 @@ const SOS_TAP_HINTS = [
 
 /**
  * Premium floating responder chat heads along the right edge of the emergency
- * conversation. Tap a head to open SOS details (map, calls, leave) without
- * crowding the message list.
+ * conversation. Tap the SOS head for location/details; End / Leave stay visible
+ * under the head so the emergency can always be stopped.
  */
 export function SosFloatingChatHeads({
   participants,
@@ -94,6 +94,11 @@ export function SosFloatingChatHeads({
   const draggedRef = useRef(false);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    // Never steal clicks from End / Leave / call / SOS controls.
+    if ((event.target as HTMLElement | null)?.closest?.("button, a, input, textarea")) {
+      dragRef.current = null;
+      return;
+    }
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
@@ -181,13 +186,18 @@ export function SosFloatingChatHeads({
     });
   };
 
+  const openSosDetails = () => {
+    setDetailsOpen(true);
+    setHintDismissed(true);
+  };
+
   return (
     <div
       role="group"
       aria-label="Conversation participants"
       style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
       className={cn(
-        "pointer-events-none absolute inset-y-0 right-0 z-20 flex w-[4.75rem] items-center justify-center sm:w-[5.5rem]",
+        "pointer-events-none absolute inset-y-0 right-0 z-50 flex w-[4.75rem] items-center justify-center sm:w-[5.5rem]",
         className,
       )}
     >
@@ -197,14 +207,15 @@ export function SosFloatingChatHeads({
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
         onClickCapture={handleClickCapture}
-        className="pointer-events-auto flex max-h-[52vh] cursor-grab touch-none select-none flex-col items-center gap-3.5 overflow-y-auto overscroll-contain py-3 pr-1.5 active:cursor-grabbing sm:gap-4 sm:pr-2.5"
+        className="pointer-events-auto flex max-h-[70vh] cursor-grab touch-pan-y select-none flex-col items-center gap-2 overflow-y-auto overscroll-contain py-3 pr-1.5 active:cursor-grabbing sm:gap-2.5 sm:pr-2.5"
       >
         {sosActive && sosDetails ? (
-          <div className="relative shrink-0">
+          <div className="relative flex w-full flex-col items-center gap-1.5">
             <AnimatePresence mode="wait">
               {!detailsOpen && !hintDismissed ? (
-                <motion.div
+                <motion.button
                   key={SOS_TAP_HINTS[hintIndex]}
+                  type="button"
                   initial={
                     reduceMotion
                       ? { opacity: 1 }
@@ -229,8 +240,9 @@ export function SosFloatingChatHeads({
                           y: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
                         }
                   }
+                  onClick={openSosDetails}
                   className={cn(
-                    "pointer-events-none absolute top-1/2 z-40 w-max max-w-[9.5rem] -translate-y-1/2 rounded-2xl border border-destructive/25 bg-card/95 px-2.5 py-1.5 shadow-lift backdrop-blur-md",
+                    "absolute top-1/2 z-40 w-max max-w-[9.5rem] -translate-y-1/2 cursor-pointer rounded-2xl border border-destructive/25 bg-card/95 px-2.5 py-1.5 text-left shadow-lift backdrop-blur-md",
                     panelOnRight
                       ? "left-[3.35rem] sm:left-[3.75rem]"
                       : "right-[3.35rem] sm:right-[3.75rem]",
@@ -248,7 +260,7 @@ export function SosFloatingChatHeads({
                     )}
                     aria-hidden
                   />
-                </motion.div>
+                </motion.button>
               ) : null}
             </AnimatePresence>
             <motion.button
@@ -282,6 +294,51 @@ export function SosFloatingChatHeads({
                 <span className="absolute inset-0 animate-ping rounded-full bg-destructive opacity-75" />
               </span>
             </motion.button>
+
+            {/* One mount for SOS controls: compact End/Leave under the head, or full panel. */}
+            <div
+              className={cn(
+                detailsOpen
+                  ? cn(
+                      "pointer-events-auto absolute top-0 z-[60] max-h-[min(70vh,36rem)] w-[min(22rem,calc(100vw-5.25rem))] overflow-y-auto overscroll-contain rounded-2xl border border-destructive/20 bg-card/95 p-2.5 shadow-lift backdrop-blur-md",
+                      panelOnRight
+                        ? "left-[4.75rem] sm:left-[5.35rem]"
+                        : "right-[4.75rem] sm:right-[5.35rem]",
+                    )
+                  : "relative z-10 w-full max-w-[4.25rem]",
+              )}
+            >
+              {detailsOpen ? (
+                <div className="mb-2 flex items-start justify-between gap-2 px-1">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-destructive">
+                      Emergency details
+                    </p>
+                    {selected ? (
+                      <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+                        {selected.name} · {participantRoleLabel(selected.role)}
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 text-[12px] text-muted-foreground">
+                        Location, map, and leave controls
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close emergency details"
+                    onClick={() => {
+                      setDetailsOpen(false);
+                      setSelectedId(null);
+                    }}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+              {sosDetails}
+            </div>
           </div>
         ) : null}
 
@@ -367,54 +424,6 @@ export function SosFloatingChatHeads({
           })}
         </AnimatePresence>
       </div>
-
-      {/* Keep SOS controller mounted even when the panel is closed. */}
-      {sosDetails ? (
-        <div
-          className={cn(
-            detailsOpen
-              ? cn(
-                  "pointer-events-auto absolute top-1/2 z-30 max-h-[min(70vh,36rem)] w-[min(22rem,calc(100vw-5.25rem))] -translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-destructive/20 bg-card/95 p-2.5 shadow-lift backdrop-blur-md",
-                  panelOnRight
-                    ? "left-[4.75rem] sm:left-[5.35rem]"
-                    : "right-[4.75rem] sm:right-[5.35rem]",
-                )
-              : "pointer-events-none fixed left-[-100vw] top-0 h-px w-px overflow-hidden opacity-0",
-          )}
-          aria-hidden={!detailsOpen}
-        >
-          {detailsOpen ? (
-            <div className="mb-2 flex items-start justify-between gap-2 px-1">
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-destructive">
-                  Emergency details
-                </p>
-                {selected ? (
-                  <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
-                    {selected.name} · {participantRoleLabel(selected.role)}
-                  </p>
-                ) : (
-                  <p className="mt-0.5 text-[12px] text-muted-foreground">
-                    Tap a person or close when done
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                aria-label="Close emergency details"
-                onClick={() => {
-                  setDetailsOpen(false);
-                  setSelectedId(null);
-                }}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : null}
-          {sosDetails}
-        </div>
-      ) : null}
 
       <AnimatePresence>
         {selected && !sosDetails ? (

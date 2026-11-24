@@ -3017,9 +3017,13 @@ export function AllmaChat({
       ) : null}
       {/* Desktop people rail — keep emergency chat readable beside it. */}
       {sosIsActive && sosRoom ? (
-        <aside className="absolute bottom-0 right-0 top-14 z-30 hidden w-[280px] flex-col gap-3 overflow-y-auto border-l border-border/50 bg-background/95 p-3 backdrop-blur lg:flex">
+        <aside className="absolute bottom-0 right-0 top-14 z-10 hidden w-[280px] flex-col gap-3 overflow-y-auto border-l border-border/50 bg-background/95 p-3 backdrop-blur lg:flex">
           <div className="rounded-2xl border border-border/50 bg-card/90 p-3.5 shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">In this chat</p>
+            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+              Tap the red SOS head for location. Use <span className="font-semibold text-destructive">End</span> or{" "}
+              <span className="font-semibold text-foreground">Leave</span> under that head to stop the emergency.
+            </p>
             <div className="mt-2.5 space-y-2.5">
               {sosParticipants.map((person) => (
                 <div key={person.id} className="flex items-center gap-2.5">
