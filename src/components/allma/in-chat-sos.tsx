@@ -95,6 +95,11 @@ export function InChatSos({
   offerMode = false,
   /** Thin top-of-chat bar — keeps the message list usable during SOS. */
   compact = false,
+  /**
+   * When false, keep SOS logic (location / dialing) running but hide the live
+   * card UI — used while the chat-heads panel is closed.
+   */
+  detailsVisible = true,
   onActivityStarted,
   onActivityEnded,
   onEnsureThread,
@@ -115,6 +120,7 @@ export function InChatSos({
   /** Softer CTA: "Would you like to alert your Safety Network?" + Activate SOS */
   offerMode?: boolean;
   compact?: boolean;
+  detailsVisible?: boolean;
   onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
   onActivityEnded?: (activityId: string) => void;
   /** Parent creates/opens the SAME chat thread so SOS never jumps to a blank page. */
@@ -242,7 +248,8 @@ export function InChatSos({
     return () => navigator.geolocation.clearWatch(watchId);
   }, [activityId, canManage, phase, user?.id]);
 
-  const placeSearchKey = !compact && loc ? `${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}` : null;
+  const placeSearchKey =
+    !compact && detailsVisible && loc ? `${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}` : null;
   useEffect(() => {
     if (!placeSearchKey) {
       setPlaces([]);
@@ -691,6 +698,22 @@ export function InChatSos({
           </button>
           {dials}
         </div>
+      </div>
+    );
+  }
+
+  if (phase === "active" && !detailsVisible && !compact) {
+    return (
+      <div ref={cardRef} className="hidden" aria-hidden>
+        {canManage ? (
+          <EmergencyCallEscalation
+            activityId={activityId}
+            emergencyType={TYPE_MAP[type]}
+            microphoneStream={mic}
+            shareLocation={!!loc}
+            silent
+          />
+        ) : null}
       </div>
     );
   }

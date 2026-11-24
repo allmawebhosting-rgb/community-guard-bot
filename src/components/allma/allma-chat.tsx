@@ -1425,6 +1425,7 @@ export function AllmaChat({
   const [composerRecipient, setComposerRecipient] = useState<ChatRecipient>("allma");
   const [headerSosRequest, setHeaderSosRequest] = useState(false);
   const headerSosConsumedRef = useRef(false);
+  const [sosHeadsPanelOpen, setSosHeadsPanelOpen] = useState(false);
   const [activeSosActivity, setActiveSosActivity] = useState<{ id: string; active: boolean } | null>(null);
   const [voiceNoteUrls, setVoiceNoteUrls] = useState<Record<string, string>>({});
   const [voiceNoteUrlErrors, setVoiceNoteUrlErrors] = useState<Set<string>>(() => new Set());
@@ -2978,8 +2979,7 @@ export function AllmaChat({
     return "other" as const;
   }, [messages]);
 
-  // One thin SOS dock only: header start, then a compact live bar — never a
-  // full map card that steals the chat viewport.
+  // Header SOS only while starting — once live, details live in chat heads.
   const showHeaderSosActivator = headerSosRequest && !sosIsActive;
   const stickySosType =
     headerSosType === "crime" || headerSosType === "fire" || headerSosType === "medical"
@@ -2989,8 +2989,8 @@ export function AllmaChat({
   return (
     <SosActivityContext.Provider value={sosActivityContextValue}>
     <div className={cn("chat-canvas relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
-      {/* Compact SOS bar — chat stays the main surface. */}
-      {showHeaderSosActivator || sosIsActive ? (
+      {/* Activate from header SOS only — no live card crowding the chat. */}
+      {showHeaderSosActivator ? (
         <div className="z-20 w-full shrink-0 border-b border-destructive/10 bg-background/95 px-3 py-1.5 sm:px-4">
           <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
             <InChatSos
@@ -3002,9 +3002,8 @@ export function AllmaChat({
               sharedLocation={sosActivityContextValue.sharedLocation}
               canManage={canManageSos}
               ownerName={sosActivityContextValue.ownerName}
-              requestActivation={showHeaderSosActivator}
-              immediateActivation={showHeaderSosActivator}
-              hideIdle={!showHeaderSosActivator && !sosIsActive}
+              requestActivation
+              immediateActivation
               compact
               onActivityStarted={(activityId, card) => {
                 setHeaderSosRequest(false);
@@ -3169,6 +3168,28 @@ export function AllmaChat({
               participants={sosParticipants}
               highlightUserId={highlightedJoinerId}
               currentUserId={user?.id ?? null}
+              sosActive={sosIsActive}
+              detailsOpen={sosHeadsPanelOpen}
+              onDetailsOpenChange={setSosHeadsPanelOpen}
+              sosDetails={
+                sosIsActive ? (
+                  <InChatSos
+                    type={stickySosType}
+                    lines={EMERGENCY_BLOCK_LINES[stickySosType]}
+                    threadId={threadId}
+                    existingActivityId={sosActivityId}
+                    existingActive={sosIsActive}
+                    sharedLocation={sosActivityContextValue.sharedLocation}
+                    canManage={canManageSos}
+                    ownerName={sosActivityContextValue.ownerName}
+                    hideIdle
+                    detailsVisible={sosHeadsPanelOpen}
+                    onActivityStarted={handleSosActivityStarted}
+                    onActivityEnded={handleSosActivityEnded}
+                    onEnsureThread={ensureSosThread}
+                  />
+                ) : null
+              }
             />
           ) : null}
           <SosResponderJoinedToast
