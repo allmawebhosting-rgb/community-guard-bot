@@ -23,8 +23,10 @@ apt-get install -y \
   git curl ca-certificates rsync openssl python3 python3-venv python3-pip \
   xvfb \
   libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-  libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 \
+  libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
   libpango-1.0-0 libxkbcommon0 libgtk-3-0
+# Ubuntu 24.04 renamed libasound2 → libasound2t64; keep both attempts.
+apt-get install -y libasound2t64 2>/dev/null || apt-get install -y libasound2 2>/dev/null || true
 
 echo "==> Fetching agent source"
 TMP="$(mktemp -d)"
