@@ -93,6 +93,8 @@ export function InChatSos({
   immediateActivation = false,
   hideIdle = false,
   offerMode = false,
+  /** Thin top-of-chat bar — keeps the message list usable during SOS. */
+  compact = false,
   onActivityStarted,
   onActivityEnded,
   onEnsureThread,
@@ -112,6 +114,7 @@ export function InChatSos({
   hideIdle?: boolean;
   /** Softer CTA: "Would you like to alert your Safety Network?" + Activate SOS */
   offerMode?: boolean;
+  compact?: boolean;
   onActivityStarted?: (activityId: string, card: HTMLDivElement | null) => void;
   onActivityEnded?: (activityId: string) => void;
   /** Parent creates/opens the SAME chat thread so SOS never jumps to a blank page. */
@@ -141,7 +144,7 @@ export function InChatSos({
   const [placesError, setPlacesError] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [openHelpKind, setOpenHelpKind] = useState<HelpKind | null>(null);
-  const [mapVisible, setMapVisible] = useState(true);
+  const [mapVisible, setMapVisible] = useState(!compact);
   const [networkNotified, setNetworkNotified] = useState<boolean | null>(null);
   const [activationStage, setActivationStage] = useState<SosActivationStage>("idle");
   const [activationError, setActivationError] = useState<string | null>(null);
@@ -239,7 +242,7 @@ export function InChatSos({
     return () => navigator.geolocation.clearWatch(watchId);
   }, [activityId, canManage, phase, user?.id]);
 
-  const placeSearchKey = loc ? `${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}` : null;
+  const placeSearchKey = !compact && loc ? `${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}` : null;
   useEffect(() => {
     if (!placeSearchKey) {
       setPlaces([]);
@@ -688,6 +691,75 @@ export function InChatSos({
           </button>
           {dials}
         </div>
+      </div>
+    );
+  }
+
+  if (phase === "active" && compact) {
+    return (
+      <div
+        ref={cardRef}
+        className="sos-dock-bar flex flex-wrap items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/[0.06] px-2.5 py-2"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-destructive">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-destructive" />
+          </span>
+          {saving ? "Activating…" : "SOS live"}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+          {loc
+            ? "Location shared"
+            : canManage
+              ? "Location pending"
+              : `Waiting for ${ownerName ?? "them"}…`}
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {lines.map((h) => (
+            <a
+              key={h.number}
+              href={`tel:${h.number}`}
+              aria-label={`Call ${h.number} ${lineLabel(h.number)}`}
+              className="inline-flex min-h-8 items-center gap-1 rounded-full border border-destructive/25 bg-background px-2.5 text-[11px] font-semibold text-destructive"
+            >
+              <Phone className="h-3 w-3 shrink-0" />
+              {h.number} {lineLabel(h.number)}
+            </a>
+          ))}
+          {canManage ? (
+            <button
+              type="button"
+              onClick={() => void endSos()}
+              disabled={saving || ending}
+              className="inline-flex min-h-8 items-center gap-1 rounded-full bg-destructive px-2.5 text-[11px] font-semibold text-destructive-foreground disabled:opacity-50"
+            >
+              {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+              {ending ? "Ending…" : "End SOS"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void leaveEmergency()}
+              disabled={leaving}
+              className="inline-flex min-h-8 items-center gap-1 rounded-full border border-border bg-background px-2.5 text-[11px] font-semibold disabled:opacity-50"
+            >
+              {leaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <LogOut className="h-3 w-3" />}
+              {leaving ? "Leaving…" : confirmLeave ? "Confirm leave" : "Leave"}
+            </button>
+          )}
+        </div>
+        {canManage ? (
+          <EmergencyCallEscalation
+            activityId={activityId}
+            emergencyType={TYPE_MAP[type]}
+            microphoneStream={mic}
+            shareLocation={!!loc}
+            silent
+          />
+        ) : null}
       </div>
     );
   }

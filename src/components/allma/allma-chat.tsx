@@ -2978,8 +2978,8 @@ export function AllmaChat({
     return "other" as const;
   }, [messages]);
 
-  // One SOS surface only: header activator while starting, sticky live card
-  // while active — never both, and never also stacked inside every AI reply.
+  // One thin SOS dock only: header start, then a compact live bar — never a
+  // full map card that steals the chat viewport.
   const showHeaderSosActivator = headerSosRequest && !sosIsActive;
   const stickySosType =
     headerSosType === "crime" || headerSosType === "fire" || headerSosType === "medical"
@@ -2989,9 +2989,9 @@ export function AllmaChat({
   return (
     <SosActivityContext.Provider value={sosActivityContextValue}>
     <div className={cn("chat-canvas relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
-      {/* Single SOS dock: start from header, or show the live room once. */}
+      {/* Compact SOS bar — chat stays the main surface. */}
       {showHeaderSosActivator || sosIsActive ? (
-        <div className="z-20 w-full shrink-0 border-b border-destructive/15 bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
+        <div className="z-20 w-full shrink-0 border-b border-destructive/10 bg-background/95 px-3 py-1.5 sm:px-4">
           <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
             <InChatSos
               type={stickySosType}
@@ -3005,6 +3005,7 @@ export function AllmaChat({
               requestActivation={showHeaderSosActivator}
               immediateActivation={showHeaderSosActivator}
               hideIdle={!showHeaderSosActivator && !sosIsActive}
+              compact
               onActivityStarted={(activityId, card) => {
                 setHeaderSosRequest(false);
                 handleSosActivityStarted(activityId, card);
@@ -3015,7 +3016,7 @@ export function AllmaChat({
           </div>
         </div>
       ) : null}
-      {/* Desktop people rail only — emergency controls live in the sticky SOS dock above. */}
+      {/* Desktop people rail — keep emergency chat readable beside it. */}
       {sosIsActive && sosRoom ? (
         <aside className="absolute bottom-0 right-0 top-14 z-30 hidden w-[280px] flex-col gap-3 overflow-y-auto border-l border-border/50 bg-background/95 p-3 backdrop-blur lg:flex">
           <div className="rounded-2xl border border-border/50 bg-card/90 p-3.5 shadow-sm">

@@ -244,6 +244,32 @@ it("shows the live map and emergency call controls in the SOS card", async () =>
   });
 });
 
+it("uses a compact dock bar so the chat stays usable during SOS", async () => {
+  render(
+    <InChatSos
+      type="medical"
+      lines={[{ number: "999" }, { number: "112" }]}
+      threadId="thread-1"
+      compact
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Activate SOS" }));
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+  vi.useRealTimers();
+
+  expect(await screen.findByText("SOS live")).toBeTruthy();
+  expect(screen.queryByTestId("live-map")).toBeNull();
+  expect(screen.queryByText("Nearby help")).toBeNull();
+  expect(screen.queryByText("Waiting for their location")).toBeNull();
+  expect(getNearbyPlacesMock).not.toHaveBeenCalled();
+  expect(screen.getByRole("link", { name: "Call 999 Police" }).getAttribute("href")).toBe("tel:999");
+  expect(screen.getByRole("link", { name: "Call 112 Toll-free" }).getAttribute("href")).toBe("tel:112");
+  expect(screen.getByRole("button", { name: /End SOS/ })).toBeTruthy();
+});
+
 it("keeps SOS on the same safety conversation instead of a blank emergency page", async () => {
   render(<InChatSos type="medical" lines={[{ number: "112" }]} />);
 
