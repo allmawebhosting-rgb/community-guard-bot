@@ -10,6 +10,13 @@ import {
 } from "@/lib/sos-participants";
 import { cn } from "@/lib/utils";
 
+const SOS_TAP_HINTS = [
+  "Tap here for location",
+  "Tap for SOS information",
+  "Location & emergency details",
+  "Tap to call 999 / 112",
+] as const;
+
 /**
  * Premium floating responder chat heads along the right edge of the emergency
  * conversation. Tap a head to open SOS details (map, calls, leave) without
@@ -41,11 +48,22 @@ export function SosFloatingChatHeads({
   const reduceMotion = useReducedMotion();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [internalDetailsOpen, setInternalDetailsOpen] = useState(false);
+  const [hintIndex, setHintIndex] = useState(0);
+  const [hintDismissed, setHintDismissed] = useState(false);
   const detailsOpen = detailsOpenControlled ?? internalDetailsOpen;
   const setDetailsOpen = (open: boolean) => {
     onDetailsOpenChange?.(open);
     if (detailsOpenControlled === undefined) setInternalDetailsOpen(open);
+    if (open) setHintDismissed(true);
   };
+
+  useEffect(() => {
+    if (!sosActive || detailsOpen || hintDismissed || reduceMotion) return;
+    const timer = window.setInterval(() => {
+      setHintIndex((current) => (current + 1) % SOS_TAP_HINTS.length);
+    }, 2800);
+    return () => window.clearInterval(timer);
+  }, [sosActive, detailsOpen, hintDismissed, reduceMotion]);
 
   // The heads can be dragged anywhere on screen (Messenger-style). The
   // offset is remembered between visits; a real drag suppresses the tap
@@ -182,27 +200,89 @@ export function SosFloatingChatHeads({
         className="pointer-events-auto flex max-h-[52vh] cursor-grab touch-none select-none flex-col items-center gap-3.5 overflow-y-auto overscroll-contain py-3 pr-1.5 active:cursor-grabbing sm:gap-4 sm:pr-2.5"
       >
         {sosActive && sosDetails ? (
-          <button
-            type="button"
-            aria-label={detailsOpen ? "Hide emergency details" : "Show emergency details"}
-            aria-pressed={detailsOpen}
-            onClick={() => {
-              const next = !detailsOpen;
-              setDetailsOpen(next);
-              if (!next) setSelectedId(null);
-            }}
-            className={cn(
-              "relative grid h-12 w-12 place-items-center rounded-full border-2 border-background shadow-md sm:h-14 sm:w-14",
-              detailsOpen
-                ? "bg-destructive text-destructive-foreground ring-2 ring-destructive/40"
-                : "bg-destructive/90 text-destructive-foreground ring-1 ring-destructive/50",
-            )}
-          >
-            <ShieldAlert className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-destructive">
-              <span className="absolute inset-0 animate-ping rounded-full bg-destructive opacity-75" />
-            </span>
-          </button>
+          <div className="relative shrink-0">
+            <AnimatePresence mode="wait">
+              {!detailsOpen && !hintDismissed ? (
+                <motion.div
+                  key={SOS_TAP_HINTS[hintIndex]}
+                  initial={
+                    reduceMotion
+                      ? { opacity: 1 }
+                      : { opacity: 0, x: panelOnRight ? -8 : 8, scale: 0.96 }
+                  }
+                  animate={
+                    reduceMotion
+                      ? { opacity: 1 }
+                      : { opacity: 1, x: 0, scale: 1, y: [0, -2, 0] }
+                  }
+                  exit={
+                    reduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, x: panelOnRight ? -6 : 6, scale: 0.96 }
+                  }
+                  transition={
+                    reduceMotion
+                      ? { duration: 0.01 }
+                      : {
+                          duration: 0.35,
+                          ease: [0.22, 1, 0.36, 1],
+                          y: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
+                        }
+                  }
+                  className={cn(
+                    "pointer-events-none absolute top-1/2 z-40 w-max max-w-[9.5rem] -translate-y-1/2 rounded-2xl border border-destructive/25 bg-card/95 px-2.5 py-1.5 shadow-lift backdrop-blur-md",
+                    panelOnRight
+                      ? "left-[3.35rem] sm:left-[3.75rem]"
+                      : "right-[3.35rem] sm:right-[3.75rem]",
+                  )}
+                >
+                  <p className="text-[11px] font-semibold leading-snug text-destructive">
+                    {SOS_TAP_HINTS[hintIndex]}
+                  </p>
+                  <span
+                    className={cn(
+                      "absolute top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border-destructive/25 bg-card/95",
+                      panelOnRight
+                        ? "left-[-4px] border-b border-l"
+                        : "right-[-4px] border-r border-t",
+                    )}
+                    aria-hidden
+                  />
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+            <motion.button
+              type="button"
+              aria-label={detailsOpen ? "Hide emergency details" : "Show emergency details. Tap for location and SOS information."}
+              aria-pressed={detailsOpen}
+              animate={
+                reduceMotion || detailsOpen
+                  ? { scale: 1 }
+                  : { scale: [1, 1.06, 1] }
+              }
+              transition={
+                reduceMotion || detailsOpen
+                  ? { duration: 0.01 }
+                  : { duration: 1.8, repeat: Infinity, ease: "easeInOut" }
+              }
+              onClick={() => {
+                const next = !detailsOpen;
+                setDetailsOpen(next);
+                if (!next) setSelectedId(null);
+              }}
+              className={cn(
+                "relative grid h-12 w-12 place-items-center rounded-full border-2 border-background shadow-md sm:h-14 sm:w-14",
+                detailsOpen
+                  ? "bg-destructive text-destructive-foreground ring-2 ring-destructive/40"
+                  : "bg-destructive/90 text-destructive-foreground ring-1 ring-destructive/50",
+              )}
+            >
+              <ShieldAlert className="h-5 w-5 sm:h-6 sm:w-6" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-destructive">
+                <span className="absolute inset-0 animate-ping rounded-full bg-destructive opacity-75" />
+              </span>
+            </motion.button>
+          </div>
         ) : null}
 
         <AnimatePresence initial={false}>
