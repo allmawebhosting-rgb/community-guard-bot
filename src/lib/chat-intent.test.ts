@@ -5,10 +5,12 @@ import {
   isFirstAidTopicAsk,
   isReportingIntent,
   isSoftGuidedFlow,
+  isSosSituationQuestion,
   nearbyHelpTypesForTurn,
   scriptedFlowOpener,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
+  sosSituationReply,
 } from "./chat-intent";
 import { matchIncident } from "./allma-emergency-playbook";
 
@@ -115,6 +117,57 @@ describe("direct help routing", () => {
         showDirectHelp: false,
       }),
     ).toEqual([]);
+  });
+
+  it("does not dump clinics on live SOS situation questions", () => {
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: [],
+        directService: null,
+        emergencyHelpTypes: ["hospital"],
+        isReporting: false,
+        showDirectHelp: false,
+        sosActive: true,
+        intakeText: "what is the problem with allan",
+      }),
+    ).toEqual([]);
+  });
+
+  it("still searches hospitals in SOS when the user asks for nearby help", () => {
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: [],
+        directService: null,
+        emergencyHelpTypes: ["hospital"],
+        isReporting: false,
+        showDirectHelp: false,
+        sosActive: true,
+        intakeText: "nearest hospital",
+      }),
+    ).toEqual(["hospital"]);
+  });
+
+  it("detects SOS situation questions from responders", () => {
+    expect(isSosSituationQuestion("what is the problem with allan")).toBe(true);
+    expect(isSosSituationQuestion("What happened?")).toBe(true);
+    expect(isSosSituationQuestion("brief me")).toBe(true);
+    expect(isSosSituationQuestion("nearest clinic")).toBe(false);
+  });
+
+  it("answers SOS situation questions like a coordinator", () => {
+    const reply = sosSituationReply({
+      personName: "Mawerere Allan",
+      emergencyType: "medical",
+      area: "Live GPS location",
+      locationShared: true,
+      situationCue: "my nose is bleeding",
+      participants: ["Mawerere Allan", "Allma AI", "Air preach"],
+    });
+    expect(reply).toMatch(/Mawerere Allan needs help/i);
+    expect(reply).toMatch(/medical emergency/i);
+    expect(reply).toMatch(/nose is bleeding/i);
+    expect(reply).not.toMatch(/I am here to help with first aid, reporting/i);
+    expect(reply).not.toMatch(/missing persons/i);
   });
 
   it("keeps filing tools locked until the report flow has real steps", () => {

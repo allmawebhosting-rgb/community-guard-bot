@@ -11,9 +11,11 @@ import {
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
   isEmergencyNumbersAsk,
+  isSosSituationQuestion,
   scriptedFlowOpener,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
+  sosSituationReply,
 } from "@/lib/chat-intent";
 import { assistantHasVisibleText } from "@/lib/chat-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
@@ -163,7 +165,27 @@ function dedupeAssistantParts(parts: UIMessage["parts"]): UIMessage["parts"] {
   return next;
 }
 
-function emptyReplyFallback(intakeText: string): string {
+function emptyReplyFallback(
+  intakeText: string,
+  sos?: {
+    personName?: string | null;
+    emergencyType?: string | null;
+    area?: string | null;
+    locationShared?: boolean;
+    situationCue?: string | null;
+    participants?: string[];
+  } | null,
+): string {
+  if (sos) {
+    return sosSituationReply({
+      personName: sos.personName,
+      emergencyType: sos.emergencyType,
+      area: sos.area,
+      locationShared: sos.locationShared,
+      situationCue: sos.situationCue,
+      participants: sos.participants,
+    });
+  }
   const incident = matchIncident(intakeText);
   if (incident) {
     const aid = firstAidFor(incident);
@@ -183,6 +205,23 @@ function emptyReplyFallback(intakeText: string): string {
     return "Tell me a town or share your location, and I will look for the nearest help.\n\n::suggest[Share my location | Type a town | Emergency numbers]";
   }
   return "I am here to help with first aid, reporting, missing persons, lost & found, and nearby hospitals or police. What do you need right now?\n\n::suggest[First aid | Report a crime | Find help nearby | Emergency numbers]";
+}
+
+/** Pull a short human situation line from earlier user messages (e.g. nosebleed). */
+function situationCueFromHistory(texts: string[]): string | null {
+  for (let i = texts.length - 1; i >= 0; i--) {
+    const text = texts[i]?.trim();
+    if (!text) continue;
+    if (isSosSituationQuestion(text)) continue;
+    if (/^(hi|hey|hello|ok|okay|yes|no|thanks|thank you)[.!]?$/i.test(text)) continue;
+    const incident = matchIncident(text);
+    if (incident) {
+      const clipped = text.replace(/\s+/g, " ").slice(0, 140);
+      return clipped;
+    }
+    if (text.length >= 8 && text.length <= 140) return text.replace(/\s+/g, " ");
+  }
+  return null;
 }
 
 export const Route = createFileRoute("/api/chat")({
@@ -259,6 +298,13 @@ export const Route = createFileRoute("/api/chat")({
         // fail because the agent layer could not load.
         let sosAgentBlock = "";
         let sosEmergencyType: string | null = null;
+        let sosRoomSnapshot: {
+          personName: string;
+          emergencyType: string | null;
+          area: string | null;
+          locationShared: boolean;
+          participants: string[];
+        } | null = null;
         if (sharedSosActive && sosActivityId) {
           try {
             const { data: roomRows } = await (supabase as any).rpc("get_sos_room", {
@@ -268,6 +314,16 @@ export const Route = createFileRoute("/api/chat")({
             if (room) {
               sosEmergencyType = typeof room.emergency_type === "string" ? room.emergency_type : null;
               const participants = Array.isArray(room.participants) ? room.participants : [];
+              const participantNames = participants
+                .map((person: { name?: string }) => person.name)
+                .filter((name: unknown): name is string => typeof name === "string" && name.trim().length > 0);
+              sosRoomSnapshot = {
+                personName: String(room.sender_name ?? "the person in need"),
+                emergencyType: sosEmergencyType,
+                area: typeof room.area === "string" ? room.area : null,
+                locationShared: Boolean(room.location_shared),
+                participants: participantNames,
+              };
               const people = participants.length
                 ? participants
                     .map(
@@ -296,15 +352,15 @@ export const Route = createFileRoute("/api/chat")({
 - Emergency type: ${room.emergency_type}. Severity: ${room.severity}. Area: ${room.area}. Exact location shared: ${room.location_shared ? "yes" : "no"}.
 - SOS started at ${room.created_at}.
 - In this chat now (${participants.length}): ${people}.
-You are the coordinator of this emergency room, not just a chatbot:
-- Read the latest human message carefully. Answer THAT ask first (situation update, first aid, instructions for responders, location, who has joined).
+You are a calm human coordinator in this emergency room — talk like a real person, not a product menu:
+- Read the latest human message carefully. Answer THAT ask first in plain sentences.
+- If someone asks what is wrong / what happened / what is the problem with ${room.sender_name} (or "Allan"/the person in need), tell them the emergency from the room state and earlier chat messages. Example shape: "${room.sender_name} needs help — medical emergency. From the chat: [short situation]. Stay with us — I can give first-aid steps or tell you what to do next."
+- Do NOT reply with "I am here to help with first aid, reporting, missing persons…" or any onboarding menu while SOS is active.
+- Do NOT call find_facilities or dump clinic/hospital cards unless they clearly ask for nearby help, a hospital, clinic, police station, or directions.
 - ${typeFocus}
-- When a responder asks what to do, give them one clear job (for example: call 999/112, go to the person in need, share your location, or stay in the chat and keep the person calm).
-- Keep every reply short, calm, and in plain language. In a fast-moving emergency, tell people to call 999 or 112.
-- Never claim anyone was dispatched, called, or is on the way unless the room state or the conversation confirms it.
-- Everyone listed above as "in this chat" is present and can read messages, even when they are not on a voice call — never describe them as disconnected or absent.
-- Never change the subject to reporting, lost & found, Case Timeline, or product onboarding while this SOS is active.
-- The room state above is given to you directly in this prompt. There is no tool that fetches it, so never try to call any tool for it, and never print tool names, function names, or system labels. Speak only in plain words to the people in the room.`;
+- When a responder asks what to do, give them one clear job (call 999/112, go to the person, share location, or keep them calm in chat).
+- Keep every reply short and useful. Never invent dispatches. Never print tool names.
+- Everyone listed above as "in this chat" is present — never describe them as disconnected.`;
             }
           } catch {
             sosAgentBlock = "";
@@ -450,6 +506,26 @@ You are coordinating this emergency from the start, not just answering questions
           return replyWithFixedText(
             "👋 Welcome to Allma Safety AI — I'm your safety assistant.\n\nI can help you:\n\n- 🚨 Report a crime\n- 👤 Report a missing person\n- 🎒 Log lost or found property\n- 🏥 Find the nearest hospital\n- 👮 Find the nearest police station\n- 📞 Get emergency numbers\n\nWhat's going on today?\n\n::suggest[Report a crime | Missing person | Find help nearby | Emergency numbers]",
             "allma-greeting",
+          );
+        }
+
+        const userHistoryTexts = uiMessages
+          .filter((message) => message.role === "user")
+          .map((message) => textOf(message));
+        const sosSituationCue = situationCueFromHistory(userHistoryTexts);
+
+        // Live SOS: answer "what is wrong with Allan?" from room + chat — no clinic dump.
+        if (sharedSosActive && isSosSituationQuestion(intakeText)) {
+          return replyWithFixedText(
+            sosSituationReply({
+              personName: sosRoomSnapshot?.personName,
+              emergencyType: sosRoomSnapshot?.emergencyType ?? sosEmergencyType,
+              area: sosRoomSnapshot?.area,
+              locationShared: sosRoomSnapshot?.locationShared,
+              situationCue: sosSituationCue,
+              participants: sosRoomSnapshot?.participants,
+            }),
+            "sos-situation",
           );
         }
 
@@ -640,13 +716,16 @@ You are coordinating this emergency from the start, not just answering questions
           flowState.flowLabel,
           Boolean(emergencyIncident) && !directService,
         );
-        // Every injury/emergency turn must surface nearby help cards — not only when the user asks.
+        // Injury turns normally surface nearby help — except live SOS situation Q&A,
+        // which must answer the emergency first (clinics only when clearly asked).
         const nearbyTypes = nearbyHelpTypesForTurn({
           directFacilityTypes,
           directService,
           emergencyHelpTypes: emergencyIncident?.helpTypes ?? [],
           isReporting,
           showDirectHelp: shouldShowHelp,
+          sosActive: sharedSosActive,
+          intakeText,
         });
         const requireNearbyHelp = nearbyTypes.length > 0;
         // Drop the survey banner when first-aid or a facility search takes over.
@@ -704,7 +783,7 @@ You are coordinating this emergency from the start, not just answering questions
           .slice(-4)
           .map((message) => textOf(message));
         const topicSticky = sharedSosActive
-          ? `\n\nTOPIC LOCK: SOS is active (${sosEmergencyType || "emergency"}). Stay on this emergency. Read the latest message and the earlier situation in this thread, then respond to what was asked. Do not open Case Timeline, crime-report wizards, lost & found, greetings, or unrelated cards.`
+          ? `\n\nTOPIC LOCK: SOS is active (${sosEmergencyType || "emergency"}) for ${sosRoomSnapshot?.personName || "the person in need"}.${sosSituationCue ? ` Situation from chat: "${sosSituationCue}".` : ""} Answer like a real coordinator. If they ask what is wrong / what happened, explain this emergency in plain words. Do NOT open clinics, Case Timeline, crime-report wizards, lost & found, greetings, or product menus unless they ask for nearby help by name.`
           : flowState.flowLabel === "Reporting" ||
               flowState.flowLabel === "Missing person" ||
               flowState.flowLabel === "Lost & found"
@@ -800,8 +879,23 @@ You are coordinating this emergency from the start, not just answering questions
           if (isEmergencyNumbersAsk(intakeText)) {
             entries = entries.filter(([name]) => name !== "find_facilities" && name !== "list_alerts");
           }
+          // Live SOS situation turns: keep the model off clinic search unless asked.
+          if (sharedSosActive && !requireNearbyHelp) {
+            entries = entries.filter(([name]) => name !== "find_facilities" && name !== "list_alerts");
+          }
           return Object.fromEntries(entries) as T;
         };
+
+        const sosFallbackContext = sharedSosActive
+          ? {
+              personName: sosRoomSnapshot?.personName,
+              emergencyType: sosRoomSnapshot?.emergencyType ?? sosEmergencyType,
+              area: sosRoomSnapshot?.area,
+              locationShared: sosRoomSnapshot?.locationShared,
+              situationCue: sosSituationCue,
+              participants: sosRoomSnapshot?.participants,
+            }
+          : null;
 
         // `openai/*` ids are served on the gateway Responses API; everything
         // else stays on the chat-completions provider.
@@ -845,13 +939,17 @@ You are coordinating this emergency from the start, not just answering questions
           maxRetries: 0,
           maxOutputTokens: emergencyIncident || requireNearbyHelp ? 700 : 512,
           abortSignal: request.signal,
-          system: `${systemPrompt}\n\n${PHYSICAL_SYMPTOM_FIRST_AID_RULE}\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}${sosAgentBlock}${agentTakeoverBlock}\n\nThe user is ${
+          system: `${systemPrompt}\n\n${
+            sharedSosActive && !requireNearbyHelp
+              ? "SOS REPLY RULE: Answer the latest human message about THIS emergency in plain words. Do not force nearby-clinic cards. Do not give the product welcome menu."
+              : PHYSICAL_SYMPTOM_FIRST_AID_RULE
+          }\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}${sosAgentBlock}${agentTakeoverBlock}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
           }${
             sharedSosActive
               ? threadIsOwner
                 ? " This sender is the conversation owner during an active SOS."
-                : " This sender is an authorized Safety Network responder in the shared SOS conversation."
+                : " This sender is an authorized Safety Network responder in the shared SOS conversation — brief them on the emergency when they ask."
               : ""
           }${memoryBlock}${flowBlock}${coordBlock}${intentBlock}${repeatBlock}${topicSticky}\n\nRESPONSE RULES: Always write a clear user-facing text reply in this turn. Never return an empty message. Never call case_timeline unless the user is mid-report and needs progress milestones. Never invent unrelated Case Timeline / Done cards. Ask one clarifying question when details are missing instead of guessing.\n\nTURN BUDGET: exactly one reply per turn. Write your one message with its inline markers, then stop and wait for the user. Never continue on your own with extra explanations, tours, or a second question in the same turn.`,
 
@@ -1599,7 +1697,7 @@ You are coordinating this emergency from the start, not just answering questions
               flush(controller) {
                 if (!streamedText) {
                   emitTakeover(controller);
-                  const fallback = emptyReplyFallback(intakeText);
+                  const fallback = emptyReplyFallback(intakeText, sosFallbackContext);
                   const fallbackId = `allma-empty-fallback-${Date.now()}`;
                   controller.enqueue({ type: "text-start", id: fallbackId });
                   controller.enqueue({ type: "text-delta", id: fallbackId, delta: fallback });
@@ -1630,7 +1728,7 @@ You are coordinating this emergency from the start, not just answering questions
             if (!assistantHasVisibleText(parts as Array<{ type: string; text?: string }>)) {
               parts = [
                 ...parts,
-                { type: "text", text: emptyReplyFallback(intakeText) },
+                { type: "text", text: emptyReplyFallback(intakeText, sosFallbackContext) },
               ] as typeof responseMessage.parts;
             }
             // Mirror the stream guard in the saved message: the takeover

@@ -1931,18 +1931,37 @@ export function AllmaChat({
     }
     briefPostedForRef.current = sosRoom.sos_activity_id;
     const typeLabel = EMERGENCY_TYPE_LABELS[sosRoom.emergency_type] ?? "Emergency";
+    const situationFromChat = (() => {
+      for (let i = messagesRef.current.length - 1; i >= 0; i--) {
+        const message = messagesRef.current[i];
+        if (message.role !== "user") continue;
+        const text = message.parts
+          .filter((part) => part.type === "text")
+          .map((part) => ("text" in part ? String(part.text ?? "") : ""))
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
+        if (!text || text.length < 6) continue;
+        if (/^(hi|hey|hello|ok|yes|no)[.!]?$/i.test(text)) continue;
+        return text.length > 120 ? `${text.slice(0, 117)}…` : text;
+      }
+      return null;
+    })();
     const brief = [
       "Situation brief — I am coordinating this emergency.",
       "",
       `• Person in need: ${sosRoom.sender_name}`,
       `• Emergency: ${typeLabel}`,
+      situationFromChat ? `• What they reported: ${situationFromChat}` : null,
       `• Area: ${sosRoom.area}${sosRoom.location_shared ? "" : " (exact location not shared yet)"}`,
       sosRoom.participants.length > 0
         ? `• In this chat now: ${sosRoom.participants.map((person) => person.name).join(", ")}`
         : "• The Safety Network is being called now.",
       "",
-      "Responders: please stay in this chat, share your location if you are close, and say when you are on your way. If anyone is in immediate danger, call 999 or 112.",
-    ].join("\n");
+      "Responders: stay in this chat. Ask me what happened if you need a quick brief, share your location if you are close, and say when you are on your way. If anyone is in immediate danger, call 999 or 112.",
+    ]
+      .filter(Boolean)
+      .join("\n");
     const id =
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()

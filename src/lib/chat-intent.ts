@@ -34,10 +34,18 @@ export function isSoftGuidedFlow(flowLabel: string | null | undefined) {
   return flowLabel === "Safety check" || flowLabel === "Advice";
 }
 
+/** True when the user is explicitly asking for nearby places / directions. */
+export function isExplicitNearbyAsk(text: string) {
+  return /\b(near(by|est)?|hospital|clinic|police station|fire station|ambulance|directions?|find help|closest|where (is|are|can)|take me to)\b/i.test(
+    text.trim(),
+  );
+}
+
 /**
  * Facility types that MUST be searched this turn.
  * Explicit "find hospital/police" wins; otherwise every non-reporting emergency
- * gets its playbook help types so nearby help cards always appear.
+ * gets its playbook help types so nearby help cards always appear —
+ * except during a live SOS, where situation questions must NOT dump clinics.
  */
 export function nearbyHelpTypesForTurn(input: {
   directFacilityTypes: string[];
@@ -45,16 +53,89 @@ export function nearbyHelpTypesForTurn(input: {
   emergencyHelpTypes: readonly string[];
   isReporting: boolean;
   showDirectHelp: boolean;
+  sosActive?: boolean;
+  intakeText?: string;
 }): string[] {
-  if (input.showDirectHelp) {
+  const explicitNearby = isExplicitNearbyAsk(input.intakeText ?? "");
+  // Live SOS: only search places when the human clearly asks for them.
+  // "What is wrong with Allan?" must answer the situation, not open a clinic grid.
+  if (input.sosActive && !explicitNearby && !input.showDirectHelp) {
+    return [];
+  }
+  if (input.showDirectHelp || (input.sosActive && explicitNearby)) {
     if (input.directFacilityTypes.length) return [...input.directFacilityTypes];
     if (input.directService) return [input.directService];
+    if (input.emergencyHelpTypes.length) return [...input.emergencyHelpTypes];
     return ["police", "hospital"];
   }
   if (!input.isReporting && input.emergencyHelpTypes.length) {
     return [...input.emergencyHelpTypes];
   }
   return [];
+}
+
+/** Responder / owner asking what happened in the active SOS room. */
+export function isSosSituationQuestion(text: string) {
+  const t = text.trim();
+  if (!t || t.length > 160) return false;
+  return (
+    /\bwhat('?s| is| was)?\s+(the\s+)?(problem|matter|issue|emergency|situation|wrong)\b/i.test(t) ||
+    /\bwhat happened\b|\bwhat('?s| is) going on\b|\bwho needs help\b|\bwhy (did|was|is) (the )?sos\b/i.test(
+      t,
+    ) ||
+    /\b(how is|is)\s+\w+\b.*\b(ok|okay|safe|hurt|bleeding|injured)\b/i.test(t) ||
+    /\b(problem|wrong|happen(?:ed)?|matter|issue)\b.*\b(with|to)\b/i.test(t) ||
+    /\bstatus\b|\bupdate (me|us)\b|\bbrief me\b/i.test(t)
+  );
+}
+
+/** Plain-language SOS answer — sounds like a coordinator, not a product menu. */
+export function sosSituationReply(input: {
+  personName?: string | null;
+  emergencyType?: string | null;
+  area?: string | null;
+  locationShared?: boolean;
+  situationCue?: string | null;
+  participants?: string[];
+}) {
+  const person = (input.personName || "The person in need").trim();
+  const typeLabel = (() => {
+    const raw = (input.emergencyType || "").toLowerCase();
+    if (raw === "medical") return "a medical emergency";
+    if (raw === "crime") return "a crime / personal-safety emergency";
+    if (raw === "fire") return "a fire emergency";
+    if (raw) return `a ${raw} emergency`;
+    return "an active emergency";
+  })();
+  const cue = (input.situationCue || "").trim();
+  const cueLine = cue
+    ? cue.length > 140
+      ? `${cue.slice(0, 137)}…`
+      : cue
+    : null;
+  const where = input.area
+    ? input.locationShared
+      ? `They shared their location (${input.area}).`
+      : `Area: ${input.area} (exact pin may still be updating).`
+    : input.locationShared
+      ? "Their live location is shared in this chat."
+      : null;
+  const people =
+    input.participants && input.participants.length
+      ? `In this chat now: ${input.participants.join(", ")}.`
+      : "The Safety Network is being alerted into this chat.";
+
+  return [
+    `${person} needs help — ${typeLabel}.`,
+    cueLine ? `What we know from this chat: ${cueLine}` : null,
+    where,
+    people,
+    "Stay here with us. Tell me what you need — first-aid steps, what to do when you arrive, or how to call emergency services.",
+    "",
+    "::suggest[First aid steps | What should I do? | Call 999]",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 const FILING_TOOL_NAMES = new Set(["report_summary", "create_report"]);
@@ -143,6 +224,9 @@ export function scriptedFlowOpener(intakeText: string, activeFlowLabel: string |
   if (isEmergencyNumbersAsk(text)) {
     return EMERGENCY_NUMBERS_REPLY;
   }
+
+  // Soft SOS situation questions are handled by the chat route with room state
+  // (scriptedFlowOpener has no SOS room context here).
 
   // Hard report flows keep the model for follow-up answers.
   if (activeFlowLabel && !isSoftGuidedFlow(activeFlowLabel) && activeFlowLabel !== "Find help") {
