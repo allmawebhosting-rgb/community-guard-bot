@@ -353,34 +353,31 @@ function FlowBanner({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="relative overflow-hidden rounded-2xl border border-border bg-card/60 px-3.5 py-3"
+      className="premium-flow-card"
     >
       <div className="flex items-center gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
           <FlowIcon className="h-4 w-4 text-primary" />
         </span>
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold tracking-[0.04em] text-muted-foreground">
             {flowLabel}
-            <span className="text-muted-foreground/70">
-              {" "}
-              · STEP {step} OF {total}
-            </span>
+            <span className="text-muted-foreground/60"> · {step}/{total}</span>
           </p>
-          <h4 className="truncate text-[15px] font-semibold leading-snug tracking-[-0.01em] text-foreground">
+          <h4 className="truncate text-[15px] font-semibold leading-snug text-foreground">
             {stepTitle}
           </h4>
           {helper ? (
-            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{helper}</p>
+            <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted-foreground">{helper}</p>
           ) : null}
         </div>
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-border/40">
+      <div className="premium-flow-track" aria-hidden>
         <motion.div
-          className="h-full bg-gradient-to-r from-primary via-primary-glow to-gold"
+          className="premium-flow-fill"
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         />
       </div>
     </motion.div>
@@ -535,24 +532,35 @@ const SosActivityContext = createContext<{
   ownerName: null,
 });
 
-/** Numbered first-aid steps + red flags, shown when the reply itself skipped them. */
+/** Numbered first-aid steps + red flags — one premium card, no repeated prose. */
 function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | null }) {
   return (
-    <div className="w-full rounded-2xl border border-border/50 bg-card/70 p-4 text-base leading-[1.6] text-foreground">
-      <p className="mb-2 font-semibold">Do this now:</p>
-      <ol className="list-decimal space-y-1.5 pl-5">
-        {aid.steps.map((step, i) => <li key={i}>{step}</li>)}
+    <div className="premium-aid-card">
+      <div className="premium-aid-head">
+        <span className="premium-aid-badge">Do this now</span>
+      </div>
+      <ol className="premium-aid-steps">
+        {aid.steps.map((step, i) => (
+          <li key={i}>
+            <span className="premium-aid-num" aria-hidden>
+              {i + 1}
+            </span>
+            <span>{step}</span>
+          </li>
+        ))}
       </ol>
       {aid.redFlags.length ? (
-        <>
-          <p className="mb-1.5 mt-3 font-semibold">Get help now if:</p>
-          <ul className="list-disc space-y-1 pl-5">
-            {aid.redFlags.map((flag, i) => <li key={i}>{flag}</li>)}
+        <div className="premium-aid-flags">
+          <p className="premium-aid-flags-title">Get help now if</p>
+          <ul>
+            {aid.redFlags.map((flag, i) => (
+              <li key={i}>{flag}</li>
+            ))}
           </ul>
-        </>
+        </div>
       ) : null}
-      {aid.notDoctor ? <p className="mt-3 text-[13px] text-muted-foreground">{aid.notDoctor}</p> : null}
-      {followUp ? <p className="mt-3 font-semibold">{followUp}</p> : null}
+      {followUp ? <p className="premium-aid-followup">{followUp}</p> : null}
+      {aid.notDoctor ? <p className="premium-aid-note">{aid.notDoctor}</p> : null}
     </div>
   );
 }
@@ -2346,9 +2354,7 @@ export function AllmaChat({
 
   // The SOS + first-aid card stack belongs to the FIRST AI reply after the
   // user message that reported the emergency. Later AI messages in the same
-  // stretch (the agent's situation brief, follow-up answers) resolve the
-  // same incident and used to repeat the whole stack, making the chat look
-  // disorganized — one stack per reported emergency is enough.
+  // stretch resolve the same incident — one stack per reported emergency.
   const cardStackMessageIds = useMemo(() => {
     const shown = new Set<string>();
     const coveredSources = new Set<number>();
@@ -2375,6 +2381,9 @@ export function AllmaChat({
     return shown;
   }, [messages]);
 
+  // Aid cards also only once per emergency source (same rule as card stack).
+  const aidCardMessageIds = cardStackMessageIds;
+
   // Bodies of room-timeline notices (joined / SOS state). A system notice
   // that exists in both stores renders once — as the room timeline's pill.
   const sosNoticeBodies = useMemo(
@@ -2399,7 +2408,7 @@ export function AllmaChat({
     const markers = parseAllmaMarkers(rawText);
 
     // Inline markers win: they were written for exactly this step.
-    if (markers.suggestions.length > 0) return markers.suggestions.slice(0, 4);
+    if (markers.suggestions.length > 0) return markers.suggestions.slice(0, 3);
     if (markers.media) {
       if (markers.media.mediaType === "location") {
         return [{ label: "Share my location", prompt: LOCATION_CHIP }];
@@ -2950,33 +2959,33 @@ export function AllmaChat({
     return "other" as const;
   }, [messages]);
 
-  // Only mount the header activator while a header SOS is in flight. Once the
-  // room is live, the in-message / side-panel SOS card owns the UI.
+  // One SOS surface only: header activator while starting, sticky live card
+  // while active — never both, and never also stacked inside every AI reply.
   const showHeaderSosActivator = headerSosRequest && !sosIsActive;
+  const stickySosType =
+    headerSosType === "crime" || headerSosType === "fire" || headerSosType === "medical"
+      ? headerSosType
+      : "medical";
 
   return (
     <SosActivityContext.Provider value={sosActivityContextValue}>
     <div className={cn("chat-canvas relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
-      {/* Header SOS button activates here — same chat, Safety Network joins this room. */}
-      {showHeaderSosActivator ? (
-        <div className="z-20 w-full shrink-0 border-b border-destructive/20 bg-background/95 px-3 py-2 sm:px-4">
+      {/* Single SOS dock: start from header, or show the live room once. */}
+      {showHeaderSosActivator || sosIsActive ? (
+        <div className="z-20 w-full shrink-0 border-b border-destructive/15 bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
           <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
             <InChatSos
-              type={headerSosType}
-              lines={
-                EMERGENCY_BLOCK_LINES[
-                  headerSosType === "crime" || headerSosType === "fire" ? headerSosType : "medical"
-                ]
-              }
+              type={stickySosType}
+              lines={EMERGENCY_BLOCK_LINES[stickySosType]}
               threadId={threadId}
               existingActivityId={sosActivityId}
               existingActive={sosIsActive}
               sharedLocation={sosActivityContextValue.sharedLocation}
               canManage={canManageSos}
               ownerName={sosActivityContextValue.ownerName}
-              requestActivation
-              immediateActivation
-              hideIdle={false}
+              requestActivation={showHeaderSosActivator}
+              immediateActivation={showHeaderSosActivator}
+              hideIdle={!showHeaderSosActivator && !sosIsActive}
               onActivityStarted={(activityId, card) => {
                 setHeaderSosRequest(false);
                 handleSosActivityStarted(activityId, card);
@@ -2987,44 +2996,11 @@ export function AllmaChat({
           </div>
         </div>
       ) : null}
-      {/* Desktop-only pinned side panel for an active SOS: fills the empty
-          space beside the chat with the emergency facts and the Safety
-          Network calling status. Read-only — the live SOS card (with the
-          calling controls) stays in the conversation, so nothing is
-          mounted twice. */}
+      {/* Desktop people rail only — emergency controls live in the sticky SOS dock above. */}
       {sosIsActive && sosRoom ? (
-        <aside className="absolute bottom-0 right-0 top-14 z-30 hidden w-[320px] flex-col gap-3 overflow-y-auto border-l border-border/60 bg-background/95 p-3 backdrop-blur lg:flex">
-          <div className="rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Emergency</p>
-            <p className="mt-2 text-sm font-semibold leading-tight">{sosRoom.sender_name}</p>
-            <p className="text-xs text-muted-foreground">Person in need</p>
-            <dl className="mt-3 space-y-1.5 text-xs">
-              <div className="flex items-baseline justify-between gap-2">
-                <dt className="text-muted-foreground">Type</dt>
-                <dd className="text-right font-medium">{EMERGENCY_TYPE_LABELS[sosRoom.emergency_type] ?? sosRoom.emergency_type}</dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-2">
-                <dt className="text-muted-foreground">Severity</dt>
-                <dd className="text-right font-medium capitalize">{sosRoom.severity}</dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-2">
-                <dt className="text-muted-foreground">Area</dt>
-                <dd className="text-right font-medium">{sosRoom.area}</dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-2">
-                <dt className="text-muted-foreground">Location</dt>
-                <dd className="text-right font-medium">{sosRoom.location_shared ? "Shared" : "Not shared yet"}</dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-2">
-                <dt className="text-muted-foreground">Started</dt>
-                <dd className="text-right font-medium">
-                  {new Date(sosRoom.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                </dd>
-              </div>
-            </dl>
-          </div>
-          <div className="rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Safety Network</p>
+        <aside className="absolute bottom-0 right-0 top-14 z-30 hidden w-[280px] flex-col gap-3 overflow-y-auto border-l border-border/50 bg-background/95 p-3 backdrop-blur lg:flex">
+          <div className="rounded-2xl border border-border/50 bg-card/90 p-3.5 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">In this chat</p>
             <div className="mt-2.5 space-y-2.5">
               {sosParticipants.map((person) => (
                 <div key={person.id} className="flex items-center gap-2.5">
@@ -3189,7 +3165,7 @@ export function AllmaChat({
               "pb-8",
             )}
           >
-            <div className={cn("flex flex-col pt-16 lg:pt-8", sosIsActive ? "gap-2.5" : "gap-5")}>
+            <div className={cn("flex flex-col pt-16 lg:pt-8", sosIsActive ? "gap-2" : "gap-4")}>
               {timelineItems.map((item, itemIndex) => {
                 // Messages should drift in slowly, not land all at once like
                 // a bomb: the newest dozen items cascade in from the end of
@@ -3274,11 +3250,14 @@ export function AllmaChat({
                 const offerMode =
                   Boolean(emergencyMarker?.offer) ||
                   Boolean(replyIncident && !replyIncident.lifeThreatening && emergencyType);
-                // Only the first AI reply after the emergency report carries
-                // the SOS + first-aid card stack (see cardStackMessageIds).
+                // One card stack per emergency report — never repeat SOS/first-aid.
                 const showCardStack = cardStackMessageIds.has(message.id);
+                const showAidCard = aidCardMessageIds.has(message.id);
+                // Activate SOS lives in the message only before the room is live;
+                // the sticky dock owns the live card after that (no duplicates).
+                const showActivateSos = showCardStack && Boolean(emergencyType) && !sosIsActive;
                 const wideSosLayout =
-                  message.role === "assistant" && Boolean(emergencyType) && sosIsActive && showCardStack;
+                  message.role === "assistant" && showActivateSos;
                 return (
                 <motion.div
                   key={message.id}
@@ -3330,16 +3309,15 @@ export function AllmaChat({
                           )
                     }
                   >
-                    {message.role === "assistant" && sosIsActive && !wideSosLayout ? (
-                      <span className="mb-1 block text-[13px] font-bold text-primary">Allma AI</span>
-                    ) : null}
                     {(() => {
                       if (message.role !== "assistant") return null;
                       const type = emergencyType;
                       const streaming = busy && msgIndex === messages.length - 1;
                       const allText = message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : "")).join("\n");
                       // Always prefer the canonical playbook card — never stack model steps under it.
-                      const aid = playbookAid ?? firstAidFallback(replyIncident, allText);
+                      const aid = showAidCard
+                        ? playbookAid ?? firstAidFallback(replyIncident, allText)
+                        : null;
                       const followUp = !streaming && aid && replyIncident ? replyIncident.followUp : null;
                       if (aid && hasNotDoctorLine(allText)) aid.notDoctor = null;
                       const showProgress =
@@ -3347,11 +3325,13 @@ export function AllmaChat({
                         progressSteps &&
                         !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>) &&
                         !aid;
-                      const showCards = showCardStack && Boolean(type || aid);
+                      const showCards = Boolean(showActivateSos || aid);
                       return showCards || showProgress ? (
                         <div className={cn("space-y-2.5", !wideSosLayout && "mb-2.5")}>
-                          {showCards && type ? <EmergencyActions type={type} offerMode={offerMode} /> : null}
-                          {showCards && aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
+                          {showActivateSos && type ? (
+                            <EmergencyActions type={type} offerMode={offerMode} />
+                          ) : null}
+                          {aid ? <FirstAidCard aid={aid} followUp={followUp} /> : null}
                           {showProgress && progressSteps ? <ChatProgressChecklist steps={progressSteps} /> : null}
                         </div>
                       ) : null;
@@ -3461,8 +3441,9 @@ export function AllmaChat({
                         const text = suppressGreeting
                           ? partText.replace(GREETING_LEAD, "").trimStart() || partText
                           : partText;
+                        if (!parsed.flow && !text && !parsed.media) return null;
                         return (
-                          <div key={index} className="space-y-3">
+                          <div key={index} className="space-y-2.5">
                             {parsed.flow ? (
                               <FlowBanner
                                 flowLabel={parsed.flow.label}
@@ -3548,14 +3529,18 @@ export function AllmaChat({
                     </IncidentContext.Provider>
                   </MessageContent>
 
-                  {message.role === "assistant" && !(busy && msgIndex === messages.length - 1) ? (
+                  {/* Actions only on the latest finished reply — avoids a row of Copy/Listen on every bubble. */}
+                  {message.role === "assistant" &&
+                  msgIndex === messages.length - 1 &&
+                  !(busy && msgIndex === messages.length - 1) ? (
                     <ResponseActions
                       text={message.parts.map((p) => (p.type === "text" ? parseAllmaMarkers(p.text).text : "")).join("\n").trim()}
-                      onRetry={!sosIsActive && msgIndex === messages.length - 1 ? () => void regenerate() : undefined}
+                      onRetry={!sosIsActive ? () => void regenerate() : undefined}
+                      compact={sosIsActive}
                     />
                   ) : null}
 
-                  {/* Contextual suggestion chips — generated by the model for this exact step */}
+                  {/* Contextual suggestion chips — one clean row under the latest reply */}
                   {message.role === "assistant" &&
                     msgIndex === messages.length - 1 &&
                     showChips && (
@@ -3563,22 +3548,20 @@ export function AllmaChat({
                         <motion.div
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.15, duration: 0.35 }}
-                          className="mt-1 flex flex-wrap gap-2"
+                          transition={{ delay: 0.12, duration: 0.3 }}
+                          className="mt-1.5 flex flex-wrap gap-1.5"
                         >
-                          {contextualChips.map((chip, chipIndex) => (
+                          {contextualChips.slice(0, 3).map((chip, chipIndex) => (
                             <motion.button
                               key={`${chip.label}-${chipIndex}`}
                               type="button"
-                              initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
                               transition={{
-                                delay: 0.15 + chipIndex * 0.06,
-                                duration: 0.3,
-                                ease: [0.16, 1, 0.3, 1],
+                                delay: 0.08 + chipIndex * 0.04,
+                                duration: 0.25,
                               }}
-                              whileHover={{ scale: 1.04, y: -1 }}
-                              whileTap={{ scale: 0.95 }}
+                              whileTap={{ scale: 0.97 }}
                               onClick={() => {
                                 if (chip.prompt === ATTACH_CHIP) {
                                   openAttach("photo");
@@ -3592,11 +3575,9 @@ export function AllmaChat({
                                   send(chip.prompt);
                                 }
                               }}
-
-
-                              className="inline-flex max-w-full items-center whitespace-normal break-words rounded-2xl border border-border bg-background px-3.5 py-2 text-left text-[13.5px] font-medium leading-snug text-foreground/85 transition-colors hover:bg-muted hover:text-foreground"
+                              className="chat-suggest-chip"
                             >
-                                                            {chip.label}
+                              {chip.label}
                             </motion.button>
                           ))}
                         </motion.div>
@@ -3999,14 +3980,27 @@ export function AllmaChat({
   );
 }
 
-function ResponseActions({ text, onRetry }: { text: string; onRetry?: () => void }) {
+function ResponseActions({
+  text,
+  onRetry,
+  compact = false,
+}: {
+  text: string;
+  onRetry?: () => void;
+  compact?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   if (!text) return null;
-  const btn = "inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40";
+  const btn =
+    "inline-flex h-7 items-center gap-1 rounded-full px-2 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chat-accent/40";
   const listen = () => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
     const u = new SpeechSynthesisUtterance(text.replace(/[*#_`>]/g, ""));
     u.onend = () => setSpeaking(false);
     u.onerror = () => setSpeaking(false);
@@ -4015,30 +4009,39 @@ function ResponseActions({ text, onRetry }: { text: string; onRetry?: () => void
     setSpeaking(true);
   };
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1">
+      {!compact ? (
+        <button
+          type="button"
+          className={btn}
+          aria-label={copied ? "Copied" : "Copy response"}
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(text);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            } catch {
+              /* clipboard unavailable */
+            }
+          }}
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-chat-accent" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      ) : null}
+      {onRetry ? (
+        <button type="button" className={btn} aria-label="Retry response" onClick={onRetry}>
+          <RotateCcw className="h-3.5 w-3.5" /> Retry
+        </button>
+      ) : null}
       <button
         type="button"
         className={btn}
-        aria-label={copied ? "Copied" : "Copy response"}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(text);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          } catch {
-            /* clipboard unavailable */
-          }
-        }}
+        aria-label={speaking ? "Stop reading" : "Listen to response"}
+        onClick={listen}
       >
-        {copied ? <Check className="h-4 w-4 text-chat-accent" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
-      </button>
-      {onRetry ? (
-        <button type="button" className={btn} aria-label="Retry response" onClick={onRetry}>
-          <RotateCcw className="h-4 w-4" /> Retry
-        </button>
-      ) : null}
-      <button type="button" className={btn} aria-label={speaking ? "Stop reading" : "Listen to response"} onClick={listen}>
-        {speaking ? <Square className="h-3.5 w-3.5 fill-current" /> : <Volume2 className="h-4 w-4" />} {speaking ? "Stop" : "Listen"}
+        {speaking ? <Square className="h-3 w-3 fill-current" /> : <Volume2 className="h-3.5 w-3.5" />}
+        {speaking ? "Stop" : "Listen"}
       </button>
     </div>
   );
