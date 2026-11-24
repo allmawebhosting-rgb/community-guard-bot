@@ -122,11 +122,16 @@ async def run_booking_task(
     )
 
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not openai_key:
+    placeholder_key = (
+        not openai_key
+        or "your_openai" in openai_key.lower()
+        or openai_key.lower().endswith("_here")
+    )
+    if placeholder_key:
         return {
             "status": "failed",
             "hospital": hospital_name,
-            "summary": "Browser agent is missing OPENAI_API_KEY on the VPS.",
+            "summary": "Browser agent needs a real OPENAI_API_KEY on the VPS before it can book appointments.",
             "screenshot_url": None,
             "success": False,
             "payment_required": False,
