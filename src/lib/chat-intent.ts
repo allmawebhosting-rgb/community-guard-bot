@@ -36,9 +36,24 @@ export function isSoftGuidedFlow(flowLabel: string | null | undefined) {
 
 /** True when the user is explicitly asking for nearby places / directions. */
 export function isExplicitNearbyAsk(text: string) {
-  return /\b(near(by|est)?|hospital|clinic|police station|fire station|ambulance|directions?|find help|closest|where (is|are|can)|take me to)\b/i.test(
-    text.trim(),
-  );
+  const t = text.trim();
+  if (!t) return false;
+  if (
+    /\b(near(by|est)?|closest|directions?|find help|help nearby|nearby help|near me|take me to)\b/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  if (/\bwhere (is|are|can)\b/i.test(t)) return true;
+  // "check police", "find hospital", "need a clinic" — action + place type
+  const place =
+    /\b(hospital|clinic|pharmacy|doctor|health cent(?:re|er)|police(?:\s+station|\s+post)?|fire(?:\s+station|\s+brigade)?|ambulance|shelter)\b/i.test(
+      t,
+    );
+  const action =
+    /\b(find|check|show|get|need|look|search|send|guide|map|locate|call)\b/i.test(t);
+  return place && action;
 }
 
 /**
@@ -47,6 +62,18 @@ export function isExplicitNearbyAsk(text: string) {
  * gets its playbook help types so nearby help cards always appear —
  * except during a live SOS, where situation questions must NOT dump clinics.
  */
+function facilityTypesFromAsk(text: string): string[] {
+  const types: string[] = [];
+  if (/\bpolice(?:\s+station|\s+post)?\b/i.test(text)) types.push("police");
+  if (/\b(?:hospital|clinic|pharmacy|doctor|health cent(?:re|er))\b/i.test(text)) {
+    types.push("hospital");
+  }
+  if (/\bambulance\b/i.test(text)) types.push("ambulance");
+  if (/\bfire(?:\s+station|\s+brigade|\s+service)?\b/i.test(text)) types.push("fire");
+  if (/\b(?:shelter|safe house)\b/i.test(text)) types.push("shelter");
+  return types;
+}
+
 export function nearbyHelpTypesForTurn(input: {
   directFacilityTypes: string[];
   directService: string | null;
@@ -56,7 +83,8 @@ export function nearbyHelpTypesForTurn(input: {
   sosActive?: boolean;
   intakeText?: string;
 }): string[] {
-  const explicitNearby = isExplicitNearbyAsk(input.intakeText ?? "");
+  const intake = input.intakeText ?? "";
+  const explicitNearby = isExplicitNearbyAsk(intake);
   // Live SOS: only search places when the human clearly asks for them.
   // "What is wrong with Allan?" must answer the situation, not open a clinic grid.
   if (input.sosActive && !explicitNearby && !input.showDirectHelp) {
@@ -64,7 +92,14 @@ export function nearbyHelpTypesForTurn(input: {
   }
   if (input.showDirectHelp || (input.sosActive && explicitNearby)) {
     if (input.directFacilityTypes.length) return [...input.directFacilityTypes];
-    if (input.directService) return [input.directService];
+    const fromAsk = facilityTypesFromAsk(intake);
+    if (fromAsk.length) return fromAsk;
+    if (input.directService) {
+      const mapped = facilityTypesFromAsk(String(input.directService));
+      return mapped.length ? mapped : [input.directService];
+    }
+    // Generic "nearest / find help" with no place named → both.
+    if (input.sosActive && explicitNearby) return ["police", "hospital"];
     if (input.emergencyHelpTypes.length) return [...input.emergencyHelpTypes];
     return ["police", "hospital"];
   }

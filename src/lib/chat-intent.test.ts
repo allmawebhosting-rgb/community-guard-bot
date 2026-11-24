@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canUseCaseTimelineTool,
   canUseFilingTools,
+  isExplicitNearbyAsk,
   isFirstAidTopicAsk,
   isReportingIntent,
   isSoftGuidedFlow,
@@ -145,6 +146,39 @@ describe("direct help routing", () => {
         intakeText: "nearest hospital",
       }),
     ).toEqual(["hospital"]);
+  });
+
+  it("searches police in SOS when asked, even during a medical emergency", () => {
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: ["police"],
+        directService: "police",
+        emergencyHelpTypes: ["hospital"],
+        isReporting: false,
+        showDirectHelp: true,
+        sosActive: true,
+        intakeText: "check the nearest police",
+      }),
+    ).toEqual(["police"]);
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: [],
+        directService: null,
+        emergencyHelpTypes: ["hospital"],
+        isReporting: false,
+        showDirectHelp: false,
+        sosActive: true,
+        intakeText: "check the nearest police or hospital",
+      }),
+    ).toEqual(["police", "hospital"]);
+  });
+
+  it("detects explicit nearby asks including check police / find hospital", () => {
+    expect(isExplicitNearbyAsk("check the nearest police or hospital")).toBe(true);
+    expect(isExplicitNearbyAsk("find police")).toBe(true);
+    expect(isExplicitNearbyAsk("need a hospital")).toBe(true);
+    expect(isExplicitNearbyAsk("what is the problem with allan")).toBe(false);
+    expect(isExplicitNearbyAsk("my nose is bleeding")).toBe(false);
   });
 
   it("detects SOS situation questions from responders", () => {

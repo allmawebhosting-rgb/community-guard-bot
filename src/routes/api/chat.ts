@@ -11,6 +11,7 @@ import {
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
   isEmergencyNumbersAsk,
+  isExplicitNearbyAsk,
   isSosSituationQuestion,
   scriptedFlowOpener,
   shouldLoadReportingPrompt,
@@ -353,10 +354,11 @@ export const Route = createFileRoute("/api/chat")({
 - SOS started at ${room.created_at}.
 - In this chat now (${participants.length}): ${people}.
 You are a calm human coordinator in this emergency room — talk like a real person, not a product menu:
-- Read the latest human message carefully. Answer THAT ask first in plain sentences.
+- Read the latest human message carefully. DO exactly what they asked this turn (brief the situation, first-aid steps, what a responder should do, call 999/112, find nearest police/hospital/clinic, directions, or anything else they request for THIS emergency).
 - If someone asks what is wrong / what happened / what is the problem with ${room.sender_name} (or "Allan"/the person in need), tell them the emergency from the room state and earlier chat messages. Example shape: "${room.sender_name} needs help — medical emergency. From the chat: [short situation]. Stay with us — I can give first-aid steps or tell you what to do next."
+- If they ask for nearest police, hospital, clinic, ambulance, fire, or directions — call find_facilities immediately with those types. Do not refuse; do not change the subject.
 - Do NOT reply with "I am here to help with first aid, reporting, missing persons…" or any onboarding menu while SOS is active.
-- Do NOT call find_facilities or dump clinic/hospital cards unless they clearly ask for nearby help, a hospital, clinic, police station, or directions.
+- Do NOT dump clinic/hospital cards unprompted — only when they ask for nearby help or a place type.
 - ${typeFocus}
 - When a responder asks what to do, give them one clear job (call 999/112, go to the person, share location, or keep them calm in chat).
 - Keep every reply short and useful. Never invent dispatches. Never print tool names.
@@ -515,7 +517,12 @@ You are coordinating this emergency from the start, not just answering questions
         const sosSituationCue = situationCueFromHistory(userHistoryTexts);
 
         // Live SOS: answer "what is wrong with Allan?" from room + chat — no clinic dump.
-        if (sharedSosActive && isSosSituationQuestion(intakeText)) {
+        // If they also ask for nearest police/hospital, skip the script and fulfill the ask.
+        if (
+          sharedSosActive &&
+          isSosSituationQuestion(intakeText) &&
+          !isExplicitNearbyAsk(intakeText)
+        ) {
           return replyWithFixedText(
             sosSituationReply({
               personName: sosRoomSnapshot?.personName,
@@ -783,7 +790,7 @@ You are coordinating this emergency from the start, not just answering questions
           .slice(-4)
           .map((message) => textOf(message));
         const topicSticky = sharedSosActive
-          ? `\n\nTOPIC LOCK: SOS is active (${sosEmergencyType || "emergency"}) for ${sosRoomSnapshot?.personName || "the person in need"}.${sosSituationCue ? ` Situation from chat: "${sosSituationCue}".` : ""} Answer like a real coordinator. If they ask what is wrong / what happened, explain this emergency in plain words. Do NOT open clinics, Case Timeline, crime-report wizards, lost & found, greetings, or product menus unless they ask for nearby help by name.`
+          ? `\n\nTOPIC LOCK: SOS is active (${sosEmergencyType || "emergency"}) for ${sosRoomSnapshot?.personName || "the person in need"}.${sosSituationCue ? ` Situation from chat: "${sosSituationCue}".` : ""} Answer like a real coordinator in this room. Fulfill whatever they ask for THIS emergency (situation brief, first aid, responder instructions, call steps, nearest police/hospital/clinic). If they ask what is wrong / what happened, explain this emergency in plain words. If they ask for nearest police or hospital, search and show those places. Do NOT open Case Timeline, crime-report wizards, lost & found, greetings, or product menus.`
           : flowState.flowLabel === "Reporting" ||
               flowState.flowLabel === "Missing person" ||
               flowState.flowLabel === "Lost & found"
@@ -941,8 +948,10 @@ You are coordinating this emergency from the start, not just answering questions
           abortSignal: request.signal,
           system: `${systemPrompt}\n\n${
             sharedSosActive && !requireNearbyHelp
-              ? "SOS REPLY RULE: Answer the latest human message about THIS emergency in plain words. Do not force nearby-clinic cards. Do not give the product welcome menu."
-              : PHYSICAL_SYMPTOM_FIRST_AID_RULE
+              ? "SOS REPLY RULE: Answer the latest human message about THIS emergency in plain words and do what they asked. Do not force nearby-clinic cards unless they asked for places. Do not give the product welcome menu."
+              : sharedSosActive && requireNearbyHelp
+                ? "SOS REPLY RULE: They asked for nearby help. Call find_facilities for the requested types (police / hospital / clinic / etc.), show the places, and stay on THIS emergency. Do not give the product welcome menu."
+                : PHYSICAL_SYMPTOM_FIRST_AID_RULE
           }\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}${sosAgentBlock}${agentTakeoverBlock}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
           }${
