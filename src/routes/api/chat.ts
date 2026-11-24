@@ -11,7 +11,6 @@ import {
   isSoftGuidedFlow,
   nearbyHelpTypesForTurn,
   isEmergencyNumbersAsk,
-  isExplicitNearbyAsk,
   isSosSituationQuestion,
   scriptedFlowOpener,
   shouldLoadReportingPrompt,
@@ -175,6 +174,7 @@ function emptyReplyFallback(
     locationShared?: boolean;
     situationCue?: string | null;
     participants?: string[];
+    askerName?: string | null;
   } | null,
 ): string {
   if (sos) {
@@ -185,6 +185,7 @@ function emptyReplyFallback(
       locationShared: sos.locationShared,
       situationCue: sos.situationCue,
       participants: sos.participants,
+      askerName: sos.askerName,
     });
   }
   const incident = matchIncident(intakeText);
@@ -299,6 +300,7 @@ export const Route = createFileRoute("/api/chat")({
         // fail because the agent layer could not load.
         let sosAgentBlock = "";
         let sosEmergencyType: string | null = null;
+        let sosAskerName: string | null = null;
         let sosRoomSnapshot: {
           personName: string;
           emergencyType: string | null;
@@ -328,7 +330,12 @@ export const Route = createFileRoute("/api/chat")({
               const people = participants.length
                 ? participants
                     .map(
-                      (person: { name?: string; role?: string; connection_status?: string | null }) => {
+                      (person: {
+                        name?: string;
+                        role?: string;
+                        user_id?: string;
+                        connection_status?: string | null;
+                      }) => {
                         // connection_status is the VOICE CALL state, not chat
                         // presence: everyone in this list has joined the room.
                         // Saying "disconnected" to the model made it describe
@@ -340,6 +347,17 @@ export const Route = createFileRoute("/api/chat")({
                     )
                     .join("; ")
                 : "none yet — the Safety Network is still being called";
+              const askerName =
+                participants.find(
+                  (person: { user_id?: string; name?: string }) =>
+                    Boolean(userId) && person.user_id === userId && typeof person.name === "string",
+                )?.name ?? null;
+              const personFirst =
+                String(room.sender_name ?? "the person in need").trim().split(/\s+/)[0] ||
+                "the person in need";
+              const askerFirst = askerName
+                ? String(askerName).trim().split(/\s+/)[0]
+                : "the person asking";
               const typeFocus =
                 sosEmergencyType === "medical"
                   ? "Focus on medical first aid, bleeding control, breathing, and getting an ambulance if needed."
@@ -352,17 +370,27 @@ export const Route = createFileRoute("/api/chat")({
 - Person in need: ${room.sender_name}.
 - Emergency type: ${room.emergency_type}. Severity: ${room.severity}. Area: ${room.area}. Exact location shared: ${room.location_shared ? "yes" : "no"}.
 - SOS started at ${room.created_at}.
-- In this chat now (${participants.length}): ${people}.
-You are a calm human coordinator in this emergency room — talk like a real person, not a product menu:
+- People currently in this room (use only for context — do NOT recite as a roster in replies): ${people}.
+- The human you are answering right now: ${askerName ?? "a Safety Network contact"} (${threadIsOwner ? "conversation owner" : "responder / safety contact"}).
+You are a calm, experienced human emergency coordinator — talk like a real person, not a product menu or system log:
 - Read the latest human message carefully. DO exactly what they asked this turn (brief the situation, first-aid steps, what a responder should do, call 999/112, find nearest police/hospital/clinic, directions, or anything else they request for THIS emergency).
-- If someone asks what is wrong / what happened / what is the problem with ${room.sender_name} (or "Allan"/the person in need), tell them the emergency from the room state and earlier chat messages. Example shape: "${room.sender_name} needs help — medical emergency. From the chat: [short situation]. Stay with us — I can give first-aid steps or tell you what to do next."
+- When someone asks what is wrong / what happened / what is the problem with ${room.sender_name} (or "${personFirst}" / the person in need):
+  • Address the person asking directly by name when you know it (e.g. "${askerFirst}, ${personFirst} reported…").
+  • In 2–3 calm, natural sentences, explain what happened from the recent chat messages and this room state.
+  • Mention location status if known (shared / still pending), and whether ${personFirst} is alert and responding in chat when that is clear from the messages.
+  • Give the responder one clear practical next step (e.g. "Are you close enough to get to them?", "Stay with them here while someone calls 999", or short first-aid steps).
+  • NEVER recite participant rosters, NEVER print "What we know from this chat:", NEVER dump bulleted menus or onboarding lists.
 - If they ask for nearest police, hospital, clinic, ambulance, fire, or directions — call find_facilities immediately with those types. Do not refuse; do not change the subject.
 - Do NOT reply with "I am here to help with first aid, reporting, missing persons…" or any onboarding menu while SOS is active.
 - Do NOT dump clinic/hospital cards unprompted — only when they ask for nearby help or a place type.
+- Uganda emergency numbers when needed: Police 999, Toll-free 112, Ambulance 911 (medical only). Never claim police/ambulance were dispatched unless a tool/backend confirms it.
 - ${typeFocus}
 - When a responder asks what to do, give them one clear job (call 999/112, go to the person, share location, or keep them calm in chat).
 - Keep every reply short and useful. Never invent dispatches. Never print tool names.
 - Everyone listed above as "in this chat" is present — never describe them as disconnected.`;
+              if (typeof askerName === "string" && askerName.trim()) {
+                sosAskerName = askerName.trim();
+              }
             }
           } catch {
             sosAgentBlock = "";
@@ -516,25 +544,8 @@ You are coordinating this emergency from the start, not just answering questions
           .map((message) => textOf(message));
         const sosSituationCue = situationCueFromHistory(userHistoryTexts);
 
-        // Live SOS: answer "what is wrong with Allan?" from room + chat — no clinic dump.
-        // If they also ask for nearest police/hospital, skip the script and fulfill the ask.
-        if (
-          sharedSosActive &&
-          isSosSituationQuestion(intakeText) &&
-          !isExplicitNearbyAsk(intakeText)
-        ) {
-          return replyWithFixedText(
-            sosSituationReply({
-              personName: sosRoomSnapshot?.personName,
-              emergencyType: sosRoomSnapshot?.emergencyType ?? sosEmergencyType,
-              area: sosRoomSnapshot?.area,
-              locationShared: sosRoomSnapshot?.locationShared,
-              situationCue: sosSituationCue,
-              participants: sosRoomSnapshot?.participants,
-            }),
-            "sos-situation",
-          );
-        }
+        // Situation questions ("what is wrong with Allan?") stream through the
+        // model with sosAgentBlock / topicSticky — never a fixed robotic script.
 
         // Clear menu/chip intents open a real guided step locally — never call the
         // model (which was emitting empty REPORT SUMMARY · Done cards).
@@ -790,7 +801,7 @@ You are coordinating this emergency from the start, not just answering questions
           .slice(-4)
           .map((message) => textOf(message));
         const topicSticky = sharedSosActive
-          ? `\n\nTOPIC LOCK: SOS is active (${sosEmergencyType || "emergency"}) for ${sosRoomSnapshot?.personName || "the person in need"}.${sosSituationCue ? ` Situation from chat: "${sosSituationCue}".` : ""} Answer like a real coordinator in this room. Fulfill whatever they ask for THIS emergency (situation brief, first aid, responder instructions, call steps, nearest police/hospital/clinic). If they ask what is wrong / what happened, explain this emergency in plain words. If they ask for nearest police or hospital, search and show those places. Do NOT open Case Timeline, crime-report wizards, lost & found, greetings, or product menus.`
+          ? `\n\nTOPIC LOCK: SOS is active (${sosEmergencyType || "emergency"}) for ${sosRoomSnapshot?.personName || "the person in need"}.${sosSituationCue ? ` Situation from chat: "${sosSituationCue}".` : ""}${sosAskerName ? ` You are speaking to ${sosAskerName}.` : ""} Answer like a real human coordinator in this room. Fulfill whatever they ask for THIS emergency (situation brief, first aid, responder instructions, call steps, nearest police/hospital/clinic). When they ask what is wrong / what happened / what is the problem with the person in need: address the asker by name when known, summarize the condition in 2–3 natural sentences from the chat + room state, mention location status, and give one clear next step. NEVER recite who is "in this chat now", NEVER print "What we know from this chat:", NEVER dump bulleted menus. If they ask for nearest police or hospital, search and show those places. Do NOT open Case Timeline, crime-report wizards, lost & found, greetings, or product menus.`
           : flowState.flowLabel === "Reporting" ||
               flowState.flowLabel === "Missing person" ||
               flowState.flowLabel === "Lost & found"
@@ -901,6 +912,7 @@ You are coordinating this emergency from the start, not just answering questions
               locationShared: sosRoomSnapshot?.locationShared,
               situationCue: sosSituationCue,
               participants: sosRoomSnapshot?.participants,
+              askerName: sosAskerName,
             }
           : null;
 
@@ -947,7 +959,9 @@ You are coordinating this emergency from the start, not just answering questions
           maxOutputTokens: emergencyIncident || requireNearbyHelp ? 700 : 512,
           abortSignal: request.signal,
           system: `${systemPrompt}\n\n${
-            sharedSosActive && !requireNearbyHelp
+            sharedSosActive && isSosSituationQuestion(intakeText) && !requireNearbyHelp
+              ? `SOS REPLY RULE: This is a situation question. Speak like a real coordinator${sosAskerName ? ` to ${sosAskerName.split(/\s+/)[0]}` : ""}. In 2–3 natural sentences explain what happened to ${sosRoomSnapshot?.personName || "the person in need"} from the chat and room state, mention location if known, and give one clear next step. Never print "What we know from this chat:", never list who is in the chat as a roster, never dump menus or clinics.`
+              : sharedSosActive && !requireNearbyHelp
               ? "SOS REPLY RULE: Answer the latest human message about THIS emergency in plain words and do what they asked. Do not force nearby-clinic cards unless they asked for places. Do not give the product welcome menu."
               : sharedSosActive && requireNearbyHelp
                 ? "SOS REPLY RULE: They asked for nearby help. Call find_facilities for the requested types (police / hospital / clinic / etc.), show the places, and stay on THIS emergency. Do not give the product welcome menu."

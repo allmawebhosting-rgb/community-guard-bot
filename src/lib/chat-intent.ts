@@ -124,7 +124,10 @@ export function isSosSituationQuestion(text: string) {
   );
 }
 
-/** Plain-language SOS answer — sounds like a coordinator, not a product menu. */
+/**
+ * Fallback SOS situation brief when the model cannot answer.
+ * Sounds like a human coordinator — never a roster dump or system log.
+ */
 export function sosSituationReply(input: {
   personName?: string | null;
   emergencyType?: string | null;
@@ -132,12 +135,15 @@ export function sosSituationReply(input: {
   locationShared?: boolean;
   situationCue?: string | null;
   participants?: string[];
+  askerName?: string | null;
 }) {
   const person = (input.personName || "The person in need").trim();
+  const firstName = person.split(/\s+/)[0] || person;
+  const asker = (input.askerName || "").trim().split(/\s+/)[0] || null;
   const typeLabel = (() => {
     const raw = (input.emergencyType || "").toLowerCase();
     if (raw === "medical") return "a medical emergency";
-    if (raw === "crime") return "a crime / personal-safety emergency";
+    if (raw === "crime") return "a personal-safety emergency";
     if (raw === "fire") return "a fire emergency";
     if (raw) return `a ${raw} emergency`;
     return "an active emergency";
@@ -150,25 +156,20 @@ export function sosSituationReply(input: {
     : null;
   const where = input.area
     ? input.locationShared
-      ? `They shared their location (${input.area}).`
-      : `Area: ${input.area} (exact pin may still be updating).`
+      ? input.area
+      : `${input.area} (pin still updating)`
     : input.locationShared
-      ? "Their live location is shared in this chat."
+      ? "their shared live location"
       : null;
-  const people =
-    input.participants && input.participants.length
-      ? `In this chat now: ${input.participants.join(", ")}.`
-      : "The Safety Network is being alerted into this chat.";
 
-  return [
-    `${person} needs help — ${typeLabel}.`,
-    cueLine ? `What we know from this chat: ${cueLine}` : null,
-    where,
-    people,
-    "Stay here with us. Tell me what you need — first-aid steps, what to do when you arrive, or how to call emergency services.",
-    "",
-    "::suggest[First aid steps | What should I do? | Call 999]",
-  ]
+  const opener = asker
+    ? `${asker}, ${firstName} needs help with ${typeLabel}${where ? ` at ${where}` : ""}.`
+    : `${firstName} needs help with ${typeLabel}${where ? ` at ${where}` : ""}.`;
+  const reported = cueLine ? `They reported: "${cueLine}".` : null;
+  const next =
+    "Stay in this chat with us — tell me if you are with them, on the way, or need first-aid guidance. If anyone is in immediate danger, call Police 999 or Toll-free 112.";
+
+  return [opener, reported, next, "", "::suggest[First aid steps | What should I do? | Call 999]"]
     .filter(Boolean)
     .join("\n");
 }

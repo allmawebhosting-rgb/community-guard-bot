@@ -196,10 +196,14 @@ describe("direct help routing", () => {
       locationShared: true,
       situationCue: "my nose is bleeding",
       participants: ["Mawerere Allan", "Allma AI", "Air preach"],
+      askerName: "Air preach",
     });
-    expect(reply).toMatch(/Mawerere Allan needs help/i);
-    expect(reply).toMatch(/medical emergency/i);
-    expect(reply).toMatch(/nose is bleeding/i);
+    expect(reply).toMatch(/Air,? Mawerere needs help with a medical emergency/i);
+    expect(reply).toMatch(/They reported: "my nose is bleeding"/i);
+    expect(reply).toMatch(/Stay in this chat with us/i);
+    expect(reply).toMatch(/999|112/);
+    expect(reply).not.toMatch(/What we know from this chat/i);
+    expect(reply).not.toMatch(/In this chat now/i);
     expect(reply).not.toMatch(/I am here to help with first aid, reporting/i);
     expect(reply).not.toMatch(/missing persons/i);
   });
