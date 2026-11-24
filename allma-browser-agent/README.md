@@ -36,7 +36,20 @@ BROWSER_AGENT_MODEL=gpt-4o
 BROWSER_AGENT_USE_VISION=true
 ```
 
-## Setup
+## Setup on Google Cloud VPS (recommended)
+
+From the GCP Console → your VM → **SSH** (browser SSH is fine), run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/allmawebhosting-rgb/community-guard-bot/main/allma-browser-agent/deploy/install-on-google-vps.sh | sudo bash
+```
+
+Then:
+1. **Firewall** — allow TCP **8000** inbound on the VPC (GCP → VPC network → Firewall).
+2. Put the printed `VPS_AGENT_BASE_URL` and `VPS_AGENT_SECRET_TOKEN` into Cursor secure secrets for Allma.
+3. Edit `/opt/allma-browser-agent/.env` — set `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (Workers AI) so booking can run without OpenAI.
+
+## Manual setup
 
 ```bash
 sudo apt update && sudo apt install -y python3-pip python3-venv xvfb \
