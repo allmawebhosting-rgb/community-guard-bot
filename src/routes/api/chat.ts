@@ -801,6 +801,14 @@ You are coordinating this emergency from the start, not just answering questions
               : ""
             : emergencyPromptBlock(emergencyIncident, Boolean(sharedCoords)).trim()
           : "";
+        // Booking intent must be resolved before intentBlock (used below).
+        const bookingAsk = isAppointmentBookingAsk(intakeText);
+        const wantsBooking = isBrowserAgentConfigured() && bookingAsk;
+        const bookingBlock = bookingAsk
+          ? wantsBooking
+            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit, patient name/phone if useful). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they already named a clinic (e.g. Jemia Doctors Chambers), use that name. Never invent a confirmation number — only report what the booking agent returns. End with ::suggest[…] options when you still need a choice.`
+            : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
+          : "";
         const intentBlock = bookingBlock + directHelpBlock + (intent && continueGuidedFlow
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
@@ -895,18 +903,11 @@ You are coordinating this emergency from the start, not just answering questions
         // list_alerts is opt-in only when the user asks about alerts — otherwise
         // the model was dumping empty "NEARBY HELP · No active alerts" cards.
         const wantsAlerts = /\balerts?\b|community (news|warning)|safety alert/i.test(intakeText);
-        const bookingAsk = isAppointmentBookingAsk(intakeText);
-        const wantsBooking = isBrowserAgentConfigured() && bookingAsk;
         const LIGHT_TOOL_NAMES = new Set([
           "find_facilities",
           ...(wantsAlerts ? (["list_alerts"] as const) : []),
           ...(wantsBooking ? (["book_hospital_appointment"] as const) : []),
         ]);
-        const bookingBlock = bookingAsk
-          ? wantsBooking
-            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit, patient name/phone if useful). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they already named a clinic (e.g. Jemia Doctors Chambers), use that name. Never invent a confirmation number — only report what the booking agent returns. End with ::suggest[…] options when you still need a choice.`
-            : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
-          : "";
         const filingAllowed = canUseFilingTools({
           flowLabel: flowState.flowLabel,
           step: flowState.step,
