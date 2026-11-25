@@ -47,6 +47,44 @@ export function isAppointmentBookingAsk(text: string) {
   return bookVerb && medical;
 }
 
+/** True when the last Allma message was the booking details opener. */
+export function isBookingOpenerMessage(text: string | null | undefined) {
+  const t = (text || "").trim();
+  if (!t) return false;
+  return (
+    /I can book a hospital or clinic appointment/i.test(t) ||
+    /Which clinic or hospital should I use/i.test(t) ||
+    /Got it — .+ I'll use/i.test(t) ||
+    /When do you want to go, and what'?s the reason/i.test(t)
+  );
+}
+
+const BOOKING_TIME_RE =
+  /\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(am|pm)|morning|afternoon|evening|next week)\b/i;
+
+/** User is answering the booking opener (clinic / time / reason) — not asking for a map. */
+export function isBookingFollowUp(intakeText: string, lastAssistantText: string | null | undefined) {
+  const t = intakeText.trim();
+  if (!t || t.length > 200) return false;
+  if (!isBookingOpenerMessage(lastAssistantText)) return false;
+  // Chips that intentionally leave booking for a facility directory search.
+  if (/\b(near(by|est)?|closest|near me|around me|find help|type a town|share my location)\b/i.test(t)) {
+    return false;
+  }
+  if (/^(cancel|never ?mind|stop|no thanks)[.!]?$/i.test(t)) return false;
+  return true;
+}
+
+export function bookingHasPreferredTime(text: string) {
+  return BOOKING_TIME_RE.test(text.trim());
+}
+
+/** After they name a clinic with no time yet — keep them in booking, don't search places. */
+export function bookingClinicAckReply(clinicName: string) {
+  const name = clinicName.trim().replace(/\s+/g, " ");
+  return `Got it — I'll use **${name}**.\n\nWhen do you want to go, and what's the reason for the visit in a short phrase?\n\n::suggest[Tomorrow morning checkup | This afternoon | Next Monday]`;
+}
+
 /** True when the user is explicitly asking for nearby places / directions. */
 export function isExplicitNearbyAsk(text: string) {
   const t = text.trim();
@@ -103,10 +141,15 @@ export function nearbyHelpTypesForTurn(input: {
   showDirectHelp: boolean;
   sosActive?: boolean;
   intakeText?: string;
+  /** Mid-booking reply (e.g. "jinja main hospital") — never dump a clinic grid. */
+  bookingFollowUp?: boolean;
 }): string[] {
   const intake = input.intakeText ?? "";
   // Booking / scheduling an appointment must not force find_facilities.
   // "Book an appointment at a hospital" should start the booking flow, not a clinic list.
+  if (input.bookingFollowUp) {
+    return [];
+  }
   if (
     isAppointmentBookingAsk(intake) &&
     !/\b(near(by|est)?|closest|near me|around me)\b/i.test(intake)
@@ -264,7 +307,7 @@ export const FIRST_AID_OPENER =
   "I can guide you through first aid. What happened?\n\nTell me the injury or symptoms in a short sentence — for example a cut, burn, nosebleed, or someone who is unconscious.\n\n::suggest[Cut or bleeding | Burn | Unconscious | Something else]";
 
 export const BOOKING_OPENER =
-  "I can book a hospital or clinic appointment for you.\n\nWhich clinic or hospital should I use, and when do you want to go? Also tell me the reason for the visit in a short phrase.\n\n::suggest[Jemia Doctors Chambers | Nearest clinic near me | Tomorrow morning checkup]";
+  "I can book a hospital or clinic appointment for you.\n\nWhich clinic or hospital should I use, and when do you want to go? Also tell me the reason for the visit in a short phrase.\n\n::suggest[Jemia Doctors Chambers | Jinja Main Hospital | Nearest clinic near me]";
 
 /** True when the user is asking for 999/112 — never search alerts or facilities. */
 export function isEmergencyNumbersAsk(text: string) {

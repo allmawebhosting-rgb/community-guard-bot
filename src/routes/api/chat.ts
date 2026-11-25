@@ -10,6 +10,9 @@ import {
   isFilingToolName,
   isSoftGuidedFlow,
   isAppointmentBookingAsk,
+  isBookingFollowUp,
+  bookingClinicAckReply,
+  bookingHasPreferredTime,
   nearbyHelpTypesForTurn,
   isEmergencyNumbersAsk,
   isSosSituationQuestion,
@@ -212,12 +215,11 @@ function emptyReplyFallback(
     return 'I can guide you through reporting. What kind of incident is this?\n\n::suggest[Theft | Robbery | Assault | Something else]';
   }
   // Booking asks contain "hospital" — never fall through to the nearby-help prompt.
-  if (isAppointmentBookingAsk(intakeText)) {
+  if (isAppointmentBookingAsk(intakeText) || bookingHasPreferredTime(intakeText)) {
     const vague =
+      isAppointmentBookingAsk(intakeText) &&
       intakeText.length < 100 &&
-      !/\b(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(am|pm)|morning|afternoon|evening)\b/i.test(
-        intakeText,
-      );
+      !bookingHasPreferredTime(intakeText);
     if (vague) return BOOKING_OPENER;
     return "I ran the booking agent for that request. Check the booking result above — if it did not finish, tell me another clinic or time and I will try again.\n\n::suggest[Try another clinic | Different time | Find clinics nearby]";
   }
@@ -586,18 +588,23 @@ You are coordinating this emergency from the start, not just answering questions
 
         // Clear menu/chip intents open a real guided step locally — never call the
         // model (which was emitting empty REPORT SUMMARY · Done cards).
+        const priorAssistantMessages = [...uiMessages].reverse().filter((m) => m.role === "assistant");
         const priorFlowLabel =
-          [...uiMessages]
-            .reverse()
-            .filter((m) => m.role === "assistant")
-            .map((m) => parseAllmaMarkers(textOf(m)).flow?.label)
-            .find(Boolean) ?? null;
+          priorAssistantMessages.map((m) => parseAllmaMarkers(textOf(m)).flow?.label).find(Boolean) ??
+          null;
+        const lastAssistantFullText = priorAssistantMessages[0] ? textOf(priorAssistantMessages[0]) : "";
+        const bookingFollowUp = isBookingFollowUp(intakeText, lastAssistantFullText);
         const scripted =
           sharedSosActive || hasSharedAssistantHistory
             ? null
             : scriptedFlowOpener(intakeText, priorFlowLabel);
         if (scripted) {
           return replyWithFixedText(scripted, "allma-flow");
+        }
+        // After the booking opener, a clinic name like "jinja main hospital" must
+        // stay in booking — never flip into a nearby-clinic directory search.
+        if (bookingFollowUp && !bookingHasPreferredTime(intakeText)) {
+          return replyWithFixedText(bookingClinicAckReply(intakeText), "allma-booking");
         }
 
 
@@ -778,9 +785,10 @@ You are coordinating this emergency from the start, not just answering questions
           directService,
           emergencyHelpTypes: emergencyIncident?.helpTypes ?? [],
           isReporting,
-          showDirectHelp: shouldShowHelp,
+          showDirectHelp: shouldShowHelp && !bookingFollowUp,
           sosActive: sharedSosActive,
           intakeText,
+          bookingFollowUp,
         });
         const requireNearbyHelp = nearbyTypes.length > 0;
         // Drop the survey banner when first-aid or a facility search takes over.
@@ -813,11 +821,13 @@ You are coordinating this emergency from the start, not just answering questions
             : emergencyPromptBlock(emergencyIncident, Boolean(sharedCoords)).trim()
           : "";
         // Booking intent must be resolved before intentBlock (used below).
-        const bookingAsk = isAppointmentBookingAsk(intakeText);
+        // Follow-ups after the opener ("jinja main hospital", "tomorrow morning checkup")
+        // are booking too — even without the words "book" / "appointment".
+        const bookingAsk = isAppointmentBookingAsk(intakeText) || bookingFollowUp;
         const wantsBooking = isBrowserAgentConfigured() && bookingAsk;
         const bookingBlock = bookingAsk
           ? wantsBooking
-            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit, patient name/phone if useful). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they already named a clinic (e.g. Jemia Doctors Chambers), use that name. Never invent a confirmation number — only report what the booking agent returns. End with ::suggest[…] options when you still need a choice.`
+            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit, patient name/phone if useful). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they already named a clinic (e.g. Jinja Main Hospital or Jemia Doctors Chambers), use that name. Never invent a confirmation number — only report what the booking agent returns. End with ::suggest[…] options when you still need a choice.`
             : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
           : "";
         const intentBlock = bookingBlock + directHelpBlock + (intent && continueGuidedFlow

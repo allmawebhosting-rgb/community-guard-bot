@@ -8,8 +8,12 @@ import {
   isSoftGuidedFlow,
   isSosSituationQuestion,
   isAppointmentBookingAsk,
+  isBookingFollowUp,
+  bookingClinicAckReply,
+  bookingHasPreferredTime,
   nearbyHelpTypesForTurn,
   scriptedFlowOpener,
+  BOOKING_OPENER,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
   sosSituationReply,
@@ -285,6 +289,26 @@ describe("direct help routing", () => {
         null,
       ),
     ).toBeNull();
+  });
+
+  it("keeps clinic-name replies in booking after the opener (not a nearby search)", () => {
+    expect(isBookingFollowUp("jinja main hospital", BOOKING_OPENER)).toBe(true);
+    expect(isBookingFollowUp("Nearest clinic near me", BOOKING_OPENER)).toBe(false);
+    expect(bookingHasPreferredTime("jinja main hospital")).toBe(false);
+    expect(bookingHasPreferredTime("Tomorrow morning checkup")).toBe(true);
+    expect(bookingClinicAckReply("jinja main hospital")).toMatch(/I'll use \*\*jinja main hospital\*\*/i);
+    expect(bookingClinicAckReply("jinja main hospital")).toMatch(/When do you want to go/i);
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: ["hospital"],
+        directService: "hospital",
+        emergencyHelpTypes: [],
+        isReporting: false,
+        showDirectHelp: true,
+        intakeText: "jinja main hospital",
+        bookingFollowUp: true,
+      }),
+    ).toEqual([]);
   });
 
   it("keeps Case Timeline locked until a report has real steps", () => {
