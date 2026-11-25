@@ -297,6 +297,15 @@ async def _preflight_llm(llm: Any, provider_label: str) -> str | None:
         return f"LLM provider {provider_label} failed: {type(exc).__name__}: {_safe_summary(err, 240)}"
 
 
+def _portal_hint(hospital_name: str) -> str:
+    q = hospital_name.replace(" ", "+")
+    return (
+        f'1. Open https://html.duckduckgo.com/html/?q={q}+Kampala+clinic+appointment+OR+booking+OR+contact '
+        f'(DuckDuckGo HTML only — NEVER open google.com; Google shows reCAPTCHA and will block you).\n'
+        f'2. Open the official hospital/clinic website, booking form, or contact page from the results.'
+    )
+
+
 def _build_task_prompt(
     *,
     hospital_name: str,
@@ -314,12 +323,12 @@ def _build_task_prompt(
         else "If the portal requires login and no saved credentials exist, stop and report that "
         "login is required so a human can save credentials in the vault."
     )
+    find_block = _portal_hint(hospital_name)
     return f"""
 You are booking a medical appointment for Allma Safety AI. Work carefully and stop if payment is required.
 
 Goals:
-1. Open https://www.google.com and search for "{hospital_name} online appointment booking".
-2. Open the official hospital/clinic appointment portal from the results (prefer the official site).
+{find_block}
 3. {login_block}
 4. Find and select an appointment slot matching "{preferred_time}" (or the closest available slot if exact match is unavailable — say what you picked).
 5. Fill the booking form with:
@@ -330,11 +339,13 @@ Goals:
 7. Extract any confirmation number, doctor/department, and date/time shown.
 
 Hard rules:
+- NEVER open google.com or google search — reCAPTCHA will trap you. Use DuckDuckGo HTML or a direct clinic URL only.
 - Do NOT enter credit card, debit card, CVV, or any payment details.
 - If the site demands payment to continue, STOP immediately and report payment_required=true.
+- If there is no online booking form (only a phone number / WhatsApp), STOP and report the phone/WhatsApp contact clearly — that is a valid outcome.
 - Do not invent a booking confirmation. Only report what the page shows.
 - Prefer Uganda-relevant portals when the hospital is in Uganda.
-- Keep actions focused; finish when confirmation is visible or when blocked.
+- Keep actions focused; finish when confirmation is visible, contact details are found, or when blocked.
 """.strip()
 
 
