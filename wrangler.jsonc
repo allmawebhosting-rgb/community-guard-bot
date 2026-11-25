@@ -8,7 +8,8 @@
     "binding": "ASSETS"
   },
   "vars": {
-    "ACCOUNT_DELETION_ENABLED": "true"
+    "ACCOUNT_DELETION_ENABLED": "true",
+    "INFOBIP_SENDER": "AllmaSOS"
   },
   "ai": {
     "binding": "AI"
