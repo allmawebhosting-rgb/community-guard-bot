@@ -46,8 +46,12 @@ curl -fsSL https://raw.githubusercontent.com/allmawebhosting-rgb/community-guard
 
 Then:
 1. **Firewall** — allow TCP **8000** inbound on the VPC (GCP → VPC network → Firewall).
-2. Put the printed `VPS_AGENT_BASE_URL` and `VPS_AGENT_SECRET_TOKEN` into Cursor secure secrets for Allma.
+2. Put `VPS_AGENT_BASE_URL` and `VPS_AGENT_SECRET_TOKEN` on the Allma Cloudflare Worker (`wrangler secret put`).
+   - **Do not use a raw IP** — Cloudflare Workers return error 1003 on direct IP fetches.
+   - Prefer a DNS-only hostname (e.g. `http://agent.allmasafetyai.online:8000`) or `http://<ip>.nip.io:8000`.
+   - Booking is **async**: the Worker starts a job and polls `/api/tasks/book-appointment/{job_id}`.
 3. Edit `/opt/allma-browser-agent/.env` — set `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (Workers AI) so booking can run without OpenAI.
+4. Ensure Playwright Chromium is installed for the `ubuntu` service user (`playwright install --with-deps chromium`).
 
 ## Manual setup
 
