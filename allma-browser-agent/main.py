@@ -140,6 +140,22 @@ _BOOKING_JOBS: dict[str, dict[str, Any]] = {}
 
 async def _run_booking_job(job_id: str, body: BookAppointmentIn) -> None:
     _BOOKING_JOBS[job_id]["status"] = "running"
+    _BOOKING_JOBS[job_id]["summary"] = "Browser agent is running…"
+    _BOOKING_JOBS[job_id]["steps"] = []
+    _BOOKING_JOBS[job_id]["screenshots"] = []
+
+    def on_progress(update: dict[str, Any]) -> None:
+        job = _BOOKING_JOBS.get(job_id)
+        if not job or job.get("status") not in {"queued", "running"}:
+            return
+        job["status"] = "running"
+        job["summary"] = str(update.get("summary") or job.get("summary") or "Booking in progress…")
+        job["steps"] = list(update.get("steps") or [])
+        job["screenshots"] = list(update.get("screenshots") or [])
+        shot = update.get("screenshot_url")
+        if isinstance(shot, str) and shot:
+            job["screenshot_url"] = shot
+
     try:
         result = await run_booking_task(
             hospital_name=body.hospital_name,
@@ -147,9 +163,10 @@ async def _run_booking_job(job_id: str, body: BookAppointmentIn) -> None:
             phone_number=body.phone_number or "",
             preferred_time=body.preferred_time,
             reason_for_visit=body.reason_for_visit,
+            on_progress=on_progress,
         )
         _BOOKING_JOBS[job_id] = {
-            "status": "completed",
+            "status": "completed" if result.get("success") else str(result.get("status") or "failed"),
             "result": result,
         }
     except Exception as exc:  # noqa: BLE001
@@ -161,6 +178,8 @@ async def _run_booking_job(job_id: str, body: BookAppointmentIn) -> None:
                 "hospital": body.hospital_name,
                 "summary": f"Booking agent crashed: {exc}",
                 "screenshot_url": None,
+                "screenshots": [],
+                "steps": _BOOKING_JOBS.get(job_id, {}).get("steps") or [],
                 "success": False,
                 "payment_required": False,
             },
@@ -210,7 +229,11 @@ async def book_appointment_status(job_id: str) -> dict[str, Any]:
             "job_id": job_id,
             "status": job["status"],
             "hospital": job.get("hospital"),
-            "summary": f"Booking still {job['status']}.",
+            "preferred_time": job.get("preferred_time"),
+            "summary": job.get("summary") or f"Booking still {job['status']}.",
+            "steps": job.get("steps") or [],
+            "screenshots": job.get("screenshots") or [],
+            "screenshot_url": job.get("screenshot_url"),
             "success": False,
             "payment_required": False,
         }

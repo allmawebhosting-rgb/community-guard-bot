@@ -1,5 +1,8 @@
 import { InChatSos } from "@/components/allma/in-chat-sos";
-import { BookingResultCard } from "@/components/allma/booking-result-card";
+import {
+  BookingResultCard,
+  type BookingProcessStep,
+} from "@/components/allma/booking-result-card";
 import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
 import {
   SosResponderJoinedToast,
@@ -513,6 +516,16 @@ const EmergencyShownContext = createContext(false);
 const IncidentContext = createContext<Incident | null>(null);
 /** True when this message's find_facilities results already listed places. */
 const HasPlacesContext = createContext(false);
+
+type BookingLiveProgress = {
+  status: string;
+  summary: string;
+  steps: BookingProcessStep[];
+  screenshots: string[];
+  screenshot_url?: string | null;
+  hospital?: string;
+};
+const BookingLiveProgressContext = createContext<BookingLiveProgress | null>(null);
 const SosActivityContext = createContext<{
   threadId: string | null;
   activityId: string | null;
@@ -910,6 +923,7 @@ function ToolCard({
 }) {
   const name = part.type.replace(/^tool-/, "");
   const hasPlaces = useContext(HasPlacesContext);
+  const bookingLive = useContext(BookingLiveProgressContext);
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
 
@@ -973,10 +987,22 @@ function ToolCard({
       return null;
     }
     if (name === "book_hospital_appointment") {
+      const input = (part as { input?: Record<string, unknown> }).input;
       return (
-        <div className="chat-card p-3">
-          <Shimmer className="text-sm">Booking appointment via browser agent…</Shimmer>
-        </div>
+        <BookingResultCard
+          running
+          hospital={String(bookingLive?.hospital || input?.hospital_name || "Hospital")}
+          summary={String(
+            bookingLive?.summary || "Opening clinic pages and filling the appointment form…",
+          )}
+          preferredTime={
+            typeof input?.preferred_time === "string" ? input.preferred_time : null
+          }
+          steps={bookingLive?.steps ?? []}
+          screenshots={bookingLive?.screenshots ?? []}
+          screenshotUrl={bookingLive?.screenshot_url ?? null}
+          status={bookingLive?.status || "running"}
+        />
       );
     }
     return (
@@ -1218,6 +1244,12 @@ function ToolCard({
   }
 
   if (name === "book_hospital_appointment") {
+    const steps = Array.isArray(output?.steps)
+      ? (output.steps as BookingProcessStep[])
+      : [];
+    const screenshots = Array.isArray(output?.screenshots)
+      ? (output.screenshots as string[]).filter((s) => typeof s === "string")
+      : [];
     return (
       <BookingResultCard
         hospital={String(output?.hospital ?? "Hospital")}
@@ -1227,6 +1259,8 @@ function ToolCard({
         screenshotUrl={
           typeof output?.screenshot_url === "string" ? output.screenshot_url : null
         }
+        screenshots={screenshots}
+        steps={steps}
         preferredTime={
           typeof output?.preferred_time === "string" ? output.preferred_time : null
         }
@@ -1533,12 +1567,28 @@ export function AllmaChat({
 
 
   const [serverProgress, setServerProgress] = useState<ChatProgressStepId[]>([]);
+  const [bookingLiveProgress, setBookingLiveProgress] = useState<BookingLiveProgress | null>(null);
 
   const { messages, setMessages, sendMessage, status, error, stop, regenerate } = useChat({
     id: threadId ?? "guest",
     messages: initialMessages,
     transport,
     onData: (part) => {
+      if (part.type === "data-booking-progress" && part.data && typeof part.data === "object") {
+        const data = part.data as BookingLiveProgress;
+        setBookingLiveProgress({
+          status: String(data.status || "running"),
+          summary: String(data.summary || "Booking in progress…"),
+          steps: Array.isArray(data.steps) ? data.steps : [],
+          screenshots: Array.isArray(data.screenshots)
+            ? data.screenshots.filter((s): s is string => typeof s === "string")
+            : [],
+          screenshot_url:
+            typeof data.screenshot_url === "string" ? data.screenshot_url : null,
+          hospital: typeof data.hospital === "string" ? data.hospital : undefined,
+        });
+        return;
+      }
       const step =
         part.type === "data-chat-progress" && part.data && typeof part.data === "object"
           ? (part.data as { step?: unknown }).step
@@ -1556,6 +1606,9 @@ export function AllmaChat({
   });
 
   const busy = status === "submitted" || status === "streaming";
+  useEffect(() => {
+    if (!busy) setBookingLiveProgress(null);
+  }, [busy]);
   const lastAssistant = messages[messages.length - 1];
   const lastAssistantThinking =
     busy &&
@@ -3413,6 +3466,7 @@ export function AllmaChat({
                       ) : null;
                     })()}
                     <IncidentContext.Provider value={message.role === "assistant" ? incidentForReply(messages, msgIndex) : null}>
+                    <BookingLiveProgressContext.Provider value={bookingLiveProgress}>
                     <HasPlacesContext.Provider value={message.role === "assistant" && messageHasPlaces(message.parts as never)}>
                     <EmergencyShownContext.Provider value={message.role === "assistant" && Boolean(emergencyType)}>
                     {(() => {
@@ -3602,6 +3656,7 @@ export function AllmaChat({
                     })()}
                     </EmergencyShownContext.Provider>
                     </HasPlacesContext.Provider>
+                    </BookingLiveProgressContext.Provider>
                     </IncidentContext.Provider>
                   </MessageContent>
 

@@ -145,7 +145,13 @@ function modelFacingMessages(messages: UIMessage[]): UIMessage[] {
     ...message,
     parts: message.parts.filter((part) => {
       const type = (part as { type?: string }).type;
-      return type !== "data-chat-recipient" && type !== "data-chat-progress" && type !== "data-reply" && type !== "data-sos-brief";
+      return (
+        type !== "data-chat-recipient" &&
+        type !== "data-chat-progress" &&
+        type !== "data-booking-progress" &&
+        type !== "data-reply" &&
+        type !== "data-sos-brief"
+      );
     }),
   }));
 }
@@ -1010,6 +1016,15 @@ You are coordinating this emergency from the start, not just answering questions
         const reportProgress = (step: ProgressStep) => {
           progressSink?.(step);
         };
+        type BookingProgressPayload = {
+          status: string;
+          summary: string;
+          steps: Array<{ label: string; screenshot_url?: string | null; status?: string }>;
+          screenshots: string[];
+          screenshot_url?: string | null;
+          hospital?: string;
+        };
+        let reportBookingProgress: ((update: BookingProgressPayload) => void) | undefined;
         let facilityCardsRendered = false;
         const facilityToolOutput = <T extends { facilities?: unknown }>(output: T) => {
           if (Array.isArray(output.facilities)) facilityCardsRendered = true;
@@ -1250,7 +1265,7 @@ You are coordinating this emergency from the start, not just answering questions
             }),
             book_hospital_appointment: tool({
               description:
-                "Dispatches the autonomous VPS browser agent to search Google, log in with stored credentials if required, fill the appointment form, and reserve a medical appointment. Use when the user asks to book / schedule / reserve a hospital or clinic appointment. Never invent a confirmation — only report what the agent returns. Never ask the user to paste portal passwords into chat.",
+                "Dispatches the autonomous VPS browser agent to open the clinic booking pages, fill the appointment form, capture screenshots of the process, and reserve a medical appointment. Use when the user asks to book / schedule / reserve a hospital or clinic appointment. Never invent a confirmation — only report what the agent returns. Never ask the user to paste portal passwords into chat.",
               inputSchema: z.object({
                 hospital_name: z.string().describe("Name of the clinic or hospital"),
                 preferred_time: z.string().describe("Preferred appointment time slot"),
@@ -1272,6 +1287,9 @@ You are coordinating this emergency from the start, not just answering questions
                   reason_for_visit,
                   patient_name,
                   phone_number,
+                  onProgress: (update) => {
+                    reportBookingProgress?.(update);
+                  },
                 });
                 reportProgress("writing");
                 return {
@@ -1765,6 +1783,9 @@ You are coordinating this emergency from the start, not just answering questions
             };
             emit("understanding");
             progressSink = emit;
+            reportBookingProgress = (update) => {
+              writer.write({ type: "data-booking-progress", data: update });
+            };
             // Never leave the user with a silent/empty assistant bubble — but
             // the fallback must land INSIDE this message, after its start
             // chunk. Writing it via a parallel `await result.text` raced the

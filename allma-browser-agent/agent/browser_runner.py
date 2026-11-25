@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import os
 import re
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +23,8 @@ PAYMENT_HALT = re.compile(
     r"\b(credit\s*card|debit\s*card|cvv|cvc|card\s*number|payment\s*required|enter\s*payment)\b",
     re.I,
 )
+
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 def _safe_summary(text: str, limit: int = 1200) -> str:
@@ -358,12 +362,42 @@ async def _capture_screenshot(page: Any, path: Path) -> bool:
         return False
 
 
+def _save_b64_screenshot(screenshot_b64: str | None, path: Path) -> bool:
+    if not screenshot_b64:
+        return False
+    try:
+        raw = base64.b64decode(screenshot_b64)
+        path.write_bytes(raw)
+        return path.exists() and path.stat().st_size > 0
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("b64_screenshot_failed err=%s", type(exc).__name__)
+        return False
+
+
+def _step_label(model_output: Any, n_steps: int, url: str | None) -> str:
+    try:
+        brain = getattr(model_output, "current_state", None)
+        goal = getattr(brain, "next_goal", None) if brain is not None else None
+        if isinstance(goal, str) and goal.strip():
+            return _safe_summary(goal.strip(), 140)
+    except Exception:  # noqa: BLE001
+        pass
+    host = ""
+    if url:
+        try:
+            host = re.sub(r"^https?://", "", url).split("/")[0]
+        except Exception:  # noqa: BLE001
+            host = ""
+    return f"Step {n_steps}" + (f" · {host}" if host else "")
+
+
 async def run_booking_task(
     hospital_name: str,
     patient_name: str,
     phone_number: str,
     preferred_time: str,
     reason_for_visit: str,
+    on_progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Run the browser agent and return a structured booking result (no secrets)."""
     hospital_name = (hospital_name or "").strip()
@@ -378,6 +412,8 @@ async def run_booking_task(
             "hospital": hospital_name,
             "summary": "Hospital name is required.",
             "screenshot_url": None,
+            "screenshots": [],
+            "steps": [],
             "success": False,
             "payment_required": False,
         }
@@ -386,6 +422,34 @@ async def run_booking_task(
     shot_id = str(uuid.uuid4())
     shot_path = SCREENSHOT_DIR / f"{shot_id}.png"
     screenshot_url = f"/screenshots/{shot_id}.png"
+    process_steps: list[dict[str, Any]] = []
+    screenshot_urls: list[str] = []
+
+    def emit(label: str, *, shot: str | None = None, status: str = "running") -> None:
+        entry = {
+            "label": label,
+            "screenshot_url": shot,
+            "status": status,
+        }
+        process_steps.append(entry)
+        if shot and shot not in screenshot_urls:
+            screenshot_urls.append(shot)
+        if on_progress:
+            try:
+                on_progress(
+                    {
+                        "status": status,
+                        "summary": label,
+                        "steps": list(process_steps),
+                        "screenshots": list(screenshot_urls),
+                        "screenshot_url": shot or (screenshot_urls[-1] if screenshot_urls else None),
+                        "hospital": hospital_name,
+                    }
+                )
+            except Exception:  # noqa: BLE001
+                pass
+
+    emit("Starting browser booking agent…")
 
     vault = CredentialVault()
     creds = vault.get_credentials(hospital_name)
@@ -465,6 +529,21 @@ async def run_booking_task(
         )
         browser = Browser(config=browser_config)
 
+        async def on_step(state: Any, model_output: Any, n_steps: int) -> None:
+            url = getattr(state, "url", None)
+            label = _step_label(model_output, n_steps, url if isinstance(url, str) else None)
+            shot_rel: str | None = None
+            # Keep a lean gallery: first step, every 3rd step, and whenever URL changes.
+            take_shot = n_steps <= 1 or n_steps % 3 == 0
+            if take_shot:
+                step_id = f"{shot_id}-s{n_steps}"
+                step_path = SCREENSHOT_DIR / f"{step_id}.png"
+                b64 = getattr(state, "screenshot", None)
+                saved = _save_b64_screenshot(b64 if isinstance(b64, str) else None, step_path)
+                if saved:
+                    shot_rel = f"/screenshots/{step_id}.png"
+            emit(label, shot=shot_rel)
+
         agent_kwargs: dict[str, Any] = {
             "task": task,
             "llm": llm,
@@ -475,12 +554,14 @@ async def run_booking_task(
             "enable_memory": False,
             # Workers AI tool-calling is prompt/JSON oriented, not OpenAI tools
             "tool_calling_method": "raw" if "cloudflare" in provider_label or "workers-ai" in provider_label else "auto",
+            "register_new_step_callback": on_step,
         }
         if sensitive_data:
             agent_kwargs["sensitive_data"] = sensitive_data
 
         agent = Agent(**agent_kwargs)
         max_steps = int(os.getenv("BROWSER_AGENT_MAX_STEPS", "40") or "40")
+        emit("Browsing clinic pages and filling the appointment form…")
         history = await agent.run(max_steps=max_steps)
 
         final_text = ""
@@ -500,32 +581,8 @@ async def run_booking_task(
             final_text = str(history)
 
         payment_required = bool(PAYMENT_HALT.search(final_text))
-        if payment_required:
-            summary = (
-                "The portal asked for payment details. Booking was stopped before any card "
-                "information was entered. Please complete payment yourself on the hospital site, "
-                "or call Ambulance 911 / Toll-free 112 / Police 999 if this is urgent."
-            )
-            # Best-effort screenshot of the payment gate.
-            try:
-                context = getattr(browser, "context", None) or getattr(browser, "browser_context", None)
-                pages = []
-                if context is not None:
-                    pages = getattr(context, "pages", []) or []
-                if pages:
-                    await _capture_screenshot(pages[-1], shot_path)
-            except Exception:  # noqa: BLE001
-                pass
-            return {
-                "status": "payment_required",
-                "hospital": hospital_name,
-                "summary": summary,
-                "screenshot_url": screenshot_url if shot_path.exists() else None,
-                "success": False,
-                "payment_required": True,
-            }
 
-        # Capture confirmation screenshot from the live browser page when possible.
+        # Capture confirmation / final page screenshot from the live browser.
         shot_ok = False
         try:
             context = getattr(browser, "context", None) or getattr(browser, "browser_context", None)
@@ -542,18 +599,49 @@ async def run_booking_task(
         except Exception as exc:  # noqa: BLE001
             logger.warning("final_screenshot_unavailable err=%s", type(exc).__name__)
 
+        final_shot = screenshot_url if shot_ok and shot_path.exists() else (
+            screenshot_urls[-1] if screenshot_urls else None
+        )
+        if final_shot and final_shot not in screenshot_urls:
+            screenshot_urls.append(final_shot)
+
+        if payment_required:
+            summary = (
+                "The portal asked for payment details. Booking was stopped before any card "
+                "information was entered. Please complete payment yourself on the hospital site, "
+                "or call Ambulance 911 / Toll-free 112 / Police 999 if this is urgent."
+            )
+            emit("Stopped at payment gate", shot=final_shot, status="payment_required")
+            return {
+                "status": "payment_required",
+                "hospital": hospital_name,
+                "summary": summary,
+                "screenshot_url": final_shot,
+                "screenshots": screenshot_urls,
+                "steps": process_steps,
+                "success": False,
+                "payment_required": True,
+            }
+
         summary = _safe_summary(final_text) or (
             f"Booking attempt for {hospital_name} finished. Check the confirmation screen."
         )
         success = bool(final_text) and not re.search(
             r"\b(could not|failed|unable|login required|blocked)\b", final_text, re.I
         )
+        emit(
+            "Booking confirmed" if success else "Booking finished — needs review",
+            shot=final_shot,
+            status="completed" if success else "failed",
+        )
 
         return {
             "status": "completed" if success else "failed",
             "hospital": hospital_name,
             "summary": summary,
-            "screenshot_url": screenshot_url if shot_ok and shot_path.exists() else None,
+            "screenshot_url": final_shot,
+            "screenshots": screenshot_urls,
+            "steps": process_steps,
             "success": success,
             "payment_required": False,
             "patient_name": patient_name,
@@ -562,6 +650,7 @@ async def run_booking_task(
         }
     except Exception as exc:  # noqa: BLE001
         logger.exception("booking_failed hospital=%r err=%s", hospital_name, type(exc).__name__)
+        emit(f"Browser agent error ({type(exc).__name__})", status="failed")
         return {
             "status": "failed",
             "hospital": hospital_name,
@@ -569,7 +658,11 @@ async def run_booking_task(
                 f"The browser agent could not complete the booking ({type(exc).__name__}). "
                 "Try again later, or call Ambulance 911 / Toll-free 112 / Police 999 if urgent."
             ),
-            "screenshot_url": screenshot_url if shot_path.exists() else None,
+            "screenshot_url": screenshot_url if shot_path.exists() else (
+                screenshot_urls[-1] if screenshot_urls else None
+            ),
+            "screenshots": screenshot_urls,
+            "steps": process_steps,
             "success": False,
             "payment_required": False,
         }
