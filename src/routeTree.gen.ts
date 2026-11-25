@@ -71,6 +71,7 @@ import { Route as AuthenticatedPoliceSearchRouteImport } from './routes/_authent
 import { Route as AuthenticatedPoliceSettingsRouteImport } from './routes/_authenticated/police.settings'
 import { Route as ApiPublicAfricasTalkingVoiceRouteImport } from './routes/api/public/africas-talking-voice'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
+import { Route as ApiTelecomInfobipSelftestRouteImport } from './routes/api/telecom/infobip-selftest'
 import { Route as ApiTelecomVoiceScriptRouteImport } from './routes/api/telecom/voice-script'
 import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
 import { Route as ApiBrowserLlmV1ChatCompletionsRouteImport } from './routes/api/browser-llm/v1/chat/completions'
@@ -406,6 +407,12 @@ const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
   path: '/api/public/place-photo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTelecomInfobipSelftestRoute =
+  ApiTelecomInfobipSelftestRouteImport.update({
+    id: '/api/telecom/infobip-selftest',
+    path: '/api/telecom/infobip-selftest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiTelecomVoiceScriptRoute = ApiTelecomVoiceScriptRouteImport.update({
   id: '/api/telecom/voice-script',
   path: '/api/telecom/voice-script',
@@ -484,6 +491,7 @@ export interface FileRoutesByFullPath {
   '/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/api/public/africas-talking-voice': typeof ApiPublicAfricasTalkingVoiceRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/telecom/infobip-selftest': typeof ApiTelecomInfobipSelftestRoute
   '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
@@ -548,6 +556,7 @@ export interface FileRoutesByTo {
   '/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/api/public/africas-talking-voice': typeof ApiPublicAfricasTalkingVoiceRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/telecom/infobip-selftest': typeof ApiTelecomInfobipSelftestRoute
   '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
@@ -616,6 +625,7 @@ export interface FileRoutesById {
   '/_authenticated/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/api/public/africas-talking-voice': typeof ApiPublicAfricasTalkingVoiceRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/telecom/infobip-selftest': typeof ApiTelecomInfobipSelftestRoute
   '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
@@ -684,6 +694,7 @@ export interface FileRouteTypes {
     | '/police/settings'
     | '/api/public/africas-talking-voice'
     | '/api/public/place-photo'
+    | '/api/telecom/infobip-selftest'
     | '/api/telecom/voice-script'
     | '/chat/'
     | '/police/'
@@ -748,6 +759,7 @@ export interface FileRouteTypes {
     | '/police/settings'
     | '/api/public/africas-talking-voice'
     | '/api/public/place-photo'
+    | '/api/telecom/infobip-selftest'
     | '/api/telecom/voice-script'
     | '/chat'
     | '/police'
@@ -815,6 +827,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police/settings'
     | '/api/public/africas-talking-voice'
     | '/api/public/place-photo'
+    | '/api/telecom/infobip-selftest'
     | '/api/telecom/voice-script'
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
@@ -857,6 +870,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicAfricasTalkingVoiceRoute: typeof ApiPublicAfricasTalkingVoiceRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  ApiTelecomInfobipSelftestRoute: typeof ApiTelecomInfobipSelftestRoute
   ApiTelecomVoiceScriptRoute: typeof ApiTelecomVoiceScriptRoute
   ApiBrowserLlmV1ChatCompletionsRoute: typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
@@ -1297,6 +1311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPlacePhotoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/telecom/infobip-selftest': {
+      id: '/api/telecom/infobip-selftest'
+      path: '/api/telecom/infobip-selftest'
+      fullPath: '/api/telecom/infobip-selftest'
+      preLoaderRoute: typeof ApiTelecomInfobipSelftestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/telecom/voice-script': {
       id: '/api/telecom/voice-script'
       path: '/api/telecom/voice-script'
@@ -1441,6 +1462,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicAfricasTalkingVoiceRoute: ApiPublicAfricasTalkingVoiceRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  ApiTelecomInfobipSelftestRoute: ApiTelecomInfobipSelftestRoute,
   ApiTelecomVoiceScriptRoute: ApiTelecomVoiceScriptRoute,
   ApiBrowserLlmV1ChatCompletionsRoute: ApiBrowserLlmV1ChatCompletionsRoute,
 }
