@@ -24,7 +24,11 @@ function bearerToken(request: Request): string {
 }
 
 function expectedToken(): string {
-  return (process.env.VPS_AGENT_SECRET_TOKEN || "").trim();
+  const fromProcess = (process.env.VPS_AGENT_SECRET_TOKEN || "").trim();
+  if (fromProcess) return fromProcess;
+  const cf = (globalThis as { __env__?: Record<string, unknown> }).__env__;
+  const fromCf = cf?.VPS_AGENT_SECRET_TOKEN;
+  return typeof fromCf === "string" ? fromCf.trim() : "";
 }
 
 function textFromContent(content: unknown): string {
