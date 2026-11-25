@@ -321,13 +321,20 @@ KNOWN_PORTALS: dict[str, dict[str, str]] = {
         "phone": "+256312250500",
     },
     "jinja main hospital": {
-        "phone": "+256434121004",
+        "url": "https://jinjahospital.go.ug/",
+        "phone": "+256414674584",
     },
     "jinja regional referral": {
-        "phone": "+256434121004",
+        "url": "https://jinjahospital.go.ug/",
+        "phone": "+256414674584",
     },
     "jinja referral": {
-        "phone": "+256434121004",
+        "url": "https://jinjahospital.go.ug/",
+        "phone": "+256414674584",
+    },
+    "jinja hospital": {
+        "url": "https://jinjahospital.go.ug/",
+        "phone": "+256414674584",
     },
 }
 
@@ -413,6 +420,39 @@ Hard rules:
 - Do not invent a booking confirmation. Only report what the page shows.
 - Keep actions focused; finish when confirmation is visible, contact details are found, or when blocked.
 """.strip()
+
+
+CONFIRMED_BOOKING_RE = re.compile(
+    r"\b(confirmation\s*(no|number|#|id)|reference\s*(no|number|#)|"
+    r"appointment\s+(is\s+)?(confirmed|booked)|successfully\s+booked|"
+    r"booking\s+confirmed|reservation\s+confirmed)\b",
+    re.I,
+)
+CONTACT_ONLY_RE = re.compile(
+    r"\b(online booking not available|no online booking|cannot book online|"
+    r"could not book online|booking (is )?not available|call (the )?(hospital|clinic)|"
+    r"contact .{0,40}(at|on)|please call|phone( number)?[:\s]|whatsapp|"
+    r"email\s+\S+@\S+|report the contact)\b",
+    re.I,
+)
+PHONE_IN_TEXT_RE = re.compile(
+    r"(?:\+?256[\s-]*)?(?:0?4\d{1,2}|7\d{1,2})[\s-]?\d{3}[\s-]?\d{3,4}|\+\d{10,15}"
+)
+
+
+def _extract_phone_from_text(text: str) -> str:
+    match = PHONE_IN_TEXT_RE.search(text or "")
+    if not match:
+        return ""
+    digits = re.sub(r"[^\d+]", "", match.group(0))
+    return digits
+
+
+def _is_contact_only_outcome(text: str) -> bool:
+    t = text or ""
+    if CONFIRMED_BOOKING_RE.search(t):
+        return False
+    return bool(CONTACT_ONLY_RE.search(t))
 
 
 def _phone_booking_result(
@@ -807,9 +847,38 @@ async def run_booking_task(
         summary = _safe_summary(final_text) or (
             f"Booking attempt for {hospital_name} finished. Check the confirmation screen."
         )
-        success = bool(final_text) and not re.search(
-            r"\b(could not|failed|unable|login required|blocked)\b", final_text, re.I
-        )
+
+        # Contact-only pages (phone/email, no form) are NOT confirmed bookings.
+        if _is_contact_only_outcome(final_text) or (
+            final_text and not CONFIRMED_BOOKING_RE.search(final_text)
+            and re.search(r"\b(call|contact|email|phone)\b", final_text, re.I)
+            and not re.search(r"\b(confirmation|booked successfully|appointment confirmed)\b", final_text, re.I)
+        ):
+            extracted = _extract_phone_from_text(final_text) or clinic_phone
+            emit("Online booking unavailable — sharing clinic contact", shot=final_shot, status="phone_booking")
+            return {
+                **_phone_booking_result(
+                    hospital_name=hospital_name,
+                    preferred_time=preferred_time,
+                    reason_for_visit=reason_for_visit,
+                    clinic_phone=extracted,
+                    reason=summary if summary else "Online booking is not available on this clinic site.",
+                    steps=process_steps,
+                ),
+                "screenshot_url": final_shot,
+                "screenshots": screenshot_urls,
+                "summary": summary
+                if summary
+                else _phone_booking_result(
+                    hospital_name=hospital_name,
+                    preferred_time=preferred_time,
+                    reason_for_visit=reason_for_visit,
+                    clinic_phone=extracted,
+                    reason="Online booking is not available on this clinic site.",
+                )["summary"],
+            }
+
+        success = bool(final_text) and bool(CONFIRMED_BOOKING_RE.search(final_text))
         emit(
             "Booking confirmed" if success else "Booking finished — needs review",
             shot=final_shot,
@@ -825,6 +894,7 @@ async def run_booking_task(
             "steps": process_steps,
             "success": success,
             "payment_required": False,
+            "clinic_phone": clinic_phone or _extract_phone_from_text(final_text) or None,
             "patient_name": patient_name,
             "preferred_time": preferred_time,
             "reason_for_visit": reason_for_visit,

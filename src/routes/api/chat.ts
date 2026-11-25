@@ -834,7 +834,7 @@ You are coordinating this emergency from the start, not just answering questions
         const wantsBooking = isBrowserAgentConfigured() && bookingAsk;
         const bookingBlock = bookingAsk
           ? wantsBooking
-            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit, patient name/phone if useful). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they already named a clinic (e.g. Jinja Main Hospital or Jemia Doctors Chambers), use that name. Never invent a confirmation number — only report what the booking agent returns. End with ::suggest[…] options when you still need a choice.`
+            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit, patient name/phone if useful). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they already named a clinic (e.g. Jinja Main Hospital or Jemia Doctors Chambers), use that name. After the tool returns: ONLY say the appointment was booked if booked=true / success=true. If status is phone_booking, tell them online booking was not available and give the clinic phone/email to call — never claim it was booked. Never invent a confirmation number. End with ::suggest[…] options when you still need a choice.`
             : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
           : "";
         const intentBlock = bookingBlock + directHelpBlock + (intent && continueGuidedFlow
@@ -1334,8 +1334,10 @@ You are coordinating this emergency from the start, not just answering questions
                 reportProgress("writing");
                 return {
                   ...result,
-                  ok: Boolean(result.success) || result.status === "phone_booking",
+                  // phone_booking means contact info only — not a confirmed reservation.
+                  ok: Boolean(result.success),
                   clinic_phone: result.clinic_phone || contact?.phone || null,
+                  booked: Boolean(result.success) && result.status === "completed",
                 };
               },
             }),
