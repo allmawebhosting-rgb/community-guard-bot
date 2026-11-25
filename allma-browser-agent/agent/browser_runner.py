@@ -301,12 +301,70 @@ async def _preflight_llm(llm: Any, provider_label: str) -> str | None:
         return f"LLM provider {provider_label} failed: {type(exc).__name__}: {_safe_summary(err, 240)}"
 
 
-def _portal_hint(hospital_name: str) -> str:
-    q = hospital_name.replace(" ", "+")
+# Direct portals only — search engines (Google/DuckDuckGo/Bing) show bot CAPTCHAs
+# to headless browsers and must never be used for discovery.
+KNOWN_PORTALS: dict[str, dict[str, str]] = {
+    "mengo hospital": {
+        "url": "https://www.mengohospital.org/",
+        "phone": "+256414270222",
+    },
+    "mulago": {
+        "url": "https://mulago.or.ug/",
+        "phone": "+256414554000",
+    },
+    "nsambya": {
+        "url": "https://www.nsambyahospital.or.ug/",
+        "phone": "+256414267012",
+    },
+    "case hospital": {
+        "url": "https://www.casehospital.com/",
+        "phone": "+256312250500",
+    },
+    "jinja main hospital": {
+        "phone": "+256434121004",
+    },
+    "jinja regional referral": {
+        "phone": "+256434121004",
+    },
+    "jinja referral": {
+        "phone": "+256434121004",
+    },
+}
+
+CAPTCHA_RE = re.compile(
+    r"\b(captcha|recaptcha|hcaptcha|challenge|confirm .{0,40}human|not a robot|"
+    r"unusual traffic|verify you are|are you a robot|select all (images|squares)|"
+    r"complete the challenge)\b",
+    re.I,
+)
+
+
+def _known_portal(hospital_name: str) -> dict[str, str]:
+    key = hospital_name.strip().lower()
+    for name, meta in KNOWN_PORTALS.items():
+        if name in key or key in name:
+            return dict(meta)
+    return {}
+
+
+def _portal_hint(hospital_name: str, portal_url: str, clinic_phone: str) -> str:
+    if portal_url:
+        return (
+            f'1. Open this official clinic page DIRECTLY (do not search): {portal_url}\n'
+            f'2. Look for Appointment / Book / Contact / WhatsApp on that site only.'
+        )
+    known = _known_portal(hospital_name)
+    if known.get("url"):
+        return (
+            f'1. Open this official clinic page DIRECTLY (do not search): {known["url"]}\n'
+            f'2. Look for Appointment / Book / Contact / WhatsApp on that site only.'
+        )
+    phone = clinic_phone or known.get("phone") or ""
+    phone_line = f" Clinic phone on file: {phone}." if phone else ""
     return (
-        f'1. Open https://html.duckduckgo.com/html/?q={q}+Kampala+clinic+appointment+OR+booking+OR+contact '
-        f'(DuckDuckGo HTML only — NEVER open google.com; Google shows reCAPTCHA and will block you).\n'
-        f'2. Open the official hospital/clinic website, booking form, or contact page from the results.'
+        f'1. There is no verified online booking URL for "{hospital_name}".{phone_line}\n'
+        f'2. Do NOT open Google, DuckDuckGo, Bing, or any search engine.\n'
+        f'3. STOP immediately and report that online booking is unavailable and the patient should call the clinic phone.'
     )
 
 
@@ -318,6 +376,8 @@ def _build_task_prompt(
     preferred_time: str,
     reason_for_visit: str,
     has_credentials: bool,
+    portal_url: str,
+    clinic_phone: str,
 ) -> str:
     login_block = (
         "If the portal requires login and credentials were provided via sensitive_data placeholders "
@@ -327,7 +387,8 @@ def _build_task_prompt(
         else "If the portal requires login and no saved credentials exist, stop and report that "
         "login is required so a human can save credentials in the vault."
     )
-    find_block = _portal_hint(hospital_name)
+    find_block = _portal_hint(hospital_name, portal_url, clinic_phone)
+    phone_fallback = clinic_phone or _known_portal(hospital_name).get("phone") or ""
     return f"""
 You are booking a medical appointment for Allma Safety AI. Work carefully and stop if payment is required.
 
@@ -343,14 +404,57 @@ Goals:
 7. Extract any confirmation number, doctor/department, and date/time shown.
 
 Hard rules:
-- NEVER open google.com or google search — reCAPTCHA will trap you. Use DuckDuckGo HTML or a direct clinic URL only.
+- NEVER open google.com, duckduckgo.com, bing.com, yahoo.com, or ANY search engine. They show CAPTCHA challenges to bots and waste the whole run.
+- If you see a CAPTCHA / "confirm you are human" / "unusual traffic" page, STOP immediately. Do not click challenge squares. Report captcha_blocked=true
+  and give the clinic phone{" (" + phone_fallback + ")" if phone_fallback else ""} so the patient can call to book.
 - Do NOT enter credit card, debit card, CVV, or any payment details.
 - If the site demands payment to continue, STOP immediately and report payment_required=true.
 - If there is no online booking form (only a phone number / WhatsApp), STOP and report the phone/WhatsApp contact clearly — that is a valid outcome.
 - Do not invent a booking confirmation. Only report what the page shows.
-- Prefer Uganda-relevant portals when the hospital is in Uganda.
 - Keep actions focused; finish when confirmation is visible, contact details are found, or when blocked.
 """.strip()
+
+
+def _phone_booking_result(
+    *,
+    hospital_name: str,
+    preferred_time: str,
+    reason_for_visit: str,
+    clinic_phone: str,
+    reason: str,
+    steps: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    phone = clinic_phone or _known_portal(hospital_name).get("phone") or ""
+    summary = (
+        f"{reason} "
+        + (
+            f"Please call {hospital_name} on {phone} to book for {preferred_time} "
+            f"({reason_for_visit})."
+            if phone
+            else f"Please call {hospital_name} directly to book for {preferred_time} "
+            f"({reason_for_visit}). I could not find a public online booking page."
+        )
+    ).strip()
+    return {
+        "status": "phone_booking",
+        "hospital": hospital_name,
+        "summary": summary,
+        "screenshot_url": None,
+        "screenshots": [],
+        "steps": steps
+        or [
+            {"label": "Online booking unavailable without a search engine", "status": "failed"},
+            {
+                "label": f"Call {phone or hospital_name} to book" if phone else "Call the clinic to book",
+                "status": "phone_booking",
+            },
+        ],
+        "success": False,
+        "payment_required": False,
+        "clinic_phone": phone or None,
+        "preferred_time": preferred_time,
+        "reason_for_visit": reason_for_visit,
+    }
 
 
 async def _capture_screenshot(page: Any, path: Path) -> bool:
@@ -397,6 +501,8 @@ async def run_booking_task(
     phone_number: str,
     preferred_time: str,
     reason_for_visit: str,
+    portal_url: str = "",
+    clinic_phone: str = "",
     on_progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Run the browser agent and return a structured booking result (no secrets)."""
@@ -405,6 +511,13 @@ async def run_booking_task(
     phone_number = (phone_number or "").strip() or "N/A"
     preferred_time = (preferred_time or "").strip() or "soonest available"
     reason_for_visit = (reason_for_visit or "").strip() or "Medical consultation"
+    portal_url = (portal_url or "").strip()
+    clinic_phone = (clinic_phone or "").strip()
+    known = _known_portal(hospital_name)
+    if not portal_url:
+        portal_url = (known.get("url") or "").strip()
+    if not clinic_phone:
+        clinic_phone = (known.get("phone") or "").strip()
 
     if not hospital_name:
         return {
@@ -451,14 +564,47 @@ async def run_booking_task(
 
     emit("Starting browser booking agent…")
 
+    # No safe direct website → skip Playwright entirely (search engines = CAPTCHA loops).
+    if not portal_url or CAPTCHA_RE.search(portal_url) or re.search(
+        r"google\.|duckduckgo\.|bing\.|yahoo\.", portal_url, re.I
+    ):
+        emit(
+            "No direct clinic website — skipping search engines to avoid CAPTCHA",
+            status="phone_booking",
+        )
+        result = _phone_booking_result(
+            hospital_name=hospital_name,
+            preferred_time=preferred_time,
+            reason_for_visit=reason_for_visit,
+            clinic_phone=clinic_phone,
+            reason=(
+                "Online booking needs a direct clinic website, and search engines block "
+                "automated browsers with human-verification challenges."
+            ),
+            steps=process_steps,
+        )
+        if on_progress:
+            on_progress(
+                {
+                    "status": "phone_booking",
+                    "summary": result["summary"],
+                    "steps": result["steps"],
+                    "screenshots": [],
+                    "screenshot_url": None,
+                    "hospital": hospital_name,
+                }
+            )
+        return result
+
     vault = CredentialVault()
     creds = vault.get_credentials(hospital_name)
     has_credentials = bool(creds)
     # Never log username/password values.
     logger.info(
-        "booking_start hospital=%r has_credentials=%s",
+        "booking_start hospital=%r has_credentials=%s portal=%r",
         hospital_name,
         has_credentials,
+        portal_url,
     )
 
     try:
@@ -494,6 +640,8 @@ async def run_booking_task(
         preferred_time=preferred_time,
         reason_for_visit=reason_for_visit,
         has_credentials=has_credentials,
+        portal_url=portal_url,
+        clinic_phone=clinic_phone,
     )
 
     sensitive_data: dict[str, str] | None = None
@@ -529,11 +677,14 @@ async def run_booking_task(
         )
         browser = Browser(config=browser_config)
 
+        captcha_hits = {"count": 0}
+        agent_ref: dict[str, Any] = {"agent": None}
+
         async def on_step(state: Any, model_output: Any, n_steps: int) -> None:
             url = getattr(state, "url", None)
-            label = _step_label(model_output, n_steps, url if isinstance(url, str) else None)
+            url_s = url if isinstance(url, str) else ""
+            label = _step_label(model_output, n_steps, url_s or None)
             shot_rel: str | None = None
-            # Keep a lean gallery: first step, every 3rd step, and whenever URL changes.
             take_shot = n_steps <= 1 or n_steps % 3 == 0
             if take_shot:
                 step_id = f"{shot_id}-s{n_steps}"
@@ -543,6 +694,22 @@ async def run_booking_task(
                 if saved:
                     shot_rel = f"/screenshots/{step_id}.png"
             emit(label, shot=shot_rel)
+
+            blocked = bool(
+                CAPTCHA_RE.search(label)
+                or CAPTCHA_RE.search(url_s)
+                or re.search(r"google\.|duckduckgo\.|bing\.|yahoo\.", url_s, re.I)
+            )
+            if blocked:
+                captcha_hits["count"] += 1
+                emit(
+                    "Human-verification / search page detected — stopping to avoid a CAPTCHA loop",
+                    shot=shot_rel,
+                    status="captcha_blocked",
+                )
+                agent = agent_ref.get("agent")
+                if agent is not None and hasattr(agent, "stop"):
+                    agent.stop()
 
         agent_kwargs: dict[str, Any] = {
             "task": task,
@@ -560,9 +727,23 @@ async def run_booking_task(
             agent_kwargs["sensitive_data"] = sensitive_data
 
         agent = Agent(**agent_kwargs)
-        max_steps = int(os.getenv("BROWSER_AGENT_MAX_STEPS", "40") or "40")
-        emit("Browsing clinic pages and filling the appointment form…")
+        agent_ref["agent"] = agent
+        max_steps = int(os.getenv("BROWSER_AGENT_MAX_STEPS", "25") or "25")
+        emit(f"Opening clinic website: {portal_url}")
         history = await agent.run(max_steps=max_steps)
+
+        if captcha_hits["count"] > 0:
+            return _phone_booking_result(
+                hospital_name=hospital_name,
+                preferred_time=preferred_time,
+                reason_for_visit=reason_for_visit,
+                clinic_phone=clinic_phone,
+                reason=(
+                    "The clinic path hit a human-verification challenge that automated "
+                    "browsers cannot complete."
+                ),
+                steps=process_steps,
+            )
 
         final_text = ""
         try:

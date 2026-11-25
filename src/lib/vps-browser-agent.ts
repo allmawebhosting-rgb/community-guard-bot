@@ -9,6 +9,10 @@ export type BookAppointmentInput = {
   reason_for_visit: string;
   patient_name?: string;
   phone_number?: string;
+  /** Official clinic website — never a search engine URL. */
+  portal_url?: string;
+  /** Clinic phone for voice booking when online booking is blocked. */
+  clinic_phone?: string;
 };
 
 export type BookingProcessStep = {
@@ -29,6 +33,7 @@ export type BookAppointmentResult = {
   patient_name?: string;
   preferred_time?: string;
   reason_for_visit?: string;
+  clinic_phone?: string | null;
   error?: string;
   job_id?: string;
   async?: boolean;
@@ -165,6 +170,8 @@ export async function bookHospitalAppointment(
         reason_for_visit: input.reason_for_visit,
         patient_name: input.patient_name,
         phone_number: input.phone_number,
+        portal_url: input.portal_url,
+        clinic_phone: input.clinic_phone,
       }),
       signal: AbortSignal.timeout(30_000),
     });

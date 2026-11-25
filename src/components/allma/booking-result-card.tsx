@@ -16,6 +16,7 @@ export type BookingResultCardProps = {
   screenshots?: string[];
   steps?: BookingProcessStep[];
   preferredTime?: string | null;
+  clinicPhone?: string | null;
   paymentRequired?: boolean;
   running?: boolean;
   className?: string;
@@ -34,30 +35,44 @@ export function BookingResultCard({
   screenshots = [],
   steps = [],
   preferredTime,
+  clinicPhone,
   paymentRequired = false,
   running = false,
   className,
 }: BookingResultCardProps) {
-  const ok = Boolean(success) && !paymentRequired && !running;
+  const phoneBooking = status === "phone_booking" || status === "captcha_blocked";
+  const ok = Boolean(success) && !paymentRequired && !running && !phoneBooking;
   const title = running
     ? "Booking in progress…"
     : paymentRequired
       ? "Payment required — booking paused"
-      : ok
-        ? "Appointment booking confirmed"
-        : "Appointment booking needs attention";
+      : phoneBooking
+        ? "Call the clinic to finish booking"
+        : ok
+          ? "Appointment booking confirmed"
+          : "Appointment booking needs attention";
 
   const gallery = [
     ...screenshots,
     ...(screenshotUrl && !screenshots.includes(screenshotUrl) ? [screenshotUrl] : []),
   ].filter(Boolean);
 
-  const process = steps.length
-    ? steps
+  // Collapse repeated CAPTCHA / identical labels so the card stays readable.
+  const dedupedSteps = steps.reduce<BookingProcessStep[]>((acc, step) => {
+    const prev = acc[acc.length - 1];
+    if (prev && prev.label === step.label) {
+      acc[acc.length - 1] = { ...step, screenshot_url: step.screenshot_url || prev.screenshot_url };
+      return acc;
+    }
+    acc.push(step);
+    return acc;
+  }, []);
+  const process = dedupedSteps.length
+    ? dedupedSteps.slice(-12)
     : running
       ? [
           { label: "Starting browser agent…", status: "running" },
-          { label: "Opening clinic pages…", status: "pending" },
+          { label: "Opening clinic website…", status: "pending" },
           { label: "Filling appointment form…", status: "pending" },
           { label: "Capturing confirmation…", status: "pending" },
         ]
@@ -71,7 +86,9 @@ export function BookingResultCard({
           ? "border-primary/25 bg-gradient-to-br from-primary/[0.06] to-card"
           : ok
             ? "border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.06] to-card"
-            : "border-destructive/25 bg-gradient-to-br from-destructive/[0.06] to-card",
+            : phoneBooking
+              ? "border-amber-500/30 bg-gradient-to-br from-amber-500/[0.07] to-card"
+              : "border-destructive/25 bg-gradient-to-br from-destructive/[0.06] to-card",
         className,
       )}
     >
@@ -83,20 +100,28 @@ export function BookingResultCard({
               ? "bg-primary/15 text-primary"
               : ok
                 ? "bg-emerald-500/15 text-emerald-600"
-                : "bg-destructive/15 text-destructive",
+                : phoneBooking
+                  ? "bg-amber-500/15 text-amber-700"
+                  : "bg-destructive/15 text-destructive",
           )}
         >
           {running ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : ok ? (
             <CheckCircle2 className="h-5 w-5" />
+          ) : phoneBooking ? (
+            <Phone className="h-5 w-5" />
           ) : (
             <XCircle className="h-5 w-5" />
           )}
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            {status === "payment_required" ? "Payment gate" : "Hospital booking"}
+            {status === "payment_required"
+              ? "Payment gate"
+              : phoneBooking
+                ? "Phone booking"
+                : "Hospital booking"}
           </p>
           <p className="mt-0.5 text-[15px] font-semibold leading-snug text-foreground">{title}</p>
           <p className="mt-1 flex items-center gap-1.5 text-[13px] font-medium text-foreground/90">
@@ -196,6 +221,16 @@ export function BookingResultCard({
               ))}
             </div>
           </div>
+        ) : null}
+
+        {clinicPhone && !running ? (
+          <a
+            href={`tel:${clinicPhone.replace(/[^\d+]/g, "")}`}
+            aria-label={`Call ${hospital} ${clinicPhone}`}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-chat-accent px-4 text-[13px] font-semibold text-chat-accent-foreground"
+          >
+            <Phone className="h-4 w-4" /> Call {clinicPhone}
+          </a>
         ) : null}
 
         {!ok && !running ? (

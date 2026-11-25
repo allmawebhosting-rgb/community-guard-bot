@@ -1264,6 +1264,9 @@ function ToolCard({
         preferredTime={
           typeof output?.preferred_time === "string" ? output.preferred_time : null
         }
+        clinicPhone={
+          typeof output?.clinic_phone === "string" ? output.clinic_phone : null
+        }
         paymentRequired={Boolean(output?.payment_required)}
       />
     );

@@ -26,6 +26,7 @@ import { assistantHasVisibleText } from "@/lib/chat-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
+import { lookupHospitalContact } from "@/lib/places.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
 import { createFileRoute } from "@tanstack/react-router";
 import { withTimeoutFallback } from "@/lib/async-timeout";
@@ -1281,20 +1282,25 @@ You are coordinating this emergency from the start, not just answering questions
                 phone_number,
               }) => {
                 reportProgress("finding");
+                // Resolve a direct website/phone first — search engines CAPTCHA headless browsers.
+                const contact = await lookupHospitalContact(hospital_name).catch(() => null);
                 const result = await bookHospitalAppointment({
-                  hospital_name,
+                  hospital_name: contact?.name || hospital_name,
                   preferred_time,
                   reason_for_visit,
                   patient_name,
                   phone_number,
+                  portal_url: contact?.website || undefined,
+                  clinic_phone: contact?.phone || undefined,
                   onProgress: (update) => {
                     reportBookingProgress?.(update);
                   },
                 });
                 reportProgress("writing");
                 return {
-                  ok: Boolean(result.success),
                   ...result,
+                  ok: Boolean(result.success) || result.status === "phone_booking",
+                  clinic_phone: result.clinic_phone || contact?.phone || null,
                 };
               },
             }),

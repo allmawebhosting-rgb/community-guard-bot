@@ -483,6 +483,60 @@ export function phoneLookupBudgetLeft(
   return Math.max(0, budgetMs - (now - startedAt));
 }
 
+/** Resolve a clinic/hospital name to a phone and/or website for appointment booking. */
+export async function lookupHospitalContact(hospitalName: string): Promise<{
+  name: string;
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+} | null> {
+  const key = resolveGoogleMapsKey({
+    ...(import.meta.env as Record<string, string | undefined>),
+    ...process.env,
+  });
+  const query = hospitalName.trim();
+  if (!key || !query) return null;
+  try {
+    const res = await fetch(`${GOOGLE_API_URL}/places:searchText`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
+        Referer: "https://allmasafetyai.online/",
+        "X-Goog-FieldMask":
+          "places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri",
+      },
+      body: JSON.stringify({
+        textQuery: `${query} hospital OR clinic Uganda`,
+        maxResultCount: 3,
+        languageCode: "en",
+        regionCode: "UG",
+      }),
+      signal: AbortSignal.timeout(GOOGLE_PLACES_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      places?: Array<{
+        displayName?: { text?: string };
+        formattedAddress?: string;
+        nationalPhoneNumber?: string;
+        internationalPhoneNumber?: string;
+        websiteUri?: string;
+      }>;
+    };
+    const place = body.places?.[0];
+    if (!place) return null;
+    return {
+      name: place.displayName?.text?.trim() || query,
+      phone: place.nationalPhoneNumber || place.internationalPhoneNumber || null,
+      website: place.websiteUri || null,
+      address: place.formattedAddress || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Phone numbers from Google Place Details for places the nearby search returned without one. */
 export async function fetchPlacePhones(
   ids: string[],

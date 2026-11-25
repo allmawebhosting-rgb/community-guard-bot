@@ -66,6 +66,14 @@ class BookAppointmentIn(BaseModel):
     phone_number: str | None = None
     preferred_time: str = Field(..., min_length=1)
     reason_for_visit: str = Field(..., min_length=1)
+    portal_url: str | None = Field(
+        default=None,
+        description="Official clinic website / booking page — never a search engine",
+    )
+    clinic_phone: str | None = Field(
+        default=None,
+        description="Clinic phone for voice booking fallback when online booking fails",
+    )
 
 
 def _llm_provider_status() -> str:
@@ -163,6 +171,8 @@ async def _run_booking_job(job_id: str, body: BookAppointmentIn) -> None:
             phone_number=body.phone_number or "",
             preferred_time=body.preferred_time,
             reason_for_visit=body.reason_for_visit,
+            portal_url=body.portal_url or "",
+            clinic_phone=body.clinic_phone or "",
             on_progress=on_progress,
         )
         _BOOKING_JOBS[job_id] = {
