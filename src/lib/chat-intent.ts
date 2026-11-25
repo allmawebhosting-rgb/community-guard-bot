@@ -34,10 +34,31 @@ export function isSoftGuidedFlow(flowLabel: string | null | undefined) {
   return flowLabel === "Safety check" || flowLabel === "Advice";
 }
 
+/**
+ * True when the user wants to book / schedule a medical appointment.
+ * Must NOT be treated as a nearby-facility search (that only lists places).
+ */
+export function isAppointmentBookingAsk(text: string) {
+  const t = text.trim();
+  if (!t) return false;
+  const bookVerb = /\b(book|booking|appoint(?:ment)?|reserve|schedule)\b/i.test(t);
+  const medical =
+    /\b(hospital|clinic|doctor|medical|appointment|checkup|check-up|consultation)\b/i.test(t);
+  return bookVerb && medical;
+}
+
 /** True when the user is explicitly asking for nearby places / directions. */
 export function isExplicitNearbyAsk(text: string) {
   const t = text.trim();
   if (!t) return false;
+  // "Book an appointment at a hospital" is booking, not a place directory search —
+  // unless they also asked for nearest/nearby.
+  if (
+    isAppointmentBookingAsk(t) &&
+    !/\b(near(by|est)?|closest|near me|around me)\b/i.test(t)
+  ) {
+    return false;
+  }
   if (
     /\b(near(by|est)?|closest|directions?|find help|help nearby|nearby help|near me|take me to)\b/i.test(
       t,
@@ -84,6 +105,14 @@ export function nearbyHelpTypesForTurn(input: {
   intakeText?: string;
 }): string[] {
   const intake = input.intakeText ?? "";
+  // Booking / scheduling an appointment must not force find_facilities.
+  // "Book an appointment at a hospital" should start the booking flow, not a clinic list.
+  if (
+    isAppointmentBookingAsk(intake) &&
+    !/\b(near(by|est)?|closest|near me|around me)\b/i.test(intake)
+  ) {
+    return [];
+  }
   const explicitNearby = isExplicitNearbyAsk(intake);
   // Live SOS: only search places when the human clearly asks for them.
   // "What is wrong with Allan?" must answer the situation, not open a clinic grid.

@@ -7,6 +7,7 @@ import {
   isReportingIntent,
   isSoftGuidedFlow,
   isSosSituationQuestion,
+  isAppointmentBookingAsk,
   nearbyHelpTypesForTurn,
   scriptedFlowOpener,
   shouldLoadReportingPrompt,
@@ -179,6 +180,33 @@ describe("direct help routing", () => {
     expect(isExplicitNearbyAsk("need a hospital")).toBe(true);
     expect(isExplicitNearbyAsk("what is the problem with allan")).toBe(false);
     expect(isExplicitNearbyAsk("my nose is bleeding")).toBe(false);
+    expect(isExplicitNearbyAsk("book an appointment at a hospital")).toBe(false);
+  });
+
+  it("treats appointment booking as booking, not a clinic directory search", () => {
+    expect(isAppointmentBookingAsk("book an appointment at a hospital")).toBe(true);
+    expect(isAppointmentBookingAsk("schedule a clinic visit tomorrow")).toBe(true);
+    expect(isAppointmentBookingAsk("nearest hospital")).toBe(false);
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: ["hospital"],
+        directService: "hospital",
+        emergencyHelpTypes: [],
+        isReporting: false,
+        showDirectHelp: true,
+        intakeText: "book an appointment at a hospital",
+      }),
+    ).toEqual([]);
+    expect(
+      nearbyHelpTypesForTurn({
+        directFacilityTypes: ["hospital"],
+        directService: "hospital",
+        emergencyHelpTypes: [],
+        isReporting: false,
+        showDirectHelp: true,
+        intakeText: "book the nearest hospital appointment",
+      }),
+    ).toEqual(["hospital"]);
   });
 
   it("detects SOS situation questions from responders", () => {

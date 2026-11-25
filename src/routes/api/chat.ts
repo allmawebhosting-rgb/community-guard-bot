@@ -9,6 +9,7 @@ import {
   canUseCaseTimelineTool,
   isFilingToolName,
   isSoftGuidedFlow,
+  isAppointmentBookingAsk,
   nearbyHelpTypesForTurn,
   isEmergencyNumbersAsk,
   isSosSituationQuestion,
@@ -800,13 +801,13 @@ You are coordinating this emergency from the start, not just answering questions
               : ""
             : emergencyPromptBlock(emergencyIncident, Boolean(sharedCoords)).trim()
           : "";
-        const intentBlock = directHelpBlock + (intent && continueGuidedFlow
+        const intentBlock = bookingBlock + directHelpBlock + (intent && continueGuidedFlow
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
                 ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
                 : `Open the "${intent.flow}" flow in THIS reply: first line ::flow{type=${intent.flow}, step=1, total=4, title="…"}, then this opening question: ${intent.opener} and end with a ::suggest[…] line carrying exactly those options.`
             } Do NOT ask this as plain prose without a ::suggest line, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
-          : intent && !flowState.flowLabel && !emergencyIncident && !requireNearbyHelp
+          : intent && !flowState.flowLabel && !emergencyIncident && !requireNearbyHelp && !bookingAsk
             ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. Open the "${intent.flow}" flow in THIS reply: first line ::flow{type=${intent.flow}, step=1, total=4, title="…"}, then this opening question: ${intent.opener} and end with a ::suggest[…] line carrying exactly those options. Do NOT ask this as plain prose without a ::suggest line, do NOT greet or introduce yourself, and stay strictly on this subject: never offer unrelated actions (emergency numbers, find help nearby, generate report) while this flow is running.`
           : "");
 
@@ -894,15 +895,18 @@ You are coordinating this emergency from the start, not just answering questions
         // list_alerts is opt-in only when the user asks about alerts — otherwise
         // the model was dumping empty "NEARBY HELP · No active alerts" cards.
         const wantsAlerts = /\balerts?\b|community (news|warning)|safety alert/i.test(intakeText);
-        const wantsBooking =
-          isBrowserAgentConfigured() &&
-          /\b(book|booking|appoint(?:ment)?|reserve|schedule)\b/i.test(intakeText) &&
-          /\b(hospital|clinic|doctor|medical)\b/i.test(intakeText);
+        const bookingAsk = isAppointmentBookingAsk(intakeText);
+        const wantsBooking = isBrowserAgentConfigured() && bookingAsk;
         const LIGHT_TOOL_NAMES = new Set([
           "find_facilities",
           ...(wantsAlerts ? (["list_alerts"] as const) : []),
           ...(wantsBooking ? (["book_hospital_appointment"] as const) : []),
         ]);
+        const bookingBlock = bookingAsk
+          ? wantsBooking
+            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit, patient name/phone if useful). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they already named a clinic (e.g. Jemia Doctors Chambers), use that name. Never invent a confirmation number — only report what the booking agent returns. End with ::suggest[…] options when you still need a choice.`
+            : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
+          : "";
         const filingAllowed = canUseFilingTools({
           flowLabel: flowState.flowLabel,
           step: flowState.step,
