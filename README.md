@@ -536,34 +536,35 @@ The web RTC SDK is loaded only when a user answers or starts a call. Native Capa
 
 ------------------------------------------------
 
-OFFLINE GSM VOICE + SMS FALLBACK (AFRICA'S TALKING)
+OFFLINE GSM VOICE + SMS FALLBACK (INFOBIP)
 
-When an SOS is active and in-app Zego Safety Network calls have **no callable targets** or **round 1 goes unanswered for ~25 seconds**, Allma automatically places outbound cellular voice calls and SMS to the owner's `emergency_contacts` via Africa's Talking (sandbox simulator or live MTN/Airtel). Browsers cannot auto-dial `tel:` without a tap — this path is server-side only (`escalateSosToGsm`).
+When an SOS is active and in-app Zego Safety Network calls have **no callable targets** or **round 1 goes unanswered for ~25 seconds**, Allma automatically places outbound TTS voice calls and SMS to the owner's `emergency_contacts` via Infobip. Browsers cannot auto-dial `tel:` without a tap — this path is server-side only (`escalateSosToGsm`).
 
-Set Worker / server secrets:
-
-```text
-AT_USERNAME          # "sandbox" for simulator, or your AT app username
-AT_API_KEY
-AT_CALLER_ID         # virtual number / shortcode allowed to place calls & SMS
-AT_ENVIRONMENT       # "sandbox" | "production" (optional; inferred from username)
-APP_PUBLIC_URL       # optional; defaults to https://allmasafetyai.online
-```
-
-Voice webhook (configure on the AT number / sandbox app):
+Set Cloudflare Worker secrets on `community-guard-bot`:
 
 ```text
-https://allmasafetyai.online/api/public/africas-talking-voice
+INFOBIP_BASE_URL=https://z4z2mx.api.infobip.com
+INFOBIP_API_KEY=...                 # required
+INFOBIP_SENDER=...                  # optional caller ID / SMS from; omit to use Infobip default / "AllmaSafety" for SMS
+APP_PUBLIC_URL=https://allmasafetyai.online
 ```
+
+Auth on every Infobip request: `Authorization: App ${INFOBIP_API_KEY}`.
+
+Endpoints used:
+
+- Voice TTS: `POST /tts/3/advanced`
+- SMS: `POST /sms/2/text/advanced`
 
 Behavior:
 
 - In-app Zego dials first; GSM fires only when contacts are missing/ineligible or round 1 has no answer.
-- Idempotent once per SOS (`sos_telecom_escalations` + `notification_delivery_attempts` kinds `gsm_voice` / `gsm_sms`).
-- Answered calls hear the fixed TTS XML from `/api/public/africas-talking-voice`.
-- SMS includes `{APP_PUBLIC_URL}/sos?id={activityId}` only (no raw phone numbers in chat).
-- **Never** auto-dials 999 / 112 / 911; those stay one-tap `tel:` buttons.
-- UI shows confirmation only after Africa's Talking returns HTTP 200/201 — never mocked.
+- Numbers normalized to Infobip form (`07…` / `+2567…` → `2567…`); 999 / 112 / 911 blocked.
+- Per-contact sequential voice + SMS; a non-2xx response fails that contact and continues.
+- Idempotent once per SOS (`sos_telecom_escalations` + `notification_delivery_attempts` with `provider=infobip`).
+- UI confirms only after Infobip returns HTTP 2xx — never mocked.
+- Infobip free trial typically only reaches the verified number `+256774520951` — use that for end-to-end tests.
+- Legacy route `/api/public/africas-talking-voice` remains unused (no longer part of the call flow).
 
 ------------------------------------------------
 

@@ -1,13 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AFRICAS_TALKING_VOICE_XML } from "@/lib/africas-talking.server";
 
 /**
- * Public Africa's Talking voice callback.
- * Configure this URL on the AT virtual number / sandbox app so answered
- * calls hear the SOS TTS announcement. No auth — AT servers POST here.
+ * Legacy Africa's Talking voice callback — unused after Infobip migration.
+ * Kept so existing AT dashboard URLs do not 404; SOS GSM now uses Infobip TTS.
  */
+const LEGACY_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say playBeep="true">
+    Emergency alert from Allma Safety. Your contact has activated an SOS.
+    A live location tracking link has been sent to your mobile phone via SMS.
+    Please check your messages immediately and assist.
+  </Say>
+</Response>`;
+
 function voiceXmlResponse() {
-  return new Response(AFRICAS_TALKING_VOICE_XML, {
+  return new Response(LEGACY_XML, {
     status: 200,
     headers: {
       "Content-Type": "text/xml; charset=utf-8",
