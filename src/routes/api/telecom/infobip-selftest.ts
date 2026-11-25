@@ -3,6 +3,7 @@ import {
   dispatchInfobipSms,
   dispatchInfobipTtsCall,
   isInfobipConfigured,
+  normalizeInfobipBaseUrl,
   normalizeInfobipPhone,
 } from "@/lib/infobip.server";
 
@@ -36,7 +37,7 @@ export const Route = createFileRoute("/api/telecom/infobip-selftest")({
             INFOBIP_API_KEY: keyLen > 0,
             INFOBIP_API_KEY_len: keyLen,
             INFOBIP_BASE_URL: Boolean(base),
-            INFOBIP_BASE_URL_host: base ? new URL(base).host : null,
+            INFOBIP_BASE_URL_host: base ? new URL(normalizeInfobipBaseUrl(base)).host : null,
             INFOBIP_SENDER: senderLen > 0,
             INFOBIP_SELFTEST_TOKEN: selftestLen > 0,
           },

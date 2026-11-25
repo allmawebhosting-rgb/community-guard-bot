@@ -11,6 +11,13 @@ function runtimeEnv(name: string): string {
   return typeof fromCf === "string" ? fromCf.trim() : "";
 }
 
+/** Accepts "xxx.api.infobip.com" or a full URL; always returns https://host without trailing slash. */
+export function normalizeInfobipBaseUrl(raw: string | null | undefined): string {
+  let value = (raw || "").trim() || "https://z4z2mx.api.infobip.com";
+  if (!/^https?:\/\//i.test(value)) value = `https://${value}`;
+  return value.replace(/\/+$/, "");
+}
+
 export type InfobipConfig = {
   baseUrl: string;
   apiKey: string;
@@ -19,9 +26,7 @@ export type InfobipConfig = {
 
 export function getInfobipConfig(): InfobipConfig | null {
   const apiKey = runtimeEnv("INFOBIP_API_KEY");
-  const baseUrl = (
-    runtimeEnv("INFOBIP_BASE_URL") || "https://z4z2mx.api.infobip.com"
-  ).replace(/\/$/, "");
+  const baseUrl = normalizeInfobipBaseUrl(runtimeEnv("INFOBIP_BASE_URL"));
   if (!apiKey) return null;
   const sender = runtimeEnv("INFOBIP_SENDER") || null;
   return { baseUrl, apiKey, sender };

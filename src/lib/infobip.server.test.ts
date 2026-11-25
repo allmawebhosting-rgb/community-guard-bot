@@ -19,3 +19,13 @@ describe("Infobip phone normalization", () => {
     expect(isOfficialEmergencyNumber("999")).toBe(true);
   });
 });
+
+import { normalizeInfobipBaseUrl as normBase } from "@/lib/infobip.server";
+describe("normalizeInfobipBaseUrl", () => {
+  it("adds https:// when missing", () => {
+    expect(normBase("z4z2mx.api.infobip.com")).toBe("https://z4z2mx.api.infobip.com");
+  });
+  it("keeps full URL and strips trailing slash", () => {
+    expect(normBase("https://abc.api.infobip.com/")).toBe("https://abc.api.infobip.com");
+  });
+});
