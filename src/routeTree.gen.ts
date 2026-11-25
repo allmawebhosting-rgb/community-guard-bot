@@ -39,6 +39,7 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedResponderRouteImport } from './routes/_authenticated/responder'
 import { Route as AuthenticatedSafetyNetworkRouteImport } from './routes/_authenticated/safety-network'
 import { Route as ApiAccountDeletionRouteImport } from './routes/api/account-deletion'
+import { Route as ApiBrowserAgentMediaRouteImport } from './routes/api/browser-agent-media'
 import { Route as ApiBrowserAgentStatusRouteImport } from './routes/api/browser-agent-status'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiHealthRemindersDeliverRouteImport } from './routes/api/health-reminders-deliver'
@@ -223,6 +224,11 @@ const AuthenticatedSafetyNetworkRoute =
 const ApiAccountDeletionRoute = ApiAccountDeletionRouteImport.update({
   id: '/api/account-deletion',
   path: '/api/account-deletion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBrowserAgentMediaRoute = ApiBrowserAgentMediaRouteImport.update({
+  id: '/api/browser-agent-media',
+  path: '/api/browser-agent-media',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBrowserAgentStatusRoute = ApiBrowserAgentStatusRouteImport.update({
@@ -435,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/responder': typeof AuthenticatedResponderRoute
   '/safety-network': typeof AuthenticatedSafetyNetworkRoute
   '/api/account-deletion': typeof ApiAccountDeletionRoute
+  '/api/browser-agent-media': typeof ApiBrowserAgentMediaRoute
   '/api/browser-agent-status': typeof ApiBrowserAgentStatusRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
@@ -496,6 +503,7 @@ export interface FileRoutesByTo {
   '/responder': typeof AuthenticatedResponderRoute
   '/safety-network': typeof AuthenticatedSafetyNetworkRoute
   '/api/account-deletion': typeof ApiAccountDeletionRoute
+  '/api/browser-agent-media': typeof ApiBrowserAgentMediaRoute
   '/api/browser-agent-status': typeof ApiBrowserAgentStatusRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
@@ -561,6 +569,7 @@ export interface FileRoutesById {
   '/_authenticated/responder': typeof AuthenticatedResponderRoute
   '/_authenticated/safety-network': typeof AuthenticatedSafetyNetworkRoute
   '/api/account-deletion': typeof ApiAccountDeletionRoute
+  '/api/browser-agent-media': typeof ApiBrowserAgentMediaRoute
   '/api/browser-agent-status': typeof ApiBrowserAgentStatusRoute
   '/api/chat': typeof ApiChatRoute
   '/api/health-reminders-deliver': typeof ApiHealthRemindersDeliverRoute
@@ -626,6 +635,7 @@ export interface FileRouteTypes {
     | '/responder'
     | '/safety-network'
     | '/api/account-deletion'
+    | '/api/browser-agent-media'
     | '/api/browser-agent-status'
     | '/api/chat'
     | '/api/health-reminders-deliver'
@@ -687,6 +697,7 @@ export interface FileRouteTypes {
     | '/responder'
     | '/safety-network'
     | '/api/account-deletion'
+    | '/api/browser-agent-media'
     | '/api/browser-agent-status'
     | '/api/chat'
     | '/api/health-reminders-deliver'
@@ -751,6 +762,7 @@ export interface FileRouteTypes {
     | '/_authenticated/responder'
     | '/_authenticated/safety-network'
     | '/api/account-deletion'
+    | '/api/browser-agent-media'
     | '/api/browser-agent-status'
     | '/api/chat'
     | '/api/health-reminders-deliver'
@@ -808,6 +820,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiAccountDeletionRoute: typeof ApiAccountDeletionRoute
+  ApiBrowserAgentMediaRoute: typeof ApiBrowserAgentMediaRoute
   ApiBrowserAgentStatusRoute: typeof ApiBrowserAgentStatusRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiHealthRemindersDeliverRoute: typeof ApiHealthRemindersDeliverRoute
@@ -1031,6 +1044,13 @@ declare module '@tanstack/react-router' {
       path: '/api/account-deletion'
       fullPath: '/api/account-deletion'
       preLoaderRoute: typeof ApiAccountDeletionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/browser-agent-media': {
+      id: '/api/browser-agent-media'
+      path: '/api/browser-agent-media'
+      fullPath: '/api/browser-agent-media'
+      preLoaderRoute: typeof ApiBrowserAgentMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/browser-agent-status': {
@@ -1368,6 +1388,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiAccountDeletionRoute: ApiAccountDeletionRoute,
+  ApiBrowserAgentMediaRoute: ApiBrowserAgentMediaRoute,
   ApiBrowserAgentStatusRoute: ApiBrowserAgentStatusRoute,
   ApiChatRoute: ApiChatRoute,
   ApiHealthRemindersDeliverRoute: ApiHealthRemindersDeliverRoute,
