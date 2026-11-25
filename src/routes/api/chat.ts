@@ -601,9 +601,18 @@ You are coordinating this emergency from the start, not just answering questions
           null;
         const lastAssistantFullText = priorAssistantMessages[0] ? textOf(priorAssistantMessages[0]) : "";
         const bookingFollowUp = isBookingFollowUp(intakeText, lastAssistantFullText);
-        const scripted =
-          sharedSosActive || hasSharedAssistantHistory
-            ? null
+        // Booking openers stay local even mid-thread. Skipping them when the
+        // canonical history already had an assistant reply forced Workers AI
+        // for "Book an appointment", and a plain-text gateway failure then
+        // showed up in the client as "Something interrupted the response."
+        const scripted = sharedSosActive
+          ? null
+          : hasSharedAssistantHistory
+            ? isAppointmentBookingAsk(intakeText) &&
+              intakeText.trim().length < 100 &&
+              !bookingHasPreferredTime(intakeText)
+              ? BOOKING_OPENER
+              : null
             : scriptedFlowOpener(intakeText, priorFlowLabel);
         if (scripted) {
           return replyWithFixedText(scripted, "allma-flow");
@@ -1811,8 +1820,22 @@ You are coordinating this emergency from the start, not just answering questions
         mark("model_ready");
         if ("failure" in selected) {
           logTiming();
-          return new Response(selected.failure.message, {
-            status: selected.failure.status,
+          // Always return an SSE UI-message stream — a plain-text 502 makes the
+          // AI SDK client throw and the UI only shows "Something interrupted…"
+          const failText = selected.failure.message;
+          const failStream = createUIMessageStream({
+            originalMessages: uiMessages,
+            execute: async ({ writer }) => {
+              const id = `allma-gateway-fail-${Date.now()}`;
+              writer.write({ type: "start", messageId: id });
+              writer.write({ type: "text-start", id });
+              writer.write({ type: "text-delta", id, delta: failText });
+              writer.write({ type: "text-end", id });
+              writer.write({ type: "finish" });
+            },
+          });
+          return createUIMessageStreamResponse({
+            stream: failStream,
             headers: { "Cache-Control": "no-store" },
           });
         }

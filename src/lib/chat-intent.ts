@@ -363,16 +363,8 @@ export function scriptedFlowOpener(intakeText: string, activeFlowLabel: string |
   // Soft SOS situation questions are handled by the chat route with room state
   // (scriptedFlowOpener has no SOS room context here).
 
-  // Hard report flows keep the model for follow-up answers.
-  if (activeFlowLabel && !isSoftGuidedFlow(activeFlowLabel) && activeFlowLabel !== "Find help") {
-    return null;
-  }
-
-  if (isFirstAidTopicAsk(text)) {
-    return FIRST_AID_OPENER;
-  }
-
   // Vague booking ask with no clinic/time yet — collect details before the VPS agent runs.
+  // Runs before hard-flow short-circuit so "Book an appointment" can leave Reporting / Missing person.
   if (
     isAppointmentBookingAsk(text) &&
     text.length < 100 &&
@@ -381,6 +373,15 @@ export function scriptedFlowOpener(intakeText: string, activeFlowLabel: string |
     )
   ) {
     return BOOKING_OPENER;
+  }
+
+  // Hard report flows keep the model for follow-up answers.
+  if (activeFlowLabel && !isSoftGuidedFlow(activeFlowLabel) && activeFlowLabel !== "Find help") {
+    return null;
+  }
+
+  if (isFirstAidTopicAsk(text)) {
+    return FIRST_AID_OPENER;
   }
 
   if (

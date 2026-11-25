@@ -282,6 +282,8 @@ describe("direct help routing", () => {
     expect(reply).toMatch(/book a hospital or clinic appointment/i);
     expect(reply).toMatch(/Which clinic or hospital/i);
     expect(reply).toMatch(/::suggest\[Jemia Doctors Chambers/);
+    // Booking can interrupt a hard Reporting flow (otherwise the client hits the model and can error).
+    expect(scriptedFlowOpener("Book an appointment", "Reporting")).toMatch(/Which clinic or hospital/i);
     // With clinic + time already named, leave it to the model + booking tool.
     expect(
       scriptedFlowOpener(
