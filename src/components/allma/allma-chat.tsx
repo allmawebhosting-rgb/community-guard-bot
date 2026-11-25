@@ -3,6 +3,12 @@ import {
   BookingResultCard,
   type BookingProcessStep,
 } from "@/components/allma/booking-result-card";
+import {
+  EmailSentCard,
+  EmergencyDispatchCard,
+} from "@/components/allma/agent-tool-cards";
+import { formatEtaLabel } from "@/lib/facility-etas";
+import { dispatchGuideToPlace } from "@/lib/guide-to-place";
 import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
 import {
   SosResponderJoinedToast,
@@ -802,7 +808,6 @@ function SosTimelineEvent({
 }
 
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
-  const navigate = useNavigate();
   const facilities = output.facilities as Array<Record<string, unknown>>;
   const t = String(output.emergency_type ?? facilities[0]?.facility_type ?? "");
   const [filter, setFilter] = useState<string>("All");
@@ -815,7 +820,7 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const shown = filter === "All" ? facilities : facilities.filter((f) => labelOf(f) === filter);
   // SOS lives once at the top of the assistant message — never inside place cards.
   return (
-    <div className="w-full space-y-2.5">
+    <div className="w-full space-y-2.5" data-testid="safety-resource-list">
       {facilities.length === 0 ? (
         <p className="rounded-2xl border border-border/60 bg-card p-3.5 text-[14px] leading-relaxed text-foreground">{output.location_unconfirmed ? "I couldn't confirm where you are, so I won't show places that may be far away. Tap Share my location or type your town or area." : "No places found nearby. Share your location or type your town or area."}</p>
       ) : (
@@ -836,8 +841,18 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
             {shown.map((facility, index) => {
               const lat = Number(facility.lat ?? facility.latitude);
               const lng = Number(facility.lng ?? facility.longitude);
-              const dest = Number.isFinite(lat) && Number.isFinite(lng) && facility.latitude != null ? `${lat},${lng}` : encodeURIComponent(String(facility.name) + " " + String(facility.district ?? ""));
-              const km = facility.distance_km != null && Number.isFinite(Number(facility.distance_km)) ? Number(facility.distance_km) : null;
+              const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+              const dest = hasCoords
+                ? `${lat},${lng}`
+                : encodeURIComponent(String(facility.name) + " " + String(facility.district ?? ""));
+              const km =
+                facility.distance_km != null && Number.isFinite(Number(facility.distance_km))
+                  ? Number(facility.distance_km)
+                  : null;
+              const eta =
+                typeof facility.eta_label === "string" && facility.eta_label
+                  ? facility.eta_label
+                  : formatEtaLabel(km);
               const label =
                 (typeof facility.type_label === "string" && facility.type_label) ||
                 FACILITY_LABEL[String(facility.facility_type ?? "")] ||
@@ -847,26 +862,64 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
               const photo = typeof facility.photo_url === "string" && facility.photo_url ? facility.photo_url : null;
               const address = typeof facility.address === "string" && facility.address ? facility.address : null;
               const meta = [
-                km != null ? `${km} km` : null,
+                eta || null,
                 index === 0 && filter === "All" ? "Nearest" : null,
                 facility.open_now === true ? "Open now" : null,
+                facility.is_24_7 === true ? "24/7" : null,
                 address,
               ].filter(Boolean).join(" · ");
+              const guideHere = () => {
+                if (!hasCoords) return;
+                dispatchGuideToPlace({
+                  id: typeof facility.id === "string" ? facility.id : `chat:${lat},${lng}`,
+                  name: String(facility.name ?? "Place"),
+                  lat,
+                  lng,
+                  phone,
+                  type: String(facility.facility_type ?? t),
+                });
+              };
               return (
                 <div key={index} className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card p-3">
                   <PlaceThumb photo={photo} type={String(facility.facility_type ?? t)} />
                   <div className="min-w-0 flex-1">
-                    {label ? <span className="mb-1 inline-block rounded-full bg-chat-user px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-chat-accent">{label}</span> : null}
+                    <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                      {label ? (
+                        <span className="inline-block rounded-full bg-chat-user px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-chat-accent">
+                          {label}
+                        </span>
+                      ) : null}
+                      {facility.is_24_7 === true ? (
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                          24/7
+                        </span>
+                      ) : facility.open_now === true ? (
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                          Open
+                        </span>
+                      ) : null}
+                      {km != null ? (
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                          {km} km
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="truncate text-[15px] font-semibold leading-snug text-foreground">{String(facility.name)}</p>
                     {meta ? <p className="mt-0.5 truncate text-[12.5px] leading-5 text-muted-foreground">{meta}</p> : null}
                     <div className="mt-2.5 flex gap-2">
                       {phone ? (
                         <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background px-3 text-[13px] font-semibold text-foreground">
-                          <Phone className="h-3.5 w-3.5 shrink-0" /> Call
+                          <Phone className="h-3.5 w-3.5 shrink-0" /> Call place
                         </a>
                       ) : null}
-                      <a href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`} target="_blank" rel="noreferrer" className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-chat-accent px-3 text-[13px] font-semibold text-chat-accent-foreground">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" /> Directions
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${dest}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={guideHere}
+                        className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-chat-accent px-3 text-[13px] font-semibold text-chat-accent-foreground"
+                      >
+                        <Navigation className="h-3.5 w-3.5 shrink-0" /> Guide me here
                       </a>
                     </div>
                   </div>
@@ -1012,6 +1065,21 @@ function ToolCard({
   const meta: Record<string, { icon: typeof FileText; label: string; busy: string }> = {
     create_report: { icon: FileText, label: "Incident report", busy: "Filing your report…" },
     find_facilities: { icon: MapPin, label: "Nearby help", busy: "Searching the directory…" },
+    search_safety_resources: {
+      icon: MapPin,
+      label: "Safety resources",
+      busy: "Searching hospitals, police, pharmacies…",
+    },
+    prepare_emergency_dispatch: {
+      icon: Siren,
+      label: "Emergency call bridge",
+      busy: "Preparing call script…",
+    },
+    send_incident_email: {
+      icon: FileText,
+      label: "Incident email",
+      busy: "Sending handoff email…",
+    },
     book_hospital_appointment: {
       icon: MapPin,
       label: "Hospital booking",
@@ -1058,9 +1126,12 @@ function ToolCard({
     // The live checklist already covers find_facilities; skip noisy busy stubs.
     if (
       name === "find_facilities" ||
+      name === "search_safety_resources" ||
       name === "list_alerts" ||
       name === "report_summary" ||
-      name === "create_report"
+      name === "create_report" ||
+      name === "prepare_emergency_dispatch" ||
+      name === "send_incident_email"
     ) {
       return null;
     }
@@ -1350,7 +1421,15 @@ function ToolCard({
     );
   }
 
-  if (name === "find_facilities") {
+  if (name === "send_incident_email" && output) {
+    return <EmailSentCard output={output as Record<string, unknown>} />;
+  }
+
+  if (name === "prepare_emergency_dispatch" && output) {
+    return <EmergencyDispatchCard output={output as Record<string, unknown>} />;
+  }
+
+  if (name === "find_facilities" || name === "search_safety_resources") {
     const facilities = Array.isArray(output?.facilities) ? output.facilities : [];
     if (facilities.length) {
       return <FacilityResults output={output as Record<string, unknown>} />;
@@ -1442,7 +1521,8 @@ function ToolCard({
             or emergency services for you.
           </div>
         </div>
-      ) : name === "find_facilities" && Array.isArray(output?.facilities) ? (
+      ) : (name === "find_facilities" || name === "search_safety_resources") &&
+        Array.isArray(output?.facilities) ? (
         <FacilityResults output={output as Record<string, unknown>} />
       ) : name === "list_alerts" && Array.isArray(output?.alerts) && output.alerts.length > 0 ? (
         <ul className="space-y-2 text-sm">

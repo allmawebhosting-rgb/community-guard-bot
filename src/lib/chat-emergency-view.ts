@@ -31,9 +31,15 @@ export function shouldShowToolOutput(
   if (name === "list_alerts") {
     return Array.isArray(output?.alerts) && output.alerts.length > 0;
   }
-  if (name === "find_facilities") {
+  if (name === "find_facilities" || name === "search_safety_resources") {
     // Empty facility results still show the share-location recovery card.
     return true;
+  }
+  if (name === "prepare_emergency_dispatch") {
+    return Boolean(output?.official_number || output?.spoken_script);
+  }
+  if (name === "send_incident_email") {
+    return Boolean(output && (output.timestamp || output.to || output.error));
   }
   if (name === "my_reports" || name === "match_reports") {
     const rows = (output?.reports ?? output?.matches) as unknown[] | undefined;

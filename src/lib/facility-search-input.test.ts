@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { facilitySearchInputSchema, normalizeFacilityType } from "./facility-search-input";
+import {
+  categoriesToFacilityTypes,
+  facilitySearchInputSchema,
+  normalizeFacilityType,
+} from "./facility-search-input";
 
 describe("facility search tool input", () => {
   it("normalizes common model variants to supported facility types", () => {
@@ -8,12 +12,15 @@ describe("facility search tool input", () => {
     expect(normalizeFacilityType("ambulance service")).toBe("ambulance");
     expect(normalizeFacilityType("safe house")).toBe("shelter");
     expect(normalizeFacilityType("clinic")).toBe("hospital");
+    expect(normalizeFacilityType("24/7 pharmacy")).toBe("pharmacy");
   });
 
   it("defaults missing and malformed facility types to police and hospitals", () => {
     expect(facilitySearchInputSchema.parse({})).toEqual({
       facility_types: ["police", "hospital"],
+      categories: null,
       area: null,
+      open_now_only: true,
     });
     expect(facilitySearchInputSchema.parse({ facility_types: 42 }).facility_types).toEqual([
       "police",
@@ -30,6 +37,25 @@ describe("facility search tool input", () => {
         facility_types: ["ambulance", "safe place", "district police station"],
       }).facility_types,
     ).toEqual(["ambulance", "shelter", "police"]);
+  });
+
+  it("maps categories[] into facility_types for multi-resource search", () => {
+    expect(
+      facilitySearchInputSchema.parse({
+        categories: ["pharmacy", "fire_station", "hospital"],
+      }).facility_types,
+    ).toEqual(["pharmacy", "fire", "hospital"]);
+    expect(categoriesToFacilityTypes(["police", "ambulance"])).toEqual(["police", "ambulance"]);
+  });
+
+  it("defaults open_now_only for pharmacy/hospital searches", () => {
+    expect(facilitySearchInputSchema.parse({ facility_types: ["pharmacy"] }).open_now_only).toBe(
+      true,
+    );
+    expect(
+      facilitySearchInputSchema.parse({ facility_types: ["police"], open_now_only: false })
+        .open_now_only,
+    ).toBe(false);
   });
 
   it("trims named areas and treats blank, vague, or non-string areas as absent", () => {

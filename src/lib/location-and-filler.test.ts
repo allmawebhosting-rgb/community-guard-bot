@@ -84,16 +84,18 @@ describe("chat prompt stays compact without dropping essential safety rules", ()
   it("keeps emergency numbers and never-contact boundary in the core", () => {
     expect(ALLMA_CORE_PROMPT).toMatch(/999/);
     expect(ALLMA_CORE_PROMPT).toMatch(/112/);
-    expect(ALLMA_CORE_PROMPT).toMatch(/Never claim anyone was contacted or dispatched/);
-    expect(ALLMA_CORE_PROMPT.length).toBeLessThan(2000);
+    expect(ALLMA_CORE_PROMPT).toMatch(/911/);
+    expect(ALLMA_CORE_PROMPT).toMatch(/Never claim police, ambulance, fire, or responders were contacted, dispatched/);
+    expect(ALLMA_CORE_PROMPT.length).toBeLessThan(3200);
   });
 
   it("keeps nearby-help rules in one short, location-aware block", () => {
-    expect(ALLMA_LOCATION_BLOCK).toMatch(/call find_facilities once/i);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/search_safety_resources \(or find_facilities\) once/i);
     expect(ALLMA_LOCATION_BLOCK).toMatch(/Kampala fallback/i);
     expect(ALLMA_LOCATION_BLOCK).toMatch(/during an active emergency/i);
-    expect(ALLMA_LOCATION_BLOCK).toMatch(/do not repeat or regenerate descriptions/i);
-    expect(ALLMA_CORE_PROMPT).not.toMatch(/find_facilities/);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/do not repeat or regenerate those results/i);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/prepare_emergency_dispatch/);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/send_incident_email/);
   });
 
   it("keeps turn-wide detail guidance compact and avoids false report claims", () => {
@@ -110,7 +112,7 @@ describe("retired Location Intelligence card does not leak into chat", () => {
     expect(ALLMA_SYSTEM_PROMPT).not.toMatch(/location_intelligence/);
     expect(ALLMA_LOCATION_BLOCK).not.toMatch(/Display: "This incident falls under/);
     expect(ALLMA_LOCATION_BLOCK).toMatch(/find_facilities/);
-    expect(ALLMA_LOCATION_BLOCK).toMatch(/The UI renders facility cards/);
+    expect(ALLMA_LOCATION_BLOCK).toMatch(/The UI renders facility \/ dispatch \/ email cards/);
   });
 
   it("strips leftover Location Intelligence headings and 'falls under' lines", () => {

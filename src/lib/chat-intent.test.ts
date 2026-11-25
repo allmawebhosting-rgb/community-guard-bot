@@ -231,11 +231,11 @@ describe("direct help routing", () => {
       askerName: "Air preach",
       personActiveInChat: true,
     });
-    expect(reply).toMatch(/Air,? Mawerere needs help with a medical emergency/i);
-    expect(reply).toMatch(/they reported their nose is bleeding/i);
+    expect(reply).toMatch(/Air,? Mawerere is dealing with their nose is bleeding/i);
     expect(reply).toMatch(/live GPS pin/i);
-    expect(reply).toMatch(/messaging in this chat/i);
-    expect(reply).toMatch(/close enough|999|112/i);
+    expect(reply).toMatch(/messaging here/i);
+    expect(reply).toMatch(/911|112|999/i);
+    expect(reply).not.toMatch(/responders are on the way/i);
     expect(reply).not.toMatch(/What we know from this chat/i);
     expect(reply).not.toMatch(/In this chat now/i);
     expect(reply).not.toMatch(/I am here to help with first aid, reporting/i);

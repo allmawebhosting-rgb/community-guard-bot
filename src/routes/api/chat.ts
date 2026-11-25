@@ -53,6 +53,9 @@ import {
 } from "@/lib/allma-prompt";
 import { ALLMA_MARKER_CONTRACT, dedupeRepeatedParts, parseAllmaMarkers } from "@/lib/allma-markers";
 import { facilitySearchInputSchema } from "@/lib/facility-search-input";
+import { withFacilityEtas } from "@/lib/facility-etas";
+import { sendIncidentEmail } from "@/lib/agent-email.server";
+import { prepareEmergencyDispatch } from "@/lib/emergency-dispatch.server";
 import {
   mergeCanonicalChatHistory,
   sharedThreadHasAssistantHistory,
@@ -426,7 +429,9 @@ You are a calm, experienced human emergency coordinator — talk like a real per
     – Say whether ${personFirst} is active/messaging in this chat right now when that is clear.
   • End with ONE concrete next action for the responder (e.g. "Are you close enough to reach him?", "Can you call Police 999 while I keep him on the line?", or short first-aid steps).
   • NEVER print "What we know from this chat:", NEVER recite "In this chat now: …" rosters, NEVER dump product menus, welcome cards, or clinic directories unless they explicitly asked for places.
-- If they ask for nearest police, hospital, clinic, ambulance, fire, or directions — call find_facilities immediately with those types. Do not refuse; do not change the subject.
+- If they ask for nearest police, hospital, clinic, pharmacy, ambulance, fire, or directions — call search_safety_resources (or find_facilities) immediately with those categories. Do not refuse; do not change the subject.
+- If they ask to call police / ambulance / fire or need an operator script — call prepare_emergency_dispatch (tel: + spoken script HUD; never auto-dial).
+- If they ask to email a hospital/clinic/contact an incident handoff — call send_incident_email.
 - Do NOT reply with "I am here to help with first aid, reporting, missing persons…" or any onboarding menu while SOS is active.
 - Do NOT dump clinic/hospital cards unprompted — only when they ask for nearby help or a place type.
 - Uganda emergency numbers when needed: Police 999, Toll-free 112, Ambulance 911 (medical only). Never claim police/ambulance were dispatched unless a tool/backend confirms it.
@@ -940,10 +945,21 @@ You are coordinating this emergency from the start, not just answering questions
         // list_alerts is opt-in only when the user asks about alerts — otherwise
         // the model was dumping empty "NEARBY HELP · No active alerts" cards.
         const wantsAlerts = /\balerts?\b|community (news|warning)|safety alert/i.test(intakeText);
+        const wantsDispatch =
+          /\b(call|dial|contact)\b.{0,40}\b(999|112|911|police|ambulance|fire)\b|\b(prepare|open).{0,20}(dispatch|emergency call)\b|\bemergency (call|dispatch|hotline)\b/i.test(
+            intakeText,
+          );
+        const wantsEmail =
+          /\b(email|e-mail|send).{0,40}\b(incident|handoff|report|summary|clinic|hospital|doctor)\b|\bsend_incident_email\b/i.test(
+            intakeText,
+          );
         const LIGHT_TOOL_NAMES = new Set([
           "find_facilities",
+          "search_safety_resources",
           ...(wantsAlerts ? (["list_alerts"] as const) : []),
           ...(wantsBooking ? (["book_hospital_appointment"] as const) : []),
+          ...(wantsDispatch || sharedSosActive ? (["prepare_emergency_dispatch"] as const) : []),
+          ...(wantsEmail || sharedSosActive ? (["send_incident_email"] as const) : []),
         ]);
         const filingAllowed = canUseFilingTools({
           flowLabel: flowState.flowLabel,
@@ -970,11 +986,27 @@ You are coordinating this emergency from the start, not just answering questions
           }
           // Emergency-number asks must never trigger facility/alert tools.
           if (isEmergencyNumbersAsk(intakeText)) {
-            entries = entries.filter(([name]) => name !== "find_facilities" && name !== "list_alerts");
+            entries = entries.filter(
+              ([name]) =>
+                name !== "find_facilities" &&
+                name !== "search_safety_resources" &&
+                name !== "list_alerts",
+            );
           }
           // Live SOS situation turns: keep the model off clinic search unless asked.
           if (sharedSosActive && !requireNearbyHelp) {
-            entries = entries.filter(([name]) => name !== "find_facilities" && name !== "list_alerts");
+            entries = entries.filter(
+              ([name]) =>
+                name !== "find_facilities" &&
+                name !== "search_safety_resources" &&
+                name !== "list_alerts",
+            );
+          }
+          if (!wantsDispatch && !sharedSosActive) {
+            entries = entries.filter(([name]) => name !== "prepare_emergency_dispatch");
+          }
+          if (!wantsEmail && !sharedSosActive && !fullMode) {
+            entries = entries.filter(([name]) => name !== "send_incident_email");
           }
           if (!isBrowserAgentConfigured() || (!wantsBooking && !fullMode)) {
             entries = entries.filter(([name]) => name !== "book_hospital_appointment");
@@ -1052,7 +1084,7 @@ You are coordinating this emergency from the start, not just answering questions
               : sharedSosActive && !requireNearbyHelp
               ? "SOS REPLY RULE: Answer the latest human message about THIS emergency in plain words like a real coordinator and do what they asked. Do not force nearby-clinic cards unless they asked for places. Do not give the product welcome menu."
               : sharedSosActive && requireNearbyHelp
-                ? "SOS REPLY RULE: They asked for nearby help. Call find_facilities for the requested types (police / hospital / clinic / etc.), show the places, and stay on THIS emergency. Do not give the product welcome menu."
+                ? "SOS REPLY RULE: They asked for nearby help. Call search_safety_resources or find_facilities for the requested types (police / hospital / pharmacy / clinic / etc.), show the places, and stay on THIS emergency. Do not give the product welcome menu."
                 : PHYSICAL_SYMPTOM_FIRST_AID_RULE
           }\n\n${ALLMA_MARKER_CONTRACT}${sharedEmergencyBlock}${sosAgentBlock}${agentTakeoverBlock}\n\nThe user is ${
             userId ? "signed in, so reports can be filed." : "NOT signed in. You can still help and give guidance, but if they want a report filed, tell them to sign in first so their report is saved to their account."
@@ -1352,9 +1384,9 @@ You are coordinating this emergency from the start, not just answering questions
             }),
             find_facilities: tool({
               description:
-                "Find nearby help in ONE call. Include every requested type in facility_types (police, hospital, fire, ambulance, shelter). A named town overrides GPS. The UI renders place cards; do not repeat results after this tool returns.",
+                "Find nearby help in ONE call. Prefer search_safety_resources when multiple categories are needed. Include every requested type in facility_types or categories (police, hospital, pharmacy, fire, fire_station, ambulance, shelter). A named town overrides GPS. The UI renders place cards; do not repeat results after this tool returns.",
               inputSchema: facilitySearchInputSchema,
-              execute: async ({ facility_types, area }) => {
+              execute: async ({ facility_types, area, open_now_only }) => {
                 const requestedTypes = [...new Set(
                   facility_types.length ? facility_types : ["police", "hospital"],
                 )];
@@ -1362,16 +1394,36 @@ You are coordinating this emergency from the start, not just answering questions
                 reportProgress("finding");
                 const searchStarted = Date.now();
                 const { inUganda, MAX_NEARBY_KM, haversineKm } = await import("@/lib/nearby-guard");
-                // A described medical emergency needs real care, not a pharmacy.
+                // A described medical emergency needs real care, not a pharmacy — unless pharmacy was requested.
                 const medicalEmergency = emergencyIncident?.helpTypes.includes("hospital") ?? false;
                 const typesFor: Record<string, string[]> = {
-                  hospital: medicalEmergency ? ["hospital", "medical_clinic", "doctor"] : ["hospital", "medical_clinic", "doctor", "pharmacy"],
+                  hospital: medicalEmergency && !requestedTypes.includes("pharmacy")
+                    ? ["hospital", "medical_clinic", "doctor"]
+                    : ["hospital", "medical_clinic", "doctor", "pharmacy"],
                   ambulance: ["hospital", "medical_clinic", "doctor"],
                   police: ["police"],
                   fire: ["fire_station"],
+                  pharmacy: ["pharmacy"],
                   shelter: ["police", "hospital"],
                 };
                 const placeTypes = [...new Set(requestedTypes.flatMap((type) => typesFor[type] ?? [type]))];
+                const applyOpenFilter = <T extends { open_now?: boolean | null; is_24_7?: boolean | null }>(
+                  rows: T[],
+                ) => {
+                  if (!open_now_only) return rows;
+                  const open = rows.filter((r) => r.open_now === true || r.is_24_7 === true);
+                  // Keep full list when the directory has no hours data.
+                  return open.length ? open : rows;
+                };
+                const finalizeFacilities = <
+                  T extends {
+                    distance_km?: number | null;
+                    open_now?: boolean | null;
+                    is_24_7?: boolean | null;
+                  },
+                >(
+                  rows: T[],
+                ) => withFacilityEtas(applyOpenFilter(rows));
                 const unconfirmed = {
                   ok: false,
                   location_unconfirmed: true,
@@ -1379,7 +1431,7 @@ You are coordinating this emergency from the start, not just answering questions
                   emergency_types: requestedTypes,
                   facilities: [],
                   message:
-                    "I couldn't confirm your location, so I won't guess. Tell the user plainly, give the emergency numbers (999 police, 112 toll-free), and ask them to tap Share my location or type their town or area.",
+                    "I couldn't confirm your location, so I won't guess. Tell the user plainly, give the emergency numbers (Police 999, Toll-free 112, Ambulance 911 for medical), and ask them to tap Share my location or type their town or area.",
                 };
                 // A place the USER named wins over GPS; a model-filled default never does. GPS outside Uganda is ignored.
                 const picked = chooseSearchOrigin({ area, userText: userConversationText, gps: sharedCoords });
@@ -1403,17 +1455,19 @@ You are coordinating this emergency from the start, not just answering questions
                     async () => ({}),
                     { emergency: medicalEmergency },
                   );
-                  const facilities = refinedSeeded.map((place) => ({
-                    name: place.name,
-                    facility_type: place.kind,
-                    type_label: place.type_label,
-                    phone: place.phone,
-                    address: place.address,
-                    latitude: place.latitude,
-                    longitude: place.longitude,
-                    open_now: place.open_now,
-                    distance_km: Math.round(place.distance_m / 100) / 10,
-                  }));
+                  const facilities = finalizeFacilities(
+                    refinedSeeded.map((place) => ({
+                      name: place.name,
+                      facility_type: place.kind,
+                      type_label: place.type_label,
+                      phone: place.phone,
+                      address: place.address,
+                      latitude: place.latitude,
+                      longitude: place.longitude,
+                      open_now: place.open_now,
+                      distance_km: Math.round(place.distance_m / 100) / 10,
+                    })),
+                  );
                   return facilityToolOutput({
                     ok: facilities.length > 0,
                     resolved_area: fallbackArea,
@@ -1448,31 +1502,34 @@ You are coordinating this emergency from the start, not just answering questions
                         return seededFacilityFallback("The directory was unavailable; showing seeded nearby options.");
                       }
                       if (matchedFacilities?.length) {
-                        const facilities = matchedFacilities.map((row) => {
-                          const latitude =
-                            row.latitude == null || !Number.isFinite(Number(row.latitude))
-                              ? null
-                              : Number(row.latitude);
-                          const longitude =
-                            row.longitude == null || !Number.isFinite(Number(row.longitude))
-                              ? null
-                              : Number(row.longitude);
-                          const kind = facilityKind(row.facility_type, row.name);
-                          return {
-                            name: row.name,
-                            facility_type: kind,
-                            type_label: KIND_LABEL[kind] ?? "Facility",
-                            phone: row.phone,
-                            address:
-                              cleanAddress(row.address, latitude ?? undefined, longitude ?? undefined) ??
-                              row.district ??
-                              safeArea,
-                            district: row.district,
-                            latitude,
-                            longitude,
-                            open_now: row.is_24_7 ? true : null,
-                          };
-                        });
+                        const facilities = finalizeFacilities(
+                          matchedFacilities.map((row) => {
+                            const latitude =
+                              row.latitude == null || !Number.isFinite(Number(row.latitude))
+                                ? null
+                                : Number(row.latitude);
+                            const longitude =
+                              row.longitude == null || !Number.isFinite(Number(row.longitude))
+                                ? null
+                                : Number(row.longitude);
+                            const kind = facilityKind(row.facility_type, row.name);
+                            return {
+                              name: row.name,
+                              facility_type: kind,
+                              type_label: KIND_LABEL[kind] ?? "Facility",
+                              phone: row.phone,
+                              address:
+                                cleanAddress(row.address, latitude ?? undefined, longitude ?? undefined) ??
+                                row.district ??
+                                safeArea,
+                              district: row.district,
+                              latitude,
+                              longitude,
+                              open_now: row.is_24_7 ? true : null,
+                              is_24_7: Boolean(row.is_24_7),
+                            };
+                          }),
+                        );
                         return facilityToolOutput({
                           ok: true,
                           resolved_area: safeArea,
@@ -1536,13 +1593,8 @@ You are coordinating this emergency from the start, not just answering questions
                       return phones;
                     }, { emergency: medicalEmergency });
                     if (refined.length) {
-                      return facilityToolOutput({
-                        ok: true,
-                        resolved_area: origin.label,
-                        emergency_type: facility_type,
-                        emergency_types: requestedTypes,
-                        count: refined.length,
-                        facilities: refined.map((p) => ({
+                      const facilities = finalizeFacilities(
+                        refined.map((p) => ({
                           name: p.name,
                           facility_type: p.kind,
                           type_label: p.type_label,
@@ -1551,10 +1603,20 @@ You are coordinating this emergency from the start, not just answering questions
                           latitude: p.latitude,
                           longitude: p.longitude,
                           open_now: p.open_now,
-                          photo_url: p.photo_name ? `/api/public/place-photo?name=${encodeURIComponent(p.photo_name)}` : null,
+                          photo_url: p.photo_name
+                            ? `/api/public/place-photo?name=${encodeURIComponent(p.photo_name)}`
+                            : null,
                           distance_km: Math.round(p.distance_m / 100) / 10,
                         })),
-                        note: `Showing exactly ${refined.length} place(s) across ${requestedTypes.join(" and ")}, sorted by straight-line distance from ${origin.label}. The cards already show them; never state travel time.`,
+                      );
+                      return facilityToolOutput({
+                        ok: true,
+                        resolved_area: origin.label,
+                        emergency_type: facility_type,
+                        emergency_types: requestedTypes,
+                        count: facilities.length,
+                        facilities,
+                        note: `Showing exactly ${facilities.length} place(s) across ${requestedTypes.join(" and ")}, sorted by distance from ${origin.label}. Cards include ETA labels; do not invent traffic.`,
                       });
                     }
                   } catch (err) {
@@ -1582,7 +1644,21 @@ You are coordinating this emergency from the start, not just answering questions
                       .sort((a, b) => a.distance_km - b.distance_km)
                       .slice(0, 5);
                     if (ranked.length) {
-                      return facilityToolOutput({ ok: true, resolved_area: origin.label, emergency_type: facility_type, emergency_types: requestedTypes, count: ranked.length, facilities: ranked.map((r) => ({ ...r, type_label: facilityKind(r.facility_type, r.name) })), note: `Showing exactly ${ranked.length} place(s); distance_km is straight-line; never state travel time.` });
+                      const facilities = finalizeFacilities(
+                        ranked.map((r) => ({
+                          ...r,
+                          type_label: facilityKind(r.facility_type, r.name),
+                        })),
+                      );
+                      return facilityToolOutput({
+                        ok: true,
+                        resolved_area: origin.label,
+                        emergency_type: facility_type,
+                        emergency_types: requestedTypes,
+                        count: facilities.length,
+                        facilities,
+                        note: `Showing exactly ${facilities.length} place(s); distance_km is straight-line with ETA estimates.`,
+                      });
                     }
                   } catch (err) {
                     console.warn("Facility coordinate directory search failed", err);
@@ -1591,6 +1667,265 @@ You are coordinating this emergency from the start, not just answering questions
                   return seededFacilityFallback("No directory matches were found; showing seeded nearby options.");
                 }
                 return seededFacilityFallback("Showing seeded nearby options.");
+              },
+            }),
+            search_safety_resources: tool({
+              description:
+                "Multi-category safety resource search (police, hospital, pharmacy, fire_station, ambulance). Prefer this over find_facilities when the user asks for several place types or 24/7 pharmacies. Returns ranked places with distance and ETA. UI shows Guide me / Call place actions.",
+              inputSchema: facilitySearchInputSchema,
+              execute: async (input) => {
+                const requestedTypes = [...new Set(
+                  input.facility_types.length ? input.facility_types : ["police", "hospital"],
+                )];
+                const { area, open_now_only } = input;
+                reportProgress("finding");
+                const searchStarted = Date.now();
+                const { inUganda, MAX_NEARBY_KM, haversineKm } = await import("@/lib/nearby-guard");
+                const medicalEmergency = emergencyIncident?.helpTypes.includes("hospital") ?? false;
+                const typesFor: Record<string, string[]> = {
+                  hospital: medicalEmergency && !requestedTypes.includes("pharmacy")
+                    ? ["hospital", "medical_clinic", "doctor"]
+                    : ["hospital", "medical_clinic", "doctor", "pharmacy"],
+                  ambulance: ["hospital", "medical_clinic", "doctor"],
+                  police: ["police"],
+                  fire: ["fire_station"],
+                  pharmacy: ["pharmacy"],
+                  shelter: ["police", "hospital"],
+                };
+                const placeTypes = [...new Set(requestedTypes.flatMap((type) => typesFor[type] ?? [type]))];
+                const facility_type = requestedTypes[0];
+                const applyOpenFilter = <T extends { open_now?: boolean | null; is_24_7?: boolean | null }>(
+                  rows: T[],
+                ) => {
+                  if (!open_now_only) return rows;
+                  const open = rows.filter((r) => r.open_now === true || r.is_24_7 === true);
+                  return open.length ? open : rows;
+                };
+                const finalizeFacilities = <
+                  T extends {
+                    distance_km?: number | null;
+                    open_now?: boolean | null;
+                    is_24_7?: boolean | null;
+                  },
+                >(
+                  rows: T[],
+                ) => withFacilityEtas(applyOpenFilter(rows));
+                const picked = chooseSearchOrigin({ area, userText: userConversationText, gps: sharedCoords });
+                const named = picked.kind === "named";
+                let origin: { lat: number; lng: number; label: string } | null =
+                  picked.kind === "none" ? null : { lat: picked.lat, lng: picked.lng, label: picked.label };
+                const vagueArea = /^(nearby|near me|near|here|around|around me|my area|current location|local|any)?$/i.test(
+                  (area ?? "").trim(),
+                );
+                if (!origin && !sharedCoords && vagueArea) {
+                  origin = { lat: 0.3152, lng: 32.5816, label: "Central Kampala (share your location for closer help)" };
+                }
+                const fallbackCenter = origin ?? { lat: 0.3152, lng: 32.5816 };
+                const fallbackArea = origin?.label ?? "Kampala directory fallback (location not confirmed)";
+                const seededFacilityFallback = async (note: string) => {
+                  const seeded = getSeededNearbyFacilities(fallbackCenter, named ? 15_000 : 10_000);
+                  const refinedSeeded = await refineFacilities(
+                    seeded,
+                    requestedTypes,
+                    async () => ({}),
+                    { emergency: medicalEmergency },
+                  );
+                  const facilities = finalizeFacilities(
+                    refinedSeeded.map((place) => ({
+                      name: place.name,
+                      facility_type: place.kind,
+                      type_label: place.type_label,
+                      phone: place.phone,
+                      address: place.address,
+                      latitude: place.latitude,
+                      longitude: place.longitude,
+                      open_now: place.open_now,
+                      distance_km: Math.round(place.distance_m / 100) / 10,
+                    })),
+                  );
+                  return facilityToolOutput({
+                    ok: facilities.length > 0,
+                    resolved_area: fallbackArea,
+                    emergency_type: facility_type,
+                    emergency_types: requestedTypes,
+                    count: facilities.length,
+                    facilities,
+                    note: facilities.length ? note : "No nearby facilities could be confirmed.",
+                  });
+                };
+                if (origin) {
+                  try {
+                    const { lookupNearbyPlaces, phoneLookupBudgetLeft } = await import("@/lib/places.server");
+                    const near = (await withTimeoutFallback(
+                      lookupNearbyPlaces({
+                        latitude: origin.lat,
+                        longitude: origin.lng,
+                        radiusMeters: named ? 15000 : 8000,
+                        limit: 10,
+                        types: placeTypes,
+                      }),
+                      6000,
+                      [],
+                      "lookup-nearby-places-multi",
+                    )).filter((p) => inUganda(p.latitude, p.longitude) && p.distance_m / 1000 <= MAX_NEARBY_KM);
+                    mark("places_search");
+                    const refined = await refineFacilities(near, requestedTypes, async (missing) => {
+                      if (phoneLookupBudgetLeft(searchStarted, Date.now(), 6000) <= 0) return {};
+                      reportProgress("phones");
+                      const { fetchPlacePhones } = await import("@/lib/places.server");
+                      const phones = await fetchPlacePhones(
+                        missing.filter((m) => m.id.startsWith("google:")).map((m) => m.id),
+                        { startedAt: searchStarted, budgetMs: 6000 },
+                      );
+                      mark("place_phones");
+                      return phones;
+                    }, { emergency: medicalEmergency });
+                    if (refined.length) {
+                      const facilities = finalizeFacilities(
+                        refined.map((p) => ({
+                          name: p.name,
+                          facility_type: p.kind,
+                          type_label: p.type_label,
+                          phone: p.phone,
+                          address: p.address,
+                          latitude: p.latitude,
+                          longitude: p.longitude,
+                          open_now: p.open_now,
+                          photo_url: p.photo_name
+                            ? `/api/public/place-photo?name=${encodeURIComponent(p.photo_name)}`
+                            : null,
+                          distance_km: Math.round(p.distance_m / 100) / 10,
+                        })),
+                      );
+                      return facilityToolOutput({
+                        ok: true,
+                        resolved_area: origin.label,
+                        emergency_type: facility_type,
+                        emergency_types: requestedTypes,
+                        count: facilities.length,
+                        facilities,
+                        note: `Multi-category search: ${facilities.length} place(s) near ${origin.label}.`,
+                      });
+                    }
+                  } catch (err) {
+                    console.warn("search_safety_resources nearby failed", err);
+                  }
+                  try {
+                    const { data, error } = await supabase
+                      .from("facilities")
+                      .select("name, facility_type, phone, address, district, latitude, longitude, is_24_7")
+                      .in("facility_type", requestedTypes.includes("pharmacy")
+                        ? [...requestedTypes, "pharmacy"]
+                        : requestedTypes)
+                      .not("latitude", "is", null)
+                      .not("longitude", "is", null);
+                    if (!error && data?.length) {
+                      const ranked = data
+                        .filter((row) => inUganda(Number(row.latitude), Number(row.longitude)))
+                        .map((row) => ({
+                          ...row,
+                          address: cleanAddress(row.address, Number(row.latitude), Number(row.longitude)),
+                          distance_km:
+                            Math.round(
+                              haversineKm(origin.lat, origin.lng, Number(row.latitude), Number(row.longitude)) * 10,
+                            ) / 10,
+                          open_now: row.is_24_7 ? true : null,
+                          is_24_7: Boolean(row.is_24_7),
+                          type_label: facilityKind(row.facility_type, row.name),
+                        }))
+                        .filter((row) => row.distance_km <= MAX_NEARBY_KM)
+                        .sort((a, b) => a.distance_km - b.distance_km)
+                        .slice(0, 8);
+                      if (ranked.length) {
+                        const facilities = finalizeFacilities(ranked);
+                        return facilityToolOutput({
+                          ok: true,
+                          resolved_area: origin.label,
+                          emergency_type: facility_type,
+                          emergency_types: requestedTypes,
+                          count: facilities.length,
+                          facilities,
+                          note: `Directory multi-category results near ${origin.label}.`,
+                        });
+                      }
+                    }
+                  } catch (err) {
+                    console.warn("search_safety_resources directory failed", err);
+                  }
+                }
+                return seededFacilityFallback("Showing seeded Uganda directory fallback.");
+              },
+            }),
+            prepare_emergency_dispatch: tool({
+              description:
+                "Prepare a 1-tap official emergency call bridge for Police (999), Toll-free (112), or Ambulance (911 medical). Resolves nearest station desk phone when possible and returns a spoken operator script. NEVER auto-dials — UI shows tel: buttons only.",
+              inputSchema: z.object({
+                emergency_type: z.enum(["police", "medical", "fire"]),
+                user_location: z
+                  .object({
+                    lat: z.number().optional(),
+                    lng: z.number().optional(),
+                    area_name: z.string().optional(),
+                  })
+                  .nullable()
+                  .optional(),
+                situation_brief: z
+                  .string()
+                  .min(1)
+                  .max(280)
+                  .describe("Concise 1–2 sentence description for the operator"),
+              }),
+              execute: async ({ emergency_type, user_location, situation_brief }) => {
+                const lat = user_location?.lat ?? sharedCoords?.latitude;
+                const lng = user_location?.lng ?? sharedCoords?.longitude;
+                const area_name =
+                  user_location?.area_name ||
+                  sosRoomSnapshot?.area ||
+                  undefined;
+                const caller_name =
+                  sosRoomSnapshot?.personName ||
+                  sosAskerName ||
+                  "a caller";
+                return prepareEmergencyDispatch({
+                  emergency_type,
+                  user_location: { lat, lng, area_name },
+                  situation_brief,
+                  caller_name,
+                });
+              },
+            }),
+            send_incident_email: tool({
+              description:
+                "Write and send a structured incident / medical handoff email (HTML safety report). Use when the user asks to email a clinic, hospital, doctor, or safety contact. Requires a real recipient address. Never claim police were dispatched.",
+              inputSchema: z.object({
+                to: z.string().email().describe("Recipient email address"),
+                subject: z.string().min(1).max(200),
+                incidentType: z.enum(["medical", "security", "accident", "general"]),
+                patientOrReporterName: z.string().min(1).max(120),
+                locationSummary: z.string().min(1).max(400),
+                triageSummary: z
+                  .string()
+                  .min(1)
+                  .max(2000)
+                  .describe("Symptoms, injuries, hazards"),
+                actionsTaken: z.array(z.string().max(200)).max(20).default([]),
+                status: z.enum(["active", "stabilized", "resolved"]),
+              }),
+              execute: async (input) => {
+                const result = await sendIncidentEmail({
+                  ...input,
+                  coordinates: sharedCoords
+                    ? { lat: sharedCoords.latitude, lng: sharedCoords.longitude }
+                    : null,
+                });
+                return {
+                  success: result.success,
+                  messageId: result.messageId,
+                  timestamp: result.timestamp,
+                  to: result.previewTo || input.to,
+                  subject: result.previewSubject || input.subject,
+                  error: result.error,
+                };
               },
             }),
             list_alerts: tool({

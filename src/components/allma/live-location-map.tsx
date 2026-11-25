@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -20,6 +20,7 @@ import {
   onGoogleMapsAuthFailure,
 } from "@/lib/google-maps-loader";
 import { nearbyMarkerDataUrl } from "@/lib/nearby-marker";
+import { GUIDE_TO_PLACE_EVENT, type GuideToPlaceDetail } from "@/lib/guide-to-place";
 
 // ─── Live location map (shared by the SOS screen and the emergency call screen) ──
 
@@ -436,12 +437,41 @@ export function LiveLocationMap({
   const [activeMapType, setActiveMapType] = useState<LiveMapTypeId>(mapTypeId);
   const [localSelectedPlaceId, setLocalSelectedPlaceId] = useState<string | null>(null);
   const [guiding, setGuiding] = useState(false);
+  const [guidedPlaces, setGuidedPlaces] = useState<HelpPlace[]>([]);
+  const mergedPlaces = useMemo(() => {
+    const ids = new Set(places.map((p) => p.id));
+    return [...places, ...guidedPlaces.filter((p) => !ids.has(p.id))];
+  }, [places, guidedPlaces]);
   const activeId = selectedPlaceId ?? localSelectedPlaceId;
-  const activePlace = places.find((p) => p.id === activeId) ?? null;
+  const activePlace = mergedPlaces.find((p) => p.id === activeId) ?? null;
   const selectPlace = (id: string) => {
     setLocalSelectedPlaceId(id);
     onSelectPlace?.(id);
   };
+
+  useEffect(() => {
+    const onGuide = (event: Event) => {
+      const detail = (event as CustomEvent<GuideToPlaceDetail>).detail;
+      if (!detail || !Number.isFinite(detail.lat) || !Number.isFinite(detail.lng)) return;
+      const id = detail.id || `guide:${detail.lat},${detail.lng}`;
+      const place: HelpPlace = {
+        id,
+        name: detail.name || "Destination",
+        type: detail.type || "other",
+        phone: detail.phone ?? null,
+        address: null,
+        latitude: detail.lat,
+        longitude: detail.lng,
+        distance_m: distanceMetres(location.lat, location.lng, detail.lat, detail.lng),
+      };
+      setGuidedPlaces((prev) => (prev.some((p) => p.id === id) ? prev : [...prev, place]));
+      setLocalSelectedPlaceId(id);
+      setGuiding(true);
+      onSelectPlace?.(id);
+    };
+    window.addEventListener(GUIDE_TO_PLACE_EVENT, onGuide);
+    return () => window.removeEventListener(GUIDE_TO_PLACE_EVENT, onGuide);
+  }, [location.lat, location.lng, onSelectPlace]);
   const clearPlace = () => {
     setLocalSelectedPlaceId(null);
     setGuiding(false);
@@ -534,7 +564,7 @@ export function LiveLocationMap({
   // Open-tile fallback pins, projected to the same scale as the tiles.
   const fallbackPins = useGoogle
     ? []
-    : places
+    : mergedPlaces
         .map((place) => {
           const dx =
             (lngToTileX(place.longitude, tileZoom) - lngToTileX(location.lng, tileZoom)) * TILE_SIZE;
@@ -562,8 +592,8 @@ export function LiveLocationMap({
             lat={location.lat}
             lng={location.lng}
             zoom={tileZoom}
-            places={places}
-            selectedPlaceId={selectedPlaceId}
+            places={mergedPlaces}
+            selectedPlaceId={selectedPlaceId ?? localSelectedPlaceId}
             onSelectPlace={selectPlace}
             routeTo={guiding && activePlace ? { lat: activePlace.latitude, lng: activePlace.longitude } : null}
             mapTypeId={activeMapType}
