@@ -213,7 +213,13 @@ function emptyReplyFallback(
   }
   // Booking asks contain "hospital" — never fall through to the nearby-help prompt.
   if (isAppointmentBookingAsk(intakeText)) {
-    return BOOKING_OPENER;
+    const vague =
+      intakeText.length < 100 &&
+      !/\b(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(am|pm)|morning|afternoon|evening)\b/i.test(
+        intakeText,
+      );
+    if (vague) return BOOKING_OPENER;
+    return "I ran the booking agent for that request. Check the booking result above — if it did not finish, tell me another clinic or time and I will try again.\n\n::suggest[Try another clinic | Different time | Find clinics nearby]";
   }
   if (/\bhospital|police station|nearest|near me|find help\b/i.test(intakeText)) {
     return "Tell me a town or share your location, and I will look for the nearest help.\n\n::suggest[Share my location | Type a town | Emergency numbers]";
