@@ -183,14 +183,17 @@ export function EmergencyCallEscalation({
             <span className="truncate text-foreground/70">{current.target.full_name}</span>
           ) : null}
         </div>
-        {state?.telecom?.status === "triggering" ? (
+        {state?.gsmEscalated && state.telecom.status === "triggering" ? (
           <p role="status" className="mt-1 text-[10px] font-semibold text-gold">
-            In-app contacts unreachable. Automatically dialing mobile phones via GSM &amp; sending SMS…
+            Safety network offline or unreachable. Dialing emergency contacts via GSM phone call and
+            sending SMS…
           </p>
         ) : null}
-        {state?.telecom?.status === "completed" || state?.telecom?.status === "partial" ? (
+        {state?.gsmEscalated &&
+        (state.telecom.status === "completed" || state.telecom.status === "partial") ? (
           <p role="status" className="mt-1 text-[10px] font-semibold text-success">
-            Alerted {state.telecom.contactsAlerted} emergency contacts via direct mobile call &amp; SMS.
+            Alerted {state.telecom.contactsAlerted} emergency contacts via direct mobile call &amp;
+            SMS.
           </p>
         ) : null}
         <div
@@ -439,20 +442,23 @@ export function EmergencyCallEscalation({
             <PhoneOff className="h-3.5 w-3.5" /> Calling stopped — no responder answered yet.
           </p>
         )}
-        {state?.telecom?.status === "triggering" && (
+        {state?.gsmEscalated && state.telecom.status === "triggering" && (
           <p role="status" className="rounded-xl border-2 border-gold/40 bg-gold/10 px-4 py-3 text-sm font-black text-foreground">
-            In-app contacts unreachable. Automatically dialing mobile phones via GSM &amp; sending SMS…
+            Safety network offline or unreachable. Dialing emergency contacts via GSM phone call and
+            sending SMS…
           </p>
         )}
-        {(state?.telecom?.status === "completed" || state?.telecom?.status === "partial") && (
-          <p role="status" className="rounded-xl border-2 border-success/40 bg-success/10 px-4 py-3 text-sm font-black text-success">
-            {state.telecom.message ||
-              `Alerted ${state.telecom.contactsAlerted} emergency contacts via direct mobile call & SMS.`}
-          </p>
-        )}
-        {(state?.telecom?.status === "failed" ||
-          state?.telecom?.status === "not_configured" ||
-          state?.telecom?.status === "no_contacts") &&
+        {state?.gsmEscalated &&
+          (state.telecom.status === "completed" || state.telecom.status === "partial") && (
+            <p role="status" className="rounded-xl border-2 border-success/40 bg-success/10 px-4 py-3 text-sm font-black text-success">
+              {state.telecom.message ||
+                `Alerted ${state.telecom.contactsAlerted} emergency contacts via direct mobile call & SMS.`}
+            </p>
+          )}
+        {state?.gsmEscalated &&
+          (state.telecom.status === "failed" ||
+            state.telecom.status === "not_configured" ||
+            state.telecom.status === "no_contacts") &&
           state.telecom.message && (
             <p role="status" className="rounded-xl border-2 border-border bg-secondary/40 px-4 py-3 text-sm font-semibold text-foreground/80">
               {state.telecom.message}

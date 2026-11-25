@@ -10,7 +10,7 @@ import {
   type SosCallTarget,
 } from "@/lib/sos-calling";
 import { loadSosCallingSettings } from "@/lib/sos-calling-settings";
-import { triggerOfflineTelecomEscalation } from "@/lib/telecom.functions";
+import { escalateSosToGsm } from "@/lib/telecom-escalation.server";
 
 /**
  * One dialer per SOS session, shared by every mounted view.
@@ -24,8 +24,8 @@ import { triggerOfflineTelecomEscalation } from "@/lib/telecom.functions";
 
 /** How long all contacts are given to answer before another round starts. */
 export const RING_WINDOW_MS = 55_000;
-/** First in-app round: if nobody answers within 20s, escalate to GSM/SMS. */
-export const TELECOM_FALLBACK_AFTER_MS = 20_000;
+/** First in-app round: if nobody answers within ~25s, escalate to Africa's Talking GSM/SMS. */
+export const TELECOM_FALLBACK_AFTER_MS = 25_000;
 /** Pause before starting the next full round through the contact list. */
 export const ROUND_GAP_SECONDS = 45;
 
@@ -55,6 +55,8 @@ export type EscalationState = {
   noTargets: boolean;
   error: string | null;
   welfareConfirmed: boolean;
+  /** True once GSM/SMS escalation has been armed (idempotent guard for UI + dialer). */
+  gsmEscalated: boolean;
   telecom: TelecomFallbackState;
 };
 
@@ -75,6 +77,7 @@ const initialState = (): EscalationState => ({
   noTargets: false,
   error: null,
   welfareConfirmed: false,
+  gsmEscalated: false,
   telecom: initialTelecom(),
 });
 
@@ -101,7 +104,6 @@ class SosEscalation {
   private microphoneStream: MediaStream | undefined;
   private shareLocation = false;
   private disposeTimer: ReturnType<typeof setTimeout> | null = null;
-  private telecomTriggered = false;
   private telecomInFlight: Promise<void> | null = null;
 
   constructor(
@@ -220,8 +222,6 @@ class SosEscalation {
     this.initialised = false;
     this.loadingTargets = false;
     this.autoStartRequested = autoStart;
-    // Allow a fresh GSM/SMS attempt if the operator retries the dialer.
-    this.telecomTriggered = false;
     this.telecomInFlight = null;
     this.patch({ ...initialState() });
     await this.init(autoStart);
@@ -243,47 +243,38 @@ class SosEscalation {
   }
 
   /**
-   * Idempotent GSM + SMS fallback via server telecom gateway.
+   * Idempotent Africa's Talking GSM + SMS fallback.
    * Safe to call from multiple UI mounts — only one network request per SOS.
    */
   private async triggerTelecomFallback(reason: string) {
-    if (this.ended || this.telecomTriggered) return this.telecomInFlight ?? Promise.resolve();
-    this.telecomTriggered = true;
+    if (this.ended || this.state.gsmEscalated) return this.telecomInFlight ?? Promise.resolve();
     this.patch({
+      gsmEscalated: true,
       telecom: {
         status: "triggering",
         contactsAlerted: 0,
         message:
-          "In-app contacts unreachable. Automatically dialing mobile phones via GSM & sending SMS…",
+          "Safety network offline or unreachable. Dialing emergency contacts via GSM phone call and sending SMS…",
       },
     });
     this.telecomInFlight = (async () => {
       try {
-        const result = await triggerOfflineTelecomEscalation({ data: { activityId: this.activityId } });
-        const status =
-          result.status === "completed" || result.status === "partial" || result.status === "queued"
-            ? result.status === "queued"
-              ? "completed"
-              : result.status
-            : result.status;
-        const contactsAlerted = result.contactsTargeted || 0;
-        const success = result.ok && (result.callsQueued > 0 || result.smsQueued > 0);
+        const result = await escalateSosToGsm({ data: { activityId: this.activityId } });
+        const success = Boolean(result.success && result.contactsAlerted > 0);
         this.patch({
           telecom: {
             status: success
-              ? status === "partial"
-                ? "partial"
-                : "completed"
-              : status === "not_configured"
+              ? "completed"
+              : result.notConfigured
                 ? "not_configured"
-                : status === "no_contacts"
-                  ? "no_contacts"
-                  : status === "skipped_duplicate"
-                    ? "skipped_duplicate"
+                : result.alreadyTriggered && result.contactsAlerted > 0
+                  ? "completed"
+                  : result.contactsAlerted === 0 && !result.notConfigured
+                    ? "no_contacts"
                     : "failed",
-            contactsAlerted,
+            contactsAlerted: result.contactsAlerted,
             message: success
-              ? `Alerted ${contactsAlerted} emergency contact${contactsAlerted === 1 ? "" : "s"} via direct mobile call & SMS.`
+              ? `Alerted ${result.contactsAlerted} emergency contact${result.contactsAlerted === 1 ? "" : "s"} via direct mobile call & SMS.`
               : result.message || "Offline mobile fallback could not be completed.",
           },
         });
@@ -298,7 +289,7 @@ class SosEscalation {
                 : "Offline mobile fallback failed. Use 999 or 112 if needed.",
           },
         });
-        console.warn("[sos] telecom fallback failed", reason, error);
+        console.warn("[sos] GSM fallback failed", reason, error);
       }
     })();
     return this.telecomInFlight;
@@ -350,7 +341,7 @@ class SosEscalation {
 
       const startedAt = Date.now();
       const isFirstRound = this.state.round === 1;
-      // First round uses a 20s answer window before GSM/SMS fallback fires.
+      // First round: 20–30s window before Africa's Talking GSM/SMS fallback.
       const ringWindowMs = isFirstRound
         ? TELECOM_FALLBACK_AFTER_MS
         : settings.responseWindowSeconds * 1000;
@@ -411,7 +402,6 @@ class SosEscalation {
               ? error.message
               : "Unanswered calls could not be closed safely.",
         });
-        // Still try GSM/SMS — in-app round could not be closed cleanly.
         if (isFirstRound) await this.triggerTelecomFallback("round_close_failed");
         return;
       }

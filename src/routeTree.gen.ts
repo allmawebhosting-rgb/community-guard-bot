@@ -69,6 +69,7 @@ import { Route as AuthenticatedPoliceOfficersRouteImport } from './routes/_authe
 import { Route as AuthenticatedPolicePersonsRouteImport } from './routes/_authenticated/police.persons'
 import { Route as AuthenticatedPoliceSearchRouteImport } from './routes/_authenticated/police.search'
 import { Route as AuthenticatedPoliceSettingsRouteImport } from './routes/_authenticated/police.settings'
+import { Route as ApiPublicAfricasTalkingVoiceRouteImport } from './routes/api/public/africas-talking-voice'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiTelecomVoiceScriptRouteImport } from './routes/api/telecom/voice-script'
 import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
@@ -394,6 +395,12 @@ const AuthenticatedPoliceSettingsRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const ApiPublicAfricasTalkingVoiceRoute =
+  ApiPublicAfricasTalkingVoiceRouteImport.update({
+    id: '/api/public/africas-talking-voice',
+    path: '/api/public/africas-talking-voice',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
   id: '/api/public/place-photo',
   path: '/api/public/place-photo',
@@ -475,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/police/search': typeof AuthenticatedPoliceSearchRoute
   '/police/settings': typeof AuthenticatedPoliceSettingsRoute
+  '/api/public/africas-talking-voice': typeof ApiPublicAfricasTalkingVoiceRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
@@ -538,6 +546,7 @@ export interface FileRoutesByTo {
   '/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/police/search': typeof AuthenticatedPoliceSearchRoute
   '/police/settings': typeof AuthenticatedPoliceSettingsRoute
+  '/api/public/africas-talking-voice': typeof ApiPublicAfricasTalkingVoiceRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/chat': typeof AuthenticatedChatIndexRoute
@@ -605,6 +614,7 @@ export interface FileRoutesById {
   '/_authenticated/police/persons': typeof AuthenticatedPolicePersonsRoute
   '/_authenticated/police/search': typeof AuthenticatedPoliceSearchRoute
   '/_authenticated/police/settings': typeof AuthenticatedPoliceSettingsRoute
+  '/api/public/africas-talking-voice': typeof ApiPublicAfricasTalkingVoiceRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
@@ -672,6 +682,7 @@ export interface FileRouteTypes {
     | '/police/persons'
     | '/police/search'
     | '/police/settings'
+    | '/api/public/africas-talking-voice'
     | '/api/public/place-photo'
     | '/api/telecom/voice-script'
     | '/chat/'
@@ -735,6 +746,7 @@ export interface FileRouteTypes {
     | '/police/persons'
     | '/police/search'
     | '/police/settings'
+    | '/api/public/africas-talking-voice'
     | '/api/public/place-photo'
     | '/api/telecom/voice-script'
     | '/chat'
@@ -801,6 +813,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police/persons'
     | '/_authenticated/police/search'
     | '/_authenticated/police/settings'
+    | '/api/public/africas-talking-voice'
     | '/api/public/place-photo'
     | '/api/telecom/voice-script'
     | '/_authenticated/chat/'
@@ -842,6 +855,7 @@ export interface RootRouteChildren {
   InviteTokenRoute: typeof InviteTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicAfricasTalkingVoiceRoute: typeof ApiPublicAfricasTalkingVoiceRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiTelecomVoiceScriptRoute: typeof ApiTelecomVoiceScriptRoute
   ApiBrowserLlmV1ChatCompletionsRoute: typeof ApiBrowserLlmV1ChatCompletionsRoute
@@ -1269,6 +1283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceSettingsRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/api/public/africas-talking-voice': {
+      id: '/api/public/africas-talking-voice'
+      path: '/api/public/africas-talking-voice'
+      fullPath: '/api/public/africas-talking-voice'
+      preLoaderRoute: typeof ApiPublicAfricasTalkingVoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/place-photo': {
       id: '/api/public/place-photo'
       path: '/api/public/place-photo'
@@ -1418,6 +1439,7 @@ const rootRouteChildren: RootRouteChildren = {
   InviteTokenRoute: InviteTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicAfricasTalkingVoiceRoute: ApiPublicAfricasTalkingVoiceRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiTelecomVoiceScriptRoute: ApiTelecomVoiceScriptRoute,
   ApiBrowserLlmV1ChatCompletionsRoute: ApiBrowserLlmV1ChatCompletionsRoute,

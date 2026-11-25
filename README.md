@@ -536,35 +536,34 @@ The web RTC SDK is loaded only when a user answers or starts a call. Native Capa
 
 ------------------------------------------------
 
-OFFLINE GSM VOICE + SMS FALLBACK (TELECOM GATEWAY)
+OFFLINE GSM VOICE + SMS FALLBACK (AFRICA'S TALKING)
 
-When an SOS is active and in-app Zego Safety Network calls have **no callable targets** or **round 1 goes unanswered for 20 seconds**, Allma automatically places outbound cellular voice calls and SMS to the owner's `emergency_contacts` via a telecom gateway. Browsers cannot auto-dial `tel:` without a tap — this path is server-side only.
+When an SOS is active and in-app Zego Safety Network calls have **no callable targets** or **round 1 goes unanswered for ~25 seconds**, Allma automatically places outbound cellular voice calls and SMS to the owner's `emergency_contacts` via Africa's Talking (sandbox simulator or live MTN/Airtel). Browsers cannot auto-dial `tel:` without a tap — this path is server-side only (`escalateSosToGsm`).
 
-**Primary (Africa's Talking)** — set Worker / server secrets:
+Set Worker / server secrets:
 
 ```text
-TELECOM_API_KEY
-TELECOM_USERNAME
-TELECOM_VIRTUAL_NUMBER
-TELECOM_CALLBACK_SECRET   # optional; signs /api/telecom/voice-script
-APP_PUBLIC_URL            # optional; defaults to https://allmasafetyai.online
+AT_USERNAME          # "sandbox" for simulator, or your AT app username
+AT_API_KEY
+AT_CALLER_ID         # virtual number / shortcode allowed to place calls & SMS
+AT_ENVIRONMENT       # "sandbox" | "production" (optional; inferred from username)
+APP_PUBLIC_URL       # optional; defaults to https://allmasafetyai.online
 ```
 
-**Fallback (Twilio Voice + SMS)** if AT secrets are absent:
+Voice webhook (configure on the AT number / sandbox app):
 
 ```text
-TWILIO_ACCOUNT_SID
-TWILIO_AUTH_TOKEN
-TWILIO_FROM_NUMBER        # or TELECOM_VIRTUAL_NUMBER
+https://allmasafetyai.online/api/public/africas-talking-voice
 ```
 
 Behavior:
 
-- Idempotent once per SOS (`sos_telecom_escalations.idempotency_key = sos-telecom:{activityId}`).
-- TTS asks the contact to press 1 / check SMS for the live SOS link — never invents a confirmation.
-- SMS body includes `{APP_PUBLIC_URL}/sos?id={activityId}` only (no raw phone numbers in chat).
-- **Never** auto-dials 999 / 112 / 911; those stay one-tap `tel:` buttons for the person in need.
-- UI shows “Dialed / Alerted N…” only after the gateway returns HTTP 200/201 queued — never mocked.
+- In-app Zego dials first; GSM fires only when contacts are missing/ineligible or round 1 has no answer.
+- Idempotent once per SOS (`sos_telecom_escalations` + `notification_delivery_attempts` kinds `gsm_voice` / `gsm_sms`).
+- Answered calls hear the fixed TTS XML from `/api/public/africas-talking-voice`.
+- SMS includes `{APP_PUBLIC_URL}/sos?id={activityId}` only (no raw phone numbers in chat).
+- **Never** auto-dials 999 / 112 / 911; those stay one-tap `tel:` buttons.
+- UI shows confirmation only after Africa's Talking returns HTTP 200/201 — never mocked.
 
 ------------------------------------------------
 
