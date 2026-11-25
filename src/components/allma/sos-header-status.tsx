@@ -84,8 +84,12 @@ export function SosHeaderStatus({ sos }: { sos: ActiveSos }) {
   // The escalation controller only runs on the person in need's device; for a
   // responder who joined the room it never loads, so a "Loading…" line would
   // sit there forever. "Alerting…" is true for everyone watching the SOS.
+  else if (state.telecom.status === "triggering")
+    callLine = "Dialing mobile phones via GSM & SMS…";
+  else if (state.telecom.status === "completed" || state.telecom.status === "partial")
+    callLine = `Alerted ${state.telecom.contactsAlerted} contacts via mobile call & SMS`;
   else if (state.loading) callLine = "Alerting the Safety Network…";
-  else if (state.noTargets) callLine = "No callable contacts";
+  else if (state.noTargets) callLine = "No callable contacts — trying mobile fallback";
   else if (ringing.length) {
     // One entry per person (attempts repeat across rounds), tidy casing and a
     // short list — a raw name dump with duplicates looks broken in the header.

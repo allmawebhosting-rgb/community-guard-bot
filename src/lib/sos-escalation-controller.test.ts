@@ -3,6 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   setCallStatus: vi.fn(() => Promise.resolve()),
   requestVoiceCall: vi.fn(),
+  triggerOfflineTelecomEscalation: vi.fn(async () => ({
+    ok: true,
+    status: "completed",
+    provider: "africas_talking",
+    contactsTargeted: 2,
+    callsQueued: 2,
+    smsQueued: 2,
+    message: "Alerted 2 emergency contacts via direct mobile call & SMS.",
+  })),
 }));
 
 vi.mock("@/lib/zego-call", () => ({
@@ -23,7 +32,12 @@ vi.mock("@/lib/sos-calling-settings", () => ({
   loadSosCallingSettings: vi.fn(),
 }));
 
+vi.mock("@/lib/telecom.functions", () => ({
+  triggerOfflineTelecomEscalation: mocks.triggerOfflineTelecomEscalation,
+}));
+
 import { getSosEscalation, type SosCallAttempt } from "@/lib/sos-escalation-controller";
+import { listSosCallAttempts, listSosCallTargets, isSosWelfareConfirmed } from "@/lib/sos-calling";
 
 function attempt(callId: string, status: string): SosCallAttempt {
   return {
@@ -67,5 +81,24 @@ describe("SOS escalation stop", () => {
       ["calling-call", "ended"],
       ["ringing-call", "ended"],
     ]);
+  });
+});
+
+describe("SOS offline telecom fallback", () => {
+  it("triggers GSM/SMS once when there are no in-app callable targets", async () => {
+    vi.mocked(listSosCallTargets).mockResolvedValue([]);
+    vi.mocked(listSosCallAttempts).mockResolvedValue([]);
+    vi.mocked(isSosWelfareConfirmed).mockResolvedValue(false);
+
+    const controller = getSosEscalation("sos-telecom-empty", "assault");
+    await controller.init(true);
+
+    await vi.waitFor(() => expect(mocks.triggerOfflineTelecomEscalation).toHaveBeenCalledTimes(1));
+    expect(mocks.triggerOfflineTelecomEscalation).toHaveBeenCalledWith({
+      data: { activityId: "sos-telecom-empty" },
+    });
+    await vi.waitFor(() => expect(controller.state.telecom.status).toBe("completed"));
+    expect(controller.state.telecom.contactsAlerted).toBe(2);
+    expect(controller.state.telecom.message).toMatch(/Alerted 2 emergency contacts/i);
   });
 });

@@ -10,6 +10,7 @@ import {
   type SosCallTarget,
 } from "@/lib/sos-calling";
 import { loadSosCallingSettings } from "@/lib/sos-calling-settings";
+import { triggerOfflineTelecomEscalation } from "@/lib/telecom.functions";
 
 /**
  * One dialer per SOS session, shared by every mounted view.
@@ -23,8 +24,25 @@ import { loadSosCallingSettings } from "@/lib/sos-calling-settings";
 
 /** How long all contacts are given to answer before another round starts. */
 export const RING_WINDOW_MS = 55_000;
+/** First in-app round: if nobody answers within 20s, escalate to GSM/SMS. */
+export const TELECOM_FALLBACK_AFTER_MS = 20_000;
 /** Pause before starting the next full round through the contact list. */
 export const ROUND_GAP_SECONDS = 45;
+
+export type TelecomFallbackState = {
+  status:
+    | "idle"
+    | "triggering"
+    | "queued"
+    | "completed"
+    | "partial"
+    | "failed"
+    | "skipped_duplicate"
+    | "not_configured"
+    | "no_contacts";
+  contactsAlerted: number;
+  message: string | null;
+};
 
 export type EscalationState = {
   loading: boolean;
@@ -37,7 +55,14 @@ export type EscalationState = {
   noTargets: boolean;
   error: string | null;
   welfareConfirmed: boolean;
+  telecom: TelecomFallbackState;
 };
+
+const initialTelecom = (): TelecomFallbackState => ({
+  status: "idle",
+  contactsAlerted: 0,
+  message: null,
+});
 
 const initialState = (): EscalationState => ({
   loading: true,
@@ -50,6 +75,7 @@ const initialState = (): EscalationState => ({
   noTargets: false,
   error: null,
   welfareConfirmed: false,
+  telecom: initialTelecom(),
 });
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -75,6 +101,8 @@ class SosEscalation {
   private microphoneStream: MediaStream | undefined;
   private shareLocation = false;
   private disposeTimer: ReturnType<typeof setTimeout> | null = null;
+  private telecomTriggered = false;
+  private telecomInFlight: Promise<void> | null = null;
 
   constructor(
     private readonly activityId: string,
@@ -159,11 +187,17 @@ class SosEscalation {
     this.loadingTargets = true;
     try {
       const targets = await listSosCallTargets();
+      const noTargets =
+        targets.length === 0 || targets.every((target) => Boolean(target.ineligible_reason));
       this.patch({
         targets,
-        noTargets: targets.every((target) => Boolean(target.ineligible_reason)),
+        noTargets,
         loading: false,
       });
+      // No in-app callable members → escalate to GSM/SMS without waiting.
+      if (this.autoStartRequested && noTargets && !this.state.answered) {
+        void this.triggerTelecomFallback("no_in_app_targets");
+      }
     } catch (error) {
       this.patch({
         loading: false,
@@ -171,6 +205,7 @@ class SosEscalation {
         noTargets: true,
         error: error instanceof Error ? error.message : "Contacts could not be loaded.",
       });
+      void this.triggerTelecomFallback("targets_load_failed");
       return;
     } finally {
       this.loadingTargets = false;
@@ -185,6 +220,9 @@ class SosEscalation {
     this.initialised = false;
     this.loadingTargets = false;
     this.autoStartRequested = autoStart;
+    // Allow a fresh GSM/SMS attempt if the operator retries the dialer.
+    this.telecomTriggered = false;
+    this.telecomInFlight = null;
     this.patch({ ...initialState() });
     await this.init(autoStart);
   }
@@ -195,9 +233,75 @@ class SosEscalation {
   }
 
   start() {
-    if (this.ended || this.state.running || !this.callable().length) return;
+    if (this.ended || this.state.running) return;
+    if (!this.callable().length) {
+      void this.triggerTelecomFallback("no_callable_on_start");
+      return;
+    }
     this.patch({ running: true, error: null });
     void this.loop(++this.generation);
+  }
+
+  /**
+   * Idempotent GSM + SMS fallback via server telecom gateway.
+   * Safe to call from multiple UI mounts — only one network request per SOS.
+   */
+  private async triggerTelecomFallback(reason: string) {
+    if (this.ended || this.telecomTriggered) return this.telecomInFlight ?? Promise.resolve();
+    this.telecomTriggered = true;
+    this.patch({
+      telecom: {
+        status: "triggering",
+        contactsAlerted: 0,
+        message:
+          "In-app contacts unreachable. Automatically dialing mobile phones via GSM & sending SMS…",
+      },
+    });
+    this.telecomInFlight = (async () => {
+      try {
+        const result = await triggerOfflineTelecomEscalation({ data: { activityId: this.activityId } });
+        const status =
+          result.status === "completed" || result.status === "partial" || result.status === "queued"
+            ? result.status === "queued"
+              ? "completed"
+              : result.status
+            : result.status;
+        const contactsAlerted = result.contactsTargeted || 0;
+        const success = result.ok && (result.callsQueued > 0 || result.smsQueued > 0);
+        this.patch({
+          telecom: {
+            status: success
+              ? status === "partial"
+                ? "partial"
+                : "completed"
+              : status === "not_configured"
+                ? "not_configured"
+                : status === "no_contacts"
+                  ? "no_contacts"
+                  : status === "skipped_duplicate"
+                    ? "skipped_duplicate"
+                    : "failed",
+            contactsAlerted,
+            message: success
+              ? `Alerted ${contactsAlerted} emergency contact${contactsAlerted === 1 ? "" : "s"} via direct mobile call & SMS.`
+              : result.message || "Offline mobile fallback could not be completed.",
+          },
+        });
+      } catch (error) {
+        this.patch({
+          telecom: {
+            status: "failed",
+            contactsAlerted: 0,
+            message:
+              error instanceof Error
+                ? error.message
+                : "Offline mobile fallback failed. Use 999 or 112 if needed.",
+          },
+        });
+        console.warn("[sos] telecom fallback failed", reason, error);
+      }
+    })();
+    return this.telecomInFlight;
   }
 
   stop() {
@@ -240,10 +344,16 @@ class SosEscalation {
       this.patch({ round: this.state.round + 1 });
       if (!targets.length) {
         this.patch({ running: false, waitSeconds: null });
+        await this.triggerTelecomFallback("empty_targets_in_loop");
         return;
       }
 
       const startedAt = Date.now();
+      const isFirstRound = this.state.round === 1;
+      // First round uses a 20s answer window before GSM/SMS fallback fires.
+      const ringWindowMs = isFirstRound
+        ? TELECOM_FALLBACK_AFTER_MS
+        : settings.responseWindowSeconds * 1000;
       this.patch({ waitSeconds: null });
       // Place every dial in parallel, but wait briefly for CallCenter handoff
       // so a short listener gap cannot drop the whole round silently.
@@ -272,7 +382,7 @@ class SosEscalation {
         targets,
         startedAt,
         alive,
-        settings.responseWindowSeconds * 1000,
+        ringWindowMs,
       );
       if (!alive()) return;
       if (outcome) {
@@ -301,14 +411,23 @@ class SosEscalation {
               ? error.message
               : "Unanswered calls could not be closed safely.",
         });
+        // Still try GSM/SMS — in-app round could not be closed cleanly.
+        if (isFirstRound) await this.triggerTelecomFallback("round_close_failed");
         return;
       }
       if (!roundClosed) {
         await this.refresh();
         this.patch({ running: false, waitSeconds: null });
+        if (isFirstRound && !this.state.answered) {
+          await this.triggerTelecomFallback("round_not_closed");
+        }
         return;
       }
       await this.refresh();
+      // Round 1 finished with nobody answering → automatic GSM voice + SMS.
+      if (isFirstRound && !this.state.answered && !this.state.welfareConfirmed) {
+        await this.triggerTelecomFallback("round1_unanswered");
+      }
       if (!alive() || this.state.welfareConfirmed) return;
       await this.countdown(settings.retryIntervalSeconds, alive);
     }

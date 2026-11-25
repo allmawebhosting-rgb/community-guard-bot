@@ -70,6 +70,7 @@ import { Route as AuthenticatedPolicePersonsRouteImport } from './routes/_authen
 import { Route as AuthenticatedPoliceSearchRouteImport } from './routes/_authenticated/police.search'
 import { Route as AuthenticatedPoliceSettingsRouteImport } from './routes/_authenticated/police.settings'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
+import { Route as ApiTelecomVoiceScriptRouteImport } from './routes/api/telecom/voice-script'
 import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
 import { Route as ApiBrowserLlmV1ChatCompletionsRouteImport } from './routes/api/browser-llm/v1/chat/completions'
 
@@ -398,6 +399,11 @@ const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
   path: '/api/public/place-photo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTelecomVoiceScriptRoute = ApiTelecomVoiceScriptRouteImport.update({
+  id: '/api/telecom/voice-script',
+  path: '/api/telecom/voice-script',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedPoliceCasesCaseIdRoute =
   AuthenticatedPoliceCasesCaseIdRouteImport.update({
     id: '/cases/$caseId',
@@ -470,6 +476,7 @@ export interface FileRoutesByFullPath {
   '/police/search': typeof AuthenticatedPoliceSearchRoute
   '/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -532,6 +539,7 @@ export interface FileRoutesByTo {
   '/police/search': typeof AuthenticatedPoliceSearchRoute
   '/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -598,6 +606,7 @@ export interface FileRoutesById {
   '/_authenticated/police/search': typeof AuthenticatedPoliceSearchRoute
   '/_authenticated/police/settings': typeof AuthenticatedPoliceSettingsRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/telecom/voice-script': typeof ApiTelecomVoiceScriptRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
   '/_authenticated/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
@@ -664,6 +673,7 @@ export interface FileRouteTypes {
     | '/police/search'
     | '/police/settings'
     | '/api/public/place-photo'
+    | '/api/telecom/voice-script'
     | '/chat/'
     | '/police/'
     | '/police/cases/$caseId'
@@ -726,6 +736,7 @@ export interface FileRouteTypes {
     | '/police/search'
     | '/police/settings'
     | '/api/public/place-photo'
+    | '/api/telecom/voice-script'
     | '/chat'
     | '/police'
     | '/police/cases/$caseId'
@@ -791,6 +802,7 @@ export interface FileRouteTypes {
     | '/_authenticated/police/search'
     | '/_authenticated/police/settings'
     | '/api/public/place-photo'
+    | '/api/telecom/voice-script'
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
     | '/_authenticated/police/cases/$caseId'
@@ -831,6 +843,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  ApiTelecomVoiceScriptRoute: typeof ApiTelecomVoiceScriptRoute
   ApiBrowserLlmV1ChatCompletionsRoute: typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 
@@ -1263,6 +1276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPlacePhotoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/telecom/voice-script': {
+      id: '/api/telecom/voice-script'
+      path: '/api/telecom/voice-script'
+      fullPath: '/api/telecom/voice-script'
+      preLoaderRoute: typeof ApiTelecomVoiceScriptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/police/cases/$caseId': {
       id: '/_authenticated/police/cases/$caseId'
       path: '/cases/$caseId'
@@ -1399,6 +1419,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  ApiTelecomVoiceScriptRoute: ApiTelecomVoiceScriptRoute,
   ApiBrowserLlmV1ChatCompletionsRoute: ApiBrowserLlmV1ChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport

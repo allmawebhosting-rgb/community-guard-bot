@@ -183,6 +183,16 @@ export function EmergencyCallEscalation({
             <span className="truncate text-foreground/70">{current.target.full_name}</span>
           ) : null}
         </div>
+        {state?.telecom?.status === "triggering" ? (
+          <p role="status" className="mt-1 text-[10px] font-semibold text-gold">
+            In-app contacts unreachable. Automatically dialing mobile phones via GSM &amp; sending SMS…
+          </p>
+        ) : null}
+        {state?.telecom?.status === "completed" || state?.telecom?.status === "partial" ? (
+          <p role="status" className="mt-1 text-[10px] font-semibold text-success">
+            Alerted {state.telecom.contactsAlerted} emergency contacts via direct mobile call &amp; SMS.
+          </p>
+        ) : null}
         <div
           className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted"
           role="progressbar"
@@ -429,13 +439,32 @@ export function EmergencyCallEscalation({
             <PhoneOff className="h-3.5 w-3.5" /> Calling stopped — no responder answered yet.
           </p>
         )}
+        {state?.telecom?.status === "triggering" && (
+          <p role="status" className="rounded-xl border-2 border-gold/40 bg-gold/10 px-4 py-3 text-sm font-black text-foreground">
+            In-app contacts unreachable. Automatically dialing mobile phones via GSM &amp; sending SMS…
+          </p>
+        )}
+        {(state?.telecom?.status === "completed" || state?.telecom?.status === "partial") && (
+          <p role="status" className="rounded-xl border-2 border-success/40 bg-success/10 px-4 py-3 text-sm font-black text-success">
+            {state.telecom.message ||
+              `Alerted ${state.telecom.contactsAlerted} emergency contacts via direct mobile call & SMS.`}
+          </p>
+        )}
+        {(state?.telecom?.status === "failed" ||
+          state?.telecom?.status === "not_configured" ||
+          state?.telecom?.status === "no_contacts") &&
+          state.telecom.message && (
+            <p role="status" className="rounded-xl border-2 border-border bg-secondary/40 px-4 py-3 text-sm font-semibold text-foreground/80">
+              {state.telecom.message}
+            </p>
+          )}
         {state?.error && (
           <p className="rounded-xl border-2 border-destructive/50 bg-destructive/10 px-4 py-3 text-sm font-black text-destructive">Call could not start: {state.error}</p>
         )}
         <p className="flex items-center gap-2 text-xs font-semibold text-foreground/70">
           <ShieldCheck className="h-3.5 w-3.5 text-success" />
-          Calls stay inside Allma — phone numbers are never shared. Calling continues while this
-          screen stays open.
+          In-app calls stay inside Allma. Phone numbers are never shown in chat. Official lines
+          (999 / 112) stay one-tap only — never auto-dialed by bots.
         </p>
       </div>
     </div>
