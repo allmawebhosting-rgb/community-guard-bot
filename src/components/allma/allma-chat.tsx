@@ -739,16 +739,16 @@ function SosTimelineEvent({
     >
       {!mine ? (
         <span className="shrink-0 overflow-hidden rounded-full shadow-sm ring-1 ring-black/5">
-          <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={40} />
+          <Avatar name={person?.name ?? "Allma member"} url={person?.avatar ?? null} size={32} />
         </span>
       ) : null}
       <div className="min-w-0 max-w-[84%]">
         <div
           className={cn(
-            "relative px-3 py-2 text-left text-[14px] leading-relaxed shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)]",
+            "chat-msg-card px-3.5 py-2.5 text-left text-[15px] leading-[1.55]",
             mine
-              ? "rounded-[1.3rem] rounded-br-md bg-[#d9fdd3] text-foreground ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
-              : "rounded-[1.3rem] rounded-bl-md bg-card text-foreground ring-1 ring-border/50",
+              ? "chat-msg-card-user rounded-[1.25rem] bg-primary text-primary-foreground shadow-sm"
+              : "rounded-[1.25rem] rounded-bl-md bg-card text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50",
           )}
         >
           {!mine ? (
@@ -758,7 +758,7 @@ function SosTimelineEvent({
           ) : null}
           {message.event_type === "voice_note" ? (
             <div className="flex min-w-[180px] items-center gap-2">
-              <span className={cn("grid h-8 w-8 place-items-center rounded-full", mine ? "bg-black/10 dark:bg-white/15" : "bg-muted")}>
+              <span className={cn("grid h-8 w-8 place-items-center rounded-full", mine ? "bg-black/15" : "bg-muted")}>
                 <Mic className="h-4 w-4 shrink-0" />
               </span>
               {voiceUrl ? (
@@ -779,10 +779,10 @@ function SosTimelineEvent({
           ) : (
             <p className="whitespace-pre-wrap break-words">{message.body}</p>
           )}
-          <span className="mt-0.5 block text-right text-[10px] leading-none tabular-nums text-muted-foreground">
-            <time dateTime={message.created_at}>{timestamp}</time>
-          </span>
         </div>
+        <span className={cn("mt-1 block text-[11px] leading-none text-muted-foreground", mine && "text-right")}>
+          <time dateTime={message.created_at}>{timestamp}</time>
+        </span>
         {onReply ? (
           <button
             type="button"
@@ -3415,9 +3415,6 @@ export function AllmaChat({
         <Conversation
           className={cn(
             "relative min-h-0 flex-1 overscroll-contain",
-            // WhatsApp-style chat wallpaper behind the shared emergency
-            // conversation (and any chat with an SOS room attached).
-            (sosIsActive || sosRoom) && "bg-[#ece5dd] dark:bg-[#0b141a]",
             // Keep the conversation clear of the pinned desktop side panel.
             sosIsActive && sosRoom && "lg:mr-[320px]",
           )}
@@ -3465,7 +3462,7 @@ export function AllmaChat({
               "pb-8",
             )}
           >
-            <div className={cn("flex flex-col pt-16 lg:pt-8", sosIsActive ? "gap-2" : "gap-4")}>
+            <div className="flex flex-col gap-4 pt-16 lg:pt-8">
               {timelineItems.map((item, itemIndex) => {
                 // Messages should drift in slowly, not land all at once like
                 // a bomb: the newest dozen items cascade in from the end of
@@ -3583,10 +3580,10 @@ export function AllmaChat({
                   )}
                 >
                   {message.role === "assistant" && !wideSosLayout ? (
-                    <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
+                    <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
                   ) : isOtherHuman ? (
                     <span className="shrink-0 overflow-hidden rounded-full shadow-sm ring-1 ring-black/5">
-                      <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={sosIsActive ? 40 : 32} />
+                      <Avatar name={author?.name ?? "Responder"} url={author?.avatar ?? null} size={32} />
                     </span>
                   ) : null}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-1", message.role === "user" && (isOwnUserMessage ? "items-end" : "items-start"))}>
@@ -3595,12 +3592,7 @@ export function AllmaChat({
                       message.role === "assistant"
                         ? wideSosLayout
                           ? "w-full max-w-none rounded-none border-0 bg-transparent p-0 shadow-none"
-                          : cn(
-                              "chat-msg-card chat-msg-card-ai w-full max-w-[92%] border-0 px-3.5 py-3 sm:max-w-[85%]",
-                              sosIsActive
-                                ? "rounded-[1.25rem] rounded-tl-md bg-card shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50"
-                                : "rounded-[1.25rem] bg-[#F2F2F2] text-foreground shadow-none dark:bg-muted",
-                            )
+                          : "chat-msg-card chat-msg-card-ai w-full max-w-[92%] rounded-[1.25rem] border-0 bg-[#F2F2F2] px-3.5 py-3 text-foreground shadow-none dark:bg-muted sm:max-w-[85%]"
                         : cn(
                             "w-fit max-w-[85%] rounded-none bg-transparent p-0 shadow-none sm:max-w-[80%]",
                             // Other people's bubbles must hug their avatar on the
@@ -3674,13 +3666,8 @@ export function AllmaChat({
                               <p
                                 className={cn(
                                   "chat-msg-card max-w-full whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-[1.55]",
-                                  sosIsActive && "relative",
                                   isOwnUserMessage
-                                    ? sosIsActive
-                                      ? // WhatsApp-style own bubble: soft green.
-                                        "rounded-[1.25rem] rounded-br-md bg-[#d9fdd3] text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-black/5 dark:bg-[#005c4b] dark:text-[#e9edef] dark:ring-white/10"
-                                      : // Grok-style solid brand bubble with white text.
-                                        "chat-msg-card-user rounded-[1.25rem] bg-primary text-primary-foreground shadow-sm"
+                                    ? "chat-msg-card-user rounded-[1.25rem] bg-primary text-primary-foreground shadow-sm"
                                     : "rounded-[1.25rem] rounded-bl-md bg-card text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_24px_-12px_rgba(16,24,40,0.30)] ring-1 ring-border/50",
                                 )}
                               >
@@ -3689,35 +3676,33 @@ export function AllmaChat({
                                     className={cn(
                                       "mb-1.5 block rounded-md border-l-[3px] px-2 py-1",
                                       isOwnUserMessage
-                                        ? sosIsActive
-                                          ? "border-emerald-700/50 bg-black/[0.06] dark:border-emerald-300/50 dark:bg-white/10"
-                                          : "border-primary-foreground/40 bg-black/15"
+                                        ? "border-primary-foreground/40 bg-black/15"
                                         : "border-primary/50 bg-muted",
                                     )}
                                   >
-                                    <span className={cn("block text-[12px] font-bold leading-tight", sosIsActive ? sosNameColor(replyQuote.author) : isOwnUserMessage ? "text-primary-foreground" : sosNameColor(replyQuote.author))}>
+                                    <span
+                                      className={cn(
+                                        "block text-[12px] font-bold leading-tight",
+                                        isOwnUserMessage
+                                          ? "text-primary-foreground"
+                                          : sosNameColor(replyQuote.author),
+                                      )}
+                                    >
                                       {replyQuote.author}
                                     </span>
                                     <span className="block truncate text-[12px] leading-snug opacity-75">{replyQuote.text}</span>
                                   </span>
                                 ) : null}
-                                {sosIsActive && !isOwnUserMessage ? (
+                                {!isOwnUserMessage ? (
                                   <span className={cn("mb-0.5 block text-[13px] font-bold", sosNameColor(author?.name ?? "Responder"))}>
                                     {author?.name ?? "Responder"}
                                   </span>
                                 ) : null}
                                 {part.text}
-                                {sosIsActive ? (
-                                  <span className="mt-0.5 block text-right text-[10px] leading-none tabular-nums text-muted-foreground" suppressHydrationWarning>
-                                    {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                                  </span>
-                                ) : null}
                               </p>
-                              {!sosIsActive ? (
-                                <span className="mt-1 text-[11px] leading-none text-muted-foreground" suppressHydrationWarning>
-                                  {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                                </span>
-                              ) : null}
+                              <span className="mt-1 text-[11px] leading-none text-muted-foreground" suppressHydrationWarning>
+                                {new Date((message as { createdAt?: string | Date }).createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                              </span>
                               {sosIsActive ? (
                                 <button
                                   type="button"
@@ -3898,7 +3883,7 @@ export function AllmaChat({
                   transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   className="flex max-w-full flex-row items-start gap-2.5"
                 >
-                  <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
+                  <img aria-hidden src={robotAvatar} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm" />
                   <div className="chat-msg-card chat-msg-card-ai min-w-0 max-w-[92%] rounded-[1.25rem] bg-[#F2F2F2] px-3.5 py-3 dark:bg-muted sm:max-w-[85%]">
                     {bookingLiveProgress ? (
                       <AgentLiveActivity progress={bookingLiveProgress} />
