@@ -1,10 +1,11 @@
 /** Live checklist shown in the pending assistant bubble until reply text arrives. */
 
 export const CHAT_PROGRESS_LABELS = {
-  understanding: "Understanding your message",
+  understanding: "Working on your request",
   finding: "Finding help near you",
   phones: "Checking phone numbers",
   writing: "Writing your answer",
+  booking: "Preparing your appointment booking",
 } as const;
 
 export type ChatProgressStepId = keyof typeof CHAT_PROGRESS_LABELS;
@@ -36,7 +37,7 @@ export type FindFacilitiesProgress = "none" | "running" | "done";
 export function findFacilitiesProgress(
   parts: Array<{ type: string; state?: string }> | undefined,
 ): FindFacilitiesProgress {
-  const part = (parts ?? []).find((p) => p.type === "tool-find_facilities");
+  const part = (parts ?? []).find((p) => p.type === "tool-find_facilities" || p.type === "tool-search_safety_resources");
   if (!part) return "none";
   return part.state === "output-available" || part.state === "output-error" ? "done" : "running";
 }
@@ -55,14 +56,28 @@ export function chatProgressSteps(input: {
   hasVisibleText: boolean;
   serverSteps?: ChatProgressStepId[];
   findFacilities?: FindFacilitiesProgress;
+  /** When true, skip the generic checklist — booking has its own live feed. */
+  bookingActive?: boolean;
 }): ChatProgressStep[] | null {
   if (input.hasVisibleText) return null;
   if (input.status !== "submitted" && input.status !== "streaming") return null;
+  if (input.bookingActive) return null;
 
   const server = new Set(input.serverSteps ?? []);
   const find = input.findFacilities ?? "none";
   const includeFinding = server.has("finding") || server.has("phones") || find !== "none";
   const includePhones = server.has("phones");
+  const includeBooking = server.has("booking");
+
+  if (includeBooking && !includeFinding) {
+    return [
+      {
+        id: "booking",
+        label: CHAT_PROGRESS_LABELS.booking,
+        state: "active",
+      },
+    ];
+  }
 
   let current: ChatProgressStepId = "understanding";
   if (input.status === "streaming" && !includeFinding) current = "writing";

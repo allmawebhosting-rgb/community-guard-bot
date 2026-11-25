@@ -8,10 +8,21 @@ import {
 } from "./chat-progress";
 
 describe("chat progress checklist", () => {
-  it("shows understanding while the request is submitted", () => {
+  it("shows working-on-request while the request is submitted", () => {
     const steps = chatProgressSteps({ status: "submitted", hasVisibleText: false });
     expect(steps?.map((s) => s.id)).toEqual(["understanding", "writing"]);
+    expect(steps?.[0]?.label).toMatch(/Working on your request/i);
     expect(steps?.map((s) => s.state)).toEqual(["active", "pending"]);
+  });
+
+  it("hides the generic checklist when booking live progress is active", () => {
+    expect(
+      chatProgressSteps({
+        status: "submitted",
+        hasVisibleText: false,
+        bookingActive: true,
+      }),
+    ).toBeNull();
   });
 
   it("moves to writing once the stream starts and no search is running", () => {

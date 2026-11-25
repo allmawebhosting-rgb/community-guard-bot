@@ -109,6 +109,15 @@ import {
   type ChatProgressStepId,
 } from "@/lib/chat-progress";
 import {
+  BOOKING_START_STEPS,
+  humanizeBookingStep,
+  humanizeBookingSteps,
+} from "@/lib/booking-progress";
+import {
+  isAppointmentBookingAsk,
+  isBookingFollowUp,
+} from "@/lib/chat-intent";
+import {
   CHAT_IMAGE_JPEG_QUALITY,
   CHAT_IMAGE_MAX_EDGE,
   CHAT_INLINE_IMAGE_MAX_CHARS,
@@ -970,8 +979,8 @@ function AgentLiveActivity({
   progress: BookingLiveProgress;
 }) {
   const lines = (progress.steps?.length
-    ? progress.steps.map((s) => s.label)
-    : [progress.summary || "Working…"]
+    ? progress.steps.map((s) => humanizeBookingStep(s.label))
+    : [humanizeBookingStep(progress.summary || "Working on your booking…")]
   ).filter(Boolean);
   // Keep the feed readable — show the last handful of updates.
   const visible = lines.slice(-8);
@@ -1141,13 +1150,15 @@ function ToolCard({
         <BookingResultCard
           running
           hospital={String(bookingLive?.hospital || input?.hospital_name || "Hospital")}
-          summary={String(
-            bookingLive?.summary || "Opening clinic pages and filling the appointment form…",
+          summary={humanizeBookingStep(
+            String(
+              bookingLive?.summary || "Opening the clinic booking pages…",
+            ),
           )}
           preferredTime={
             typeof input?.preferred_time === "string" ? input.preferred_time : null
           }
-          steps={bookingLive?.steps ?? []}
+          steps={humanizeBookingSteps(bookingLive?.steps ?? [])}
           screenshots={bookingLive?.screenshots ?? []}
           screenshotUrl={bookingLive?.screenshot_url ?? null}
           status={bookingLive?.status || "running"}
@@ -1415,6 +1426,9 @@ function ToolCard({
         }
         clinicPhone={
           typeof output?.clinic_phone === "string" ? output.clinic_phone : null
+        }
+        clinicEmail={
+          typeof output?.clinic_email === "string" ? output.clinic_email : null
         }
         paymentRequired={Boolean(output?.payment_required)}
       />
@@ -1737,10 +1751,11 @@ export function AllmaChat({
     onData: (part) => {
       if (part.type === "data-booking-progress" && part.data && typeof part.data === "object") {
         const data = part.data as BookingLiveProgress;
+        const rawSteps = Array.isArray(data.steps) ? data.steps : [];
         setBookingLiveProgress({
           status: String(data.status || "running"),
-          summary: String(data.summary || "Booking in progress…"),
-          steps: Array.isArray(data.steps) ? data.steps : [],
+          summary: humanizeBookingStep(String(data.summary || "Still working on your appointment…")),
+          steps: humanizeBookingSteps(rawSteps),
           screenshots: Array.isArray(data.screenshots)
             ? data.screenshots.filter((s): s is string => typeof s === "string")
             : [],
@@ -1770,6 +1785,30 @@ export function AllmaChat({
   useEffect(() => {
     if (!busy) setBookingLiveProgress(null);
   }, [busy]);
+
+  // Seed a live booking feed as soon as the user sends a booking ask, so the
+  // UI shows "Looking up the clinic now…" instead of a generic checklist.
+  useEffect(() => {
+    if (!busy || bookingLiveProgress) return;
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const priorAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    const userText = (lastUser?.parts ?? [])
+      .map((p) => ("text" in p && typeof p.text === "string" ? p.text : ""))
+      .join(" ")
+      .trim();
+    const assistantText = (priorAssistant?.parts ?? [])
+      .map((p) => ("text" in p && typeof p.text === "string" ? p.text : ""))
+      .join(" ");
+    if (!userText) return;
+    if (!isAppointmentBookingAsk(userText) && !isBookingFollowUp(userText, assistantText)) return;
+    setBookingLiveProgress({
+      status: "running",
+      summary: "Looking up the clinic now…",
+      steps: BOOKING_START_STEPS.map((step) => ({ ...step })),
+      screenshots: [],
+    });
+  }, [busy, bookingLiveProgress, messages]);
+
   const lastAssistant = messages[messages.length - 1];
   const bookingToolRunning = partsHaveRunningBookingTool(
     lastAssistant?.role === "assistant"
@@ -1777,7 +1816,7 @@ export function AllmaChat({
       : undefined,
   );
   // While the booking tool runs, show the live booking card / activity feed —
-  // not the generic "Understanding your message" placeholder.
+  // not the generic "Working on your request" placeholder.
   const lastAssistantThinking =
     busy &&
     !bookingToolRunning &&
@@ -2826,6 +2865,7 @@ export function AllmaChat({
       ...progressStepsFromParts(streamingParts),
     ].filter((step, index, all) => all.indexOf(step) === index),
     findFacilities: findFacilitiesProgress(streamingParts),
+    bookingActive: Boolean(bookingLiveProgress || bookingToolRunning),
   });
 
   // If the user opened with a concrete request, drop any "I'm Allma Safety AI"
@@ -3553,7 +3593,14 @@ export function AllmaChat({
                 const showAidCard = aidCardMessageIds.has(message.id);
                 // Activate SOS lives in the message only before the room is live;
                 // the sticky dock owns the live card after that (no duplicates).
-                const showActivateSos = showCardStack && Boolean(emergencyType) && !sosIsActive;
+                // Never stack SOS activate on top of a hospital booking reply.
+                const hasBookingTool = message.parts.some((part) =>
+                  String((part as { type?: string }).type ?? "").includes(
+                    "book_hospital_appointment",
+                  ),
+                );
+                const showActivateSos =
+                  showCardStack && Boolean(emergencyType) && !sosIsActive && !hasBookingTool;
                 const wideSosLayout =
                   message.role === "assistant" && showActivateSos;
                 return (

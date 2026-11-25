@@ -1,5 +1,6 @@
-import { CheckCircle2, Circle, Hospital, Loader2, Phone, XCircle } from "lucide-react";
+import { CheckCircle2, Circle, Hospital, Loader2, Mail, Phone, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { extractBookingEmail } from "@/lib/chat-intent";
 
 export type BookingProcessStep = {
   label: string;
@@ -17,6 +18,7 @@ export type BookingResultCardProps = {
   steps?: BookingProcessStep[];
   preferredTime?: string | null;
   clinicPhone?: string | null;
+  clinicEmail?: string | null;
   paymentRequired?: boolean;
   running?: boolean;
   className?: string;
@@ -36,12 +38,14 @@ export function BookingResultCard({
   steps = [],
   preferredTime,
   clinicPhone,
+  clinicEmail,
   paymentRequired = false,
   running = false,
   className,
 }: BookingResultCardProps) {
   const phoneBooking = status === "phone_booking" || status === "captcha_blocked";
   const ok = Boolean(success) && !paymentRequired && !running && !phoneBooking;
+  const resolvedEmail = (clinicEmail || extractBookingEmail(summary) || "").trim() || null;
   const title = running
     ? "Booking in progress…"
     : paymentRequired
@@ -223,45 +227,34 @@ export function BookingResultCard({
           </div>
         ) : null}
 
-        {clinicPhone && !running ? (
-          <a
-            href={`tel:${clinicPhone.replace(/[^\d+]/g, "")}`}
-            aria-label={`Call ${hospital} ${clinicPhone}`}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-chat-accent px-4 text-[13px] font-semibold text-chat-accent-foreground"
-          >
-            <Phone className="h-4 w-4" /> Call {clinicPhone}
-          </a>
+        {!running && (clinicPhone || resolvedEmail) ? (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {clinicPhone ? (
+              <a
+                href={`tel:${clinicPhone.replace(/[^\d+]/g, "")}`}
+                aria-label={`Call ${hospital} ${clinicPhone}`}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-chat-accent px-4 text-[13px] font-semibold text-chat-accent-foreground"
+              >
+                <Phone className="h-4 w-4" /> Call {clinicPhone}
+              </a>
+            ) : null}
+            {resolvedEmail ? (
+              <a
+                href={`mailto:${resolvedEmail}?subject=${encodeURIComponent(`Appointment request — ${hospital}`)}&body=${encodeURIComponent(`Hello,\n\nI would like to book an appointment${preferredTime ? ` for ${preferredTime}` : ""}.\n\nThank you.`)}`}
+                aria-label={`Email ${hospital} ${resolvedEmail}`}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 text-[13px] font-semibold text-foreground"
+              >
+                <Mail className="h-4 w-4" /> Email clinic
+              </a>
+            ) : null}
+          </div>
         ) : null}
 
-        {!ok && !running ? (
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold text-muted-foreground">
-              If this is urgent, call emergency services now:
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <a
-                href="tel:999"
-                aria-label="Call Police 999"
-                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-background px-3 text-[12px] font-semibold text-foreground"
-              >
-                <Phone className="h-3.5 w-3.5" /> Police 999
-              </a>
-              <a
-                href="tel:911"
-                aria-label="Call Ambulance 911"
-                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/[0.06] px-3 text-[12px] font-semibold text-destructive"
-              >
-                <Phone className="h-3.5 w-3.5" /> Ambulance 911
-              </a>
-              <a
-                href="tel:112"
-                aria-label="Call Toll-free 112"
-                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-chat-accent px-3 text-[12px] font-semibold text-chat-accent-foreground"
-              >
-                <Phone className="h-3.5 w-3.5" /> Toll-free 112
-              </a>
-            </div>
-          </div>
+        {/* Hard booking failures only — phone_booking already gives clinic contact CTAs. */}
+        {!ok && !running && !phoneBooking ? (
+          <p className="text-[12px] text-muted-foreground">
+            If this is a medical emergency, call Ambulance 911, Toll-free 112, or Police 999.
+          </p>
         ) : null}
       </div>
     </div>

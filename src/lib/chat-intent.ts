@@ -47,6 +47,48 @@ export function isAppointmentBookingAsk(text: string) {
   return bookVerb && medical;
 }
 
+/** User wants the appointment request emailed (not browser/phone booking). */
+export function isBookingEmailAsk(text: string) {
+  const t = text.trim();
+  if (!t) return false;
+  if (/^(email|e-mail)(\s+them|\s+the\s+clinic|\s+it)?[.!?]?$/i.test(t)) return true;
+  return (
+    /\b(book|booking|appoint(?:ment)?|reserve|schedule|send|request)\b/i.test(t) &&
+    /\b(e-?mail|email)\b/i.test(t)
+  );
+}
+
+/**
+ * Only treat a follow-up as a clinic/hospital name when it looks like one.
+ * Prevents "Call the doctor?", "Now", "Can it call it?" becoming
+ * "Got it — I'll use Call the doctor?".
+ */
+export function looksLikeClinicName(text: string) {
+  const t = text.trim().replace(/\s+/g, " ");
+  if (!t || t.length < 3 || t.length > 80) return false;
+  if (/[?]/.test(t)) return false;
+  if (/^(now|asap|soon|please|yes|ok|okay|sure|thanks|thank you)[.!]?$/i.test(t)) return false;
+  if (/\b(call|dial|phone|email|e-mail|sms|whatsapp|text)\b/i.test(t)) return false;
+  if (/\b(can you|could you|please|how do|what about|is there)\b/i.test(t)) return false;
+  if (isBookingEmailAsk(t)) return false;
+  if (isAppointmentBookingAsk(t)) return false;
+  // Explicit medical place words, or a short multi-word proper name.
+  if (
+    /\b(hospital|clinic|chambers|medical|health\s*cent(?:re|er)|referral|doctors?)\b/i.test(t)
+  ) {
+    return true;
+  }
+  // "Jinja Main", "Mulago", "Nsambya" — letters/spaces/hyphens only, 1–6 words.
+  if (!/^[A-Za-z0-9][A-Za-z0-9 .'-]*$/.test(t)) return false;
+  const words = t.split(/\s+/);
+  if (words.length < 1 || words.length > 6) return false;
+  // Single generic words are not clinic names.
+  if (words.length === 1 && /^(doctor|hospital|clinic|appointment|checkup|tomorrow|today)$/i.test(t)) {
+    return false;
+  }
+  return words.length >= 2 || /^[A-Z]/.test(t);
+}
+
 /** True when the last Allma message was the booking details opener. */
 export function isBookingOpenerMessage(text: string | null | undefined) {
   const t = (text || "").trim();
@@ -55,7 +97,9 @@ export function isBookingOpenerMessage(text: string | null | undefined) {
     /I can book a hospital or clinic appointment/i.test(t) ||
     /Which clinic or hospital should I use/i.test(t) ||
     /Got it — .+ I'll use/i.test(t) ||
-    /When do you want to go, and what'?s the reason/i.test(t)
+    /When do you want to go, and what'?s the reason/i.test(t) ||
+    /online booking (was )?not available|phone.?booking|call the clinic/i.test(t) ||
+    /book .+ by e-?mail|email the clinic an appointment/i.test(t)
   );
 }
 
@@ -83,6 +127,28 @@ export function bookingHasPreferredTime(text: string) {
 export function bookingClinicAckReply(clinicName: string) {
   const name = clinicName.trim().replace(/\s+/g, " ");
   return `Got it — I'll use **${name}**.\n\nWhen do you want to go, and what's the reason for the visit in a short phrase?\n\n::suggest[Tomorrow morning checkup | This afternoon | Next Monday]`;
+}
+
+/** Follow-up was not a clinic name — ask clearly without pretending we picked one. */
+export function bookingClarifyClinicReply() {
+  return `Which hospital or clinic should I book — for example **Jinja Main Hospital** or **Jemia Doctors Chambers**?\n\n::suggest[Jinja Main Hospital | Jemia Doctors Chambers | Cancel booking]`;
+}
+
+/** Offer email handoff when online booking failed or the user asked to email. */
+export function bookingEmailOfferReply(input?: { clinicEmail?: string | null; clinicName?: string | null }) {
+  const email = (input?.clinicEmail || "").trim();
+  const clinic = (input?.clinicName || "the clinic").trim();
+  if (email) {
+    return `I can email **${clinic}** an appointment request at **${email}**.\n\nConfirm the preferred time and reason in one short line, or tap below and I will send the handoff email.\n\n::suggest[Email them tomorrow morning checkup | Different time | Call instead]`;
+  }
+  return `I can email the clinic an appointment request.\n\nShare the clinic email address (or the clinic name if you want me to look it up), plus your preferred time and reason.\n\n::suggest[Use info@jinjahospital.go.ug | Call instead | Cancel booking]`;
+}
+
+/** Pull the first email address out of booking agent prose / tool summaries. */
+export function extractBookingEmail(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0] : null;
 }
 
 /** True when the user is explicitly asking for nearby places / directions. */

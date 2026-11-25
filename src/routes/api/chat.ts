@@ -11,8 +11,13 @@ import {
   isSoftGuidedFlow,
   isAppointmentBookingAsk,
   isBookingFollowUp,
+  isBookingEmailAsk,
+  looksLikeClinicName,
   bookingClinicAckReply,
+  bookingClarifyClinicReply,
+  bookingEmailOfferReply,
   bookingHasPreferredTime,
+  extractBookingEmail,
   nearbyHelpTypesForTurn,
   isEmergencyNumbersAsk,
   isSosSituationQuestion,
@@ -23,6 +28,7 @@ import {
   sosSituationReply,
 } from "@/lib/chat-intent";
 import { assistantHasVisibleText } from "@/lib/chat-progress";
+import { BOOKING_START_STEPS, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
@@ -610,10 +616,25 @@ You are coordinating this emergency from the start, not just answering questions
         // canonical history already had an assistant reply forced Workers AI
         // for "Book an appointment", and a plain-text gateway failure then
         // showed up in the client as "Something interrupted the response."
+        // Email booking ask mid-thread or cold-start — don't dump the browser-booking opener.
+        if (
+          !sharedSosActive &&
+          isBookingEmailAsk(intakeText) &&
+          !bookingFollowUp
+        ) {
+          return replyWithFixedText(
+            bookingEmailOfferReply({
+              clinicEmail: extractBookingEmail(intakeText),
+              clinicName: null,
+            }),
+            "allma-booking-email",
+          );
+        }
         const scripted = sharedSosActive
           ? null
           : hasSharedAssistantHistory
             ? isAppointmentBookingAsk(intakeText) &&
+              !isBookingEmailAsk(intakeText) &&
               intakeText.trim().length < 100 &&
               !bookingHasPreferredTime(intakeText)
               ? BOOKING_OPENER
@@ -622,10 +643,46 @@ You are coordinating this emergency from the start, not just answering questions
         if (scripted) {
           return replyWithFixedText(scripted, "allma-flow");
         }
-        // After the booking opener, a clinic name like "jinja main hospital" must
-        // stay in booking — never flip into a nearby-clinic directory search.
-        if (bookingFollowUp && !bookingHasPreferredTime(intakeText)) {
-          return replyWithFixedText(bookingClinicAckReply(intakeText), "allma-booking");
+        // After the booking opener, keep replies in booking — never flip into a
+        // nearby-clinic directory search. Only ack real clinic names; never treat
+        // "Call the doctor?", "Now", or "book by email" as a hospital name.
+        if (bookingFollowUp) {
+          if (isBookingEmailAsk(intakeText)) {
+            const priorToolEmail = [...uiMessages]
+              .reverse()
+              .flatMap((m) => m.parts ?? [])
+              .map((part) => {
+                if (!part || typeof part !== "object") return null;
+                const type = String((part as { type?: unknown }).type ?? "");
+                if (!type.includes("book_hospital_appointment")) return null;
+                const output = (part as { output?: Record<string, unknown> }).output;
+                if (!output) return null;
+                return (
+                  extractBookingEmail(String(output.summary ?? "")) ||
+                  extractBookingEmail(String(output.clinic_email ?? "")) ||
+                  null
+                );
+              })
+              .find(Boolean);
+            const fromText = extractBookingEmail(lastAssistantFullText);
+            const clinicEmail = priorToolEmail || fromText;
+            const clinicNameMatch = lastAssistantFullText.match(
+              /\*\*([^*]+)\*\*|Jinja Regional Referral Hospital|Jinja Main Hospital/i,
+            );
+            return replyWithFixedText(
+              bookingEmailOfferReply({
+                clinicEmail,
+                clinicName: clinicNameMatch?.[1] || clinicNameMatch?.[0] || null,
+              }),
+              "allma-booking-email",
+            );
+          }
+          if (!bookingHasPreferredTime(intakeText)) {
+            if (looksLikeClinicName(intakeText)) {
+              return replyWithFixedText(bookingClinicAckReply(intakeText), "allma-booking");
+            }
+            return replyWithFixedText(bookingClarifyClinicReply(), "allma-booking");
+          }
         }
 
 
@@ -848,7 +905,7 @@ You are coordinating this emergency from the start, not just answering questions
         const wantsBooking = isBrowserAgentConfigured() && bookingAsk;
         const bookingBlock = bookingAsk
           ? wantsBooking
-            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit, patient name/phone if useful). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they already named a clinic (e.g. Jinja Main Hospital or Jemia Doctors Chambers), use that name. After the tool returns: ONLY say the appointment was booked if booked=true / success=true. If status is phone_booking, tell them online booking was not available and give the clinic phone/email to call — never claim it was booked. Never invent a confirmation number. End with ::suggest[…] options when you still need a choice.`
+            ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities, do NOT open SOS / ::emergency, and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they ask to book by email and you have a clinic email from a prior phone_booking result or the user, call send_incident_email with incidentType=general, a clear appointment-request subject, and the triageSummary describing the visit time/reason — then confirm the email was queued only if success=true. After book_hospital_appointment: ONLY say the appointment was booked if booked=true / success=true. If status is phone_booking, say online booking was unavailable, share phone/email, and offer to email the clinic — never claim it was booked. Never invent a confirmation number. End with ::suggest[…] when you still need a choice.`
             : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
           : "";
         const intentBlock = bookingBlock + directHelpBlock + (intent && continueGuidedFlow
@@ -950,7 +1007,8 @@ You are coordinating this emergency from the start, not just answering questions
             intakeText,
           );
         const wantsEmail =
-          /\b(email|e-mail|send).{0,40}\b(incident|handoff|report|summary|clinic|hospital|doctor)\b|\bsend_incident_email\b/i.test(
+          isBookingEmailAsk(intakeText) ||
+          /\b(email|e-mail|send).{0,40}\b(incident|handoff|report|summary|clinic|hospital|doctor|appointment)\b|\bsend_incident_email\b/i.test(
             intakeText,
           );
         const LIGHT_TOOL_NAMES = new Set([
@@ -1053,7 +1111,7 @@ You are coordinating this emergency from the start, not just answering questions
           return {};
         };
 
-        type ProgressStep = "understanding" | "finding" | "phones" | "writing";
+        type ProgressStep = "understanding" | "finding" | "phones" | "writing" | "booking";
         let progressSink: ((step: ProgressStep) => void) | undefined;
         const reportProgress = (step: ProgressStep) => {
           progressSink?.(step);
@@ -1067,6 +1125,13 @@ You are coordinating this emergency from the start, not just answering questions
           hospital?: string;
         };
         let reportBookingProgress: ((update: BookingProgressPayload) => void) | undefined;
+        const emitBookingUpdate = (update: BookingProgressPayload) => {
+          reportBookingProgress?.({
+            ...update,
+            summary: humanizeBookingStep(update.summary),
+            steps: humanizeBookingSteps(update.steps ?? []),
+          });
+        };
         let facilityCardsRendered = false;
         const facilityToolOutput = <T extends { facilities?: unknown }>(output: T) => {
           if (Array.isArray(output.facilities)) facilityCardsRendered = true;
@@ -1324,7 +1389,7 @@ You are coordinating this emergency from the start, not just answering questions
               }) => {
                 reportProgress("finding");
                 const emitBooking = (summary: string, steps?: Array<{ label: string; status?: string }>) => {
-                  reportBookingProgress?.({
+                  emitBookingUpdate({
                     status: "running",
                     summary,
                     steps: steps ?? [{ label: summary, status: "running" }],
@@ -1332,30 +1397,30 @@ You are coordinating this emergency from the start, not just answering questions
                     hospital: hospital_name,
                   });
                 };
-                emitBooking("Looking up clinic contact details…", [
-                  { label: "Understanding booking request", status: "completed" },
-                  { label: "Looking up clinic contact details…", status: "running" },
+                emitBooking("Looking up the clinic now…", [
+                  { label: "Reading your appointment request…", status: "completed" },
+                  { label: "Looking up the clinic now…", status: "running" },
                 ]);
                 // Resolve a direct website/phone first — search engines CAPTCHA headless browsers.
                 const contact = await lookupHospitalContact(hospital_name).catch(() => null);
                 emitBooking(
                   contact?.website
-                    ? `Found clinic website — starting browser agent…`
+                    ? `Found the clinic website — opening it now…`
                     : contact?.phone
                       ? `Found clinic phone ${contact.phone} — checking online booking…`
-                      : "Starting booking agent…",
+                      : "Starting the booking agent now…",
                   [
-                    { label: "Understanding booking request", status: "completed" },
+                    { label: "Reading your appointment request…", status: "completed" },
                     {
                       label: contact?.name
                         ? `Matched clinic: ${contact.name}`
-                        : "Clinic directory lookup finished",
+                        : "Finished the clinic directory lookup…",
                       status: "completed",
                     },
                     {
                       label: contact?.website
-                        ? "Opening clinic website in browser agent…"
-                        : "Preparing phone-booking fallback…",
+                        ? "Opening the clinic website now…"
+                        : "Preparing the phone booking contacts…",
                       status: "running",
                     },
                   ],
@@ -1369,15 +1434,20 @@ You are coordinating this emergency from the start, not just answering questions
                   portal_url: contact?.website || undefined,
                   clinic_phone: contact?.phone || undefined,
                   onProgress: (update) => {
-                    reportBookingProgress?.(update);
+                    emitBookingUpdate(update);
                   },
                 });
                 reportProgress("writing");
+                const clinicEmail =
+                  extractBookingEmail(result.summary) ||
+                  extractBookingEmail(String((result as { clinic_email?: string }).clinic_email ?? "")) ||
+                  null;
                 return {
                   ...result,
                   // phone_booking means contact info only — not a confirmed reservation.
                   ok: Boolean(result.success),
                   clinic_phone: result.clinic_phone || contact?.phone || null,
+                  clinic_email: clinicEmail,
                   booked: Boolean(result.success) && result.status === "completed",
                 };
               },
@@ -2182,11 +2252,23 @@ You are coordinating this emergency from the start, not just answering questions
             const emit = (step: ProgressStep) => {
               writer.write({ type: "data-chat-progress", data: { step } });
             };
-            emit("understanding");
             progressSink = emit;
             reportBookingProgress = (update) => {
               writer.write({ type: "data-booking-progress", data: update });
             };
+            if (wantsBooking) {
+              emit("booking");
+              // Seed the live booking feed immediately so the UI never flashes
+              // "Understanding your message" while the model decides to call the tool.
+              emitBookingUpdate({
+                status: "running",
+                summary: "Reading your appointment request…",
+                steps: BOOKING_START_STEPS.map((step) => ({ ...step })),
+                screenshots: [],
+              });
+            } else {
+              emit("understanding");
+            }
             // Never leave the user with a silent/empty assistant bubble — but
             // the fallback must land INSIDE this message, after its start
             // chunk. Writing it via a parallel `await result.text` raced the

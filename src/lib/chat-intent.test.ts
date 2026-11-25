@@ -9,8 +9,13 @@ import {
   isSosSituationQuestion,
   isAppointmentBookingAsk,
   isBookingFollowUp,
+  isBookingEmailAsk,
+  looksLikeClinicName,
   bookingClinicAckReply,
+  bookingClarifyClinicReply,
+  bookingEmailOfferReply,
   bookingHasPreferredTime,
+  extractBookingEmail,
   nearbyHelpTypesForTurn,
   scriptedFlowOpener,
   BOOKING_OPENER,
@@ -298,8 +303,13 @@ describe("direct help routing", () => {
     expect(isBookingFollowUp("Nearest clinic near me", BOOKING_OPENER)).toBe(false);
     expect(bookingHasPreferredTime("jinja main hospital")).toBe(false);
     expect(bookingHasPreferredTime("Tomorrow morning checkup")).toBe(true);
+    expect(looksLikeClinicName("jinja main hospital")).toBe(true);
+    expect(looksLikeClinicName("Call the doctor?")).toBe(false);
+    expect(looksLikeClinicName("Now")).toBe(false);
+    expect(looksLikeClinicName("Can it call it?")).toBe(false);
     expect(bookingClinicAckReply("jinja main hospital")).toMatch(/I'll use \*\*jinja main hospital\*\*/i);
     expect(bookingClinicAckReply("jinja main hospital")).toMatch(/When do you want to go/i);
+    expect(bookingClarifyClinicReply()).toMatch(/Which hospital or clinic/i);
     expect(
       nearbyHelpTypesForTurn({
         directFacilityTypes: ["hospital"],
@@ -311,6 +321,18 @@ describe("direct help routing", () => {
         bookingFollowUp: true,
       }),
     ).toEqual([]);
+  });
+
+  it("detects email booking asks and extracts clinic emails", () => {
+    expect(isBookingEmailAsk("Hi there can you book my appointment by email")).toBe(true);
+    expect(isBookingEmailAsk("email them")).toBe(true);
+    expect(isBookingEmailAsk("book jinja main hospital tomorrow")).toBe(false);
+    expect(extractBookingEmail("Call +256, email info@jinjahospital.go.ug")).toBe(
+      "info@jinjahospital.go.ug",
+    );
+    expect(bookingEmailOfferReply({ clinicEmail: "info@jinjahospital.go.ug", clinicName: "Jinja" })).toMatch(
+      /info@jinjahospital\.go\.ug/,
+    );
   });
 
   it("keeps Case Timeline locked until a report has real steps", () => {
