@@ -87,12 +87,19 @@ export async function bookHospitalAppointment(
       }),
       signal: AbortSignal.timeout(10 * 60 * 1000),
     });
-    const data = (await res.json().catch(() => null)) as BookAppointmentResult | null;
+    const rawText = await res.text();
+    let data: BookAppointmentResult | null = null;
+    try {
+      data = JSON.parse(rawText) as BookAppointmentResult;
+    } catch {
+      data = null;
+    }
     if (!res.ok || !data) {
+      const hint = rawText.replace(/\s+/g, " ").trim().slice(0, 160);
       return {
         status: "failed",
         hospital: input.hospital_name,
-        summary: `Booking agent returned HTTP ${res.status}. If this is urgent, call Ambulance 911, Toll-free 112, or Police 999.`,
+        summary: `Booking agent returned HTTP ${res.status}${hint ? ` (${hint})` : ""}. If this is urgent, call Ambulance 911, Toll-free 112, or Police 999.`,
         screenshot_url: null,
         success: false,
         payment_required: false,
