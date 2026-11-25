@@ -1282,8 +1282,43 @@ You are coordinating this emergency from the start, not just answering questions
                 phone_number,
               }) => {
                 reportProgress("finding");
+                const emitBooking = (summary: string, steps?: Array<{ label: string; status?: string }>) => {
+                  reportBookingProgress?.({
+                    status: "running",
+                    summary,
+                    steps: steps ?? [{ label: summary, status: "running" }],
+                    screenshots: [],
+                    hospital: hospital_name,
+                  });
+                };
+                emitBooking("Looking up clinic contact details…", [
+                  { label: "Understanding booking request", status: "completed" },
+                  { label: "Looking up clinic contact details…", status: "running" },
+                ]);
                 // Resolve a direct website/phone first — search engines CAPTCHA headless browsers.
                 const contact = await lookupHospitalContact(hospital_name).catch(() => null);
+                emitBooking(
+                  contact?.website
+                    ? `Found clinic website — starting browser agent…`
+                    : contact?.phone
+                      ? `Found clinic phone ${contact.phone} — checking online booking…`
+                      : "Starting booking agent…",
+                  [
+                    { label: "Understanding booking request", status: "completed" },
+                    {
+                      label: contact?.name
+                        ? `Matched clinic: ${contact.name}`
+                        : "Clinic directory lookup finished",
+                      status: "completed",
+                    },
+                    {
+                      label: contact?.website
+                        ? "Opening clinic website in browser agent…"
+                        : "Preparing phone-booking fallback…",
+                      status: "running",
+                    },
+                  ],
+                );
                 const result = await bookHospitalAppointment({
                   hospital_name: contact?.name || hospital_name,
                   preferred_time,

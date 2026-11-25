@@ -910,6 +910,84 @@ function ChatProgressChecklist({ steps }: { steps: ChatProgressStep[] }) {
   );
 }
 
+/** Grok-style live activity feed while the booking browser agent runs. */
+function AgentLiveActivity({
+  progress,
+}: {
+  progress: BookingLiveProgress;
+}) {
+  const lines = (progress.steps?.length
+    ? progress.steps.map((s) => s.label)
+    : [progress.summary || "Working…"]
+  ).filter(Boolean);
+  // Keep the feed readable — show the last handful of updates.
+  const visible = lines.slice(-8);
+  const latestShot =
+    progress.screenshot_url ||
+    [...(progress.screenshots || [])].reverse().find(Boolean) ||
+    null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Allma booking agent updates"
+      className="min-w-[16rem] max-w-full space-y-2.5"
+    >
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        Booking agent
+      </p>
+      <ul className="space-y-1.5">
+        {visible.map((label, index) => {
+          const isLast = index === visible.length - 1;
+          return (
+            <li
+              key={`${index}-${label}`}
+              className={cn(
+                "flex items-start gap-2 text-[13px] leading-snug",
+                isLast ? "font-medium text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {isLast ? (
+                <span className="chat-progress-dot mt-1.5 shrink-0" aria-hidden />
+              ) : (
+                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              )}
+              <span className="min-w-0 break-words">{label}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {latestShot ? (
+        <a
+          href={latestShot}
+          target="_blank"
+          rel="noreferrer"
+          className="block overflow-hidden rounded-xl border border-border/60 bg-muted/40"
+        >
+          <img
+            src={latestShot}
+            alt="Latest booking screenshot"
+            className="max-h-40 w-full object-contain object-top"
+            loading="lazy"
+          />
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function partsHaveRunningBookingTool(
+  parts: Array<{ type?: string; state?: string }> | undefined,
+): boolean {
+  return (parts ?? []).some(
+    (part) =>
+      part.type === "tool-book_hospital_appointment" &&
+      part.state !== "output-available" &&
+      part.state !== "output-error",
+  );
+}
+
 function ToolCard({
   part,
   onSend,
@@ -1613,11 +1691,21 @@ export function AllmaChat({
     if (!busy) setBookingLiveProgress(null);
   }, [busy]);
   const lastAssistant = messages[messages.length - 1];
+  const bookingToolRunning = partsHaveRunningBookingTool(
+    lastAssistant?.role === "assistant"
+      ? (lastAssistant.parts as Array<{ type?: string; state?: string }>)
+      : undefined,
+  );
+  // While the booking tool runs, show the live booking card / activity feed —
+  // not the generic "Understanding your message" placeholder.
   const lastAssistantThinking =
     busy &&
+    !bookingToolRunning &&
+    !bookingLiveProgress &&
     (!lastAssistant ||
       lastAssistant.role !== "assistant" ||
       !assistantHasVisibleText(lastAssistant.parts as Array<{ type: string; text?: string }>));
+  const showBookingLiveFeed = busy && Boolean(bookingLiveProgress || bookingToolRunning);
 
   // Header SOS button lands here with ?sos=1 (or a fresh chat-start flag).
   useEffect(() => {
@@ -3332,9 +3420,10 @@ export function AllmaChat({
                 }
                 const { message, msgIndex } = item;
                 // Hold the empty streaming shell until Allma finishes thinking —
-                // the dedicated thinking card below is what the user should see.
+                // except during live booking, where the tool card streams updates.
                 if (
                   lastAssistantThinking &&
+                  !showBookingLiveFeed &&
                   message.role === "assistant" &&
                   msgIndex === messages.length - 1 &&
                   !assistantHasVisibleText(message.parts as Array<{ type: string; text?: string }>)
@@ -3722,7 +3811,7 @@ export function AllmaChat({
                 </motion.div>
                 );
               })}
-              {lastAssistantThinking ? (
+              {lastAssistantThinking || (showBookingLiveFeed && bookingLiveProgress && !bookingToolRunning) ? (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -3731,7 +3820,9 @@ export function AllmaChat({
                 >
                   <img aria-hidden src={robotAvatar} alt="" className={cn("mt-0.5 shrink-0 rounded-full border border-border/50 bg-card object-cover shadow-sm", sosIsActive ? "h-10 w-10" : "h-8 w-8")} />
                   <div className="chat-msg-card chat-msg-card-ai min-w-0 max-w-[92%] rounded-[1.25rem] bg-[#F2F2F2] px-3.5 py-3 dark:bg-muted sm:max-w-[85%]">
-                    {progressSteps ? (
+                    {bookingLiveProgress ? (
+                      <AgentLiveActivity progress={bookingLiveProgress} />
+                    ) : progressSteps ? (
                       <ChatProgressChecklist steps={progressSteps} />
                     ) : (
                       <span className="flex min-h-7 items-center gap-2.5" role="status" aria-label="Allma is thinking">
