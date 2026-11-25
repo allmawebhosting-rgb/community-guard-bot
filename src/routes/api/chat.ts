@@ -13,6 +13,7 @@ import {
   nearbyHelpTypesForTurn,
   isEmergencyNumbersAsk,
   isSosSituationQuestion,
+  BOOKING_OPENER,
   scriptedFlowOpener,
   shouldLoadReportingPrompt,
   shouldShowDirectHelp,
@@ -209,6 +210,10 @@ function emptyReplyFallback(
   }
   if (/\breport\b|\bstolen\b|\btheft\b|\bcrime\b/i.test(intakeText)) {
     return 'I can guide you through reporting. What kind of incident is this?\n\n::suggest[Theft | Robbery | Assault | Something else]';
+  }
+  // Booking asks contain "hospital" — never fall through to the nearby-help prompt.
+  if (isAppointmentBookingAsk(intakeText)) {
+    return BOOKING_OPENER;
   }
   if (/\bhospital|police station|nearest|near me|find help\b/i.test(intakeText)) {
     return "Tell me a town or share your location, and I will look for the nearest help.\n\n::suggest[Share my location | Type a town | Emergency numbers]";
