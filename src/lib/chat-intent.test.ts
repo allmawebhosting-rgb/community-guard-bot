@@ -273,6 +273,20 @@ describe("direct help routing", () => {
     expect(reply).not.toMatch(/Case Timeline|case_timeline/i);
   });
 
+  it("scripts a booking opener for vague appointment asks without calling tools", () => {
+    const reply = scriptedFlowOpener("book an appointment at a hospital", null);
+    expect(reply).toMatch(/book a hospital or clinic appointment/i);
+    expect(reply).toMatch(/Which clinic or hospital/i);
+    expect(reply).toMatch(/::suggest\[Jemia Doctors Chambers/);
+    // With clinic + time already named, leave it to the model + booking tool.
+    expect(
+      scriptedFlowOpener(
+        "Book Jemia Doctors Chambers tomorrow morning for a checkup",
+        null,
+      ),
+    ).toBeNull();
+  });
+
   it("keeps Case Timeline locked until a report has real steps", () => {
     expect(
       canUseCaseTimelineTool({ flowLabel: null, step: 0, intakeText: "Show first aid." }),

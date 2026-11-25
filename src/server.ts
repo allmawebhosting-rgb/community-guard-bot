@@ -48,6 +48,16 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     if (env && typeof env === "object") {
       (globalThis as { __env__?: unknown }).__env__ = env;
+      // Mirror string Worker secrets/vars onto process.env so server libs that
+      // only read process.env (VPS booking agent, etc.) see the same values.
+      const bag = env as Record<string, unknown>;
+      if (typeof process !== "undefined" && process.env) {
+        for (const [key, value] of Object.entries(bag)) {
+          if (typeof value === "string" && !process.env[key]) {
+            process.env[key] = value;
+          }
+        }
+      }
     }
     try {
       const handler = await getServerEntry();

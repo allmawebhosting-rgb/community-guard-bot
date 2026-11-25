@@ -263,6 +263,9 @@ export const LOST_FOUND_OPENER =
 export const FIRST_AID_OPENER =
   "I can guide you through first aid. What happened?\n\nTell me the injury or symptoms in a short sentence — for example a cut, burn, nosebleed, or someone who is unconscious.\n\n::suggest[Cut or bleeding | Burn | Unconscious | Something else]";
 
+export const BOOKING_OPENER =
+  "I can book a hospital or clinic appointment for you.\n\nWhich clinic or hospital should I use, and when do you want to go? Also tell me the reason for the visit in a short phrase.\n\n::suggest[Jemia Doctors Chambers | Nearest clinic near me | Tomorrow morning checkup]";
+
 /** True when the user is asking for 999/112 — never search alerts or facilities. */
 export function isEmergencyNumbersAsk(text: string) {
   return /\bemergency numbers?\b|\b(police|call)\s*999\b|\btoll[- ]?free\s*112\b|\bwhat (number|numbers) (do i|should i|to) call\b/i.test(
@@ -324,6 +327,17 @@ export function scriptedFlowOpener(intakeText: string, activeFlowLabel: string |
 
   if (isFirstAidTopicAsk(text)) {
     return FIRST_AID_OPENER;
+  }
+
+  // Vague booking ask with no clinic/time yet — collect details before the VPS agent runs.
+  if (
+    isAppointmentBookingAsk(text) &&
+    text.length < 100 &&
+    !/\b(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(am|pm)|morning|afternoon|evening)\b/i.test(
+      text,
+    )
+  ) {
+    return BOOKING_OPENER;
   }
 
   if (

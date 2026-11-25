@@ -24,12 +24,21 @@ export type BookAppointmentResult = {
   error?: string;
 };
 
+function runtimeEnv(name: string): string {
+  const fromProcess = (process.env[name] || "").trim();
+  if (fromProcess) return fromProcess;
+  // Cloudflare Workers secrets are on the fetch env binding (set on globalThis.__env__).
+  const cf = (globalThis as { __env__?: Record<string, unknown> }).__env__;
+  const fromCf = cf?.[name];
+  return typeof fromCf === "string" ? fromCf.trim() : "";
+}
+
 function agentBaseUrl() {
-  return (process.env.VPS_AGENT_BASE_URL || "").replace(/\/$/, "");
+  return runtimeEnv("VPS_AGENT_BASE_URL").replace(/\/$/, "");
 }
 
 function agentToken() {
-  return (process.env.VPS_AGENT_SECRET_TOKEN || "").trim();
+  return runtimeEnv("VPS_AGENT_SECRET_TOKEN");
 }
 
 export function isBrowserAgentConfigured() {
