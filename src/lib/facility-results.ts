@@ -10,6 +10,7 @@ const ALLOWED: Record<string, FacilityKind[]> = {
   ambulance: ["hospital", "clinic"],
   police: ["police"],
   fire: ["fire"],
+  pharmacy: ["pharmacy"],
   shelter: ["police", "hospital"],
 };
 
