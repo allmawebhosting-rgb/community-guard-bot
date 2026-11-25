@@ -22,6 +22,9 @@ export type BookAppointmentResult = {
   preferred_time?: string;
   reason_for_visit?: string;
   error?: string;
+  job_id?: string;
+  async?: boolean;
+  ok?: boolean;
 };
 
 function runtimeEnv(name: string): string {
@@ -54,30 +57,62 @@ export function absoluteScreenshotUrl(screenshotPath: string | null | undefined)
   return `${base}${screenshotPath.startsWith("/") ? "" : "/"}${screenshotPath}`;
 }
 
+async function readAgentResponse(res: Response): Promise<{
+  data: BookAppointmentResult | null;
+  rawText: string;
+}> {
+  const rawText = await res.text();
+  try {
+    return { data: JSON.parse(rawText) as BookAppointmentResult, rawText };
+  } catch {
+    return { data: null, rawText };
+  }
+}
+
+function failedResult(
+  hospital: string,
+  summary: string,
+  extra?: Partial<BookAppointmentResult>,
+): BookAppointmentResult {
+  return {
+    status: "failed",
+    hospital,
+    summary,
+    screenshot_url: null,
+    success: false,
+    payment_required: false,
+    ...extra,
+  };
+}
+
+const POLL_MS = 4_000;
+const MAX_WAIT_MS = 8 * 60 * 1000;
+
+/**
+ * Start an async booking job on the VPS agent and poll until it finishes.
+ * Avoids Cloudflare 524 / Worker timeouts from holding one long Playwright request.
+ */
 export async function bookHospitalAppointment(
   input: BookAppointmentInput,
 ): Promise<BookAppointmentResult> {
   const base = agentBaseUrl();
   const token = agentToken();
   if (!base || !token) {
-    return {
-      status: "failed",
-      hospital: input.hospital_name,
-      summary:
-        "Appointment booking agent is not configured. Set VPS_AGENT_BASE_URL and VPS_AGENT_SECRET_TOKEN.",
-      screenshot_url: null,
-      success: false,
-      payment_required: false,
-    };
+    return failedResult(
+      input.hospital_name,
+      "Appointment booking agent is not configured. Set VPS_AGENT_BASE_URL and VPS_AGENT_SECRET_TOKEN.",
+    );
   }
 
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+
   try {
-    const res = await fetch(`${base}/api/tasks/book-appointment`, {
+    const startRes = await fetch(`${base}/api/tasks/book-appointment`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({
         hospital_name: input.hospital_name,
         preferred_time: input.preferred_time,
@@ -85,40 +120,65 @@ export async function bookHospitalAppointment(
         patient_name: input.patient_name,
         phone_number: input.phone_number,
       }),
-      signal: AbortSignal.timeout(10 * 60 * 1000),
+      signal: AbortSignal.timeout(30_000),
     });
-    const rawText = await res.text();
-    let data: BookAppointmentResult | null = null;
-    try {
-      data = JSON.parse(rawText) as BookAppointmentResult;
-    } catch {
-      data = null;
+    const { data: startData, rawText: startRaw } = await readAgentResponse(startRes);
+    if (!startRes.ok || !startData) {
+      const hint = startRaw.replace(/\s+/g, " ").trim().slice(0, 160);
+      return failedResult(
+        input.hospital_name,
+        `Booking agent returned HTTP ${startRes.status}${hint ? ` (${hint})` : ""}. If this is urgent, call Ambulance 911, Toll-free 112, or Police 999.`,
+      );
     }
-    if (!res.ok || !data) {
-      const hint = rawText.replace(/\s+/g, " ").trim().slice(0, 160);
+
+    // Legacy sync response (no job_id) — already finished.
+    if (!startData.job_id || startData.status === "completed" || startData.success) {
       return {
-        status: "failed",
-        hospital: input.hospital_name,
-        summary: `Booking agent returned HTTP ${res.status}${hint ? ` (${hint})` : ""}. If this is urgent, call Ambulance 911, Toll-free 112, or Police 999.`,
-        screenshot_url: null,
-        success: false,
-        payment_required: false,
+        ...startData,
+        screenshot_url:
+          absoluteScreenshotUrl(startData.screenshot_url) ?? startData.screenshot_url ?? null,
       };
     }
-    return {
-      ...data,
-      screenshot_url: absoluteScreenshotUrl(data.screenshot_url) ?? data.screenshot_url ?? null,
-    };
+
+    const jobId = startData.job_id;
+    const deadline = Date.now() + MAX_WAIT_MS;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, POLL_MS));
+      const pollRes = await fetch(`${base}/api/tasks/book-appointment/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(20_000),
+      });
+      const { data: pollData, rawText: pollRaw } = await readAgentResponse(pollRes);
+      if (!pollRes.ok || !pollData) {
+        const hint = pollRaw.replace(/\s+/g, " ").trim().slice(0, 160);
+        return failedResult(
+          input.hospital_name,
+          `Booking poll returned HTTP ${pollRes.status}${hint ? ` (${hint})` : ""}.`,
+          { job_id: jobId },
+        );
+      }
+      if (pollData.status === "queued" || pollData.status === "running") {
+        continue;
+      }
+      return {
+        ...pollData,
+        job_id: jobId,
+        screenshot_url:
+          absoluteScreenshotUrl(pollData.screenshot_url) ?? pollData.screenshot_url ?? null,
+      };
+    }
+
+    return failedResult(
+      input.hospital_name,
+      "Booking is still running on the agent but timed out waiting for a result. Try again in a minute, or call Ambulance 911 / Toll-free 112 if urgent.",
+      { job_id: jobId, status: "running" },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "network error";
-    return {
-      status: "failed",
-      hospital: input.hospital_name,
-      summary: `Could not reach the booking agent (${message}). If urgent, call Ambulance 911, Toll-free 112, or Police 999.`,
-      screenshot_url: null,
-      success: false,
-      payment_required: false,
-      error: message,
-    };
+    return failedResult(
+      input.hospital_name,
+      `Could not reach the booking agent (${message}). If urgent, call Ambulance 911, Toll-free 112, or Police 999.`,
+      { error: message },
+    );
   }
 }

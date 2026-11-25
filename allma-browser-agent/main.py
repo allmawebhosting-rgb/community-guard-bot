@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import secrets
@@ -132,18 +133,86 @@ async def list_domains() -> dict[str, Any]:
     return {"ok": True, "domains": vault.list_domains()}
 
 
+# In-memory booking jobs so Cloudflare Workers can start a task and poll
+# without holding a single HTTP request open for the full Playwright run.
+_BOOKING_JOBS: dict[str, dict[str, Any]] = {}
+
+
+async def _run_booking_job(job_id: str, body: BookAppointmentIn) -> None:
+    _BOOKING_JOBS[job_id]["status"] = "running"
+    try:
+        result = await run_booking_task(
+            hospital_name=body.hospital_name,
+            patient_name=body.patient_name or "Patient",
+            phone_number=body.phone_number or "",
+            preferred_time=body.preferred_time,
+            reason_for_visit=body.reason_for_visit,
+        )
+        _BOOKING_JOBS[job_id] = {
+            "status": "completed",
+            "result": result,
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("booking job %s failed", job_id)
+        _BOOKING_JOBS[job_id] = {
+            "status": "failed",
+            "result": {
+                "status": "failed",
+                "hospital": body.hospital_name,
+                "summary": f"Booking agent crashed: {exc}",
+                "screenshot_url": None,
+                "success": False,
+                "payment_required": False,
+            },
+        }
+
+
 @app.post("/api/tasks/book-appointment", dependencies=[Depends(require_bearer)])
 async def book_appointment(body: BookAppointmentIn) -> dict[str, Any]:
+    """Start a booking job and return immediately with a job id.
+
+    Cloudflare Workers must poll GET /api/tasks/book-appointment/{job_id}
+    so Playwright can run longer than a single Worker/proxy timeout.
+    """
     logger.info(
         "book_appointment hospital=%r preferred_time=%r",
         body.hospital_name,
         body.preferred_time,
     )
-    result = await run_booking_task(
-        hospital_name=body.hospital_name,
-        patient_name=body.patient_name or "Patient",
-        phone_number=body.phone_number or "",
-        preferred_time=body.preferred_time,
-        reason_for_visit=body.reason_for_visit,
-    )
-    return result
+    job_id = secrets.token_hex(8)
+    _BOOKING_JOBS[job_id] = {
+        "status": "queued",
+        "hospital": body.hospital_name,
+        "preferred_time": body.preferred_time,
+    }
+    asyncio.create_task(_run_booking_job(job_id, body))
+    return {
+        "ok": True,
+        "async": True,
+        "job_id": job_id,
+        "status": "queued",
+        "hospital": body.hospital_name,
+        "summary": "Booking started. Poll /api/tasks/book-appointment/{job_id} for the result.",
+        "success": False,
+        "payment_required": False,
+    }
+
+
+@app.get("/api/tasks/book-appointment/{job_id}", dependencies=[Depends(require_bearer)])
+async def book_appointment_status(job_id: str) -> dict[str, Any]:
+    job = _BOOKING_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown job_id")
+    if job.get("status") in {"queued", "running"}:
+        return {
+            "ok": True,
+            "async": True,
+            "job_id": job_id,
+            "status": job["status"],
+            "hospital": job.get("hospital"),
+            "summary": f"Booking still {job['status']}.",
+            "success": False,
+            "payment_required": False,
+        }
+    result = job.get("result") or {}
+    return {"ok": True, "async": True, "job_id": job_id, **result}

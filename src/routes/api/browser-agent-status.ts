@@ -38,18 +38,10 @@ export const Route = createFileRoute("/api/browser-agent-status")({
             (typeof cf?.VPS_AGENT_SECRET_TOKEN === "string" ? cf.VPS_AGENT_SECRET_TOKEN.trim() : "");
           if (token) {
             try {
-              const res = await fetch(`${base}/api/tasks/book-appointment`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                  hospital_name: "connectivity-probe",
-                  preferred_time: "n/a",
-                  reason_for_visit: "worker status check",
-                }),
-                signal: AbortSignal.timeout(60_000),
+              // Lightweight auth check — do not start a Playwright booking.
+              const res = await fetch(`${base}/api/vault/domains`, {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: AbortSignal.timeout(15_000),
               });
               const body = (await res.text()).slice(0, 300);
               authed = { ok: res.ok, status: res.status, body };
