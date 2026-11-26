@@ -66,7 +66,6 @@ import { ALLMA_MARKER_CONTRACT, dedupeRepeatedParts, parseAllmaMarkers } from "@
 import { facilitySearchInputSchema } from "@/lib/facility-search-input";
 import { withFacilityEtas } from "@/lib/facility-etas";
 import { sendIncidentEmail } from "@/lib/agent-email.server";
-import { sendViaConnectedGmail } from "@/lib/gmail-connection.server";
 import { prepareEmergencyDispatch } from "@/lib/emergency-dispatch.server";
 import {
   mergeCanonicalChatHistory,
@@ -914,7 +913,7 @@ You are coordinating this emergency from the start, not just answering questions
             : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
           : "";
         const emailDraftBlock = isHospitalEmailDraftAsk(intakeText)
-          ? `\n\nHOSPITAL EMAIL DRAFT REQUEST: The user wants an email written to a hospital/clinic. Write the email itself in this reply: **To**, **Subject**, then a short body (who is writing, patient and problem, location, callback number) with [placeholders] for anything unknown. If a nearby hospital was found by find_facilities, address the email to it by name. Never invent an email address; if none is known, ask for it. Offer to send it from THEIR OWN connected Gmail with send_email once you have a real recipient address and they confirmed the text; if send_email says gmail_not_connected, tell them to open Profile and tap Connect Gmail. Use send_incident_email only for structured incident handoffs. Do not reply with only a place list or a "tell me a town" line. For a life-threatening emergency, tell them to call 999 / 112 / 911 themselves — never dial for them.`
+          ? `\n\nHOSPITAL EMAIL DRAFT REQUEST: The user wants an email written to a hospital/clinic. Call draft_email with a complete draft: a clear subject, then a short body (who is writing, patient and problem, location, callback number) with [placeholders] for anything unknown. If a nearby hospital was found by find_facilities, name it in recipient_name. draft_email shows the user an editable card with a "Send from my Gmail" button; you NEVER send the user's Gmail yourself and must not claim it was sent. Pass \`to\` only if the user typed a real address or a tool result gave one; our facility directory has no email addresses, so normally leave it null and tell the user to type the hospital's address in the card. Never invent an email address. If they have not connected Gmail, the card itself offers Connect Gmail. After calling draft_email, add one short line pointing them to the card. Use send_incident_email only for structured incident handoffs. Do not reply with only a place list or a "tell me a town" line. For a life-threatening emergency, tell them to call 999 / 112 / 911 themselves — never dial for them.`
           : "";
         const intentBlock = emailDraftBlock + bookingBlock + directHelpBlock + (intent && continueGuidedFlow
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
@@ -1016,6 +1015,7 @@ You are coordinating this emergency from the start, not just answering questions
           );
         const wantsEmail =
           isBookingEmailAsk(intakeText) ||
+          /\b(write|draft|compose|send)\b.{0,30}\be-?mail\b/i.test(intakeText) ||
           /\b(email|e-mail|send).{0,40}\b(incident|handoff|report|summary|clinic|hospital|doctor|appointment)\b|\bsend_incident_email\b/i.test(
             intakeText,
           );
@@ -1025,7 +1025,7 @@ You are coordinating this emergency from the start, not just answering questions
           ...(wantsAlerts ? (["list_alerts"] as const) : []),
           ...(wantsBooking ? (["book_hospital_appointment"] as const) : []),
           ...(wantsDispatch || sharedSosActive ? (["prepare_emergency_dispatch"] as const) : []),
-          ...(wantsEmail || sharedSosActive ? (["send_incident_email", "send_email"] as const) : []),
+          ...(wantsEmail || sharedSosActive ? (["send_incident_email", "draft_email"] as const) : []),
         ]);
         const filingAllowed = canUseFilingTools({
           flowLabel: flowState.flowLabel,
@@ -1072,7 +1072,7 @@ You are coordinating this emergency from the start, not just answering questions
             entries = entries.filter(([name]) => name !== "prepare_emergency_dispatch");
           }
           if (!wantsEmail && !sharedSosActive && !fullMode) {
-            entries = entries.filter(([name]) => name !== "send_incident_email" && name !== "send_email");
+            entries = entries.filter(([name]) => name !== "send_incident_email" && name !== "draft_email");
           }
           if (!isBrowserAgentConfigured() || (!wantsBooking && !fullMode)) {
             entries = entries.filter(([name]) => name !== "book_hospital_appointment");
@@ -2046,7 +2046,6 @@ You are coordinating this emergency from the start, not just answering questions
                       ? { lat: sharedCoords.latitude, lng: sharedCoords.longitude }
                       : null,
                   },
-                  { userId },
                 );
                 return {
                   success: result.success,
@@ -2055,28 +2054,38 @@ You are coordinating this emergency from the start, not just answering questions
                   to: result.previewTo || input.to,
                   subject: result.previewSubject || input.subject,
                   error: result.error,
-                  sent_from: result.sentFrom ?? null,
                 };
               },
             }),
-            send_email: tool({
+            draft_email: tool({
               description:
-                "Send a plain email FROM THE USER'S OWN connected Gmail (for example the hospital email you just drafted). Only call after the user confirmed the recipient address, subject and text. Never invent an address. If the account is not connected the result says so; tell the user to connect Gmail in Profile.",
+                "Show the user an editable EMAIL DRAFT card (To, Subject, Body) with a 'Send from my Gmail' button. This tool NEVER sends anything: the user reviews, edits and taps Send themselves. Use it when they ask you to write or send an email (for example to a nearby hospital). Pass `to` only if you were given a real address by the user or by a tool result; otherwise leave it null so the card asks the user to type it. Never guess or invent an email address.",
               inputSchema: z.object({
-                to: z.string().email().describe("Recipient email address the user confirmed"),
+                to: z
+                  .string()
+                  .email()
+                  .nullable()
+                  .describe("Recipient address ONLY if the user or a tool result supplied it; otherwise null"),
+                recipient_name: z
+                  .string()
+                  .max(200)
+                  .nullable()
+                  .describe("Who the email is for, e.g. the hospital name"),
                 subject: z.string().min(1).max(200),
-                body: z.string().min(1).max(8000).describe("Final email text, signed with the user's name"),
+                body: z
+                  .string()
+                  .min(1)
+                  .max(8000)
+                  .describe("Full email text, signed with the user's name; use [placeholders] for unknown details"),
               }),
-              execute: async ({ to, subject, body }) => {
-                const timestamp = new Date().toISOString();
-                if (!userId) {
-                  return { success: false, timestamp, to, subject, error: "sign_in_required" };
-                }
-                const sent = await sendViaConnectedGmail({ userId, to, subject, text: body });
-                return sent.success
-                  ? { success: true, timestamp, to, subject, messageId: sent.messageId, sent_from: sent.from }
-                  : { success: false, timestamp, to, subject, error: sent.error };
-              },
+              execute: async ({ to, recipient_name, subject, body }) => ({
+                draft: true as const,
+                sent: false as const,
+                to,
+                recipient_name,
+                subject,
+                body,
+              }),
             }),
             list_alerts: tool({
               description: "List current verified community safety alerts.",

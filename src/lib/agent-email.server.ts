@@ -5,7 +5,6 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getEmailConnection, sendViaConnectedGmail } from "@/lib/gmail-connection.server";
 
 function runtimeEnv(name: string): string {
   const fromProcess = (process.env[name] || "").trim();
@@ -34,8 +33,6 @@ export type IncidentEmailResult = {
   error?: string;
   previewSubject?: string;
   previewTo?: string;
-  /** The user's own mailbox when the message went out from their connected Gmail. */
-  sentFrom?: string;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -73,18 +70,6 @@ export function buildIncidentEmailHtml(input: IncidentEmailInput, timestamp: str
 </body></html>`;
 }
 
-export function buildIncidentEmailText(input: IncidentEmailInput, timestamp: string): string {
-  return [
-    `Allma Safety AI incident handoff (${timestamp})`,
-    `Type: ${input.incidentType}`,
-    `Status: ${input.status}`,
-    `Person: ${input.patientOrReporterName}`,
-    `Location: ${input.locationSummary}`,
-    `Triage: ${input.triageSummary}`,
-    `Actions: ${(input.actionsTaken || []).join("; ") || "None"}`,
-  ].join("\n");
-}
-
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -93,43 +78,11 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
-export async function sendIncidentEmail(
-  input: IncidentEmailInput,
-  opts?: { userId?: string | null },
-): Promise<IncidentEmailResult> {
+export async function sendIncidentEmail(input: IncidentEmailInput): Promise<IncidentEmailResult> {
   const timestamp = new Date().toISOString();
   const to = input.to.trim();
   if (!EMAIL_RE.test(to)) {
     return { success: false, messageId: null, timestamp, error: "invalid_recipient" };
-  }
-  if (opts?.userId) {
-    const connection = await getEmailConnection(opts.userId).catch(() => null);
-    if (connection) {
-      const text = buildIncidentEmailText(input, timestamp);
-      const sent = await sendViaConnectedGmail({
-        userId: opts.userId,
-        to,
-        subject: input.subject.slice(0, 200),
-        text,
-      });
-      return sent.success
-        ? {
-            success: true,
-            messageId: sent.messageId,
-            timestamp,
-            previewSubject: input.subject,
-            previewTo: to,
-            sentFrom: sent.from,
-          }
-        : {
-            success: false,
-            messageId: null,
-            timestamp,
-            error: sent.error,
-            previewSubject: input.subject,
-            previewTo: to,
-          };
-    }
   }
   const apiKey = runtimeEnv("RESEND_API_KEY");
   if (!apiKey) {
@@ -146,7 +99,15 @@ export async function sendIncidentEmail(
   const from =
     runtimeEnv("RESEND_FROM_EMAIL") || "Allma Safety AI <alerts@allmasafetyai.online>";
   const html = buildIncidentEmailHtml(input, timestamp);
-  const text = buildIncidentEmailText(input, timestamp);
+  const text = [
+    `Allma Safety AI incident handoff (${timestamp})`,
+    `Type: ${input.incidentType}`,
+    `Status: ${input.status}`,
+    `Person: ${input.patientOrReporterName}`,
+    `Location: ${input.locationSummary}`,
+    `Triage: ${input.triageSummary}`,
+    `Actions: ${(input.actionsTaken || []).join("; ") || "None"}`,
+  ].join("\n");
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

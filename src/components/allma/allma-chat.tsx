@@ -7,6 +7,7 @@ import {
   EmailSentCard,
   EmergencyDispatchCard,
 } from "@/components/allma/agent-tool-cards";
+import { EmailDraftCard, type EmailDraft } from "@/components/allma/email-draft-card";
 import { formatTravelLabel } from "@/lib/facility-etas";
 import { dispatchGuideToPlace } from "@/lib/guide-to-place";
 import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
@@ -549,6 +550,8 @@ type BookingLiveProgress = {
   hospital?: string;
 };
 const BookingLiveProgressContext = createContext<BookingLiveProgress | null>(null);
+
+const EmailSentContext = createContext<(text: string) => void>(() => undefined);
 const SosActivityContext = createContext<{
   threadId: string | null;
   activityId: string | null;
@@ -1095,6 +1098,7 @@ function ToolCard({
   const name = part.type.replace(/^tool-/, "");
   const hasPlaces = useContext(HasPlacesContext);
   const bookingLive = useContext(BookingLiveProgressContext);
+  const onEmailSent = useContext(EmailSentContext);
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
 
@@ -1120,10 +1124,10 @@ function ToolCard({
       label: "Incident email",
       busy: "Sending handoff email…",
     },
-    send_email: {
+    draft_email: {
       icon: FileText,
-      label: "Email from your account",
-      busy: "Sending from your Gmail…",
+      label: "Email draft",
+      busy: "Writing your email draft…",
     },
     book_hospital_appointment: {
       icon: MapPin,
@@ -1177,7 +1181,7 @@ function ToolCard({
       name === "create_report" ||
       name === "prepare_emergency_dispatch" ||
       name === "send_incident_email" ||
-      name === "send_email"
+      name === "draft_email"
     ) {
       return null;
     }
@@ -1472,8 +1476,12 @@ function ToolCard({
     );
   }
 
-  if ((name === "send_incident_email" || name === "send_email") && output) {
+  if (name === "send_incident_email" && output) {
     return <EmailSentCard output={output as Record<string, unknown>} />;
+  }
+
+  if (name === "draft_email" && output) {
+    return <EmailDraftCard draft={output as EmailDraft} onSent={onEmailSent} />;
   }
 
   if (name === "prepare_emergency_dispatch" && output) {
@@ -2253,6 +2261,31 @@ export function AllmaChat({
   // understand the emergency before anyone types. Posted once per SOS,
   // only for rooms started in the last 10 minutes, and marked with a
   // data-sos-brief part so reloads never post it twice.
+  const postEmailSentNote = useCallback(
+    (text: string) => {
+      const id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `email-sent-${Date.now()}`;
+      const parts = [{ type: "text", text }] as UIMessage["parts"];
+      setMessages((current) => [
+        ...current,
+        {
+          id,
+          role: "assistant" as const,
+          parts,
+          createdAt: new Date().toISOString(),
+        } as UIMessage,
+      ]);
+      if (threadId && user?.id) {
+        void persistConversationMessages(threadId, [
+          { id, role: "assistant", parts, authorId: user.id },
+        ]);
+      }
+    },
+    [setMessages, threadId, user?.id],
+  );
+
   const briefPostedForRef = useRef<string | null>(null);
   useEffect(() => {
     if (!sosIsActive || !sosRoom || !threadId || !user?.id) return;
@@ -3728,6 +3761,7 @@ export function AllmaChat({
                     })()}
                     <IncidentContext.Provider value={message.role === "assistant" ? incidentForReply(messages, msgIndex) : null}>
                     <BookingLiveProgressContext.Provider value={bookingLiveProgress}>
+                    <EmailSentContext.Provider value={postEmailSentNote}>
                     <HasPlacesContext.Provider value={message.role === "assistant" && messageHasPlaces(message.parts as never)}>
                     <EmergencyShownContext.Provider value={message.role === "assistant" && Boolean(emergencyType)}>
                     {(() => {
@@ -3910,6 +3944,7 @@ export function AllmaChat({
                     })()}
                     </EmergencyShownContext.Provider>
                     </HasPlacesContext.Provider>
+                    </EmailSentContext.Provider>
                     </BookingLiveProgressContext.Provider>
                     </IncidentContext.Provider>
                   </MessageContent>

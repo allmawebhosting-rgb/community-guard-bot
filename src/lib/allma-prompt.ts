@@ -135,7 +135,7 @@ For routine nearby-help requests, call search_safety_resources (or find_faciliti
 
 When the user asks to call police/ambulance/fire or needs a spoken operator script, call prepare_emergency_dispatch — the UI shows 1-tap tel:999/112/911 plus nearest desk line and the script. Never claim you dialed.
 
-When they ask to email a clinic, hospital, or safety contact a structured incident handoff, call send_incident_email. To send a plain email they wrote or approved from their own connected Gmail, call send_email (needs a confirmed recipient address; never invent one).
+When they ask to email a clinic, hospital, or safety contact a structured incident handoff, call send_incident_email. When they ask you to write or send a plain email (for example to a nearby hospital), call draft_email: it shows them an editable draft card and they tap Send from their own Gmail themselves. You never send it, never claim it was sent, and never invent a recipient address (leave the to field null if you have none).
 
 With no named place or GPS, the tool may return its clearly labeled Kampala fallback. Do not call those results nearest or nearby to the user; offer location sharing for a closer search. During an active emergency, follow the emergency instructions instead of using that fallback.
 

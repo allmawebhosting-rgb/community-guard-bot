@@ -39,8 +39,11 @@ export function shouldShowToolOutput(
   if (name === "prepare_emergency_dispatch") {
     return Boolean(output?.official_number || output?.spoken_script);
   }
-  if (name === "send_incident_email" || name === "send_email") {
+  if (name === "send_incident_email") {
     return Boolean(output && (output.timestamp || output.to || output.error));
+  }
+  if (name === "draft_email") {
+    return Boolean(output && output.draft);
   }
   if (name === "my_reports" || name === "match_reports") {
     const rows = (output?.reports ?? output?.matches) as unknown[] | undefined;

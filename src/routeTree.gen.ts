@@ -75,6 +75,8 @@ import { Route as ApiTelecomInfobipSelftestRouteImport } from './routes/api/tele
 import { Route as ApiTelecomVoiceScriptRouteImport } from './routes/api/telecom/voice-script'
 import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
 import { Route as ApiEmailGoogleCallbackRouteImport } from './routes/api/email/google/callback'
+import { Route as ApiEmailGoogleDisconnectRouteImport } from './routes/api/email/google/disconnect'
+import { Route as ApiEmailGoogleStartRouteImport } from './routes/api/email/google/start'
 import { Route as ApiBrowserLlmV1ChatCompletionsRouteImport } from './routes/api/browser-llm/v1/chat/completions'
 
 const IndexRoute = IndexRouteImport.update({
@@ -430,6 +432,17 @@ const ApiEmailGoogleCallbackRoute = ApiEmailGoogleCallbackRouteImport.update({
   path: '/api/email/google/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEmailGoogleDisconnectRoute =
+  ApiEmailGoogleDisconnectRouteImport.update({
+    id: '/api/email/google/disconnect',
+    path: '/api/email/google/disconnect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiEmailGoogleStartRoute = ApiEmailGoogleStartRouteImport.update({
+  id: '/api/email/google/start',
+  path: '/api/email/google/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBrowserLlmV1ChatCompletionsRoute =
   ApiBrowserLlmV1ChatCompletionsRouteImport.update({
     id: '/api/browser-llm/v1/chat/completions',
@@ -503,6 +516,8 @@ export interface FileRoutesByFullPath {
   '/police/': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
   '/api/email/google/callback': typeof ApiEmailGoogleCallbackRoute
+  '/api/email/google/disconnect': typeof ApiEmailGoogleDisconnectRoute
+  '/api/email/google/start': typeof ApiEmailGoogleStartRoute
   '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRoutesByTo {
@@ -569,6 +584,8 @@ export interface FileRoutesByTo {
   '/police': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
   '/api/email/google/callback': typeof ApiEmailGoogleCallbackRoute
+  '/api/email/google/disconnect': typeof ApiEmailGoogleDisconnectRoute
+  '/api/email/google/start': typeof ApiEmailGoogleStartRoute
   '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRoutesById {
@@ -639,6 +656,8 @@ export interface FileRoutesById {
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
   '/_authenticated/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
   '/api/email/google/callback': typeof ApiEmailGoogleCallbackRoute
+  '/api/email/google/disconnect': typeof ApiEmailGoogleDisconnectRoute
+  '/api/email/google/start': typeof ApiEmailGoogleStartRoute
   '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRouteTypes {
@@ -709,6 +728,8 @@ export interface FileRouteTypes {
     | '/police/'
     | '/police/cases/$caseId'
     | '/api/email/google/callback'
+    | '/api/email/google/disconnect'
+    | '/api/email/google/start'
     | '/api/browser-llm/v1/chat/completions'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -775,6 +796,8 @@ export interface FileRouteTypes {
     | '/police'
     | '/police/cases/$caseId'
     | '/api/email/google/callback'
+    | '/api/email/google/disconnect'
+    | '/api/email/google/start'
     | '/api/browser-llm/v1/chat/completions'
   id:
     | '__root__'
@@ -844,6 +867,8 @@ export interface FileRouteTypes {
     | '/_authenticated/police/'
     | '/_authenticated/police/cases/$caseId'
     | '/api/email/google/callback'
+    | '/api/email/google/disconnect'
+    | '/api/email/google/start'
     | '/api/browser-llm/v1/chat/completions'
   fileRoutesById: FileRoutesById
 }
@@ -885,6 +910,8 @@ export interface RootRouteChildren {
   ApiTelecomInfobipSelftestRoute: typeof ApiTelecomInfobipSelftestRoute
   ApiTelecomVoiceScriptRoute: typeof ApiTelecomVoiceScriptRoute
   ApiEmailGoogleCallbackRoute: typeof ApiEmailGoogleCallbackRoute
+  ApiEmailGoogleDisconnectRoute: typeof ApiEmailGoogleDisconnectRoute
+  ApiEmailGoogleStartRoute: typeof ApiEmailGoogleStartRoute
   ApiBrowserLlmV1ChatCompletionsRoute: typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 
@@ -1352,6 +1379,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEmailGoogleCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/email/google/disconnect': {
+      id: '/api/email/google/disconnect'
+      path: '/api/email/google/disconnect'
+      fullPath: '/api/email/google/disconnect'
+      preLoaderRoute: typeof ApiEmailGoogleDisconnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/email/google/start': {
+      id: '/api/email/google/start'
+      path: '/api/email/google/start'
+      fullPath: '/api/email/google/start'
+      preLoaderRoute: typeof ApiEmailGoogleStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/browser-llm/v1/chat/completions': {
       id: '/api/browser-llm/v1/chat/completions'
       path: '/api/browser-llm/v1/chat/completions'
@@ -1485,6 +1526,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTelecomInfobipSelftestRoute: ApiTelecomInfobipSelftestRoute,
   ApiTelecomVoiceScriptRoute: ApiTelecomVoiceScriptRoute,
   ApiEmailGoogleCallbackRoute: ApiEmailGoogleCallbackRoute,
+  ApiEmailGoogleDisconnectRoute: ApiEmailGoogleDisconnectRoute,
+  ApiEmailGoogleStartRoute: ApiEmailGoogleStartRoute,
   ApiBrowserLlmV1ChatCompletionsRoute: ApiBrowserLlmV1ChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport
