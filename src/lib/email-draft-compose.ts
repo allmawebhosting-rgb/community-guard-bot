@@ -135,7 +135,7 @@ export function composeEmailDraft(
   input: { askText: string; to?: string | null; recipientName?: string | null },
 ): EmailDraftOutput {
   const to = input.to ?? emailsIn(input.askText)[0] ?? null;
-  const recipient = input.recipientName?.trim() || null;
+  const recipient = specificRecipientName(input.recipientName);
   const hospital =
     isHospitalEmailDraftAsk(input.askText) ||
     /\b(hospital|clinic|health cent(er|re)|doctor|dispensary)\b/i.test(input.askText) ||
@@ -185,6 +185,15 @@ export function composeEmailDraft(
     body,
     placeholders: findPlaceholders(`${subject}\n${body}`),
   };
+}
+
+/** "nearby hospital" is not a name; only a named place or person counts. */
+export function specificRecipientName(value: string | null | undefined): string | null {
+  const name = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!name || name.length > 120) return null;
+  if (/^(a|an|the|any|some)?\s*(nearby|nearest|closest|local|available|near me|good)\b/i.test(name)) return null;
+  if (/^(a |an |the )?(hospital|clinic|doctor|health cent(er|re)|dispensary|pharmacy)s?( or (hospital|clinic)s?)?$/i.test(name)) return null;
+  return name;
 }
 
 function replacementFor(inner: string, ctx: EmailSenderContext, recipientName: string | null): string | null {
@@ -242,7 +251,7 @@ export function finalizeModelDraft(
   ctx: EmailSenderContext,
   input: { askText: string; to: string | null },
 ): EmailDraftOutput {
-  const recipientName = model.recipient_name?.trim() || null;
+  const recipientName = specificRecipientName(model.recipient_name);
   const fallback = composeEmailDraft(ctx, { askText: input.askText, to: input.to, recipientName });
 
   let subject = fillKnown(model.subject ?? "", ctx, recipientName).replace(/\s+/g, " ").trim();

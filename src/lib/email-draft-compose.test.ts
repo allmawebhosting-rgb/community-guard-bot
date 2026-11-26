@@ -4,6 +4,7 @@ import {
   composeEmailDraft,
   emailFactsBlock,
   finalizeModelDraft,
+  specificRecipientName,
 } from "./email-draft-compose";
 import { findPlaceholders, hasPlaceholders, splitPlaceholders } from "./email-placeholders";
 
@@ -164,5 +165,15 @@ describe("finalizeModelDraft", () => {
       { askText: "Write an email to a nearby hospital", to: null },
     );
     expect(draft.to).toBeNull();
+  });
+});
+
+describe("specificRecipientName", () => {
+  it("drops generic descriptions and keeps real names", () => {
+    expect(specificRecipientName("nearby hospital")).toBeNull();
+    expect(specificRecipientName("Nearby Hospital")).toBeNull();
+    expect(specificRecipientName("the nearest clinic")).toBeNull();
+    expect(specificRecipientName("hospital")).toBeNull();
+    expect(specificRecipientName("Jinja Main Hospital")).toBe("Jinja Main Hospital");
   });
 });

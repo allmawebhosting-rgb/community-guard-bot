@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   emailDraftNote,
   emailsIn,
+  isEmailFollowUp,
   isEmailWriteAsk,
   trustedRecipient,
 } from "./email-draft-intent";
@@ -13,6 +14,9 @@ describe("isEmailWriteAsk", () => {
     "Can you draft an email for me?",
     "compose a mail to the clinic",
     "send an email to my brother",
+    "Send them an email",
+    "Can write an email for me to a nearby hospital",
+    "Draft an email and send",
     "email the hospital about my injury",
   ])("treats %s as an email write ask", (text) => {
     expect(isEmailWriteAsk(text)).toBe(true);
@@ -50,4 +54,14 @@ describe("helpers", () => {
     expect(emailDraftNote(true)).toContain("Send from my Gmail");
     expect(emailDraftNote(false)).toContain("Connect Gmail");
   });
+});
+
+describe("isEmailFollowUp", () => {
+  it.each(["Send to available hospital or clinics", "Ok again", "send them an email", "write it again"])(
+    "keeps %s on the draft",
+    (text) => expect(isEmailFollowUp(text)).toBe(true),
+  );
+  it.each(["Call instead", "Jinja Main Hospital", "Yes"])("does not hijack %s", (text) =>
+    expect(isEmailFollowUp(text)).toBe(false),
+  );
 });

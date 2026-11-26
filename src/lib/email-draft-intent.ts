@@ -7,7 +7,7 @@ function isExplicitEmailWriteAsk(text: string) {
   return (
     /\b(write|draft|compose)\b[^.!?\n]{0,40}\b(e-?mail|mail)\b/i.test(text) ||
     /\b(prepare|create|type)\s+(an?\s+|the\s+|my\s+)?e-?mail\b/i.test(text) ||
-    /\bsend\s+(an?\s+|the\s+|my\s+)?e-?mail\b/i.test(text)
+    /\bsend\s+(?:(?:them|him|her|it|us|me)\s+)?(an?\s+|the\s+|my\s+)?e-?mail\b/i.test(text)
   );
 }
 
@@ -21,6 +21,14 @@ export function isEmailWriteAsk(text: string) {
   if (!t) return false;
   if (isExplicitEmailWriteAsk(t)) return true;
   return isHospitalEmailDraftAsk(t) && !isBookingEmailAsk(t);
+}
+
+/**
+ * A short reply right after an email draft ("send to the hospital", "again", "send them an email")
+ * keeps the conversation on the draft card instead of switching to a place search or booking.
+ */
+export function isEmailFollowUp(text: string) {
+  return /\b(e-?mail|mail|draft|send|write|compose|again|redo|retry|another|resend)\b/i.test(text);
 }
 
 export function emailsIn(text: string): string[] {

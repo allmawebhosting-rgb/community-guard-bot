@@ -33,7 +33,7 @@ import {
 } from "@/lib/chat-intent";
 import { assistantHasVisibleText } from "@/lib/chat-progress";
 import { getEmailConnection } from "@/lib/gmail-connection.server";
-import { emailDraftNote, isEmailWriteAsk, trustedRecipient } from "@/lib/email-draft-intent";
+import { emailDraftNote, isEmailFollowUp, isEmailWriteAsk, trustedRecipient } from "@/lib/email-draft-intent";
 import {
   buildEmailSenderContext,
   composeEmailDraft,
@@ -613,7 +613,13 @@ You are coordinating this emergency from the start, not just answering questions
 
         // "Write an email…" is answered with the editable draft card. The Gmail connection is
         // checked here on the server, never trusted from the client.
-        const emailCardMode = !sharedSosActive && Boolean(userId) && isEmailWriteAsk(intakeText);
+        const recentDraftCard = uiMessages
+          .slice(-9, -1)
+          .some((m) => m.role === "assistant" && JSON.stringify(m.parts ?? []).includes("draft_email"));
+        const emailCardMode =
+          !sharedSosActive &&
+          Boolean(userId) &&
+          (isEmailWriteAsk(intakeText) || (recentDraftCard && isEmailFollowUp(intakeText)));
         const [gmailConnection, emailProfile] =
           emailCardMode && userId
             ? await Promise.all([
@@ -2443,6 +2449,11 @@ You are coordinating this emergency from the start, not just answering questions
             let draftCardShown = false;
             const emptyReplyGuard = new TransformStream<UIMessageChunk, UIMessageChunk>({
               transform(chunk, controller) {
+                // The card is the whole answer; the model's own prose about it (it sometimes describes
+                // the email instead of showing it) is replaced by the short note on flush.
+                if (emailCardMode && (chunk.type === "text-start" || chunk.type === "text-delta" || chunk.type === "text-end")) {
+                  return;
+                }
                 if (chunk.type === "tool-input-available" && chunk.toolName === "draft_email") {
                   draftCallIds.add(chunk.toolCallId);
                 }
