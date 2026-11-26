@@ -380,14 +380,8 @@ export function InChatSos({
     // Pre-create the thread while the countdown runs so activation rarely fails
     // on the first tap (missing thread was a common double-press cause).
     if (!effectiveThreadIdRef.current) {
-      void ensureEmergencyThread().catch(() => {
-        if (timer.current) {
-          window.clearInterval(timer.current);
-          timer.current = null;
-        }
-        showThreadCreationError();
-        setPhase("failed");
-        setActivationError("Could not create an emergency chat. Call 999 or 112 now.");
+      void ensureEmergencyThread().catch((error) => {
+        console.warn("SOS thread pre-creation failed; activation will retry", error);
       });
     }
     if (options?.immediate || immediateActivation) {
@@ -456,7 +450,13 @@ export function InChatSos({
 
     let activeThreadId: string;
     try {
-      activeThreadId = await ensureEmergencyThread();
+      try {
+        activeThreadId = await ensureEmergencyThread();
+      } catch (firstError) {
+        console.warn("SOS thread was not ready, retrying once", firstError);
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+        activeThreadId = await ensureEmergencyThread();
+      }
     } catch (error) {
       console.error("Could not create an emergency thread for SOS", error);
       activatingRef.current = false;

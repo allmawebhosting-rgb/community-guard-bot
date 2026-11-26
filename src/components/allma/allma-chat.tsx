@@ -1190,7 +1190,7 @@ function ToolCard({
   }
 
   if (name === "emergency_contact") {
-    const hold = sequence.waitForSos ? { sosActive: sosActivity.active, maxWaitMs: 12_000 } : undefined;
+    const hold = sequence.waitForSos ? { sosActive: sosActivity.active, maxWaitMs: 20_000 } : undefined;
     if (running) return <EmergencyContactCard run={null} />;
     if (output?.failed) return <EmergencyContactCard run={null} searching={false} />;
     if (output?.run_id) {
@@ -2760,7 +2760,9 @@ export function AllmaChat({
   const lastMsg = messages[messages.length - 1];
   // Only a reply that streamed in during this visit may start SOS on its own — never one loaded from history.
   const streamedAssistantIds = useRef(new Set<string>());
-  if (busy && lastMsg?.role === "assistant") streamedAssistantIds.current.add(lastMsg.id);
+  if (busy && (lastMsg?.role === "assistant" || lastMsg?.role === "user")) {
+    streamedAssistantIds.current.add(lastMsg.id);
+  }
   const timelineItems = useMemo<TimelineItem[]>(() => {
     const chatItems: TimelineItem[] = messages.map((message, msgIndex) => {
       const createdAt = (message as UIMessage & { createdAt?: string | Date }).createdAt;
@@ -3153,9 +3155,9 @@ export function AllmaChat({
           return;
         }
       } catch (persistError) {
+        // Saving history must never stop an SOS from starting.
         console.error("Could not persist conversation before SOS", persistError);
-        toast.error("Could not save this conversation for responders. Try again before SOS.");
-        throw persistError;
+        toast.message("SOS is starting. This chat history could not be saved for responders yet.");
       }
     };
 
@@ -3743,8 +3745,12 @@ export function AllmaChat({
                 const showCardStack = !safetyPlan && cardStackMessageIds.has(message.id);
                 const showAidCard =
                   aidCardMessageIds.has(message.id) && safetyPlan?.level !== "emergency";
+                const previousMessage = msgIndex > 0 ? messages[msgIndex - 1] : null;
                 const freshDispatch =
-                  Boolean(dispatchPlan) && streamedAssistantIds.current.has(message.id);
+                  Boolean(dispatchPlan) &&
+                  (streamedAssistantIds.current.has(message.id) ||
+                    (previousMessage?.role === "user" &&
+                      streamedAssistantIds.current.has(previousMessage.id)));
                 // Activate SOS lives in the message only before the room is live;
                 // the sticky dock owns the live card after that (no duplicates).
                 // Never stack SOS activate on top of a hospital booking reply.
@@ -3864,7 +3870,7 @@ export function AllmaChat({
                       const dispatchSos =
                         dispatchPlan && !sosIsActive ? (
                           <div key="plan-sos" className="my-2.5 w-full">
-                            <EmergencyActions type={dispatchPlan.sosType ?? "medical"} autoStart={freshDispatch} />
+                            <EmergencyActions type={dispatchPlan.sosType ?? "medical"} autoStart={freshDispatch && !busy} />
                           </div>
                         ) : null;
                       const renderedParts = message.parts.map((part, index) => {

@@ -358,3 +358,23 @@ it("does not autoStart when an SOS is already active or the card is not managed 
   await act(async () => {});
   expect(screen.queryByText(/Starting SOS in/)).toBeNull();
 });
+
+it("still activates SOS when the emergency thread is not ready on the first try", async () => {
+  const onEnsureThread = vi
+    .fn<() => Promise<string>>()
+    .mockRejectedValueOnce(new Error("network"))
+    .mockRejectedValueOnce(new Error("network"))
+    .mockResolvedValue("thread-ok");
+  render(
+    <InChatSos type="medical" lines={[{ number: "999" }]} threadId={null} onEnsureThread={onEnsureThread} autoStart />,
+  );
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1000);
+  });
+  vi.useRealTimers();
+  expect(await screen.findByText("SOS activated")).toBeTruthy();
+  expect(screen.queryByText("SOS activation failed")).toBeNull();
+});
