@@ -50,3 +50,25 @@ export const BOOKING_START_STEPS = [
   { label: "Reading your appointment request…", status: "completed" },
   { label: "Looking up the clinic now…", status: "running" },
 ] as const;
+
+export type BookingOutcomeInput = {
+  success?: boolean;
+  booked?: boolean;
+  status?: string;
+  preferred_time?: string | null;
+  clinic_phone?: string | null;
+  payment_required?: boolean;
+};
+
+/** The one plain-language line after a booking attempt, from what actually happened, never from model prose. */
+export function bookingOutcomeText(output: BookingOutcomeInput, clinic: string, requestedTime?: string): string {
+  const name = clinic.trim() || "the clinic";
+  const when = (output.preferred_time || requestedTime || "").trim();
+  if (output.booked) {
+    return `Your appointment request at ${name}${when ? ` for ${when}` : ""} went through. Check the confirmation above for the details.\n\n::suggest[Add to my reminders | Find clinics nearby]`;
+  }
+  const phone = output.clinic_phone?.trim();
+  const pay = output.payment_required ? " The clinic asks for payment first, so it was not completed." : "";
+  const call = phone ? ` You can call them on ${phone} to book by phone.` : "";
+  return `I could not confirm a booking at ${name}.${pay}${call} Nothing is reserved yet.\n\n::suggest[Try another clinic | Different time | Find clinics nearby]`;
+}

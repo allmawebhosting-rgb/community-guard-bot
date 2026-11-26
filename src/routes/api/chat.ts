@@ -41,7 +41,7 @@ import {
   finalizeModelDraft,
 } from "@/lib/email-draft-compose";
 import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSource } from "@/lib/facility-distance";
-import { BOOKING_START_STEPS, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
+import { BOOKING_START_STEPS, bookingOutcomeText, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
 import {
@@ -2621,6 +2621,8 @@ You are coordinating this emergency from the start, not just answering questions
             };
             const draftCallIds = new Set<string>();
             let draftCardShown = false;
+            const bookingCalls = new Map<string, { hospital: string; time: string }>();
+            let bookingOutcome: { text: string } | null = null;
             const emptyReplyGuard = new TransformStream<UIMessageChunk, UIMessageChunk>({
               transform(chunk, controller) {
                 if (emergencyCard) {
@@ -2629,6 +2631,24 @@ You are coordinating this emergency from the start, not just answering questions
                 // The card is the whole answer; the model's own prose about it (it sometimes describes
                 // the email instead of showing it) is replaced by the short note on flush.
                 if (emailCardMode && (chunk.type === "text-start" || chunk.type === "text-delta" || chunk.type === "text-end")) {
+                  return;
+                }
+                if (chunk.type === "tool-input-available" && chunk.toolName === "book_hospital_appointment") {
+                  const input = (chunk.input ?? {}) as { hospital_name?: string; preferred_time?: string };
+                  bookingCalls.set(chunk.toolCallId, {
+                    hospital: String(input.hospital_name ?? ""),
+                    time: String(input.preferred_time ?? ""),
+                  });
+                }
+                if (chunk.type === "tool-output-available" && bookingCalls.has(chunk.toolCallId)) {
+                  const call = bookingCalls.get(chunk.toolCallId)!;
+                  bookingOutcome = {
+                    text: bookingOutcomeText((chunk.output ?? {}) as Record<string, unknown>, call.hospital, call.time),
+                  };
+                }
+                // After a booking attempt the card plus one factual line is the answer; model prose
+                // here has contradicted the card and named the wrong clinic.
+                if (bookingCalls.size > 0 && (chunk.type === "text-start" || chunk.type === "text-delta" || chunk.type === "text-end")) {
                   return;
                 }
                 if (chunk.type === "tool-input-available" && chunk.toolName === "draft_email") {
@@ -2685,6 +2705,11 @@ You are coordinating this emergency from the start, not just answering questions
                     controller.enqueue({ type: "text-delta", id: noteId, delta: emailDraftNote(gmailConnected) });
                     controller.enqueue({ type: "text-end", id: noteId });
                   }
+                } else if (bookingOutcome) {
+                  const noteId = `allma-booking-note-${Date.now()}`;
+                  controller.enqueue({ type: "text-start", id: noteId });
+                  controller.enqueue({ type: "text-delta", id: noteId, delta: (bookingOutcome as { text: string }).text });
+                  controller.enqueue({ type: "text-end", id: noteId });
                 } else if (!streamedText) {
                   emitTakeover(controller);
                   const fallback = facilityCardsRendered

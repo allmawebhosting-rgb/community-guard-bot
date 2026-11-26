@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pickRequestedClinic } from "@/lib/clinic-match";
 import { createClient } from "@supabase/supabase-js";
 import { withTimeoutFallback } from "@/lib/async-timeout";
 import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
@@ -524,7 +525,10 @@ export async function lookupHospitalContact(hospitalName: string): Promise<{
         websiteUri?: string;
       }>;
     };
-    const place = body.places?.[0];
+    const place = pickRequestedClinic(
+      query,
+      (body.places ?? []).map((candidate) => ({ ...candidate, name: candidate.displayName?.text?.trim() ?? "" })),
+    );
     if (!place) return null;
     return {
       name: place.displayName?.text?.trim() || query,

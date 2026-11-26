@@ -201,8 +201,22 @@ function mergeSharedMessages(
   incoming: SharedChatMessageRow[],
 ): UIMessage[] {
   const byId = new Map(current.map((message) => [message.id, message]));
+  const plainText = (message: UIMessage) =>
+    message.parts
+      .map((part) => (part.type === "text" ? String((part as { text?: string }).text ?? "") : ""))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
   for (const row of incoming) {
     const message = toSharedUiMessage(row);
+    if (!byId.has(message.id) && message.role === "assistant") {
+      // The same reply saved under another id right after it streamed is one reply, not two.
+      const tail = [...byId.values()].reverse();
+      const lastUserAt = tail.findIndex((entry) => entry.role === "user");
+      const sinceUser = lastUserAt === -1 ? tail : tail.slice(0, lastUserAt);
+      const text = plainText(message);
+      if (text && sinceUser.some((entry) => entry.role === "assistant" && plainText(entry) === text)) continue;
+    }
     byId.set(message.id, message);
   }
   return [...byId.values()].sort((left, right) => {
@@ -2378,20 +2392,30 @@ export function AllmaChat({
       }
       return null;
     })();
+    const areaLine =
+      sosRoom.area && !/^live gps location$/i.test(sosRoom.area.trim())
+        ? `${sosRoom.area}${sosRoom.location_shared ? "" : " (exact location not shared yet)"}`
+        : sosRoom.location_shared
+          ? "Live GPS pin, updating on the map"
+          : "Exact location not shared yet";
     const brief = [
-      "Situation brief — I am coordinating this emergency.",
+      "**Situation brief** — I am coordinating this emergency.",
       "",
-      `• Person in need: ${sosRoom.sender_name}`,
-      `• Emergency: ${typeLabel}`,
-      situationFromChat ? `• What they reported: ${situationFromChat}` : null,
-      `• Area: ${sosRoom.area}${sosRoom.location_shared ? "" : " (exact location not shared yet)"}`,
+      `- Person in need: ${sosRoom.sender_name}`,
+      `- Emergency: ${typeLabel}`,
+      situationFromChat ? `- What they reported: ${situationFromChat}` : null,
+      `- Location: ${areaLine}`,
       sosRoom.participants.length > 0
-        ? `• In this chat now: ${sosRoom.participants.map((person) => person.name).join(", ")}`
-        : "• The Safety Network is being called now.",
+        ? `- In this chat now: ${sosRoom.participants.map((person) => person.name).join(", ")}`
+        : "- The Safety Network is being called now.",
       "",
-      "Responders: stay in this chat. Ask me what happened if you need a quick brief, share your location if you are close, and say when you are on your way. If anyone is in immediate danger, call 999 or 112.",
+      "**Responders**",
+      "",
+      "- Stay in this chat. Ask me for a quick brief any time.",
+      "- Share your location if you are close, and say when you are on your way.",
+      "- If anyone is in immediate danger, call 999 or 112.",
     ]
-      .filter(Boolean)
+      .filter((line) => line !== null)
       .join("\n");
     const id =
       typeof crypto !== "undefined" && "randomUUID" in crypto
