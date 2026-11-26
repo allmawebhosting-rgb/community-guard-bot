@@ -18,6 +18,15 @@ export function normalizeInfobipBaseUrl(raw: string | null | undefined): string 
   return value.replace(/\/+$/, "");
 }
 
+/** Pasted keys often carry quotes, spaces or the "App " scheme; the header adds the scheme itself. */
+export function cleanInfobipApiKey(raw: string | null | undefined): string {
+  return (raw || "")
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .replace(/^(?:authorization\s*:\s*)?app\s+/i, "")
+    .trim();
+}
+
 export type InfobipConfig = {
   baseUrl: string;
   apiKey: string;
@@ -25,7 +34,7 @@ export type InfobipConfig = {
 };
 
 export function getInfobipConfig(): InfobipConfig | null {
-  const apiKey = runtimeEnv("INFOBIP_API_KEY");
+  const apiKey = cleanInfobipApiKey(runtimeEnv("INFOBIP_API_KEY"));
   const baseUrl = normalizeInfobipBaseUrl(runtimeEnv("INFOBIP_BASE_URL"));
   if (!apiKey) return null;
   const sender = runtimeEnv("INFOBIP_SENDER") || null;

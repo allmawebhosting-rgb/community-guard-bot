@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  cleanInfobipApiKey,
   dispatchInfobipSms,
   dispatchInfobipTtsCall,
   isInfobipConfigured,
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/api/telecom/infobip-selftest")({
           env: {
             INFOBIP_API_KEY: keyLen > 0,
             INFOBIP_API_KEY_len: keyLen,
+            INFOBIP_API_KEY_cleaned_len: cleanInfobipApiKey(runtimeEnv("INFOBIP_API_KEY")).length,
             INFOBIP_BASE_URL: Boolean(base),
             INFOBIP_BASE_URL_host: base ? new URL(normalizeInfobipBaseUrl(base)).host : null,
             INFOBIP_SENDER: senderLen > 0,

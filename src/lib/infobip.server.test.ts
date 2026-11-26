@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cleanInfobipApiKey,
   isOfficialEmergencyNumber,
   normalizeInfobipPhone,
 } from "@/lib/infobip.server";
@@ -27,5 +28,15 @@ describe("normalizeInfobipBaseUrl", () => {
   });
   it("keeps full URL and strips trailing slash", () => {
     expect(normBase("https://abc.api.infobip.com/")).toBe("https://abc.api.infobip.com");
+  });
+});
+
+describe("cleanInfobipApiKey", () => {
+  it("removes the App scheme, quotes and spaces that break the Authorization header", () => {
+    expect(cleanInfobipApiKey("App abc123")).toBe("abc123");
+    expect(cleanInfobipApiKey(' "app abc123" ')).toBe("abc123");
+    expect(cleanInfobipApiKey("Authorization: App abc123")).toBe("abc123");
+    expect(cleanInfobipApiKey("abc123")).toBe("abc123");
+    expect(cleanInfobipApiKey(undefined)).toBe("");
   });
 });
