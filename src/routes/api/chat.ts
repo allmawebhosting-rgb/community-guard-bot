@@ -41,6 +41,7 @@ import {
   finalizeModelDraft,
 } from "@/lib/email-draft-compose";
 import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSource } from "@/lib/facility-distance";
+import { deriveEmailSlots, nextEmailQuestion, pendingEmailAsk } from "@/lib/email-intake";
 import { clinicContactQuestion, deriveBookingSlots, nextBookingQuestion, resolveBookingDetails, type BookingTurn } from "@/lib/booking-intake";
 import { BOOKING_START_STEPS, bookingOutcomeText, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
@@ -749,11 +750,35 @@ You are coordinating this emergency from the start, not just answering questions
         const recentDraftCard = uiMessages
           .slice(-9, -1)
           .some((m) => m.role === "assistant" && JSON.stringify(m.parts ?? []).includes("draft_email"));
+        const lastAssistantBeforeEmail = [...uiMessages].reverse().find((m) => m.role === "assistant");
+        const emailIntakeActive =
+          !sharedSosActive &&
+          !emergencyPlan &&
+          Boolean(userId) &&
+          pendingEmailAsk(lastAssistantBeforeEmail ? textOf(lastAssistantBeforeEmail) : "") !== null &&
+          !/^(cancel|never ?mind|stop)\b/i.test(intakeText.trim());
         const emailCardMode =
           !sharedSosActive &&
           !emergencyPlan &&
           Boolean(userId) &&
-          (isEmailWriteAsk(intakeText) || (recentDraftCard && isEmailFollowUp(intakeText)));
+          (isEmailWriteAsk(intakeText) || emailIntakeActive || (recentDraftCard && isEmailFollowUp(intakeText)));
+        const emailSlots = emailCardMode
+          ? deriveEmailSlots(
+              uiMessages
+                .filter((m) => m.role === "user" || m.role === "assistant")
+                .map((m) => ({ role: m.role as "user" | "assistant", text: textOf(m) })),
+              uiMessages.some(
+                (m) =>
+                  m.role === "assistant" &&
+                  /find_facilities|search_safety_resources/.test(JSON.stringify(m.parts ?? [])),
+              ),
+            )
+          : null;
+        const emailStepAsk = emailSlots ? nextEmailQuestion(emailSlots) : null;
+        const emailAskText = emailSlots?.started ? emailSlots.askText : intakeText;
+        if (emailCardMode && emailStepAsk) {
+          return replyWithFixedText(emailStepAsk, "allma-email-step");
+        }
         const [gmailConnection, emailProfile] =
           emailCardMode && userId
             ? await Promise.all([
@@ -2389,8 +2414,8 @@ You are coordinating this emergency from the start, not just answering questions
               }),
               execute: async ({ to, recipient_name, subject, body }) =>
                 finalizeModelDraft({ recipient_name, subject, body }, emailContext, {
-                  askText: intakeText,
-                  to: trustedRecipient(to, { latest: intakeText, conversation: userConversationText }),
+                  askText: emailAskText,
+                  to: trustedRecipient(to, { latest: emailAskText, conversation: userConversationText }),
                 }),
             }),
             list_alerts: tool({
@@ -2631,8 +2656,8 @@ You are coordinating this emergency from the start, not just answering questions
               if (emergencyCard) for (const chunk of emergencyCard.open()) writer.write(chunk);
               if (emailCardMode) {
                 const draft = composeEmailDraft(emailContext, {
-                      askText: intakeText,
-                      to: trustedRecipient(null, { latest: intakeText, conversation: userConversationText }),
+                      askText: emailAskText,
+                      to: trustedRecipient(null, { latest: emailAskText, conversation: userConversationText }),
                     });
                 writer.write({ type: "tool-input-available", toolCallId: id, toolName: "draft_email", input: draft });
                 writer.write({ type: "tool-output-available", toolCallId: id, output: draft });
@@ -2788,8 +2813,8 @@ You are coordinating this emergency from the start, not just answering questions
                   if (!draftCardShown) {
                     const callId = `allma-email-draft-${Date.now()}`;
                     const draft = composeEmailDraft(emailContext, {
-                      askText: intakeText,
-                      to: trustedRecipient(null, { latest: intakeText, conversation: userConversationText }),
+                      askText: emailAskText,
+                      to: trustedRecipient(null, { latest: emailAskText, conversation: userConversationText }),
                     });
                     controller.enqueue({
                       type: "tool-input-available",
