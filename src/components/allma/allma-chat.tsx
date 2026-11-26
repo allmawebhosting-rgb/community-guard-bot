@@ -165,7 +165,7 @@ import {
 import { buildSosParticipantStrip, participantConnectionLabel } from "@/lib/sos-participants";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { peekActiveChatThread, rememberActiveChatThread } from "@/lib/active-chat-thread";
-import { consumeSosChatStart, peekSosChatStart } from "@/lib/sos-chat-request";
+import { consumeSosChatStart, peekSosChatStart, SOS_CHAT_START_EVENT } from "@/lib/sos-chat-request";
 import { matchIncident } from "@/lib/allma-emergency-playbook";
 import {
   stashPendingChatMessages,
@@ -1749,6 +1749,7 @@ export function AllmaChat({
   const [composerRecipient, setComposerRecipient] = useState<ChatRecipient>("allma");
   const [headerSosRequest, setHeaderSosRequest] = useState(false);
   const headerSosConsumedRef = useRef(false);
+  const [headerSosNonce, setHeaderSosNonce] = useState(0);
   const [sosHeadsPanelOpen, setSosHeadsPanelOpen] = useState(false);
   const [activeSosActivity, setActiveSosActivity] = useState<{ id: string; active: boolean } | null>(null);
   const [voiceNoteUrls, setVoiceNoteUrls] = useState<Record<string, string>>({});
@@ -1969,6 +1970,24 @@ export function AllmaChat({
       : inlineCall?.activityId === sosActivityId
         ? true
         : Boolean(threadContext?.sos_activity_id === sosActivityId && threadContext.sos_active);
+  // Header SOS tapped while this chat is open: start right here, any number of times.
+  useEffect(() => {
+    const onStart = (event: Event) => {
+      const detail = (event as CustomEvent<{ handled?: boolean }>).detail;
+      if (detail) detail.handled = true;
+      consumeSosChatStart();
+      headerSosConsumedRef.current = true;
+      if (sosIsActive) {
+        toast.message("SOS is already active in this chat.");
+        return;
+      }
+      setHeaderSosRequest(true);
+      setHeaderSosNonce((n) => n + 1);
+    };
+    window.addEventListener(SOS_CHAT_START_EVENT, onStart);
+    return () => window.removeEventListener(SOS_CHAT_START_EVENT, onStart);
+  }, [sosIsActive]);
+
   const canManageSos = threadId ? threadContext?.is_owner === true : Boolean(user?.id);
   const sosRoomQuery = useQuery(sosRoomQueryOptions(sosActivityId));
   const sosRoom = sosRoomQuery.data ?? null;
@@ -3439,6 +3458,7 @@ export function AllmaChat({
         <div className="z-20 w-full shrink-0 border-b border-destructive/10 bg-background/95 px-3 py-1.5 sm:px-4">
           <div className="mx-auto w-full max-w-3xl lg:max-w-4xl">
             <InChatSos
+              key={headerSosNonce}
               type={stickySosType}
               lines={EMERGENCY_BLOCK_LINES[stickySosType]}
               threadId={threadId}

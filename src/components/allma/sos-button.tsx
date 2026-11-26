@@ -3,7 +3,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { markSosIntent } from "@/lib/sos-intent";
-import { markSosChatStart } from "@/lib/sos-chat-request";
+import { markSosChatStart, requestSosChatStartInPlace } from "@/lib/sos-chat-request";
 import { peekActiveChatThread } from "@/lib/active-chat-thread";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -28,6 +28,8 @@ export function SosButton({ inline = false }: { inline?: boolean }) {
         }
         markSosIntent();
         markSosChatStart();
+        // A chat already open on this page starts SOS right there: no new page, no new conversation.
+        if (requestSosChatStartInPlace()) return;
         const chatMatch = pathname.match(/^\/chat\/([^/?#]+)/);
         const threadId = chatMatch?.[1] || peekActiveChatThread();
         if (threadId) {

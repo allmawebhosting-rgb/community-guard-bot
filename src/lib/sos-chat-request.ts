@@ -29,3 +29,16 @@ export function consumeSosChatStart(now = Date.now()): boolean {
     return false;
   }
 }
+
+export const SOS_CHAT_START_EVENT = "allma:sos-chat-start";
+
+/**
+ * Ask a chat that is already open on this page to start SOS in place.
+ * Returns true when a mounted chat took the request, so the caller must not navigate away.
+ */
+export function requestSosChatStartInPlace(): boolean {
+  if (typeof window === "undefined") return false;
+  const detail = { handled: false };
+  window.dispatchEvent(new CustomEvent(SOS_CHAT_START_EVENT, { detail }));
+  return detail.handled;
+}
