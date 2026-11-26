@@ -2167,7 +2167,7 @@ export function AllmaChat({
             ...tip.parts,
             {
               type: "text",
-              text: "I could not finish that answer. Please try again, or tell me more about what you need — first aid, reporting, or nearby help.",
+              text: "That did not go through. Tap Retry, or choose what you need and I will take it from there.\n\n::suggest[Find help nearby | First aid | Report a crime | Emergency numbers]",
             },
           ],
         },

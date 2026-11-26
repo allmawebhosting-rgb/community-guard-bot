@@ -217,6 +217,9 @@ function dedupeAssistantParts(parts: UIMessage["parts"]): UIMessage["parts"] {
   return next;
 }
 
+const FACILITY_CARDS_NOTE =
+  "These are the closest places I found. Tap Call to phone one, or Guide me here for directions.\n\n::suggest[Find a hospital | Emergency numbers | Book an appointment]";
+
 function emptyReplyFallback(
   intakeText: string,
   sos?: {
@@ -691,6 +694,38 @@ You are coordinating this emergency from the start, not just answering questions
           return createUIMessageStreamResponse({ stream });
         };
 
+        // "Where is it?" right after place cards: answer from the cards already shown instead of
+        // letting the model improvise a new flow.
+        if (
+          !sharedSosActive &&
+          /^\s*(where (is|are|was) (it|that|this|they|there)|where'?s (it|that|this)|how far( is it| is that| away)?)\s*[?.!]*\s*$/i.test(
+            intakeText,
+          )
+        ) {
+          const shown = [...uiMessages]
+            .reverse()
+            .filter((m) => m.role === "assistant")
+            .flatMap((m) => m.parts as Array<{ type: string; output?: { facilities?: unknown } }>)
+            .find(
+              (part) =>
+                (part.type === "tool-find_facilities" || part.type === "tool-search_safety_resources") &&
+                Array.isArray(part.output?.facilities) &&
+                (part.output?.facilities as unknown[]).length > 0,
+            );
+          const first = (shown?.output?.facilities as
+            | Array<{ name?: string; address?: string; distance_km?: number | null; eta_label?: string }>
+            | undefined)?.[0];
+          if (first?.name) {
+            const where = [first.address, typeof first.distance_km === "number" ? `${first.distance_km} km away` : null]
+              .filter(Boolean)
+              .join(", ");
+            return replyWithFixedText(
+              `The closest one is ${first.name}${where ? `, ${where}` : ""}. Tap "Guide me here" on its card for directions.\n\n::suggest[Call them | Write them an email | Emergency numbers]`,
+              "allma-where",
+            );
+          }
+        }
+
         // Emergency: one deterministic, ordered reply. Calm line + first aid, then the single
         // location question, or (location known) SOS first and the hospitals right after.
         if (emergencyScript) {
@@ -928,6 +963,16 @@ You are coordinating this emergency from the start, not just answering questions
           { matches: /sos|immediate danger|being attacked|help me now/i, flow: "Safety check", opener: 'Are you safe right now? Options: "Yes, I\'m safe", "No, I\'m in danger", "I\'m not sure".' },
           { matches: /report (a )?(crime|theft|robbery|assault|burglar|fraud)|stolen|theft|robb|assault/i, flow: "Reporting", opener: 'What kind of incident is this? Options: "Theft", "Robbery", "Assault", "Something else". Do NOT call report_summary or create_report yet — only open the ::flow and ask this question.' },
         ];
+        // Sharing GPS right after a nearby-help ask continues that ask: search again with the fix.
+        const isLocationShare = /^\s*my (?:current )?location is:?\s*-?\d/i.test(intakeText);
+        const askText = isLocationShare
+          ? ([...uiMessages]
+              .filter((m) => m.role === "user")
+              .slice(0, -1)
+              .reverse()
+              .map((m) => textOf(m))
+              .find((text) => text.trim() && !/^\s*my (?:current )?location is:?\s*-?\d/i.test(text)) ?? intakeText)
+          : intakeText;
         const directFacilityTypes = [
           [/\bpolice(?: station| post)?\b/i, "police"],
           [/\b(?:hospital|clinic|pharmacy|pharmacist|doctor|health cent(?:re|er))\b/i, "hospital"],
@@ -935,14 +980,14 @@ You are coordinating this emergency from the start, not just answering questions
           [/\bfire (?:station|brigade|service)\b/i, "fire"],
           [/\b(?:shelter|safe house)\b/i, "shelter"],
         ]
-          .filter(([pattern]) => (pattern as RegExp).test(intakeText))
+          .filter(([pattern]) => (pattern as RegExp).test(askText))
           .map(([, type]) => type as "police" | "hospital" | "ambulance" | "fire" | "shelter");
         // Generic "find help / near me" requests skip any wizard and show police + hospitals at once.
-        if (directFacilityTypes.length === 0 && /find help|help nearby|nearby help|near me|nearest/i.test(intakeText)) {
+        if (directFacilityTypes.length === 0 && /find help|help nearby|nearby help|near me|nearest/i.test(askText)) {
           directFacilityTypes.push("police", "hospital");
         }
         const directService = directFacilityTypes[0] ??
-          (/\bhospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(intakeText)?.[0] ?? null);
+          (/\bhospital|clinic|pharmac|ambulance|police|fire station|fire brigade/i.exec(askText)?.[0] ?? null);
         // Soft flows (Safety check / Advice) must not block medical first-aid. Hard report
         // flows still suppress emergency classification so the wizard stays in control.
         const hardFlowBlocksEmergency = Boolean(flowState.flowLabel) && !softFlowActive;
@@ -1019,7 +1064,7 @@ You are coordinating this emergency from the start, not just answering questions
           isReporting,
           showDirectHelp: shouldShowHelp && !bookingFollowUp,
           sosActive: sharedSosActive,
-          intakeText,
+          intakeText: askText,
           bookingFollowUp,
         });
         const requireNearbyHelp = !emailCardMode && nearbyTypes.length > 0;
@@ -1639,7 +1684,9 @@ You are coordinating this emergency from the start, not just answering questions
               inputSchema: facilitySearchInputSchema,
               execute: async ({ facility_types, area, open_now_only }) => {
                 const requestedTypes = [...new Set(
-                  facility_types.length ? facility_types : ["police", "hospital"],
+                  requireNearbyHelp
+                    ? [...nearbyTypes, ...facility_types]
+                    : facility_types.length ? facility_types : ["police", "hospital"],
                 )];
                 const facility_type = requestedTypes[0];
                 reportProgress("finding");
@@ -2499,7 +2546,8 @@ You are coordinating this emergency from the start, not just answering questions
                 writer.write({ type: "text-end", id: noteId });
               } else {
                 writer.write({ type: "text-start", id });
-                writer.write({ type: "text-delta", id, delta: failText });
+                const useful = emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext());
+                writer.write({ type: "text-delta", id, delta: `${useful}` || failText });
                 writer.write({ type: "text-end", id });
               }
               if (emergencyCard) for (const chunk of await emergencyCard.settle()) writer.write(chunk as UIMessageChunk);
@@ -2639,7 +2687,9 @@ You are coordinating this emergency from the start, not just answering questions
                   }
                 } else if (!streamedText) {
                   emitTakeover(controller);
-                  const fallback = emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext());
+                  const fallback = facilityCardsRendered
+                    ? FACILITY_CARDS_NOTE
+                    : emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext());
                   const fallbackId = `allma-empty-fallback-${Date.now()}`;
                   controller.enqueue({ type: "text-start", id: fallbackId });
                   controller.enqueue({ type: "text-delta", id: fallbackId, delta: fallback });
@@ -2670,7 +2720,12 @@ You are coordinating this emergency from the start, not just answering questions
             if (!assistantHasVisibleText(parts as Array<{ type: string; text?: string }>)) {
               parts = [
                 ...parts,
-                { type: "text", text: emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext()) },
+                {
+                  type: "text",
+                  text: facilityCardsRendered
+                    ? FACILITY_CARDS_NOTE
+                    : emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext()),
+                },
               ] as typeof responseMessage.parts;
             }
             // Mirror the stream guard in the saved message: the takeover
