@@ -6,6 +6,7 @@ import {
   armEmergencyContact,
   cancelEmergencyContact,
 } from "@/lib/emergency-contact.functions";
+import { emergencyOrderSteps, type NetworkStageInfo, type OrderStepState } from "@/lib/sos-stage";
 import type { EmergencyActionView, EmergencyRunView } from "@/lib/emergency-contact.server";
 
 const TERMINAL = new Set(["completed", "cancelled", "no_facilities", "expired"]);
@@ -61,7 +62,12 @@ function StatusIcon({ status }: { status: string }) {
   return <span className="block size-2 rounded-full bg-muted-foreground/50" aria-hidden />;
 }
 
-export type EmergencyNetworkStatus = { sosActive: boolean; answered: string[] };
+export type EmergencyNetworkStatus = {
+  sosActive: boolean;
+  answered: string[];
+  stage?: NetworkStageInfo | null;
+  telecomMessage?: string | null;
+};
 
 /** One plain line per hospital: what actually happened with its call and email. */
 export function hospitalStatusLines(view: EmergencyRunView | null): Array<{ name: string; text: string }> {
@@ -81,6 +87,46 @@ export function hospitalStatusLines(view: EmergencyRunView | null): Array<{ name
     else if (email?.status === "failed") parts.push("email failed");
     return { name, text: parts.length ? parts.join(", ") : "waiting" };
   });
+}
+
+const STEP_DOT: Record<OrderStepState, string> = {
+  waiting: "bg-muted-foreground/40",
+  active: "bg-red-600 animate-pulse",
+  done: "bg-emerald-600",
+  skipped: "bg-muted-foreground/60",
+};
+
+/** The order SOS follows: Safety Network online, local calls to the network, then nearby help. */
+export function EmergencyOrderSteps({
+  network,
+  nearbyStarted,
+  nearbyFinished,
+}: {
+  network: EmergencyNetworkStatus;
+  nearbyStarted: boolean;
+  nearbyFinished: boolean;
+}) {
+  const steps = emergencyOrderSteps({
+    info: network.sosActive ? (network.stage ?? null) : null,
+    nearbyStarted,
+    nearbyFinished,
+    telecomMessage: network.telecomMessage,
+  });
+  return (
+    <ol aria-label="Emergency order" className="mt-3 space-y-1.5 rounded-xl bg-background/80 p-3 text-[13px]">
+      {steps.map((step, index) => (
+        <li key={step.key} className="flex items-start gap-2">
+          <span className={`mt-1.5 block size-2 shrink-0 rounded-full ${STEP_DOT[step.state]}`} aria-hidden />
+          <span>
+            <span className="font-semibold">
+              {index + 1}. {step.title}
+            </span>
+            <span className="block text-xs text-muted-foreground">{step.note}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 /** Live status: who was alerted, who answered, which hospital was contacted. */
@@ -128,7 +174,7 @@ export function EmergencyContactCard({
   run: EmergencyRunView | null;
   searching?: boolean;
   /** Hold the hospital countdown until SOS is active (or the wait runs out): one step at a time. */
-  waitForSos?: { sosActive: boolean; maxWaitMs: number };
+  waitForSos?: { sosActive: boolean; maxWaitMs: number; networkDone?: boolean };
   network?: EmergencyNetworkStatus | null;
 }) {
   const arm = useServerFn(armEmergencyContact);
@@ -155,15 +201,16 @@ export function EmergencyContactCard({
   const [released, setReleased] = useState(!waitForSos);
   const holdSosActive = waitForSos?.sosActive ?? false;
   const holdMs = waitForSos?.maxWaitMs ?? 0;
+  const holdNetworkDone = waitForSos?.networkDone;
   useEffect(() => {
     if (released || !waitForSos) return;
-    if (holdSosActive) {
+    if (holdNetworkDone === true || (holdNetworkDone === undefined && holdSosActive)) {
       setReleased(true);
       return;
     }
     const timer = setTimeout(() => setReleased(true), holdMs);
     return () => clearTimeout(timer);
-  }, [released, waitForSos, holdSosActive, holdMs]);
+  }, [released, waitForSos, holdSosActive, holdNetworkDone, holdMs]);
 
   const runId = view?.run_id ?? run?.run_id ?? null;
   useEffect(() => {
@@ -234,7 +281,7 @@ export function EmergencyContactCard({
   const active = counting || view.status === "running";
   const held = !released && !TERMINAL.has(view.status);
   const heading = held
-    ? "Next: contacting nearby hospitals"
+    ? "Nearby help comes last"
     : view.status === "no_facilities"
       ? "No hospital with a real phone number or email found nearby"
       : view.status === "cancelled"
@@ -293,7 +340,17 @@ export function EmergencyContactCard({
       ) : null}
 
       {held ? (
-        <p className="mt-3 text-xs text-muted-foreground">Starts right after your safety network is alerted.</p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          These are the nearest. They are called one by one after your Safety Network.
+        </p>
+      ) : null}
+
+      {network ? (
+        <EmergencyOrderSteps
+          network={network}
+          nearbyStarted={released && !held}
+          nearbyFinished={view.status === "completed"}
+        />
       ) : null}
 
       {network ? <EmergencyLiveStatus network={network} view={view} /> : null}

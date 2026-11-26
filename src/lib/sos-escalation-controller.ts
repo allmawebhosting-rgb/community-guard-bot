@@ -478,6 +478,11 @@ export function getSosEscalation(activityId: string, emergencyType: string) {
   return controller;
 }
 
+/** The running dialer for this SOS, if any. Never creates one. */
+export function peekSosEscalation(activityId: string) {
+  return controllers.get(activityId) ?? null;
+}
+
 export function endSosEscalation(activityId: string) {
   const controller = controllers.get(activityId);
   return controller?.end() ?? Promise.resolve();

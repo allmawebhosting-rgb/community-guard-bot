@@ -139,7 +139,7 @@ describe("EmergencyContactCard sequencing and live status", () => {
     );
     await act(async () => {});
     expect(arm).not.toHaveBeenCalled();
-    expect(screen.getByText("Next: contacting nearby hospitals")).toBeTruthy();
+    expect(screen.getByText("Nearby help comes last")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
 
     rerender(<EmergencyContactCard run={base()} waitForSos={{ sosActive: true, maxWaitMs: 12_000 }} />);

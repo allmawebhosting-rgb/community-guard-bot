@@ -37,6 +37,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChat } from "@ai-sdk/react";
+import { useNetworkStage } from "@/lib/use-network-stage";
+import { NETWORK_STAGE_MAX_WAIT_MS } from "@/lib/sos-stage";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { toast } from "sonner";
 import {
@@ -627,6 +629,8 @@ function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | nul
 /** Emergency dispatch order: the hospital card waits for SOS and shows the live status. */
 const EmergencySequenceContext = createContext<{
   waitForSos: boolean;
+  /** Undefined until SOS is active; then whether the two Safety Network steps are finished. */
+  networkDone?: boolean;
   network: EmergencyNetworkStatus | null;
 }>({ waitForSos: false, network: null });
 
@@ -1210,7 +1214,13 @@ function ToolCard({
   }
 
   if (name === "emergency_contact") {
-    const hold = sequence.waitForSos ? { sosActive: sosActivity.active, maxWaitMs: 20_000 } : undefined;
+    const hold = sequence.waitForSos
+      ? {
+          sosActive: sosActivity.active,
+          maxWaitMs: sequence.networkDone === undefined ? 20_000 : NETWORK_STAGE_MAX_WAIT_MS,
+          networkDone: sequence.networkDone,
+        }
+      : undefined;
     if (running) return <EmergencyContactCard run={null} />;
     if (output?.failed) return <EmergencyContactCard run={null} searching={false} />;
     if (output?.run_id) {
@@ -1987,6 +1997,7 @@ export function AllmaChat({
       : inlineCall?.activityId === sosActivityId
         ? true
         : Boolean(threadContext?.sos_activity_id === sosActivityId && threadContext.sos_active);
+  const networkProgress = useNetworkStage(sosIsActive ? sosActivityId : null);
   // Header SOS tapped while this chat is open: start right here, any number of times.
   useEffect(() => {
     const onStart = (event: Event) => {
@@ -3898,10 +3909,13 @@ export function AllmaChat({
                     <EmergencyShownContext.Provider value={message.role === "assistant" && Boolean(emergencyType)}>
                     <EmergencySequenceContext.Provider
                       value={{
-                        waitForSos: freshDispatch && !sosIsActive && canManageSos,
+                        waitForSos: freshDispatch && canManageSos,
+                        networkDone: sosIsActive ? (networkProgress.info?.release ?? false) : undefined,
                         network: dispatchPlan
                           ? {
                               sosActive: sosIsActive,
+                              stage: networkProgress.info,
+                              telecomMessage: networkProgress.telecomMessage,
                               answered: sosParticipants
                                 .filter((person) => person.role === "responder" || person.role === "contact")
                                 .map((person) => person.name),
