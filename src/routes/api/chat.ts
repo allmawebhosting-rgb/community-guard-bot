@@ -256,6 +256,9 @@ function emptyReplyFallback(
       return `${steps}${flags}${notDoctor}\n\n${incident.followUp}\n\n::suggest[${incident.followUpChips.join(" | ")}]`;
     }
   }
+  if (/\b(headache|fever|pain|ache|vomit|nausea|dizzy|cough|rash|diarrh|sore|hurts?|sick|unwell)\b/i.test(intakeText)) {
+    return "I am sorry you feel unwell. Rest somewhere safe, sip water, and do not take new medicine you are unsure about. Seek medical help right away if it is severe, sudden, or comes with chest pain, trouble breathing, confusion or fainting.\n\nHow long has this been going on, and how bad is it from 1 to 10?\n\n::suggest[Just started | A few days | It is severe]";
+  }
   if (/\breport\b|\bstolen\b|\btheft\b|\bcrime\b/i.test(intakeText)) {
     return 'I can guide you through reporting. What kind of incident is this?\n\n::suggest[Theft | Robbery | Assault | Something else]';
   }
@@ -1219,6 +1222,13 @@ You are coordinating this emergency from the start, not just answering questions
                 name !== "find_facilities" &&
                 name !== "search_safety_resources" &&
                 name !== "list_alerts",
+            );
+          }
+          // Health questions get advice first. Without an explicit place request the small model
+          // otherwise fires a facility search, stops after the tool, and writes no advice at all.
+          if (!requireNearbyHelp && intent?.flow !== "Find help" && !flowState.flowLabel && !sharedSosActive) {
+            entries = entries.filter(
+              ([name]) => name !== "find_facilities" && name !== "search_safety_resources",
             );
           }
           if (!wantsDispatch && !sharedSosActive) {
