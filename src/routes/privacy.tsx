@@ -64,6 +64,34 @@ const SECTIONS: InfoSection[] = [
     ),
   },
   {
+    id: "google-user-data",
+    title: "Google and Gmail data",
+    body: (
+      <>
+        <p>
+          If you choose to connect your Gmail account in Profile, Allma asks Google for one
+          permission only: <strong>send email on your behalf</strong> (the{" "}
+          <code>gmail.send</code> scope), plus your email address so we can show which account is
+          connected.
+        </p>
+        <ul>
+          <li><strong>What we do with it.</strong> We send an email from your address only after you review and confirm the recipient, subject and message in the chat. We use this access for nothing else.</li>
+          <li><strong>What we do not do.</strong> Allma cannot read, list, search or delete your emails, and we never see your Google password. We do not use Google user data for advertising, sell it, or share it with anyone.</li>
+          <li><strong>How it is stored.</strong> We keep an encrypted access token and your email address. The token is readable only by our server, never by other users.</li>
+          <li><strong>Your control.</strong> Tap Disconnect in Profile at any time. We revoke the token with Google and delete it. You can also remove Allma at{" "}
+            <a href="https://myaccount.google.com/permissions" rel="noreferrer noopener">myaccount.google.com/permissions</a>.</li>
+        </ul>
+        <p>
+          Allma&apos;s use and transfer of information received from Google APIs adheres to the{" "}
+          <a href="https://developers.google.com/terms/api-services-user-data-policy#limited-use" rel="noreferrer noopener">
+            Google API Services User Data Policy
+          </a>
+          , including the Limited Use requirements.
+        </p>
+      </>
+    ),
+  },
+  {
     id: "retention",
     title: "How long we keep it",
     body: (
