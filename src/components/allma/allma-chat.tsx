@@ -7,7 +7,7 @@ import {
   EmailSentCard,
   EmergencyDispatchCard,
 } from "@/components/allma/agent-tool-cards";
-import { formatEtaLabel } from "@/lib/facility-etas";
+import { formatTravelLabel } from "@/lib/facility-etas";
 import { dispatchGuideToPlace } from "@/lib/guide-to-place";
 import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
 import {
@@ -108,6 +108,14 @@ import {
   type ChatProgressStep,
   type ChatProgressStepId,
 } from "@/lib/chat-progress";
+import {
+  DISTANCE_UNAVAILABLE_LABEL,
+  applyFacilityDistances,
+  distanceFromLabel,
+  formatKm,
+  type DistanceSource,
+} from "@/lib/facility-distance";
+import { setSharedUserLocation, useSharedUserLocation } from "@/lib/user-location-store";
 import {
   BOOKING_START_STEPS,
   humanizeBookingStep,
@@ -817,7 +825,29 @@ function SosTimelineEvent({
 }
 
 function FacilityResults({ output }: { output: Record<string, unknown> }) {
-  const facilities = output.facilities as Array<Record<string, unknown>>;
+  const userLocation = useSharedUserLocation();
+  const serverSource: DistanceSource =
+    output.distance_source === "gps" ||
+    output.distance_source === "named" ||
+    output.distance_source === "fallback" ||
+    output.distance_source === "none"
+      ? output.distance_source
+      : "none";
+  // A place the user named keeps its own origin; otherwise real GPS (granted at any
+  // point in the session) re-measures and re-sorts the cards from the user's position.
+  const useLiveLocation = Boolean(userLocation) && serverSource !== "named";
+  const distanceSource: DistanceSource = useLiveLocation ? "gps" : serverSource;
+  const facilities = useMemo((): Array<Record<string, unknown>> => {
+    const rows = output.facilities as Array<Record<string, unknown>>;
+    if (useLiveLocation && userLocation) {
+      return applyFacilityDistances(rows as Array<Record<string, unknown> & { distance_km?: number | null }>, userLocation);
+    }
+    // Server rows already carry haversine distances from the search origin; without one, none.
+    return distanceSource === "none"
+      ? rows.map((row) => ({ ...row, distance_km: null }))
+      : rows;
+  }, [output.facilities, useLiveLocation, userLocation, distanceSource]);
+  const fromLabel = distanceFromLabel(distanceSource, String(output.resolved_area ?? ""));
   const t = String(output.emergency_type ?? facilities[0]?.facility_type ?? "");
   const [filter, setFilter] = useState<string>("All");
   const labelOf = (f: Record<string, unknown>) =>
@@ -854,14 +884,13 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
               const dest = hasCoords
                 ? `${lat},${lng}`
                 : encodeURIComponent(String(facility.name) + " " + String(facility.district ?? ""));
+              const rawKm = facility.distance_km;
               const km =
-                facility.distance_km != null && Number.isFinite(Number(facility.distance_km))
-                  ? Number(facility.distance_km)
+                rawKm != null && rawKm !== "" && Number.isFinite(Number(rawKm)) && Number(rawKm) > 0
+                  ? Number(rawKm)
                   : null;
-              const eta =
-                typeof facility.eta_label === "string" && facility.eta_label
-                  ? facility.eta_label
-                  : formatEtaLabel(km);
+              const distanceText = formatKm(km);
+              const eta = formatTravelLabel(km);
               const label =
                 (typeof facility.type_label === "string" && facility.type_label) ||
                 FACILITY_LABEL[String(facility.facility_type ?? "")] ||
@@ -872,7 +901,8 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
               const address = typeof facility.address === "string" && facility.address ? facility.address : null;
               const meta = [
                 eta || null,
-                index === 0 && filter === "All" ? "Nearest" : null,
+                distanceText ? null : DISTANCE_UNAVAILABLE_LABEL,
+                index === 0 && filter === "All" && distanceText ? "Nearest" : null,
                 facility.open_now === true ? "Open now" : null,
                 facility.is_24_7 === true ? "24/7" : null,
                 address,
@@ -907,9 +937,10 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
                           Open
                         </span>
                       ) : null}
-                      {km != null ? (
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                          {km} km
+                      {distanceText ? (
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold tracking-wide text-muted-foreground">
+                          {distanceText}
+                          {fromLabel ? ` ${fromLabel}` : ""}
                         </span>
                       ) : null}
                     </div>
@@ -1696,7 +1727,10 @@ export function AllmaChat({
     let watchId: number | null = null;
     const start = () => {
       watchId = navigator.geolocation.watchPosition(
-        (pos) => { coordsRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }; },
+        (pos) => {
+          coordsRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+          setSharedUserLocation(pos.coords.latitude, pos.coords.longitude);
+        },
         () => {},
         { enableHighAccuracy: true, maximumAge: 60000, timeout: 20000 },
       );
@@ -2927,6 +2961,7 @@ export function AllmaChat({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         coordsRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        setSharedUserLocation(pos.coords.latitude, pos.coords.longitude);
         send(
           `My current location is: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`,
         );

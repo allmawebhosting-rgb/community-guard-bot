@@ -12,6 +12,8 @@ describe("facility ETAs", () => {
     expect(formatEtaLabel(2)).toMatch(/min drive/);
     const rows = withFacilityEtas([{ name: "CPS", distance_km: 1.2, open_now: true }]);
     expect(rows[0].eta_label).toMatch(/1\.2 km/);
+    expect(formatEtaLabel(0.004)).not.toMatch(/0 km/);
+    expect(formatEtaLabel(null)).toBe("");
     expect(rows[0].drive_min).toBeGreaterThan(0);
   });
 });

@@ -12,6 +12,10 @@ import {
   isAppointmentBookingAsk,
   isBookingFollowUp,
   isBookingEmailAsk,
+  isHospitalEmailDraftAsk,
+  hospitalEmailDraftReply,
+  pickEmailHospital,
+  type EmailHospitalTarget,
   looksLikeClinicName,
   bookingClinicAckReply,
   bookingClarifyClinicReply,
@@ -28,6 +32,7 @@ import {
   sosSituationReply,
 } from "@/lib/chat-intent";
 import { assistantHasVisibleText } from "@/lib/chat-progress";
+import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSource } from "@/lib/facility-distance";
 import { BOOKING_START_STEPS, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
@@ -202,7 +207,9 @@ function emptyReplyFallback(
     askerName?: string | null;
     personActiveInChat?: boolean | null;
   } | null,
+  emailDraft?: { hospital: EmailHospitalTarget | null; area?: string | null } | null,
 ): string {
+  if (emailDraft) return hospitalEmailDraftReply(emailDraft);
   if (sos) {
     return sosSituationReply({
       personName: sos.personName,
@@ -757,12 +764,9 @@ You are coordinating this emergency from the start, not just answering questions
 
         // ---- Coordinates the user already shared (from "My current location is: lat, lng")
         const coordMatch = /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/.exec(intakeText);
-        const deviceLat = Number(body.coords?.latitude);
-        const deviceLng = Number(body.coords?.longitude);
-        const deviceCoords =
-          body.coords && Number.isFinite(deviceLat) && Number.isFinite(deviceLng) && Math.abs(deviceLat) <= 90 && Math.abs(deviceLng) <= 180
-            ? { latitude: deviceLat, longitude: deviceLng }
-            : null;
+        // Number(null) is 0 — a missing fix must never become (0, 0).
+        const devicePoint = validLatLng(body.coords?.latitude, body.coords?.longitude);
+        const deviceCoords = devicePoint ? { latitude: devicePoint.lat, longitude: devicePoint.lng } : null;
         const sharedCoords = coordMatch
           ? { latitude: Number(coordMatch[1]), longitude: Number(coordMatch[2]) }
           : deviceCoords;
@@ -908,7 +912,10 @@ You are coordinating this emergency from the start, not just answering questions
             ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities, do NOT open SOS / ::emergency, and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they ask to book by email and you have a clinic email from a prior phone_booking result or the user, call send_incident_email with incidentType=general, a clear appointment-request subject, and the triageSummary describing the visit time/reason — then confirm the email was queued only if success=true. After book_hospital_appointment: ONLY say the appointment was booked if booked=true / success=true. If status is phone_booking, say online booking was unavailable, share phone/email, and offer to email the clinic — never claim it was booked. Never invent a confirmation number. End with ::suggest[…] when you still need a choice.`
             : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
           : "";
-        const intentBlock = bookingBlock + directHelpBlock + (intent && continueGuidedFlow
+        const emailDraftBlock = isHospitalEmailDraftAsk(intakeText)
+          ? `\n\nHOSPITAL EMAIL DRAFT REQUEST: The user wants an email written to a hospital/clinic. Write the email itself in this reply: **To**, **Subject**, then a short body (who is writing, patient and problem, location, callback number) with [placeholders] for anything unknown. If a nearby hospital was found by find_facilities, address the email to it by name. Never invent an email address; if none is known, ask for it. Offer to send it with send_incident_email once you have a real recipient address, patient/reporter name and the problem. Do not reply with only a place list or a "tell me a town" line. For a life-threatening emergency, tell them to call 999 / 112 / 911 themselves — never dial for them.`
+          : "";
+        const intentBlock = emailDraftBlock + bookingBlock + directHelpBlock + (intent && continueGuidedFlow
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
                 ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
@@ -1071,6 +1078,13 @@ You are coordinating this emergency from the start, not just answering questions
           }
           return Object.fromEntries(entries) as T;
         };
+
+        const emailDraftAsk = !sharedSosActive && isHospitalEmailDraftAsk(intakeText);
+        let nearestHospitalForEmail: EmailHospitalTarget | null = null;
+        const emailDraftContext = () =>
+          emailDraftAsk
+            ? { hospital: nearestHospitalForEmail, area: nearestHospitalForEmail?.district ?? null }
+            : null;
 
         const sosFallbackContext = sharedSosActive
           ? {
@@ -1485,15 +1499,31 @@ You are coordinating this emergency from the start, not just answering questions
                   // Keep full list when the directory has no hours data.
                   return open.length ? open : rows;
                 };
+                // Distances are always re-measured from the search origin; with no origin there is none.
+                let distanceOrigin: { lat: number; lng: number } | null = null;
+                let distanceSource: DistanceSource = "none";
+                let distanceAreaLabel: string | null = null;
                 const finalizeFacilities = <
                   T extends {
                     distance_km?: number | null;
                     open_now?: boolean | null;
                     is_24_7?: boolean | null;
+                    latitude?: unknown;
+                    longitude?: unknown;
                   },
                 >(
                   rows: T[],
-                ) => withFacilityEtas(applyOpenFilter(rows));
+                ) => withFacilityEtas(applyOpenFilter(applyFacilityDistances(rows, distanceOrigin)));
+                const facilityOut = <O extends { facilities?: unknown }>(output: O) => {
+                  if (!nearestHospitalForEmail) {
+                    nearestHospitalForEmail = pickEmailHospital(output.facilities);
+                  }
+                  return facilityToolOutput({
+                    ...output,
+                    distance_source: distanceSource,
+                    distance_from: distanceFromLabel(distanceSource, distanceAreaLabel),
+                  });
+                };
                 const unconfirmed = {
                   ok: false,
                   location_unconfirmed: true,
@@ -1514,7 +1544,12 @@ You are coordinating this emergency from the start, not just answering questions
                 if (!origin && !sharedCoords && vagueArea) {
                   origin = { lat: 0.3152, lng: 32.5816, label: "Central Kampala (share your location for closer help)" };
                 }
-                if (!origin && sharedCoords) return facilityToolOutput(unconfirmed);
+                if (origin) {
+                  distanceOrigin = { lat: origin.lat, lng: origin.lng };
+                  distanceSource = picked.kind === "gps" ? "gps" : picked.kind === "named" ? "named" : "fallback";
+                  distanceAreaLabel = origin.label;
+                }
+                if (!origin && sharedCoords) return facilityOut(unconfirmed);
                 const fallbackCenter = origin ?? { lat: 0.3152, lng: 32.5816 };
                 const fallbackArea = origin?.label ?? "Kampala directory fallback (location not confirmed)";
                 const seededFacilityFallback = async (note: string) => {
@@ -1538,7 +1573,7 @@ You are coordinating this emergency from the start, not just answering questions
                       distance_km: Math.round(place.distance_m / 100) / 10,
                     })),
                   );
-                  return facilityToolOutput({
+                  return facilityOut({
                     ok: facilities.length > 0,
                     resolved_area: fallbackArea,
                     emergency_type: facility_type,
@@ -1600,7 +1635,7 @@ You are coordinating this emergency from the start, not just answering questions
                             };
                           }),
                         );
-                        return facilityToolOutput({
+                        return facilityOut({
                           ok: true,
                           resolved_area: safeArea,
                           emergency_type: facility_type,
@@ -1679,7 +1714,7 @@ You are coordinating this emergency from the start, not just answering questions
                           distance_km: Math.round(p.distance_m / 100) / 10,
                         })),
                       );
-                      return facilityToolOutput({
+                      return facilityOut({
                         ok: true,
                         resolved_area: origin.label,
                         emergency_type: facility_type,
@@ -1720,7 +1755,7 @@ You are coordinating this emergency from the start, not just answering questions
                           type_label: facilityKind(r.facility_type, r.name),
                         })),
                       );
-                      return facilityToolOutput({
+                      return facilityOut({
                         ok: true,
                         resolved_area: origin.label,
                         emergency_type: facility_type,
@@ -1771,15 +1806,31 @@ You are coordinating this emergency from the start, not just answering questions
                   const open = rows.filter((r) => r.open_now === true || r.is_24_7 === true);
                   return open.length ? open : rows;
                 };
+                // Distances are always re-measured from the search origin; with no origin there is none.
+                let distanceOrigin: { lat: number; lng: number } | null = null;
+                let distanceSource: DistanceSource = "none";
+                let distanceAreaLabel: string | null = null;
                 const finalizeFacilities = <
                   T extends {
                     distance_km?: number | null;
                     open_now?: boolean | null;
                     is_24_7?: boolean | null;
+                    latitude?: unknown;
+                    longitude?: unknown;
                   },
                 >(
                   rows: T[],
-                ) => withFacilityEtas(applyOpenFilter(rows));
+                ) => withFacilityEtas(applyOpenFilter(applyFacilityDistances(rows, distanceOrigin)));
+                const facilityOut = <O extends { facilities?: unknown }>(output: O) => {
+                  if (!nearestHospitalForEmail) {
+                    nearestHospitalForEmail = pickEmailHospital(output.facilities);
+                  }
+                  return facilityToolOutput({
+                    ...output,
+                    distance_source: distanceSource,
+                    distance_from: distanceFromLabel(distanceSource, distanceAreaLabel),
+                  });
+                };
                 const picked = chooseSearchOrigin({ area, userText: userConversationText, gps: sharedCoords });
                 const named = picked.kind === "named";
                 let origin: { lat: number; lng: number; label: string } | null =
@@ -1789,6 +1840,11 @@ You are coordinating this emergency from the start, not just answering questions
                 );
                 if (!origin && !sharedCoords && vagueArea) {
                   origin = { lat: 0.3152, lng: 32.5816, label: "Central Kampala (share your location for closer help)" };
+                }
+                if (origin) {
+                  distanceOrigin = { lat: origin.lat, lng: origin.lng };
+                  distanceSource = picked.kind === "gps" ? "gps" : picked.kind === "named" ? "named" : "fallback";
+                  distanceAreaLabel = origin.label;
                 }
                 const fallbackCenter = origin ?? { lat: 0.3152, lng: 32.5816 };
                 const fallbackArea = origin?.label ?? "Kampala directory fallback (location not confirmed)";
@@ -1813,7 +1869,7 @@ You are coordinating this emergency from the start, not just answering questions
                       distance_km: Math.round(place.distance_m / 100) / 10,
                     })),
                   );
-                  return facilityToolOutput({
+                  return facilityOut({
                     ok: facilities.length > 0,
                     resolved_area: fallbackArea,
                     emergency_type: facility_type,
@@ -1867,7 +1923,7 @@ You are coordinating this emergency from the start, not just answering questions
                           distance_km: Math.round(p.distance_m / 100) / 10,
                         })),
                       );
-                      return facilityToolOutput({
+                      return facilityOut({
                         ok: true,
                         resolved_area: origin.label,
                         emergency_type: facility_type,
@@ -1908,7 +1964,7 @@ You are coordinating this emergency from the start, not just answering questions
                         .slice(0, 8);
                       if (ranked.length) {
                         const facilities = finalizeFacilities(ranked);
-                        return facilityToolOutput({
+                        return facilityOut({
                           ok: true,
                           resolved_area: origin.label,
                           emergency_type: facility_type,
@@ -2319,7 +2375,7 @@ You are coordinating this emergency from the start, not just answering questions
               flush(controller) {
                 if (!streamedText) {
                   emitTakeover(controller);
-                  const fallback = emptyReplyFallback(intakeText, sosFallbackContext);
+                  const fallback = emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext());
                   const fallbackId = `allma-empty-fallback-${Date.now()}`;
                   controller.enqueue({ type: "text-start", id: fallbackId });
                   controller.enqueue({ type: "text-delta", id: fallbackId, delta: fallback });
@@ -2350,7 +2406,7 @@ You are coordinating this emergency from the start, not just answering questions
             if (!assistantHasVisibleText(parts as Array<{ type: string; text?: string }>)) {
               parts = [
                 ...parts,
-                { type: "text", text: emptyReplyFallback(intakeText, sosFallbackContext) },
+                { type: "text", text: emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext()) },
               ] as typeof responseMessage.parts;
             }
             // Mirror the stream guard in the saved message: the takeover

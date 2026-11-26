@@ -8,6 +8,9 @@ import {
   isSoftGuidedFlow,
   isSosSituationQuestion,
   isAppointmentBookingAsk,
+  isHospitalEmailDraftAsk,
+  hospitalEmailDraftReply,
+  pickEmailHospital,
   isBookingFollowUp,
   isBookingEmailAsk,
   looksLikeClinicName,
@@ -351,5 +354,26 @@ describe("direct help routing", () => {
     expect(matchIncident("I have cut my hand.")?.id).toBe("bleeding");
     expect(matchIncident("How do I stop the bleeding?")?.id).toBe("bleeding");
     expect(matchIncident("What should I do if someone is unconscious?")?.id).toBe("unconscious");
+  });
+});
+
+describe("hospital email draft", () => {
+  it("detects write-an-email-to-a-hospital asks but not bookings", () => {
+    expect(isHospitalEmailDraftAsk("Can write an email for me to a nearby hospital")).toBe(true);
+    expect(isHospitalEmailDraftAsk("draft an email to Jinja hospital")).toBe(true);
+    expect(isHospitalEmailDraftAsk("email the clinic")).toBe(true);
+    expect(isHospitalEmailDraftAsk("Book an appointment by email at the clinic")).toBe(false);
+    expect(isHospitalEmailDraftAsk("find a hospital near me")).toBe(false);
+  });
+
+  it("drafts a real email, never invents an address, never auto-dials", () => {
+    const hospital = pickEmailHospital([
+      { name: "JINJA RECOVERY CENTER", facility_type: "hospital", district: "Jinja", phone: "+256700000000" },
+    ]);
+    const reply = hospitalEmailDraftReply({ hospital, area: "Jinja" });
+    expect(reply).toMatch(/Subject/);
+    expect(reply).toMatch(/JINJA RECOVERY CENTER/);
+    expect(reply).not.toMatch(/@/);
+    expect(reply).not.toMatch(/Tell me a town/);
   });
 });

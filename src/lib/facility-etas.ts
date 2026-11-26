@@ -1,3 +1,5 @@
+import { formatKm } from "@/lib/facility-distance";
+
 /** Rough Uganda urban travel estimates from road distance — never invent traffic. */
 export function estimateTravelTimes(distanceKm: number | null | undefined): {
   drive_min: number | null;
@@ -14,9 +16,8 @@ export function estimateTravelTimes(distanceKm: number | null | undefined): {
 export function formatEtaLabel(distanceKm: number | null | undefined) {
   const { drive_min, walk_min } = estimateTravelTimes(distanceKm);
   const parts: string[] = [];
-  if (distanceKm != null && Number.isFinite(distanceKm)) {
-    parts.push(`${distanceKm} km`);
-  }
+  const distance = formatKm(distanceKm);
+  if (distance) parts.push(distance);
   if (drive_min != null) parts.push(`~${drive_min} min drive`);
   if (walk_min != null && walk_min <= 45) parts.push(`~${walk_min} min walk`);
   return parts.join(" · ");
@@ -40,4 +41,13 @@ export function withFacilityEtas<T extends { distance_km?: number | null; open_n
       eta_label: formatEtaLabel(facility.distance_km),
     };
   });
+}
+
+/** Travel-time part only ("~4 min drive · ~15 min walk"); empty when distance is unknown. */
+export function formatTravelLabel(distanceKm: number | null | undefined) {
+  const { drive_min, walk_min } = estimateTravelTimes(distanceKm);
+  const parts: string[] = [];
+  if (drive_min != null) parts.push(`~${drive_min} min drive`);
+  if (walk_min != null && walk_min <= 45) parts.push(`~${walk_min} min walk`);
+  return parts.join(" · ");
 }

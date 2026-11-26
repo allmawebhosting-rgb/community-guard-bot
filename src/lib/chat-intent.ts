@@ -144,6 +144,85 @@ export function bookingEmailOfferReply(input?: { clinicEmail?: string | null; cl
   return `I can email the clinic an appointment request.\n\nShare the clinic email address (or the clinic name if you want me to look it up), plus your preferred time and reason.\n\n::suggest[Use info@jinjahospital.go.ug | Call instead | Cancel booking]`;
 }
 
+/** User wants Allma to write / draft an email to a hospital or clinic (not book, not just list places). */
+export function isHospitalEmailDraftAsk(text: string) {
+  const t = text.trim();
+  if (!t || isAppointmentBookingAsk(t)) return false;
+  const medical = /\b(hospital|clinic|doctor|health\s*cent(?:re|er)|medical\s+cent(?:re|er))\b/i;
+  if (!medical.test(t)) return false;
+  const mail = /\b(e-?mail|mail)\b/i;
+  if (!mail.test(t)) return false;
+  return (
+    /\b(write|draft|compose|prepare|create|make|send|type|help me (?:write|draft))\b/i.test(t) ||
+    /\b(e-?mail)\b.{0,40}\b(hospital|clinic|doctor)/i.test(t)
+  );
+}
+
+export type EmailHospitalTarget = {
+  name: string;
+  district?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+
+/** First hospital / clinic row from a facility tool result, for pre-addressing an email. */
+export function pickEmailHospital(facilities: unknown): EmailHospitalTarget | null {
+  if (!Array.isArray(facilities)) return null;
+  for (const row of facilities) {
+    if (!row || typeof row !== "object") continue;
+    const r = row as Record<string, unknown>;
+    const type = String(r.facility_type ?? "").toLowerCase();
+    const name = typeof r.name === "string" ? r.name.trim() : "";
+    if (!name) continue;
+    if (type && !/hospital|clinic|health|medical|pharmacy/.test(type)) continue;
+    return {
+      name,
+      district: typeof r.district === "string" ? r.district : null,
+      phone: typeof r.phone === "string" ? r.phone : null,
+      email: typeof r.email === "string" && r.email.includes("@") ? r.email : null,
+    };
+  }
+  return null;
+}
+
+/** Ready-to-send email draft. Never invents an address; asks for the missing facts. */
+export function hospitalEmailDraftReply(input?: {
+  hospital?: EmailHospitalTarget | null;
+  area?: string | null;
+}) {
+  const hospital = input?.hospital ?? null;
+  const name = hospital?.name || "the Hospital";
+  const where = (input?.area || hospital?.district || "").trim();
+  const to = hospital?.email
+    ? `**To:** ${hospital.email}`
+    : "**To:** _(hospital email address - tell me the address and I will send it)_";
+  const phoneLine = hospital?.phone ? `\n\nThe hospital's phone is **${hospital.phone}** if you need to call.` : "";
+  return [
+    `Here is a draft you can send to **${name}**${where ? ` (${where})` : ""}:`,
+    "",
+    to,
+    `**Subject:** Request for medical assistance${where ? ` - ${where}` : ""}`,
+    "",
+    `Dear ${name} team,`,
+    "",
+    `I am writing to ask for medical help. My name is [your name] and I can be reached on [your phone number].`,
+    `The patient is [name / age] and the problem is: [describe symptoms or injury and when it started].`,
+    `We are currently ${where ? `in ${where}` : "at [your location]"}.`,
+    "",
+    "Please let me know what to do next and whether you can receive the patient.",
+    "",
+    "Thank you,",
+    "[your name]",
+    `${phoneLine}`,
+    "",
+    "This is not a replacement for emergency services. In a life-threatening emergency call **999** (police), **112** (emergency) or **911** (ambulance) yourself.",
+    "",
+    "Send me the hospital email address, your name, and what happened, and I can send it for you.",
+    "",
+    "::suggest[Add the hospital email | Make it shorter | Find another hospital | Emergency numbers]",
+  ].join("\n");
+}
+
 /** Pull the first email address out of booking agent prose / tool summaries. */
 export function extractBookingEmail(text: string | null | undefined): string | null {
   if (!text) return null;
