@@ -41,6 +41,8 @@ import {
   finalizeModelDraft,
 } from "@/lib/email-draft-compose";
 import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSource } from "@/lib/facility-distance";
+import { executeGoogleSearch, isWebSearchConfigured } from "@/lib/google-search.server";
+import { buildSearchQuery, searchFallbackText, wantsWebSearch, type WebSearchToolOutput } from "@/lib/web-search-intent";
 import { deriveEmailSlots, nextEmailQuestion, pendingEmailAsk } from "@/lib/email-intake";
 import { clinicContactQuestion, deriveBookingSlots, nextBookingQuestion, resolveBookingDetails, type BookingTurn } from "@/lib/booking-intake";
 import { BOOKING_START_STEPS, bookingOutcomeText, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
@@ -1180,7 +1182,25 @@ You are coordinating this emergency from the start, not just answering questions
             ? `\n\nHOSPITAL EMAIL DRAFT REQUEST: The user is not signed in, so you cannot show the send card. Write the draft (To, Subject, body with [placeholders]) in this reply, never invent an email address, and tell them to sign in and connect Gmail in Profile to send it from their own address.`
             : "";
 
-        const intentBlock = emailDraftBlock + bookingBlock + directHelpBlock + (intent && continueGuidedFlow
+        const webSearchTurn =
+          wantsWebSearch(intakeText) &&
+          safety.level !== "emergency" &&
+          !emergencyIncident &&
+          !requireNearbyHelp &&
+          !bookingAsk &&
+          !emailCardMode &&
+          !emailIntakeActive &&
+          !sharedSosActive &&
+          !isReporting &&
+          !flowState.flowLabel;
+        const webSearchReady = webSearchTurn && isWebSearchConfigured();
+        const webSearchQuery = webSearchTurn ? buildSearchQuery(intakeText) : "";
+        const webSearchBlock = webSearchReady
+          ? `\n\nLIVE WEB SEARCH THIS TURN: Call web_search once with the query below, then answer from the results it returns. Write 2-4 short conversational sentences in your own words, lead with the answer, and name the source naturally (for example "According to the Ministry of Health..."). Say plainly when sources disagree or the results are thin. Never invent facts, numbers, times or phone numbers that are not in the results. Do not print URLs, markdown links or a list of sources: clickable source chips are shown under your message automatically. If the topic touches someone's safety right now, add one line pointing to Police 999 / Ambulance 112 and offer to open the SOS. Query: "${webSearchQuery.replace(/"/g, "'")}"`
+          : webSearchTurn
+            ? `\n\nLIVE SEARCH IS UNAVAILABLE RIGHT NOW: Do not call any search tool and do not pretend you looked something up. Say in one short sentence that live web search is not available at the moment, then give what you reliably know and tell them to confirm anything time-sensitive (hours, prices, advisories) with the official source or by phone.`
+            : "";
+        const intentBlock = webSearchBlock + emailDraftBlock + bookingBlock + directHelpBlock + (intent && continueGuidedFlow
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
                 ? `The flow is already running — ask the NEXT step, with a ::flow{type=${flowState.flowLabel}, step=${flowState.step + 1}, total=${Math.max(flowState.totalSteps, flowState.step + 1)}, title="…"} first line and a ::suggest[…] last line.`
@@ -1290,6 +1310,7 @@ You are coordinating this emergency from the start, not just answering questions
           "find_facilities",
           "search_safety_resources",
           ...(wantsAlerts ? (["list_alerts"] as const) : []),
+          ...(webSearchReady ? (["web_search"] as const) : []),
           ...(wantsBooking ? (["book_hospital_appointment"] as const) : []),
           ...(wantsDispatch || sharedSosActive ? (["prepare_emergency_dispatch"] as const) : []),
           ...(wantsEmail || sharedSosActive ? (["send_incident_email", "draft_email"] as const) : []),
@@ -1350,6 +1371,9 @@ You are coordinating this emergency from the start, not just answering questions
           }
           if (!isBrowserAgentConfigured() || (!wantsBooking && !fullMode)) {
             entries = entries.filter(([name]) => name !== "book_hospital_appointment");
+          }
+          if (!webSearchReady) {
+            entries = entries.filter(([name]) => name !== "web_search");
           }
           return Object.fromEntries(entries) as T;
         };
@@ -1422,6 +1446,7 @@ You are coordinating this emergency from the start, not just answering questions
           });
         };
         let facilityCardsRendered = false;
+        let webSearchOutput: WebSearchToolOutput | null = null;
         const facilityToolOutput = <T extends { facilities?: unknown }>(output: T) => {
           if (Array.isArray(output.facilities)) facilityCardsRendered = true;
           return output;
@@ -1460,10 +1485,12 @@ You are coordinating this emergency from the start, not just answering questions
               ? { toolChoice: { type: "tool" as const, toolName: "book_hospital_appointment" } }
               : requireNearbyHelp
               ? { toolChoice: { type: "tool" as const, toolName: "find_facilities" } }
-              : {}),
+              : webSearchReady
+                ? { toolChoice: { type: "tool" as const, toolName: "web_search" } }
+                : {}),
           stopWhen: emailCardMode || bookingReadyToRun
             ? [stepCountIs(1)]
-            : requireNearbyHelp && emergencyIncident
+            : webSearchReady || (requireNearbyHelp && emergencyIncident)
               ? [stepCountIs(2)]
               : [stepCountIs(2), () => facilityCardsRendered],
           ...providerOptionsFor(modelId),
@@ -2418,6 +2445,40 @@ You are coordinating this emergency from the start, not just answering questions
                   to: trustedRecipient(to, { latest: emailAskText, conversation: userConversationText }),
                 }),
             }),
+            web_search: tool({
+              description:
+                "Search Google and the live internet for real-time or external information: news, opening hours, official advisories, prices, weather, and facts the emergency playbooks do not cover. Never use for emergencies, first aid, nearby places, or booking.",
+              inputSchema: z.object({
+                query: z.string().min(2).max(300).describe("A short, specific search query"),
+              }),
+              execute: async ({ query }) => {
+                const q = (webSearchQuery || query).trim();
+                const found = await executeGoogleSearch(q, { numResults: 5, country: "ug" });
+                if (!found.success) {
+                  webSearchOutput = { ok: false };
+                  return {
+                    ok: false,
+                    query: q,
+                    results: [],
+                    message: "Live search could not be completed right now.",
+                  };
+                }
+                const output = {
+                  ok: true,
+                  query: found.query,
+                  answer: found.answerBox ?? null,
+                  results: found.results.map((item) => ({
+                    title: item.title,
+                    link: item.link,
+                    snippet: item.snippet,
+                    source: item.source,
+                    published: item.publishedDate ?? null,
+                  })),
+                };
+                webSearchOutput = output;
+                return output;
+              },
+            }),
             list_alerts: tool({
               description: "List current verified community safety alerts.",
               inputSchema: z.object({
@@ -2839,7 +2900,9 @@ You are coordinating this emergency from the start, not just answering questions
                   emitTakeover(controller);
                   const fallback = facilityCardsRendered
                     ? FACILITY_CARDS_NOTE
-                    : emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext());
+                    : webSearchOutput
+                      ? searchFallbackText(webSearchOutput)
+                      : emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext());
                   const fallbackId = `allma-empty-fallback-${Date.now()}`;
                   controller.enqueue({ type: "text-start", id: fallbackId });
                   controller.enqueue({ type: "text-delta", id: fallbackId, delta: fallback });
@@ -2874,7 +2937,9 @@ You are coordinating this emergency from the start, not just answering questions
                   type: "text",
                   text: facilityCardsRendered
                     ? FACILITY_CARDS_NOTE
-                    : emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext()),
+                    : webSearchOutput
+                      ? searchFallbackText(webSearchOutput)
+                      : emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext()),
                 },
               ] as typeof responseMessage.parts;
             }

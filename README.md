@@ -621,3 +621,23 @@ Set the Twilio Voice application Voice URL to `https://<your-domain>/api/voice-t
 Apply the migration `supabase/migrations/20260819090000_twilio_voice_foundation.sql` before enabling calling. It adds Twilio metadata, indexes, and centralized responder/token configuration without creating a duplicate call table.
 
 The current workspace has no Capacitor iOS/Android projects. Web calling is implemented through the Twilio Voice JavaScript SDK. Native background and locked-screen incoming calls still require a Capacitor bridge using Twilio Voice native SDKs, APNs/FCM credentials, CallKit on iOS, and Android Telecom/foreground-service setup; they are not claimed as complete here.
+
+
+## Live web search in chat
+
+Allma searches Google when someone asks for real-time or external information (news, opening hours, official advisories, prices, weather). The reply is a short conversational summary with clickable source chips underneath. Emergencies, first aid, nearby help, booking, email and reporting never use it.
+
+Set one of these as Cloudflare Worker secrets (first configured provider wins):
+
+```text
+SERPER_API_KEY=...                       # Serper.dev, Google results (recommended)
+GOOGLE_SEARCH_API_KEY=...                # Google Custom Search JSON API
+GOOGLE_SEARCH_ENGINE_ID=...              # needed together with GOOGLE_SEARCH_API_KEY
+TAVILY_API_KEY=...                       # Tavily fallback
+```
+
+```bash
+npx wrangler secret put SERPER_API_KEY
+```
+
+Without a key, Allma says live search is unavailable and does not pretend to have searched. Results are biased to Uganda (`gl=ug`). Code: `src/lib/google-search.server.ts`, `src/lib/web-search-intent.ts`, `web_search` tool in `src/routes/api/chat.ts`, chips in `src/components/allma/web-search-card.tsx`.

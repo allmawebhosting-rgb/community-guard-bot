@@ -37,6 +37,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChat } from "@ai-sdk/react";
+import { WebSearchCard } from "@/components/allma/web-search-card";
 import { useNetworkStage } from "@/lib/use-network-stage";
 import { NETWORK_STAGE_MAX_WAIT_MS } from "@/lib/sos-stage";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -1176,6 +1177,7 @@ function ToolCard({
       label: "Hospital booking",
       busy: "Booking appointment via browser agent…",
     },
+    web_search: { icon: Search, label: "Web search", busy: "Searching Google…" },
     list_alerts: { icon: Megaphone, label: "Community alerts", busy: "Checking alerts…" },
     ask_structured_question: { icon: HelpCircle, label: "Question", busy: "Preparing question…" },
     request_media: { icon: Upload, label: "Upload evidence", busy: "Preparing upload…" },
@@ -1233,6 +1235,10 @@ function ToolCard({
       );
     }
     return null;
+  }
+
+  if (name === "web_search") {
+    return running ? <WebSearchCard running /> : <WebSearchCard output={output} />;
   }
 
   if (running) {

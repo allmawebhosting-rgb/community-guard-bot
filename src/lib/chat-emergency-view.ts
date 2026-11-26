@@ -29,6 +29,9 @@ export function shouldShowToolOutput(
   if (name === "create_report") {
     return Boolean(output?.ok && (output.reference || output.title));
   }
+  if (name === "web_search") {
+    return Array.isArray(output?.results) && output.results.length > 0;
+  }
   if (name === "list_alerts") {
     return Array.isArray(output?.alerts) && output.alerts.length > 0;
   }
