@@ -2024,6 +2024,9 @@ export function AllmaChat({
     }
     return people;
   }, [sosRoom]);
+  const sosEndedHere = Boolean(
+    activeSosActivity && activeSosActivity.id === sosActivityId && !activeSosActivity.active,
+  );
   const sosParticipants = useMemo(
     () => buildSosParticipantStrip(sosIsActive || sosRoom ? sosRoom : null),
     [sosIsActive, sosRoom],
@@ -3318,7 +3321,7 @@ export function AllmaChat({
 
   return (
     <SosActivityContext.Provider value={sosActivityContextValue}>
-    <div className={cn("chat-canvas relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
+    <div className={cn("chat-canvas relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden [overflow:clip]", className)}>
       {/* Activate from header SOS only — no live card crowding the chat. */}
       {showHeaderSosActivator ? (
         <div className="z-20 w-full shrink-0 border-b border-destructive/10 bg-background/95 px-3 py-1.5 sm:px-4">
@@ -3346,14 +3349,20 @@ export function AllmaChat({
         </div>
       ) : null}
       {/* Desktop people rail — keep emergency chat readable beside it. */}
-      {sosIsActive && sosRoom ? (
-        <aside className="absolute bottom-0 right-0 top-14 z-10 hidden w-[280px] flex-col gap-3 overflow-y-auto border-l border-border/50 bg-background/95 p-3 backdrop-blur lg:flex">
-          <div className="rounded-2xl border border-border/50 bg-card/90 p-3.5 shadow-sm">
+      {sosRoom && (sosIsActive || sosEndedHere) ? (
+        <aside className="pointer-events-none absolute bottom-0 right-0 top-14 z-10 hidden w-[280px] flex-col gap-3 overflow-y-auto border-l border-border/50 bg-background/95 p-3 backdrop-blur lg:flex">
+          <div className="pointer-events-auto rounded-2xl border border-border/50 bg-card/90 p-3.5 shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">In this chat</p>
-            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
-              Tap the red SOS head for location. Use <span className="font-semibold text-destructive">End</span> or{" "}
-              <span className="font-semibold text-foreground">Leave</span> under that head to stop the emergency.
-            </p>
+            {sosIsActive ? (
+              <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                Tap the red SOS head for location. Use <span className="font-semibold text-destructive">End</span> or{" "}
+                <span className="font-semibold text-foreground">Leave</span> under that head to stop the emergency.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[11px] font-semibold leading-snug text-foreground">
+                SOS ended. Calling and live location sharing have stopped.
+              </p>
+            )}
             <div className="mt-2.5 space-y-2.5">
               {sosParticipants.map((person) => (
                 <div key={person.id} className="flex items-center gap-2.5">
@@ -3375,7 +3384,7 @@ export function AllmaChat({
                     </p>
                   </div>
                   <span className="shrink-0 text-[11px] font-medium text-success">
-                    {participantConnectionLabel(person.connection)}
+                    {sosIsActive ? participantConnectionLabel(person.connection) : "Ended"}
                   </span>
                 </div>
               ))}
@@ -3489,7 +3498,7 @@ export function AllmaChat({
       ) : (
         <Conversation
           className={cn(
-            "relative min-h-0 flex-1 overscroll-contain",
+            "relative min-h-0 min-w-0 flex-1 overscroll-contain",
             // Keep the conversation clear of the pinned desktop side panel.
             sosIsActive && sosRoom && "lg:mr-[320px]",
           )}

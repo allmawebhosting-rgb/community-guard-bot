@@ -9,6 +9,7 @@ import {
   Pill,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatKm } from "@/lib/facility-distance";
 import { facilityKind } from "@/lib/facility-kind";
 
 // ─── Shared "help near here" list (SOS screen + emergency call centre) ───────
@@ -68,8 +69,8 @@ const GROUP_LABEL: Record<HelpKind, string> = {
 };
 
 export function formatDistance(meters: number) {
-  if (!Number.isFinite(meters)) return "";
-  return meters < 950 ? `${Math.round(meters)} m away` : `${(meters / 1000).toFixed(1)} km away`;
+  const text = formatKm(meters / 1000);
+  return text ? `${text} away` : "";
 }
 
 export function directionsUrl(

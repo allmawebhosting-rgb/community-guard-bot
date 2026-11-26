@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, Copy, Mail, Phone, MapPin, Siren } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatKm } from "@/lib/facility-distance";
 import { formatEtaLabel } from "@/lib/facility-etas";
 
 export function EmailSentCard({
@@ -123,7 +124,7 @@ export function EmergencyDispatchCard({
             className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-border bg-secondary/40 px-3 text-[13px] font-semibold text-foreground"
           >
             <Phone className="h-3.5 w-3.5" /> Call {station.name}
-            {station.distance_km != null ? ` · ${station.distance_km} km` : ""}
+            {formatKm(station.distance_km) ? ` · ${formatKm(station.distance_km)}` : ""}
           </a>
         ) : null}
       </div>
@@ -151,7 +152,7 @@ export function EmergencyDispatchCard({
         <p className="text-[12px] text-muted-foreground">
           Nearest desk: {station.name}
           {station.address ? ` — ${station.address}` : ""}
-          {station.distance_km != null ? ` (${station.distance_km} km)` : ""}. No local phone on file —
+          {formatKm(station.distance_km) ? ` (${formatKm(station.distance_km)})` : ""}. No local phone on file —
           use {primaryLabel}.
         </p>
       ) : null}

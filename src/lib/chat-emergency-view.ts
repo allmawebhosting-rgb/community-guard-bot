@@ -1,5 +1,6 @@
 // Pure helpers that decide what emergency UI an assistant reply shows.
 // Kept out of the component so they can be unit-tested.
+import { toFiniteNumber, validLatLng } from "@/lib/facility-distance";
 import { firstAidFor, matchIncident, type FirstAid, type Incident } from "@/lib/allma-emergency-playbook";
 
 type LooseMessage = { role: string; parts?: Array<{ type: string; text?: string; output?: unknown }> };
@@ -187,9 +188,8 @@ function asFacility(raw: unknown, fallbackType: string, label: string): IntelFac
   const f = raw as Record<string, unknown>;
   const name = String(f.name ?? "").trim();
   if (!name) return null;
-  const lat = Number(f.latitude ?? f.lat);
-  const lng = Number(f.longitude ?? f.lng);
-  const km = Number(f.distance_km);
+  const point = validLatLng(f.latitude ?? f.lat, f.longitude ?? f.lng);
+  const km = toFiniteNumber(f.distance_km);
   const phone = typeof f.phone === "string" && f.phone.trim() ? f.phone.trim() : null;
   const address = typeof f.address === "string" && f.address.trim() ? f.address.trim() : null;
   const district = typeof f.district === "string" && f.district.trim() ? f.district.trim() : null;
@@ -200,9 +200,9 @@ function asFacility(raw: unknown, fallbackType: string, label: string): IntelFac
     phone,
     address: address ?? district,
     district,
-    latitude: Number.isFinite(lat) ? lat : null,
-    longitude: Number.isFinite(lng) ? lng : null,
-    ...(Number.isFinite(km) ? { distance_km: km } : {}),
+    latitude: point ? point.lat : null,
+    longitude: point ? point.lng : null,
+    ...(km !== null && km > 0 ? { distance_km: km } : {}),
     open_now: f.is_24_7 === true || f.open_now === true,
   };
 }

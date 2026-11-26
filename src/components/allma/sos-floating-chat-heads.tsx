@@ -186,11 +186,6 @@ export function SosFloatingChatHeads({
     });
   };
 
-  const openSosDetails = () => {
-    setDetailsOpen(true);
-    setHintDismissed(true);
-  };
-
   return (
     <div
       role="group"
@@ -213,9 +208,9 @@ export function SosFloatingChatHeads({
           <div className="relative flex w-full flex-col items-center gap-1.5">
             <AnimatePresence mode="wait">
               {!detailsOpen && !hintDismissed ? (
-                <motion.button
+                <motion.div
                   key={SOS_TAP_HINTS[hintIndex]}
-                  type="button"
+                  aria-hidden
                   initial={
                     reduceMotion
                       ? { opacity: 1 }
@@ -240,12 +235,11 @@ export function SosFloatingChatHeads({
                           y: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
                         }
                   }
-                  onClick={openSosDetails}
                   className={cn(
-                    "absolute top-1/2 z-40 w-max max-w-[9.5rem] -translate-y-1/2 cursor-pointer rounded-2xl border border-destructive/25 bg-card/95 px-2.5 py-1.5 text-left shadow-lift backdrop-blur-md",
+                    "pointer-events-none absolute top-6 z-0 w-max max-w-[9.5rem] rounded-2xl border border-destructive/25 bg-card/95 px-2.5 py-1.5 text-left shadow-lift backdrop-blur-md sm:top-7",
                     panelOnRight
-                      ? "left-[3.35rem] sm:left-[3.75rem]"
-                      : "right-[3.35rem] sm:right-[3.75rem]",
+                      ? "left-full ml-1.5"
+                      : "right-full mr-1.5",
                   )}
                 >
                   <p className="text-[11px] font-semibold leading-snug text-destructive">
@@ -260,7 +254,7 @@ export function SosFloatingChatHeads({
                     )}
                     aria-hidden
                   />
-                </motion.button>
+                </motion.div>
               ) : null}
             </AnimatePresence>
             <motion.button

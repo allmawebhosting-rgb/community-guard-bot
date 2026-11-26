@@ -27,6 +27,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { getNearbyMembers, getNearbyPlaces } from "@/lib/places.functions";
 import { sendConnectionRequest } from "@/lib/safety-network";
 import { getSeededNearbyFacilities } from "@/lib/nearby-fallback";
+import {
+  distanceFromLabel,
+  formatKm,
+  validLatLng,
+  type DistanceSource,
+} from "@/lib/facility-distance";
 import type { NearbyMember, NearbyPlace } from "@/lib/places.types";
 import { describeAccuracy, watchLiveLocation, type LiveLocationFix } from "@/lib/precise-location";
 import {
@@ -92,13 +98,6 @@ const DEFAULT_AREA: UgandaPlace = {
   district: "Kampala",
   ...DEFAULT_LOCATION,
 };
-
-// Distances under ~50 m (or from an unknown origin) are noise, not information.
-let distanceOriginKnown = false;
-function formatDistance(meters: number) {
-  if (!distanceOriginKnown || !Number.isFinite(meters) || meters < 50) return "";
-  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
-}
 
 function distanceBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const radians = (value: number) => (value * Math.PI) / 180;
@@ -355,17 +354,13 @@ function NearbyScreen() {
             (value ?? "").toLowerCase().includes(query),
           ),
       )
-      .map((place) =>
-        distanceOrigin
-          ? {
-              ...place,
-              distance_m: distanceBetween(distanceOrigin, {
-                lat: place.latitude,
-                lng: place.longitude,
-              }),
-            }
-          : place,
-      )
+      .map((place) => {
+        const point = validLatLng(place.latitude, place.longitude);
+        return {
+          ...place,
+          distance_m: point ? distanceBetween(distanceOrigin, point) : Number.POSITIVE_INFINITY,
+        };
+      })
       .sort((a, b) => a.distance_m - b.distance_m);
   }, [candidates, filter, search, searchArea, distanceOrigin]);
   const selectedPlace = filteredPlaces.find((place) => place.id === selectedPlaceId) ?? null;
@@ -452,8 +447,13 @@ function NearbyScreen() {
   }
 
   const hasLocation = Boolean(location);
-  // Only show distances when we know where the user is (good GPS fix or a chosen area).
-  distanceOriginKnown = Boolean(searchArea) || Boolean(location && location.accuracy <= 1500);
+  const distanceSource: DistanceSource = searchArea ? "named" : location ? "gps" : "fallback";
+  const distanceFrom = distanceFromLabel(distanceSource, searchArea?.name);
+  const formatDistance = (meters: number) => {
+    const text = formatKm(meters / 1000);
+    if (!text) return "";
+    return distanceSource === "fallback" && distanceFrom ? `${text} ${distanceFrom}` : text;
+  };
   const [manualArea, setManualArea] = useState("");
 
   function selectArea(area: UgandaPlace) {

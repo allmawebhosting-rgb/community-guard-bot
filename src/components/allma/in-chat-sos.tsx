@@ -38,7 +38,7 @@ import { notifySosActivity } from "@/lib/push.functions";
 import { getNearbyPlaces } from "@/lib/places.functions";
 import { runSosInlineCallAction, useSosInlineCall } from "@/lib/sos-inline-call";
 import { primeMicrophone } from "@/lib/zego-call";
-import { setActiveSos } from "@/lib/sos-active";
+import { clearActiveSos, markActiveSosEnded, setActiveSos } from "@/lib/sos-active";
 import { leaveSosRoom } from "@/lib/sos-rooms";
 import { peekActiveChatThread } from "@/lib/active-chat-thread";
 import { createThread, type ThreadSummary } from "@/lib/threads";
@@ -193,7 +193,7 @@ export function InChatSos({
       type,
       locationShared: Boolean(loc) || Boolean(sharedLocation),
     });
-    return () => setActiveSos(null);
+    return () => clearActiveSos(activityId);
   }, [activityId, loc, phase, sharedLocation, type]);
 
   const announcedActivityRef = useRef<string | null>(null);
@@ -541,6 +541,15 @@ export function InChatSos({
   async function endSos() {
     if (ending || !canManage) return;
     setEnding(true);
+    // Respond on the very first tap: flip the UI to "ended" before any network work.
+    const endedMs = Date.now();
+    setEndedAt(endedMs);
+    setPhase("ended");
+    if (activityId) {
+      markActiveSosEnded(activityId, type);
+      onActivityEnded?.(activityId);
+    }
+    toast.success("SOS ended. Calling and location sharing have stopped.");
     const hangUp = runSosInlineCallAction("hangUp");
     if (activityId) await endSosEscalation(activityId);
     await hangUp;
@@ -590,9 +599,6 @@ export function InChatSos({
       }
     }
     mic?.getTracks().forEach((t) => t.stop());
-    setEndedAt(Date.now());
-    setPhase("ended");
-    if (activityId) onActivityEnded?.(activityId);
     setEnding(false);
   }
 

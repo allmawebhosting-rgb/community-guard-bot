@@ -13,6 +13,36 @@ const fmt = (s: number) =>
 
 /** Replaces the logo/title area of the header while an SOS is active. Every status comes from real call rows. */
 export function SosHeaderStatus({ sos }: { sos: ActiveSos }) {
+  if (sos.ended) return <SosEndedStatus sos={sos} />;
+  return <SosLiveHeaderStatus sos={sos} />;
+}
+
+function SosEndedStatus({ sos }: { sos: ActiveSos }) {
+  const at = sos.endedAt
+    ? new Date(sos.endedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : null;
+  return (
+    <div className="pointer-events-none flex min-w-0 items-center justify-center gap-2.5" role="status" aria-live="polite">
+      <span className="relative shrink-0 rounded-full">
+        <MascotAvatar className="h-10 w-10" />
+      </span>
+      <div className="min-w-0 leading-tight">
+        <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          Shared emergency conversation
+        </p>
+        <p className="flex items-center gap-1.5 truncate text-[13px] font-bold text-foreground">
+          <PhoneOff className="h-3.5 w-3.5 shrink-0" />
+          SOS ended
+        </p>
+        <p className="truncate text-[11px] text-muted-foreground">
+          {at ? `Stopped at ${at} · ` : ""}Calling and location sharing stopped
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SosLiveHeaderStatus({ sos }: { sos: ActiveSos }) {
   const ctrl = getSosEscalation(sos.activityId, sos.type);
   const state: EscalationState = useSyncExternalStore(
     (l) => ctrl.subscribe(l),
@@ -111,7 +141,7 @@ export function SosHeaderStatus({ sos }: { sos: ActiveSos }) {
   else callLine = "Alerting your Safety Network…";
 
   return (
-    <div className="flex min-w-0 items-center justify-center gap-2.5" role="status" aria-live="polite">
+    <div className="pointer-events-none flex min-w-0 items-center justify-center gap-2.5" role="status" aria-live="polite">
       <span className="sos-header-ring relative shrink-0 rounded-full">
         <MascotAvatar className="h-10 w-10" />
       </span>

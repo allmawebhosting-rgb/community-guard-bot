@@ -1987,3 +1987,7 @@
 .sos-header-ring-ok { box-shadow: 0 0 0 3px color-mix(in oklch, var(--success) 25%, transparent); }
 .sos-header-active { background: linear-gradient(90deg, color-mix(in oklch, var(--destructive) 8%, var(--background)), var(--background), color-mix(in oklch, var(--destructive) 8%, var(--background))); background-size: 200% 100%; animation: sos-header-sweep 3s linear infinite; }
 @keyframes sos-header-sweep { to { background-position: 200% 0; } }
+
+/* Toasts are transient; only the toast card itself may take taps, never the gutter around it. */
+[data-sonner-toaster] { pointer-events: none; }
+[data-sonner-toast] { pointer-events: auto; }

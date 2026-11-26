@@ -594,7 +594,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
     <div
       className={cn(
         "relative flex w-full min-w-0 overflow-x-hidden bg-background",
-        isChat ? "h-[100dvh] max-h-[100dvh] overflow-hidden" : "min-h-[100dvh]",
+        isChat ? "h-[100dvh] max-h-[100dvh] overflow-hidden [overflow:clip]" : "min-h-[100dvh]",
       )}
     >
       <div className="signal-streak pointer-events-none fixed inset-0 -z-10 opacity-70" />
@@ -606,7 +606,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       <div
         className={cn(
           "flex min-w-0 flex-1 flex-col lg:ml-[260px]",
-          isChat ? "min-h-0 overflow-hidden" : "min-h-[100dvh]",
+          isChat ? "min-h-0 overflow-hidden [overflow:clip]" : "min-h-[100dvh]",
         )}
       >
         {/* Mobile-only header */}
@@ -674,7 +674,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         )}
 
         {/* Main content — no max-w constraint; children control their own width */}
-        <main className={cn("flex min-h-0 flex-1 flex-col", isChat && "overflow-hidden")}>
+        <main className={cn("flex min-h-0 flex-1 flex-col", isChat && "overflow-hidden [overflow:clip]")}>
 
           {children}
         </main>

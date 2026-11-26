@@ -135,7 +135,7 @@ export function SosResponderJoinedToast({
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
           transition={{ duration: reduceMotion ? 0.01 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           className={cn(
-            "pointer-events-auto absolute left-1/2 top-auto bottom-3 z-40 w-[min(38rem,calc(100%-1rem))] -translate-x-1/2 rounded-full border border-success/40 bg-gradient-to-r from-success to-emerald-700 py-2.5 pl-2.5 pr-3 shadow-[0_12px_32px_-8px_hsl(var(--success)/0.55)] backdrop-blur-md",
+            "pointer-events-none absolute left-1/2 top-auto bottom-3 z-40 w-[min(38rem,calc(100%-1rem))] -translate-x-1/2 rounded-full border border-success/40 bg-gradient-to-r from-success to-emerald-700 py-2.5 pl-2.5 pr-3 shadow-[0_12px_32px_-8px_hsl(var(--success)/0.55)] backdrop-blur-md",
             className,
           )}
         >
@@ -148,7 +148,7 @@ export function SosResponderJoinedToast({
               type="button"
               aria-label="Dismiss"
               onClick={onDismiss}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/90 transition-colors hover:bg-white/15"
+              className="pointer-events-auto grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/90 transition-colors hover:bg-white/15"
             >
               <X className="h-4 w-4" />
             </button>
