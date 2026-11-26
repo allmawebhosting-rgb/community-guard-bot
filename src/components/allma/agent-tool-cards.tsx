@@ -4,6 +4,23 @@ import { cn } from "@/lib/utils";
 import { formatKm } from "@/lib/facility-distance";
 import { formatEtaLabel } from "@/lib/facility-etas";
 
+function emailErrorMessage(error?: string) {
+  switch (error) {
+    case "email_not_configured":
+      return "Email delivery is not configured on this deployment (RESEND_API_KEY).";
+    case "gmail_not_connected":
+      return "Your Gmail is not connected yet. Connect it in Profile, then ask me to send again.";
+    case "gmail_reconnect_required":
+      return "Your Gmail connection expired. Reconnect it in Profile, then ask me to send again.";
+    case "google_not_configured":
+      return "Gmail sign-in is not set up on this deployment yet.";
+    case "sign_in_required":
+      return "Sign in to send email from your own account.";
+    default:
+      return error || "The email could not be delivered.";
+  }
+}
+
 export function EmailSentCard({
   output,
 }: {
@@ -14,6 +31,7 @@ export function EmailSentCard({
     timestamp?: string;
     messageId?: string | null;
     error?: string;
+    sent_from?: string | null;
   };
 }) {
   const ok = Boolean(output.success);
@@ -28,7 +46,7 @@ export function EmailSentCard({
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-3 text-sm font-semibold text-foreground">
         <Mail className={cn("h-4 w-4 shrink-0", ok ? "text-emerald-600" : "text-destructive")} />
         <span className="min-w-0 flex-1 truncate">
-          {ok ? "Incident email sent" : "Email not sent"}
+          {ok ? (output.sent_from ? "Email sent from your Gmail" : "Email sent") : "Email not sent"}
           {output.to ? ` · ${output.to}` : ""}
         </span>
         <span className="text-[11px] font-medium text-muted-foreground">{when}</span>
@@ -44,9 +62,15 @@ export function EmailSentCard({
         ) : null}
         {!ok ? (
           <p className="text-destructive">
-            {output.error === "email_not_configured"
-              ? "Email delivery is not configured on this deployment (RESEND_API_KEY)."
-              : output.error || "The email could not be delivered."}
+            {emailErrorMessage(output.error)}
+            {output.error === "gmail_not_connected" || output.error === "gmail_reconnect_required" ? (
+              <>
+                {" "}
+                <a href="/profile" className="font-semibold underline">
+                  Open Profile
+                </a>
+              </>
+            ) : null}
           </p>
         ) : null}
       </div>

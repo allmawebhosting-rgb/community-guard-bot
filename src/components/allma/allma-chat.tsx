@@ -1120,6 +1120,11 @@ function ToolCard({
       label: "Incident email",
       busy: "Sending handoff email…",
     },
+    send_email: {
+      icon: FileText,
+      label: "Email from your account",
+      busy: "Sending from your Gmail…",
+    },
     book_hospital_appointment: {
       icon: MapPin,
       label: "Hospital booking",
@@ -1171,7 +1176,8 @@ function ToolCard({
       name === "report_summary" ||
       name === "create_report" ||
       name === "prepare_emergency_dispatch" ||
-      name === "send_incident_email"
+      name === "send_incident_email" ||
+      name === "send_email"
     ) {
       return null;
     }
@@ -1466,7 +1472,7 @@ function ToolCard({
     );
   }
 
-  if (name === "send_incident_email" && output) {
+  if ((name === "send_incident_email" || name === "send_email") && output) {
     return <EmailSentCard output={output as Record<string, unknown>} />;
   }
 

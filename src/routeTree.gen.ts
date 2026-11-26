@@ -74,6 +74,7 @@ import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/pla
 import { Route as ApiTelecomInfobipSelftestRouteImport } from './routes/api/telecom/infobip-selftest'
 import { Route as ApiTelecomVoiceScriptRouteImport } from './routes/api/telecom/voice-script'
 import { Route as AuthenticatedPoliceCasesCaseIdRouteImport } from './routes/_authenticated/police.cases.$caseId'
+import { Route as ApiEmailGoogleCallbackRouteImport } from './routes/api/email/google/callback'
 import { Route as ApiBrowserLlmV1ChatCompletionsRouteImport } from './routes/api/browser-llm/v1/chat/completions'
 
 const IndexRoute = IndexRouteImport.update({
@@ -424,6 +425,11 @@ const AuthenticatedPoliceCasesCaseIdRoute =
     path: '/cases/$caseId',
     getParentRoute: () => AuthenticatedPoliceRoute,
   } as any)
+const ApiEmailGoogleCallbackRoute = ApiEmailGoogleCallbackRouteImport.update({
+  id: '/api/email/google/callback',
+  path: '/api/email/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBrowserLlmV1ChatCompletionsRoute =
   ApiBrowserLlmV1ChatCompletionsRouteImport.update({
     id: '/api/browser-llm/v1/chat/completions',
@@ -496,6 +502,7 @@ export interface FileRoutesByFullPath {
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/police/': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
+  '/api/email/google/callback': typeof ApiEmailGoogleCallbackRoute
   '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRoutesByTo {
@@ -561,6 +568,7 @@ export interface FileRoutesByTo {
   '/chat': typeof AuthenticatedChatIndexRoute
   '/police': typeof AuthenticatedPoliceIndexRoute
   '/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
+  '/api/email/google/callback': typeof ApiEmailGoogleCallbackRoute
   '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRoutesById {
@@ -630,6 +638,7 @@ export interface FileRoutesById {
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/police/': typeof AuthenticatedPoliceIndexRoute
   '/_authenticated/police/cases/$caseId': typeof AuthenticatedPoliceCasesCaseIdRoute
+  '/api/email/google/callback': typeof ApiEmailGoogleCallbackRoute
   '/api/browser-llm/v1/chat/completions': typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 export interface FileRouteTypes {
@@ -699,6 +708,7 @@ export interface FileRouteTypes {
     | '/chat/'
     | '/police/'
     | '/police/cases/$caseId'
+    | '/api/email/google/callback'
     | '/api/browser-llm/v1/chat/completions'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -764,6 +774,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/police'
     | '/police/cases/$caseId'
+    | '/api/email/google/callback'
     | '/api/browser-llm/v1/chat/completions'
   id:
     | '__root__'
@@ -832,6 +843,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat/'
     | '/_authenticated/police/'
     | '/_authenticated/police/cases/$caseId'
+    | '/api/email/google/callback'
     | '/api/browser-llm/v1/chat/completions'
   fileRoutesById: FileRoutesById
 }
@@ -872,6 +884,7 @@ export interface RootRouteChildren {
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiTelecomInfobipSelftestRoute: typeof ApiTelecomInfobipSelftestRoute
   ApiTelecomVoiceScriptRoute: typeof ApiTelecomVoiceScriptRoute
+  ApiEmailGoogleCallbackRoute: typeof ApiEmailGoogleCallbackRoute
   ApiBrowserLlmV1ChatCompletionsRoute: typeof ApiBrowserLlmV1ChatCompletionsRoute
 }
 
@@ -1332,6 +1345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPoliceCasesCaseIdRouteImport
       parentRoute: typeof AuthenticatedPoliceRoute
     }
+    '/api/email/google/callback': {
+      id: '/api/email/google/callback'
+      path: '/api/email/google/callback'
+      fullPath: '/api/email/google/callback'
+      preLoaderRoute: typeof ApiEmailGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/browser-llm/v1/chat/completions': {
       id: '/api/browser-llm/v1/chat/completions'
       path: '/api/browser-llm/v1/chat/completions'
@@ -1464,6 +1484,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiTelecomInfobipSelftestRoute: ApiTelecomInfobipSelftestRoute,
   ApiTelecomVoiceScriptRoute: ApiTelecomVoiceScriptRoute,
+  ApiEmailGoogleCallbackRoute: ApiEmailGoogleCallbackRoute,
   ApiBrowserLlmV1ChatCompletionsRoute: ApiBrowserLlmV1ChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport

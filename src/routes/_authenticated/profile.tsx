@@ -20,6 +20,7 @@ import { DISCLAIMER } from "@/lib/allma";
 import { Switch } from "@/components/ui/switch";
 import { VoiceModeToggle } from "@/components/allma/voice-mode-toggle";
 import { DeleteAccountCard } from "@/components/allma/delete-account-card";
+import { ConnectEmailCard } from "@/components/allma/connect-email-card";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -499,6 +500,7 @@ function ProfileScreen() {
                     <span className="block text-[11.5px] text-destructive/70">You will be returned to the homepage</span>
                   </div>
                 </button>
+                <ConnectEmailCard />
                 <DeleteAccountCard />
               </div>
             </div>

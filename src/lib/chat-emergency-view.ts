@@ -39,7 +39,7 @@ export function shouldShowToolOutput(
   if (name === "prepare_emergency_dispatch") {
     return Boolean(output?.official_number || output?.spoken_script);
   }
-  if (name === "send_incident_email") {
+  if (name === "send_incident_email" || name === "send_email") {
     return Boolean(output && (output.timestamp || output.to || output.error));
   }
   if (name === "my_reports" || name === "match_reports") {

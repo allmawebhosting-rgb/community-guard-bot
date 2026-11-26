@@ -217,7 +217,7 @@ export function hospitalEmailDraftReply(input?: {
     "",
     "This is not a replacement for emergency services. In a life-threatening emergency call **999** (police), **112** (emergency) or **911** (ambulance) yourself.",
     "",
-    "Send me the hospital email address, your name, and what happened, and I can send it for you.",
+    "Send me the hospital email address, your name, and what happened. I can send it from your own Gmail once you connect it in Profile.",
     "",
     "::suggest[Add the hospital email | Make it shorter | Find another hospital | Emergency numbers]",
   ].join("\n");
