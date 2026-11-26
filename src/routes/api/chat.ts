@@ -32,6 +32,13 @@ import {
   sosSituationReply,
 } from "@/lib/chat-intent";
 import { assistantHasVisibleText } from "@/lib/chat-progress";
+import { getEmailConnection } from "@/lib/gmail-connection.server";
+import {
+  emailDraftNote,
+  fallbackEmailDraft,
+  isEmailWriteAsk,
+  trustedRecipient,
+} from "@/lib/email-draft-intent";
 import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSource } from "@/lib/facility-distance";
 import { BOOKING_START_STEPS, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
@@ -603,6 +610,14 @@ You are coordinating this emergency from the start, not just answering questions
           );
         }
 
+        // "Write an email…" is answered with the editable draft card. The Gmail connection is
+        // checked here on the server, never trusted from the client.
+        const emailCardMode = !sharedSosActive && Boolean(userId) && isEmailWriteAsk(intakeText);
+        const gmailConnected =
+          emailCardMode && userId
+            ? await getEmailConnection(userId).then(Boolean, () => false)
+            : false;
+
         const userHistoryTexts = uiMessages
           .filter((message) => message.role === "user")
           .map((message) => textOf(message));
@@ -626,6 +641,7 @@ You are coordinating this emergency from the start, not just answering questions
         // Email booking ask mid-thread or cold-start — don't dump the browser-booking opener.
         if (
           !sharedSosActive &&
+          !emailCardMode &&
           isBookingEmailAsk(intakeText) &&
           !bookingFollowUp
         ) {
@@ -637,7 +653,7 @@ You are coordinating this emergency from the start, not just answering questions
             "allma-booking-email",
           );
         }
-        const scripted = sharedSosActive
+        const scripted = sharedSosActive || emailCardMode
           ? null
           : hasSharedAssistantHistory
             ? isAppointmentBookingAsk(intakeText) &&
@@ -653,7 +669,7 @@ You are coordinating this emergency from the start, not just answering questions
         // After the booking opener, keep replies in booking — never flip into a
         // nearby-clinic directory search. Only ack real clinic names; never treat
         // "Call the doctor?", "Now", or "book by email" as a hospital name.
-        if (bookingFollowUp) {
+        if (bookingFollowUp && !emailCardMode) {
           if (isBookingEmailAsk(intakeText)) {
             const priorToolEmail = [...uiMessages]
               .reverse()
@@ -872,7 +888,7 @@ You are coordinating this emergency from the start, not just answering questions
           intakeText,
           bookingFollowUp,
         });
-        const requireNearbyHelp = nearbyTypes.length > 0;
+        const requireNearbyHelp = !emailCardMode && nearbyTypes.length > 0;
         // Drop the survey banner when first-aid or a facility search takes over.
         const continueGuidedFlow =
           Boolean(flowState.flowLabel) && !requireNearbyHelp && !(emergencyIncident && softFlowActive);
@@ -912,9 +928,12 @@ You are coordinating this emergency from the start, not just answering questions
             ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities, do NOT open SOS / ::emergency, and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they ask to book by email and you have a clinic email from a prior phone_booking result or the user, call send_incident_email with incidentType=general, a clear appointment-request subject, and the triageSummary describing the visit time/reason — then confirm the email was queued only if success=true. After book_hospital_appointment: ONLY say the appointment was booked if booked=true / success=true. If status is phone_booking, say online booking was unavailable, share phone/email, and offer to email the clinic — never claim it was booked. Never invent a confirmation number. End with ::suggest[…] when you still need a choice.`
             : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
           : "";
-        const emailDraftBlock = isHospitalEmailDraftAsk(intakeText)
-          ? `\n\nHOSPITAL EMAIL DRAFT REQUEST: The user wants an email written to a hospital/clinic. Call draft_email with a complete draft: a clear subject, then a short body (who is writing, patient and problem, location, callback number) with [placeholders] for anything unknown. If a nearby hospital was found by find_facilities, name it in recipient_name. draft_email shows the user an editable card with a "Send from my Gmail" button; you NEVER send the user's Gmail yourself and must not claim it was sent. Pass \`to\` only if the user typed a real address or a tool result gave one; our facility directory has no email addresses, so normally leave it null and tell the user to type the hospital's address in the card. Never invent an email address. If they have not connected Gmail, the card itself offers Connect Gmail. After calling draft_email, add one short line pointing them to the card. Use send_incident_email only for structured incident handoffs. Do not reply with only a place list or a "tell me a town" line. For a life-threatening emergency, tell them to call 999 / 112 / 911 themselves — never dial for them.`
-          : "";
+        const emailDraftBlock = emailCardMode
+          ? `\n\nEMAIL DRAFT REQUEST (user's Gmail connected: ${gmailConnected ? "yes" : "no"}): The user asked you to write an email. Call draft_email exactly once — it shows them an editable card with To, Subject, Body and a "Send from my Gmail" button. Do NOT write the email in chat text and do NOT call any other tool. Follow what they asked for in the subject and body (who is writing, why, the details they gave; for a hospital: patient and problem, location, callback number) using [placeholders] for anything unknown, signed "[your name]". Set to ONLY to an email address the user typed in their own messages; otherwise null — our directory has no hospital email addresses and you must never invent or guess one. Set recipient_name to the hospital or person if named. You never send anything; the user taps Send themselves. For a life-threatening emergency tell them to call 999 / 112 / 911 themselves — never dial for them.`
+          : isHospitalEmailDraftAsk(intakeText)
+            ? `\n\nHOSPITAL EMAIL DRAFT REQUEST: The user is not signed in, so you cannot show the send card. Write the draft (To, Subject, body with [placeholders]) in this reply, never invent an email address, and tell them to sign in and connect Gmail in Profile to send it from their own address.`
+            : "";
+
         const intentBlock = emailDraftBlock + bookingBlock + directHelpBlock + (intent && continueGuidedFlow
           ? `\n\nTHE USER NAMED AN INTENT: ${intent.flow}. ${
               flowState.flowLabel
@@ -1014,6 +1033,7 @@ You are coordinating this emergency from the start, not just answering questions
             intakeText,
           );
         const wantsEmail =
+          emailCardMode ||
           isBookingEmailAsk(intakeText) ||
           /\b(write|draft|compose|send)\b.{0,30}\be-?mail\b/i.test(intakeText) ||
           /\b(email|e-mail|send).{0,40}\b(incident|handoff|report|summary|clinic|hospital|doctor|appointment)\b|\bsend_incident_email\b/i.test(
@@ -1180,11 +1200,14 @@ You are coordinating this emergency from the start, not just answering questions
           messages: modelMessages,
           // Injury/emergency turns always search nearby help. Keep a second step so
           // first-aid text can follow the forced facility tool call.
-          ...(requireNearbyHelp
-            ? { toolChoice: { type: "tool" as const, toolName: "find_facilities" } }
-            : {}),
-          stopWhen:
-            requireNearbyHelp && emergencyIncident
+          ...(emailCardMode
+            ? { toolChoice: { type: "tool" as const, toolName: "draft_email" } }
+            : requireNearbyHelp
+              ? { toolChoice: { type: "tool" as const, toolName: "find_facilities" } }
+              : {}),
+          stopWhen: emailCardMode
+            ? [stepCountIs(1)]
+            : requireNearbyHelp && emergencyIncident
               ? [stepCountIs(2)]
               : [stepCountIs(2), () => facilityCardsRendered],
           ...providerOptionsFor(modelId),
@@ -2081,7 +2104,7 @@ You are coordinating this emergency from the start, not just answering questions
               execute: async ({ to, recipient_name, subject, body }) => ({
                 draft: true as const,
                 sent: false as const,
-                to,
+                to: trustedRecipient(to, { latest: intakeText, conversation: userConversationText }),
                 recipient_name,
                 subject,
                 body,
@@ -2322,9 +2345,19 @@ You are coordinating this emergency from the start, not just answering questions
             execute: async ({ writer }) => {
               const id = `allma-gateway-fail-${Date.now()}`;
               writer.write({ type: "start", messageId: id });
-              writer.write({ type: "text-start", id });
-              writer.write({ type: "text-delta", id, delta: failText });
-              writer.write({ type: "text-end", id });
+              if (emailCardMode) {
+                const draft = fallbackEmailDraft({ text: intakeText });
+                writer.write({ type: "tool-input-available", toolCallId: id, toolName: "draft_email", input: draft });
+                writer.write({ type: "tool-output-available", toolCallId: id, output: draft });
+                const noteId = `${id}-note`;
+                writer.write({ type: "text-start", id: noteId });
+                writer.write({ type: "text-delta", id: noteId, delta: emailDraftNote(gmailConnected) });
+                writer.write({ type: "text-end", id: noteId });
+              } else {
+                writer.write({ type: "text-start", id });
+                writer.write({ type: "text-delta", id, delta: failText });
+                writer.write({ type: "text-end", id });
+              }
               writer.write({ type: "finish" });
             },
           });
@@ -2383,8 +2416,16 @@ You are coordinating this emergency from the start, not just answering questions
               controller.enqueue({ type: "text-delta", id: takeoverId, delta: takeoverOpener });
               controller.enqueue({ type: "text-end", id: takeoverId });
             };
+            const draftCallIds = new Set<string>();
+            let draftCardShown = false;
             const emptyReplyGuard = new TransformStream<UIMessageChunk, UIMessageChunk>({
               transform(chunk, controller) {
+                if (chunk.type === "tool-input-available" && chunk.toolName === "draft_email") {
+                  draftCallIds.add(chunk.toolCallId);
+                }
+                if (chunk.type === "tool-output-available" && draftCallIds.has(chunk.toolCallId)) {
+                  draftCardShown = true;
+                }
                 if (chunk.type === "finish") {
                   heldFinish = chunk;
                   return;
@@ -2406,7 +2447,27 @@ You are coordinating this emergency from the start, not just answering questions
                 controller.enqueue(chunk);
               },
               flush(controller) {
-                if (!streamedText) {
+                if (emailCardMode) {
+                  // The card is the answer. If the model skipped or botched the tool call, show a
+                  // deterministic draft (no recipient unless the user typed one) instead of plain text.
+                  if (!draftCardShown) {
+                    const callId = `allma-email-draft-${Date.now()}`;
+                    const draft = fallbackEmailDraft({ text: intakeText });
+                    controller.enqueue({
+                      type: "tool-input-available",
+                      toolCallId: callId,
+                      toolName: "draft_email",
+                      input: draft,
+                    });
+                    controller.enqueue({ type: "tool-output-available", toolCallId: callId, output: draft });
+                  }
+                  if (!streamedText) {
+                    const noteId = `allma-email-note-${Date.now()}`;
+                    controller.enqueue({ type: "text-start", id: noteId });
+                    controller.enqueue({ type: "text-delta", id: noteId, delta: emailDraftNote(gmailConnected) });
+                    controller.enqueue({ type: "text-end", id: noteId });
+                  }
+                } else if (!streamedText) {
                   emitTakeover(controller);
                   const fallback = emptyReplyFallback(intakeText, sosFallbackContext, emailDraftContext());
                   const fallbackId = `allma-empty-fallback-${Date.now()}`;
