@@ -179,6 +179,24 @@ export async function resolveEmergencyLocation(input: {
   return null;
 }
 
+/** True when this person already has a live-or-finished emergency run in the last half hour. */
+export async function hasRecentEmergencyRun(userId: string): Promise<boolean> {
+  try {
+    const db = await admin();
+    const since = new Date(Date.now() - RECENT_RUN_WINDOW_MS).toISOString();
+    const { data } = await db
+      .from("emergency_contact_runs")
+      .select("id")
+      .eq("user_id", userId)
+      .neq("status", "no_facilities")
+      .gte("created_at", since)
+      .limit(1);
+    return Boolean(data?.[0]);
+  } catch {
+    return false;
+  }
+}
+
 export async function startEmergencyRun(input: StartEmergencyInput): Promise<StartEmergencyResult> {
   try {
     const db = await admin();

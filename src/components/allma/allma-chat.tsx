@@ -8,7 +8,11 @@ import {
   EmergencyDispatchCard,
 } from "@/components/allma/agent-tool-cards";
 import { EmailDraftCard, type EmailDraft } from "@/components/allma/email-draft-card";
-import { EmergencyContactCard } from "@/components/allma/emergency-contact-card";
+import {
+  EmergencyContactCard,
+  EmergencyLiveStatus,
+  type EmergencyNetworkStatus,
+} from "@/components/allma/emergency-contact-card";
 import type { EmergencyRunView } from "@/lib/emergency-contact.server";
 import { formatTravelLabel } from "@/lib/facility-etas";
 import { dispatchGuideToPlace } from "@/lib/guide-to-place";
@@ -138,6 +142,7 @@ import {
 import { KIND_LABEL } from "@/lib/facility-results";
 import { facilityKind } from "@/lib/facility-kind";
 import { dedupeRepeatedParts, parseAllmaMarkers, type MarkerMedia } from "@/lib/allma-markers";
+import { limitChips, safetyPlanOf } from "@/lib/chat-priority";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar } from "@/components/allma/safety-network/add-safety-contact";
 import {
@@ -249,11 +254,6 @@ const LOCATION_ASK = /\b(where are you|your area|area, |neighbourhood|neighborho
 
 
 
-const IDLE_CHIPS: Suggestion[] = [
-  { label: "Report a crime", prompt: "I want to report a crime" },
-  { label: "Find help nearby", prompt: "Find help near me" },
-  { label: "Emergency numbers", prompt: "Show me the emergency numbers" },
-];
 
 // Topic-derived answers, used whenever the assistant asks something without
 // supplying options. Ordered most-specific first; the first match wins.
@@ -608,14 +608,22 @@ function FirstAidCard({ aid, followUp }: { aid: FirstAid; followUp: string | nul
 }
 
 /** Activate SOS (user taps — never automatic) + one call button per number. */
+/** Emergency dispatch order: the hospital card waits for SOS and shows the live status. */
+const EmergencySequenceContext = createContext<{
+  waitForSos: boolean;
+  network: EmergencyNetworkStatus | null;
+}>({ waitForSos: false, network: null });
+
 function EmergencyActions({
   type,
   offerMode = false,
   includeCallLinks = true,
+  autoStart = false,
 }: {
   type: "medical" | "crime" | "fire";
   offerMode?: boolean;
   includeCallLinks?: boolean;
+  autoStart?: boolean;
 }) {
   const sosActivity = useContext(SosActivityContext);
   return (
@@ -629,6 +637,7 @@ function EmergencyActions({
       canManage={sosActivity.canManage}
       ownerName={sosActivity.ownerName}
       offerMode={offerMode}
+      autoStart={autoStart}
       onActivityStarted={sosActivity.onActivityStarted}
       onActivityEnded={sosActivity.onActivityEnded}
       onEnsureThread={sosActivity.onEnsureThread}
@@ -1101,6 +1110,8 @@ function ToolCard({
   const hasPlaces = useContext(HasPlacesContext);
   const bookingLive = useContext(BookingLiveProgressContext);
   const onEmailSent = useContext(EmailSentContext);
+  const sequence = useContext(EmergencySequenceContext);
+  const sosActivity = useContext(SosActivityContext);
   const running = part.state !== "output-available" && part.state !== "output-error";
   const output = part.output as Record<string, unknown> | undefined;
 
@@ -1179,9 +1190,18 @@ function ToolCard({
   }
 
   if (name === "emergency_contact") {
+    const hold = sequence.waitForSos ? { sosActive: sosActivity.active, maxWaitMs: 12_000 } : undefined;
     if (running) return <EmergencyContactCard run={null} />;
     if (output?.failed) return <EmergencyContactCard run={null} searching={false} />;
-    if (output?.run_id) return <EmergencyContactCard run={output as unknown as EmergencyRunView} />;
+    if (output?.run_id) {
+      return (
+        <EmergencyContactCard
+          run={output as unknown as EmergencyRunView}
+          waitForSos={hold}
+          network={sequence.network}
+        />
+      );
+    }
     return null;
   }
 
@@ -2738,6 +2758,9 @@ export function AllmaChat({
 
   const isEmpty = messages.length === 0;
   const lastMsg = messages[messages.length - 1];
+  // Only a reply that streamed in during this visit may start SOS on its own — never one loaded from history.
+  const streamedAssistantIds = useRef(new Set<string>());
+  if (busy && lastMsg?.role === "assistant") streamedAssistantIds.current.add(lastMsg.id);
   const timelineItems = useMemo<TimelineItem[]>(() => {
     const chatItems: TimelineItem[] = messages.map((message, msgIndex) => {
       const createdAt = (message as UIMessage & { createdAt?: string | Date }).createdAt;
@@ -2802,7 +2825,12 @@ export function AllmaChat({
 
   // Contextual chips come from the ::suggest marker in the last assistant reply
   // (legacy threads fall back to the old suggest_replies tool output).
-  const contextualChips = useMemo(() => {
+  const lastSafetyPlan = useMemo(
+    () => (lastMsg?.role === "assistant" ? safetyPlanOf(lastMsg.parts as never) : null),
+    [lastMsg],
+  );
+
+  const rawContextualChips = useMemo<Suggestion[]>(() => {
     if (busy || isEmpty || status !== "ready" || lastMsg?.role !== "assistant") return [];
     const parts = (lastMsg.parts ?? []) as ToolPart[];
     const rawText = parts
@@ -2813,6 +2841,15 @@ export function AllmaChat({
 
     // Inline markers win: they were written for exactly this step.
     if (markers.suggestions.length > 0) return markers.suggestions.slice(0, 3);
+    // Urgent health, clinics shown: the only next steps are booking or calling.
+    if (lastSafetyPlan?.level === "urgent" && messageHasPlaces(parts as never)) {
+      return [
+        { label: "Book appointment", prompt: "Book an appointment" },
+        { label: "Call clinic", prompt: "Call the clinic" },
+      ];
+    }
+    // Emergency steps that ask nothing (dispatch) show no chips; the live cards are the next step.
+    if (lastSafetyPlan?.level === "emergency" && lastSafetyPlan.step !== "support") return [];
     if (markers.media) {
       if (markers.media.mediaType === "location") {
         return [{ label: "Share my location", prompt: LOCATION_CHIP }];
@@ -2936,10 +2973,23 @@ export function AllmaChat({
       }
       return [];
     }
-    return flowActive || isEmpty ? [] : IDLE_CHIPS;
+    // No generic menu: chips only ever belong to the current step.
+    return [];
+  }, [busy, isEmpty, status, lastMsg, messages, lastSafetyPlan]);
 
-
-  }, [busy, isEmpty, status, lastMsg, messages]);
+  // Fixed priority: at most three chips, all about the current step; none that are off-topic in an emergency.
+  const contextualChips = useMemo<Suggestion[]>(() => {
+    const mapped = rawContextualChips.map((chip) =>
+      /^share my location$/i.test(chip.label.trim()) ? { ...chip, prompt: LOCATION_CHIP } : chip,
+    );
+    const keep = limitChips(
+      mapped.map((chip) => chip.label),
+      lastSafetyPlan?.level ?? null,
+    );
+    return keep
+      .map((label) => mapped.find((chip) => chip.label.trim() === label))
+      .filter((chip): chip is Suggestion => Boolean(chip));
+  }, [rawContextualChips, lastSafetyPlan]);
 
 
   const showChips = contextualChips.length > 0;
@@ -3686,8 +3736,15 @@ export function AllmaChat({
                   Boolean(emergencyMarker?.offer) ||
                   Boolean(replyIncident && !replyIncident.lifeThreatening && emergencyType);
                 // One card stack per emergency report — never repeat SOS/first-aid.
-                const showCardStack = cardStackMessageIds.has(message.id);
-                const showAidCard = aidCardMessageIds.has(message.id);
+                // A message with a safety plan lays itself out in the fixed order — no inferred card stack.
+                const safetyPlan = message.role === "assistant" ? safetyPlanOf(message.parts as never) : null;
+                const dispatchPlan =
+                  safetyPlan?.level === "emergency" && safetyPlan.step === "dispatch" ? safetyPlan : null;
+                const showCardStack = !safetyPlan && cardStackMessageIds.has(message.id);
+                const showAidCard =
+                  aidCardMessageIds.has(message.id) && safetyPlan?.level !== "emergency";
+                const freshDispatch =
+                  Boolean(dispatchPlan) && streamedAssistantIds.current.has(message.id);
                 // Activate SOS lives in the message only before the room is live;
                 // the sticky dock owns the live card after that (no duplicates).
                 // Never stack SOS activate on top of a hospital booking reply.
@@ -3778,6 +3835,19 @@ export function AllmaChat({
                     <EmailSentContext.Provider value={postEmailSentNote}>
                     <HasPlacesContext.Provider value={message.role === "assistant" && messageHasPlaces(message.parts as never)}>
                     <EmergencyShownContext.Provider value={message.role === "assistant" && Boolean(emergencyType)}>
+                    <EmergencySequenceContext.Provider
+                      value={{
+                        waitForSos: freshDispatch && !sosIsActive && canManageSos,
+                        network: dispatchPlan
+                          ? {
+                              sosActive: sosIsActive,
+                              answered: sosParticipants
+                                .filter((person) => person.role === "responder" || person.role === "contact")
+                                .map((person) => person.name),
+                            }
+                          : null,
+                      }}
+                    >
                     {(() => {
                       // Text parts with a repeated block (steps written before AND after the place cards) render it once.
                       const replyQuote = replyQuoteOf(message);
@@ -3786,9 +3856,18 @@ export function AllmaChat({
                       const deduped = message.role === "assistant"
                         ? dedupeRepeatedParts(raw)
                             .map(stripFillerSentences)
-                            .map((t) => stripDuplicateFirstAidProse(t, replyIncident))
+                            .map((t) => (safetyPlan?.level === "emergency" ? t : stripDuplicateFirstAidProse(t, replyIncident)))
                         : raw;
-                      return message.parts.map((part, index) => {
+                      const hasHospitalCard = message.parts.some(
+                        (p) => (p as { type?: string }).type === "tool-emergency_contact",
+                      );
+                      const dispatchSos =
+                        dispatchPlan && !sosIsActive ? (
+                          <div key="plan-sos" className="my-2.5 w-full">
+                            <EmergencyActions type={dispatchPlan.sosType ?? "medical"} autoStart={freshDispatch} />
+                          </div>
+                        ) : null;
+                      const renderedParts = message.parts.map((part, index) => {
                       if ((part as { type?: string }).type === "data-chat-recipient") {
                         return null;
                       }
@@ -3942,7 +4021,7 @@ export function AllmaChat({
                         // One card per tool type per message — model often doubles empties.
                         const firstOfType = message.parts.findIndex((p) => p.type === part.type);
                         if (firstOfType !== index) return null;
-                        return (
+                        const card = (
                           <ToolCard
                             key={index}
                             part={part as ToolPart}
@@ -3951,11 +4030,38 @@ export function AllmaChat({
                             onShareLocation={shareLocation}
                           />
                         );
+                        return part.type === "tool-emergency_contact" && dispatchSos ? (
+                          <div key={index} className="space-y-2.5">
+                            {dispatchSos}
+                            {card}
+                          </div>
+                        ) : (
+                          card
+                        );
                       }
 
                       return null;
                     });
+                    if (dispatchPlan && !hasHospitalCard) {
+                      return [
+                        ...renderedParts,
+                        dispatchSos,
+                        <div key="plan-status" className="w-full">
+                          <EmergencyLiveStatus
+                            network={{
+                              sosActive: sosIsActive,
+                              answered: sosParticipants
+                                .filter((person) => person.role === "responder" || person.role === "contact")
+                                .map((person) => person.name),
+                            }}
+                            view={null}
+                          />
+                        </div>,
+                      ];
+                    }
+                    return renderedParts;
                     })()}
+                    </EmergencySequenceContext.Provider>
                     </EmergencyShownContext.Provider>
                     </HasPlacesContext.Provider>
                     </EmailSentContext.Provider>

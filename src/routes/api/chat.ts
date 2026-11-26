@@ -44,8 +44,17 @@ import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSo
 import { BOOKING_START_STEPS, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
-import { classifyRealEmergency } from "@/lib/emergency-contact-plan";
-import { startEmergencyRun } from "@/lib/emergency-contact.server";
+import {
+  SAFETY_PLAN_PART,
+  classifySafety,
+  emergencyTurn,
+  factsPromptBlock,
+  priorityPromptBlock,
+  sessionFacts,
+  type SafetyPlanData,
+} from "@/lib/chat-priority";
+import { hasRecentEmergencyRun, startEmergencyRun } from "@/lib/emergency-contact.server";
+import { resolveUgandaPlace } from "@/lib/uganda-places";
 import { createEmergencyCard } from "@/lib/emergency-stream";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { lookupHospitalContact } from "@/lib/places.server";
@@ -175,6 +184,7 @@ function modelFacingMessages(messages: UIMessage[]): UIMessage[] {
         type !== "data-chat-recipient" &&
         type !== "data-chat-progress" &&
         type !== "data-booking-progress" &&
+        type !== SAFETY_PLAN_PART &&
         type !== "data-reply" &&
         type !== "data-sos-brief"
       );
@@ -583,7 +593,40 @@ You are coordinating this emergency from the start, not just answering questions
         // ---- EMERGENCY auto-contact: a real emergency report, or the owner's active SOS, starts the
         // facility search right away (in parallel with everything below). The card the user sees has a
         // 10 s Cancel countdown before anything is sent. Normal requests never reach this.
-        const emergencyReport = userId && !sharedSosActive ? classifyRealEmergency(intakeText) : null;
+        // STEP 1 OF EVERY MESSAGE: safety check (emergency / urgent health / normal).
+        const allUserTexts = uiMessages.filter((m) => m.role === "user").map((m) => textOf(m));
+        const safetyPriorTexts =
+          allUserTexts.length && allUserTexts[allUserTexts.length - 1] === intakeText
+            ? allUserTexts.slice(0, -1)
+            : allUserTexts;
+        const lastAssistantForSafety = [...uiMessages].reverse().find((m) => m.role === "assistant");
+        const safety = classifySafety(intakeText, {
+          sosActive: sharedSosActive,
+          lastAssistantText: lastAssistantForSafety ? textOf(lastAssistantForSafety) : "",
+          priorUserTexts: safetyPriorTexts,
+        });
+        const earlyCoordMatch = /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/.exec(intakeText);
+        const earlyDevicePoint = validLatLng(body.coords?.latitude, body.coords?.longitude);
+        const emergencyCoords = earlyCoordMatch
+          ? { latitude: Number(earlyCoordMatch[1]), longitude: Number(earlyCoordMatch[2]) }
+          : earlyDevicePoint
+            ? { latitude: earlyDevicePoint.lat, longitude: earlyDevicePoint.lng }
+            : null;
+        const facts = sessionFacts(allUserTexts, { hasCoords: Boolean(emergencyCoords) });
+        const placeTexts = [
+          ...[...allUserTexts].reverse(),
+          ...(sosRoomSnapshot?.area ? [sosRoomSnapshot.area] : []),
+        ];
+        const ownsEmergencyTurn = Boolean(userId && threadIsOwner && !sharedSosActive && safety.level === "emergency");
+        const emergencyAlreadyHandled =
+          ownsEmergencyTurn && userId ? await hasRecentEmergencyRun(userId) : false;
+        const emergencyScript =
+          ownsEmergencyTurn && !emergencyAlreadyHandled
+            ? emergencyTurn(safety, {
+                hasLocation: Boolean(emergencyCoords) || placeTexts.some((text) => resolveUgandaPlace(text)),
+                place: facts.town,
+              })
+            : null;
         const emergencyPlan =
           userId && threadIsOwner
             ? sharedSosActive && sosActivityId
@@ -591,16 +634,9 @@ You are coordinating this emergency from the start, not just answering questions
                   trigger: "sos" as const,
                   label: `SOS emergency${sosEmergencyType ? ` – ${sosEmergencyType}` : ""}`,
                 }
-              : emergencyReport
-                ? { trigger: "chat" as const, label: emergencyReport.incident.label }
+              : emergencyScript?.step === "dispatch" && emergencyScript.hospitals && safety.incident
+                ? { trigger: "chat" as const, label: safety.incident.label }
                 : null
-            : null;
-        const earlyCoordMatch = /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/.exec(intakeText);
-        const earlyDevicePoint = validLatLng(body.coords?.latitude, body.coords?.longitude);
-        const emergencyCoords = earlyCoordMatch
-          ? { latitude: Number(earlyCoordMatch[1]), longitude: Number(earlyCoordMatch[2]) }
-          : earlyDevicePoint
-            ? { latitude: earlyDevicePoint.lat, longitude: earlyDevicePoint.lng }
             : null;
         const emergencyCard =
           userId && emergencyPlan
@@ -611,26 +647,25 @@ You are coordinating this emergency from the start, not just answering questions
                   sosActivityId: emergencyPlan.trigger === "sos" ? sosActivityId : null,
                   trigger: emergencyPlan.trigger,
                   incident: { label: emergencyPlan.label },
-                  reportText: intakeText,
-                  placeTexts: [
-                    ...uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)).reverse(),
-                    ...(sosRoomSnapshot?.area ? [sosRoomSnapshot.area] : []),
-                  ],
+                  reportText: safety.reportText || intakeText,
+                  placeTexts,
                   coords: emergencyCoords,
                 }),
               )
             : null;
 
-        const replyWithFixedText = (text: string, idPrefix: string) => {
+        const replyWithFixedText = (text: string, idPrefix: string, plan?: SafetyPlanData) => {
           const assistantId = `${idPrefix}-${Date.now()}`;
           const stream = createUIMessageStream({
             originalMessages: uiMessages,
             execute: async ({ writer }) => {
               writer.write({ type: "start", messageId: assistantId });
-              if (emergencyCard) for (const chunk of emergencyCard.open()) writer.write(chunk);
+              if (plan) writer.write({ type: SAFETY_PLAN_PART, data: plan } as unknown as UIMessageChunk);
+              if (emergencyCard && !plan) for (const chunk of emergencyCard.open()) writer.write(chunk);
               writer.write({ type: "text-start", id: idPrefix });
               writer.write({ type: "text-delta", id: idPrefix, delta: text });
               writer.write({ type: "text-end", id: idPrefix });
+              if (emergencyCard && plan) for (const chunk of emergencyCard.open()) writer.write(chunk);
               if (emergencyCard) for (const chunk of await emergencyCard.settle()) writer.write(chunk as UIMessageChunk);
               writer.write({ type: "finish" });
             },
@@ -649,6 +684,16 @@ You are coordinating this emergency from the start, not just answering questions
           });
           return createUIMessageStreamResponse({ stream });
         };
+
+        // Emergency: one deterministic, ordered reply. Calm line + first aid, then the single
+        // location question, or (location known) SOS first and the hospitals right after.
+        if (emergencyScript) {
+          return replyWithFixedText(emergencyScript.text, "allma-emergency", {
+            level: "emergency",
+            step: emergencyScript.step,
+            sosType: emergencyScript.sosType,
+          });
+        }
 
         if (isGreetingOnly) {
           return replyWithFixedText(
@@ -997,7 +1042,8 @@ You are coordinating this emergency from the start, not just answering questions
         // Booking intent must be resolved before intentBlock (used below).
         // Follow-ups after the opener ("jinja main hospital", "tomorrow morning checkup")
         // are booking too — even without the words "book" / "appointment".
-        const bookingAsk = isAppointmentBookingAsk(intakeText) || bookingFollowUp;
+        const bookingAsk =
+          safety.level !== "emergency" && (isAppointmentBookingAsk(intakeText) || bookingFollowUp);
         const wantsBooking = isBrowserAgentConfigured() && bookingAsk;
         const bookingBlock = bookingAsk
           ? wantsBooking
@@ -1090,6 +1136,7 @@ You are coordinating this emergency from the start, not just answering questions
           );
         if (needsProcedures) promptBlocks.push(ALLMA_PROCEDURES_BLOCK);
         if (emergencyBlock) promptBlocks.push(emergencyBlock);
+        promptBlocks.push(priorityPromptBlock(safety.level) + factsPromptBlock(facts));
         if (needsLocation) promptBlocks.push(ALLMA_LOCATION_BLOCK);
         if (
           memoryBlock ||
@@ -2456,6 +2503,16 @@ You are coordinating this emergency from the start, not just answering questions
             reportBookingProgress = (update) => {
               writer.write({ type: "data-booking-progress", data: update });
             };
+            if (safety.level !== "normal") {
+              writer.write({
+                type: SAFETY_PLAN_PART,
+                data: {
+                  level: safety.level,
+                  step: safety.level === "emergency" ? "support" : "advice",
+                  ...(safety.level === "emergency" ? { sosType: safety.kind } : {}),
+                } satisfies SafetyPlanData,
+              } as unknown as UIMessageChunk);
+            }
             if (wantsBooking) {
               emit("booking");
               // Seed the live booking feed immediately so the UI never flashes

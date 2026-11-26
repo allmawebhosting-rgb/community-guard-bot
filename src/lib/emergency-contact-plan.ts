@@ -1,4 +1,10 @@
 import { matchIncident, type Incident } from "@/lib/allma-emergency-playbook";
+import {
+  HEALTH_EMERGENCY_IDS as HEALTH_EMERGENCIES,
+  HYPOTHETICAL,
+  PERSONAL_OR_PRESENT,
+  SEVERE_BLEEDING,
+} from "@/lib/chat-priority";
 import { isOfficialEmergencyNumber, normalizeInfobipPhone } from "@/lib/infobip.server";
 
 export const EMERGENCY_COUNTDOWN_SECONDS = 10;
@@ -7,39 +13,6 @@ export const EMERGENCY_MAX_FACILITIES = 3;
 export const EMERGENCY_EMAIL_CAP = 10;
 
 // ── Is this a real emergency? ──────────────────────────────────────────────
-
-/** Incidents where health facilities are the right people to alert. */
-const HEALTH_EMERGENCIES = new Set([
-  "road_accident",
-  "building_collapse",
-  "fire",
-  "gas_leak",
-  "lightning",
-  "assault",
-  "sexual_assault",
-  "not_breathing",
-  "choking",
-  "snake_bite",
-  "allergy",
-  "heart_attack",
-  "stroke",
-  "poisoning",
-  "drowning",
-  "electric_shock",
-  "labour",
-  "heat_stroke",
-  "unconscious",
-  "bleeding",
-]);
-
-const HYPOTHETICAL =
-  /\b(what (should|do|would) i do if|what to do (if|when)|how (do|can|to|should)\b|how (do|can) (you|i)|tips? (for|on)|in case (of|i)|prevent|preparing|first aid (course|training|kit)|for (a |my )?(school|class|project|story|essay)|just (asking|curious)|hypothetical|can you explain|what is a|what are the (signs|symptoms))\b/i;
-
-const PERSONAL_OR_PRESENT =
-  /\b(i|i'm|im|i've|ive|we|we're|my|me|our|someone|somebody|he|she|they|there'?s|there is|a man|a woman|a child|a boy|a girl|a baby|friend|mother|father|mum|dad|brother|sister|husband|wife|son|daughter)\b/i;
-
-const SEVERE_BLEEDING =
-  /\b(heav(y|ily)|sever(e|ely)|serious(ly)?|a lot|lots of|profuse|gushing|badly|won'?t stop|will not stop|can'?t stop|cannot stop|not stopping|blood everywhere|losing (a lot of )?blood)\b/i;
 
 export type RealEmergency = { incident: Incident; kind: "medical" | "crime" | "fire" };
 

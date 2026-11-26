@@ -52,7 +52,76 @@ function StatusIcon({ status }: { status: string }) {
   return <span className="block size-2 rounded-full bg-muted-foreground/50" aria-hidden />;
 }
 
-export function EmergencyContactCard({ run, searching }: { run: EmergencyRunView | null; searching?: boolean }) {
+export type EmergencyNetworkStatus = { sosActive: boolean; answered: string[] };
+
+/** One plain line per hospital: what actually happened with its call and email. */
+export function hospitalStatusLines(view: EmergencyRunView | null): Array<{ name: string; text: string }> {
+  if (!view) return [];
+  const names = [...new Set(view.actions.map((a) => a.facility_name))];
+  return names.map((name) => {
+    const own = view.actions.filter((a) => a.facility_name === name);
+    const call = own.find((a) => a.channel === "call");
+    const email = own.find((a) => a.channel === "email");
+    const parts: string[] = [];
+    if (call?.status === "answered") parts.push("answered the call");
+    else if (call?.status === "running") parts.push("calling now");
+    else if (call?.status === "no_answer") parts.push("did not answer");
+    else if (call?.status === "failed") parts.push("call failed");
+    if (email?.status === "sent") parts.push("emailed");
+    else if (email?.status === "running") parts.push("sending email");
+    else if (email?.status === "failed") parts.push("email failed");
+    return { name, text: parts.length ? parts.join(", ") : "waiting" };
+  });
+}
+
+/** Live status: who was alerted, who answered, which hospital was contacted. */
+export function EmergencyLiveStatus({
+  network,
+  view,
+}: {
+  network: EmergencyNetworkStatus;
+  view: EmergencyRunView | null;
+}) {
+  const hospitals = hospitalStatusLines(view);
+  const hospitalsStarted = view && view.status !== "countdown" && view.status !== "pending" && hospitals.length > 0;
+  return (
+    <dl aria-label="Live status" className="mt-3 space-y-1 rounded-xl bg-background/80 p-3 text-[13px]">
+      <div className="flex gap-2">
+        <dt className="w-28 shrink-0 font-semibold">Alerted</dt>
+        <dd>{network.sosActive ? "Your emergency contacts and safety network" : "Starting SOS…"}</dd>
+      </div>
+      <div className="flex gap-2">
+        <dt className="w-28 shrink-0 font-semibold">Answered</dt>
+        <dd>{network.answered.length ? network.answered.join(", ") : "No one yet"}</dd>
+      </div>
+      {view ? (
+        <div className="flex gap-2">
+          <dt className="w-28 shrink-0 font-semibold">Hospitals</dt>
+          <dd>
+            {hospitalsStarted
+              ? hospitals.map((h) => `${h.name}: ${h.text}`).join(" · ")
+              : view.status === "cancelled"
+                ? "Cancelled"
+                : "Not contacted yet"}
+          </dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
+export function EmergencyContactCard({
+  run,
+  searching,
+  waitForSos,
+  network,
+}: {
+  run: EmergencyRunView | null;
+  searching?: boolean;
+  /** Hold the hospital countdown until SOS is active (or the wait runs out): one step at a time. */
+  waitForSos?: { sosActive: boolean; maxWaitMs: number };
+  network?: EmergencyNetworkStatus | null;
+}) {
   const arm = useServerFn(armEmergencyContact);
   const advance = useServerFn(advanceEmergencyContact);
   const cancel = useServerFn(cancelEmergencyContact);
@@ -74,9 +143,22 @@ export function EmergencyContactCard({ run, searching }: { run: EmergencyRunView
     if (run && !view) setView(run);
   }, [run, view]);
 
+  const [released, setReleased] = useState(!waitForSos);
+  const holdSosActive = waitForSos?.sosActive ?? false;
+  const holdMs = waitForSos?.maxWaitMs ?? 0;
+  useEffect(() => {
+    if (released || !waitForSos) return;
+    if (holdSosActive) {
+      setReleased(true);
+      return;
+    }
+    const timer = setTimeout(() => setReleased(true), holdMs);
+    return () => clearTimeout(timer);
+  }, [released, waitForSos, holdSosActive, holdMs]);
+
   const runId = view?.run_id ?? run?.run_id ?? null;
   useEffect(() => {
-    if (!runId) return;
+    if (!runId || !released) return;
     stopped.current = false;
     arm({ data: { runId } })
       .then(apply)
@@ -84,7 +166,7 @@ export function EmergencyContactCard({ run, searching }: { run: EmergencyRunView
     return () => {
       stopped.current = true;
     };
-  }, [runId, arm, apply]);
+  }, [runId, released, arm, apply]);
 
   const status = view?.status ?? null;
   const endsAt = view?.countdown_ends_at ?? null;
@@ -139,10 +221,12 @@ export function EmergencyContactCard({ run, searching }: { run: EmergencyRunView
     }
   };
 
-  const counting = view.status === "countdown";
+  const counting = view.status === "countdown" && released;
   const active = counting || view.status === "running";
-  const heading =
-    view.status === "no_facilities"
+  const held = !released && !TERMINAL.has(view.status);
+  const heading = held
+    ? "Next: contacting nearby hospitals"
+    : view.status === "no_facilities"
       ? "No hospital with a real phone number or email found nearby"
       : view.status === "cancelled"
         ? "Contacting hospitals was cancelled"
@@ -199,7 +283,13 @@ export function EmergencyContactCard({ run, searching }: { run: EmergencyRunView
         </ol>
       ) : null}
 
-      {counting ? (
+      {held ? (
+        <p className="mt-3 text-xs text-muted-foreground">Starts right after your safety network is alerted.</p>
+      ) : null}
+
+      {network ? <EmergencyLiveStatus network={network} view={view} /> : null}
+
+      {counting && released ? (
         <button
           type="button"
           onClick={onCancel}

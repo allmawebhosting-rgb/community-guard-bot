@@ -2,7 +2,7 @@
 // costs ONE model request instead of extra tool round-trips for the chrome.
 //
 //   ::flow{type=reporting, step=1, total=4, title="What kind of incident?"}
-//   ::suggest[Theft | Robbery | Assault | Something else]
+//   ::suggest[Theft | Robbery | Something else]
 //   ::media{type=photo, optional=true, tips="Good light · Whole scene"}
 
 export type MarkerFlow = {
@@ -274,7 +274,7 @@ export function parseAllmaMarkers(raw: string): ParsedMarkers {
 
   text = normalizeChatMarkdown(text).replace(/\n{3,}/g, "\n\n").trim();
 
-  return { text, emergency, flow, suggestions: suggestions.slice(0, 5), media };
+  return { text, emergency, flow, suggestions: suggestions.slice(0, 3), media };
 }
 
 /** True when the text still contains a partially streamed marker. */
@@ -287,7 +287,7 @@ export function hasOpenMarker(raw: string): boolean {
 
 export const ALLMA_MARKER_CONTRACT = `INLINE UI MARKERS — write these directly in your reply text (never as tool calls):
 - Guided step banner: ::flow{type=Reporting, step=2, total=5, title="Where did it happen?"}  (put it on its own FIRST line; type is ONLY: Reporting, Missing person, Lost & found, Safety check, Advice). Safety check is ONLY for personal-safety threats (followed, unsafe walking, SOS) — NEVER for pain, injury, bleeding, burns, or illness.
-- Tappable answers / next steps: ::suggest[Theft | Robbery | Assault | Something else]  (2-4 short options, on the LAST line, always the exact answers to what you just asked — never a generic menu)
+- Tappable answers / next steps: ::suggest[Theft | Robbery | Something else]  (1-3 short options — never more than 3 —, on the LAST line, always the exact answers to what you just asked — never a generic menu)
 - Hard emergency action block: ::emergency{type=medical}  (type: medical, crime or fire; own FIRST line, only for potentially life-threatening situations; renders Activate SOS plus Call 999 / Call 112 — the user taps them, nothing starts automatically)
 - Soft Safety Network offer: ::sos_offer{type=medical}  (own line when help from trusted contacts may be useful but the situation is not clearly life-threatening; renders "Would you like to alert your Safety Network?" with a real Activate SOS action). Never use ::sos_offer and ::emergency in the same reply.
 - Ask for evidence: ::media{type=photo, optional=true, tips="Good light · Show the whole scene"}  (type: photo, video, audio, document or location). For medical first-aid, prefer no media card; at most one optional photo after the steps — never every turn.

@@ -322,3 +322,39 @@ it("keeps SOS on the same safety conversation instead of a blank emergency page"
     }),
   );
 });
+
+it("autoStart begins the cancellable countdown by itself, once", async () => {
+  render(
+    <InChatSos type="medical" lines={[{ number: "999" }]} threadId="thread-1" autoStart />,
+  );
+  await act(async () => {});
+  expect(screen.getByText(/Starting SOS in/)).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(5000);
+  });
+  expect(screen.queryByText(/Starting SOS in/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Activate SOS" })).toBeTruthy();
+  expect(insertMock).not.toHaveBeenCalled();
+});
+
+it("does not autoStart when an SOS is already active or the card is not managed by this user", async () => {
+  render(
+    <InChatSos
+      type="medical"
+      lines={[]}
+      threadId="thread-1"
+      existingActivityId="sos-9"
+      existingActive
+      autoStart
+    />,
+  );
+  await act(async () => {});
+  expect(screen.queryByText(/Starting SOS in/)).toBeNull();
+  cleanup();
+
+  render(<InChatSos type="medical" lines={[]} threadId="thread-1" canManage={false} autoStart />);
+  await act(async () => {});
+  expect(screen.queryByText(/Starting SOS in/)).toBeNull();
+});

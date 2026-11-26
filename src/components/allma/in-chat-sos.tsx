@@ -90,6 +90,7 @@ export function InChatSos({
   canManage = true,
   ownerName,
   requestActivation = false,
+  autoStart = false,
   immediateActivation = false,
   hideIdle = false,
   offerMode = false,
@@ -114,6 +115,8 @@ export function InChatSos({
   /** Name of the person who needs help — shown to responders on the map card. */
   ownerName?: string | null;
   requestActivation?: boolean;
+  /** Real emergency just reported in chat: begin the normal cancellable countdown once, on its own. */
+  autoStart?: boolean;
   /** Skip the 3s cancel window (header SOS already confirmed the intent). */
   immediateActivation?: boolean;
   hideIdle?: boolean;
@@ -432,6 +435,16 @@ export function InChatSos({
     // Fire on the header request edge — not on every phase tick (that caused double-start races).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage, existingActive, immediateActivation, requestActivation]);
+
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!autoStart || autoStartedRef.current) return;
+    if (!canManage || existingActive || phase !== "idle" || !user) return;
+    autoStartedRef.current = true;
+    startCountdown();
+    // One automatic start per card: cancelling must never restart it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, canManage, existingActive, phase, user]);
 
   async function activate() {
     if (!user || activatingRef.current) return;

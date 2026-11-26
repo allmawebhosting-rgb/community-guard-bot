@@ -117,3 +117,71 @@ describe("EmergencyContactCard", () => {
     expect(screen.getByText(/Finding the nearest hospitals/)).toBeTruthy();
   });
 });
+
+describe("EmergencyContactCard sequencing and live status", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    arm.mockReset();
+    advance.mockReset();
+    cancel.mockReset();
+  });
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+
+  const armed = () => base({ countdown_ends_at: new Date(Date.now() + 10_000).toISOString() });
+
+  it("waits for SOS before arming the hospital countdown", async () => {
+    arm.mockResolvedValue(armed());
+    const { rerender } = render(
+      <EmergencyContactCard run={base()} waitForSos={{ sosActive: false, maxWaitMs: 12_000 }} />,
+    );
+    await act(async () => {});
+    expect(arm).not.toHaveBeenCalled();
+    expect(screen.getByText("Next: contacting nearby hospitals")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+
+    rerender(<EmergencyContactCard run={base()} waitForSos={{ sosActive: true, maxWaitMs: 12_000 }} />);
+    await act(async () => {});
+    expect(arm).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not hold the hospitals forever when SOS never starts", async () => {
+    arm.mockResolvedValue(armed());
+    render(<EmergencyContactCard run={base()} waitForSos={{ sosActive: false, maxWaitMs: 12_000 }} />);
+    await act(async () => {});
+    expect(arm).not.toHaveBeenCalled();
+    await act(async () => {
+      vi.advanceTimersByTime(12_100);
+    });
+    expect(arm).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows who was alerted, who answered and which hospital was contacted", async () => {
+    const ends = new Date(Date.now() + 10_000).toISOString();
+    arm.mockResolvedValue(
+      base({
+        status: "completed",
+        countdown_ends_at: ends,
+        actions: base().actions.map((a) => ({ ...a, status: a.channel === "call" ? "answered" : "sent" })),
+      }),
+    );
+    render(<EmergencyContactCard run={base()} network={{ sosActive: true, answered: ["Sarah"] }} />);
+    await act(async () => {});
+    const status = screen.getByLabelText("Live status");
+    expect(status.textContent).toContain("Your emergency contacts and safety network");
+    expect(status.textContent).toContain("Sarah");
+    expect(status.textContent).toContain("Jinja Hospital: answered the call, emailed");
+  });
+
+  it("says nobody has answered yet", async () => {
+    arm.mockResolvedValue(armed());
+    render(<EmergencyContactCard run={base()} network={{ sosActive: false, answered: [] }} />);
+    await act(async () => {});
+    const status = screen.getByLabelText("Live status");
+    expect(status.textContent).toContain("Starting SOS");
+    expect(status.textContent).toContain("No one yet");
+    expect(status.textContent).toContain("Not contacted yet");
+  });
+});
