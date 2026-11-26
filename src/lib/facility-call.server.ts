@@ -64,9 +64,11 @@ export async function callFacility(input: {
     });
     const body = (await res.json().catch(() => ({}))) as {
       messages?: Array<{ messageId?: string; status?: InfobipStatus }>;
+      requestError?: { serviceException?: { messageId?: string; text?: string } };
     };
     if (!res.ok) {
-      console.error("[facility-call] infobip rejected", res.status);
+      const reason = body.requestError?.serviceException;
+      console.error("[facility-call] infobip rejected", res.status, reason?.messageId, reason?.text, `host=${new URL(config.baseUrl).host}`);
       return { status: "failed", messageId: null, detail: `Call provider error ${res.status}` };
     }
     messageId = body.messages?.[0]?.messageId ?? null;
