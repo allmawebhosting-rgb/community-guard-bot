@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   emailDraftNote,
   emailsIn,
-  fallbackEmailDraft,
   isEmailWriteAsk,
   trustedRecipient,
 } from "./email-draft-intent";
@@ -40,22 +39,6 @@ describe("trustedRecipient", () => {
     const typed = { latest: "Write to Dr@Clinic.org", conversation: "Write to Dr@Clinic.org" };
     expect(trustedRecipient("dr@clinic.org", typed)).toBe("dr@clinic.org");
     expect(trustedRecipient(null, typed)).toBe("dr@clinic.org");
-  });
-});
-
-describe("fallbackEmailDraft", () => {
-  it("leaves To empty for a nearby hospital and fills the subject and body", () => {
-    const draft = fallbackEmailDraft({ text: "Write an email to a nearby hospital" });
-    expect(draft).toMatchObject({ draft: true, sent: false, to: null });
-    expect(draft.subject).toBeTruthy();
-    expect(draft.body).toContain("[your name]");
-  });
-  it("uses the address the user gave and the topic", () => {
-    const draft = fallbackEmailDraft({
-      text: "Write an email to allmawebhosting@gmail.com asking about my hosting invoice",
-    });
-    expect(draft.to).toBe("allmawebhosting@gmail.com");
-    expect(draft.body).toContain("my hosting invoice");
   });
 });
 

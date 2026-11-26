@@ -51,6 +51,8 @@ export function sendErrorMessage(error?: string) {
       return "Add a subject before sending.";
     case "empty_body":
       return "Write a message before sending.";
+    case "placeholders_remaining":
+      return "Fill in the highlighted parts before sending.";
     case "gmail_403":
       return "Google refused to send. Reconnect Gmail and allow sending.";
     default:

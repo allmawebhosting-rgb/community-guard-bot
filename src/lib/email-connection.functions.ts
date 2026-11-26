@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { hasPlaceholders } from "@/lib/email-placeholders";
 import {
   getEmailConnection,
   isGoogleEmailConfigured,
@@ -43,5 +44,8 @@ export const sendEmailFromMyAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<SendGmailResult> => {
     const checked = validateOutgoingEmail(data);
     if (!checked.ok) return { success: false, error: checked.error };
+    if (hasPlaceholders(checked.value.subject, checked.value.body)) {
+      return { success: false, error: "placeholders_remaining" };
+    }
     return sendGmail(context.userId, checked.value);
   });

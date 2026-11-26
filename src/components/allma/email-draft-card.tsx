@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2, Mail, Send } from "lucide-react";
 import { getEmailConnectionStatus, sendEmailFromMyAccount } from "@/lib/email-connection.functions";
+import { hasPlaceholders, splitPlaceholders } from "@/lib/email-placeholders";
 import { beginGmailConnect, sendErrorMessage } from "@/lib/gmail-client";
 
 export type EmailDraft = {
@@ -10,6 +11,7 @@ export type EmailDraft = {
   recipient_name?: string | null;
   subject?: string;
   body?: string;
+  placeholders?: string[];
 };
 
 const EMAIL_RE = /^[^\s@,;<>()"]+@[^\s@,;<>()"]+\.[^\s@,;<>()"]+$/;
@@ -29,6 +31,68 @@ function readStash(draft: EmailDraft): { to: string; subject: string; body: stri
 
 const fieldClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none focus:border-primary disabled:opacity-70";
+
+/**
+ * A text field that paints any [bracketed placeholder] with a highlight. The highlight layer sits
+ * behind a transparent, auto-growing textarea so both always line up exactly.
+ */
+function HighlightField({
+  value,
+  onChange,
+  disabled,
+  singleLine,
+  minRows,
+  maxLength,
+  label,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  disabled: boolean;
+  singleLine?: boolean;
+  minRows: number;
+  maxLength: number;
+  label: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  const flagged = hasPlaceholders(value);
+  const layer = `${fieldClass.replace("border-border", "")} pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words border-transparent text-transparent`;
+  return (
+    <div
+      className={`relative rounded-lg ${flagged ? "ring-2 ring-amber-400/80" : ""}`}
+      data-placeholder-flagged={flagged ? "true" : undefined}
+    >
+      <div aria-hidden className={layer}>
+        {splitPlaceholders(value).map((segment, index) =>
+          segment.placeholder ? (
+            <mark key={index} className="rounded-sm bg-amber-300/70 text-transparent dark:bg-amber-400/50">
+              {segment.text}
+            </mark>
+          ) : (
+            <span key={index}>{segment.text}</span>
+          ),
+        )}
+        {value.endsWith("\n") ? "\u200b" : null}
+      </div>
+      <textarea
+        ref={ref}
+        aria-label={label}
+        value={value}
+        rows={minRows}
+        maxLength={maxLength}
+        disabled={disabled}
+        onChange={(e) => onChange(singleLine ? e.target.value.replace(/\n/g, " ") : e.target.value)}
+        onKeyDown={singleLine ? (e) => e.key === "Enter" && e.preventDefault() : undefined}
+        className={`${fieldClass.replace("bg-background", "bg-transparent")} relative block resize-none overflow-hidden leading-relaxed`}
+      />
+    </div>
+  );
+}
 
 export function EmailDraftCard({
   draft,
@@ -53,7 +117,9 @@ export function EmailDraftCard({
 
   const connected = Boolean(status.data?.connected);
   const toValid = EMAIL_RE.test(to.trim());
-  const canSend = connected && toValid && subject.trim().length > 0 && body.trim().length > 0;
+  const needsFilling = hasPlaceholders(subject, body);
+  const canSend =
+    connected && toValid && !needsFilling && subject.trim().length > 0 && body.trim().length > 0;
 
   async function connect() {
     setConnecting(true);
@@ -142,28 +208,36 @@ export function EmailDraftCard({
         ) : null}
       </label>
 
-      <label className="block space-y-1">
+      <div className="block space-y-1">
         <span className="text-[11.5px] font-semibold text-muted-foreground">Subject</span>
-        <input
+        <HighlightField
+          label="Subject"
           value={subject}
+          onChange={setSubject}
+          disabled={locked}
+          singleLine
+          minRows={1}
           maxLength={200}
-          onChange={(e) => setSubject(e.target.value)}
-          disabled={locked}
-          className={fieldClass}
         />
-      </label>
+      </div>
 
-      <label className="block space-y-1">
+      <div className="block space-y-1">
         <span className="text-[11.5px] font-semibold text-muted-foreground">Body</span>
-        <textarea
+        <HighlightField
+          label="Body"
           value={body}
-          maxLength={8000}
-          rows={9}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={setBody}
           disabled={locked}
-          className={`${fieldClass} resize-y leading-relaxed`}
+          minRows={8}
+          maxLength={8000}
         />
-      </label>
+      </div>
+
+      {needsFilling && phase !== "sent" ? (
+        <p role="alert" className="text-[12px] font-semibold text-amber-700 dark:text-amber-400">
+          Fill in the highlighted parts before sending.
+        </p>
+      ) : null}
 
       {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
 

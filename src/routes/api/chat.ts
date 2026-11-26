@@ -33,12 +33,13 @@ import {
 } from "@/lib/chat-intent";
 import { assistantHasVisibleText } from "@/lib/chat-progress";
 import { getEmailConnection } from "@/lib/gmail-connection.server";
+import { emailDraftNote, isEmailWriteAsk, trustedRecipient } from "@/lib/email-draft-intent";
 import {
-  emailDraftNote,
-  fallbackEmailDraft,
-  isEmailWriteAsk,
-  trustedRecipient,
-} from "@/lib/email-draft-intent";
+  buildEmailSenderContext,
+  composeEmailDraft,
+  emailFactsBlock,
+  finalizeModelDraft,
+} from "@/lib/email-draft-compose";
 import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSource } from "@/lib/facility-distance";
 import { BOOKING_START_STEPS, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
@@ -613,10 +614,24 @@ You are coordinating this emergency from the start, not just answering questions
         // "Write an email…" is answered with the editable draft card. The Gmail connection is
         // checked here on the server, never trusted from the client.
         const emailCardMode = !sharedSosActive && Boolean(userId) && isEmailWriteAsk(intakeText);
-        const gmailConnected =
+        const [gmailConnection, emailProfile] =
           emailCardMode && userId
-            ? await getEmailConnection(userId).then(Boolean, () => false)
-            : false;
+            ? await Promise.all([
+                getEmailConnection(userId).then((connection) => connection, () => null),
+                withTimeoutFallback(
+                  supabase
+                    .from("profiles")
+                    .select("full_name, phone, phone_e164")
+                    .eq("id", userId)
+                    .maybeSingle()
+                    .then((res) => res.data ?? null),
+                  2000,
+                  null,
+                  "email-profile",
+                ),
+              ])
+            : [null, null];
+        const gmailConnected = Boolean(gmailConnection);
 
         const userHistoryTexts = uiMessages
           .filter((message) => message.role === "user")
@@ -790,6 +805,14 @@ You are coordinating this emergency from the start, not just answering questions
           ? `\n\nGPS IS AVAILABLE for this conversation. Do not ask the user for their location again; a place they explicitly named takes priority over GPS.`
           : "";
 
+        // Facts for the email draft: only what Allma actually knows about this user and chat.
+        const emailContext = buildEmailSenderContext({
+          profile: emailProfile,
+          gmail: gmailConnection?.email ?? null,
+          userTexts: uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)),
+          coords: sharedCoords,
+        });
+
         // ---- Named intent: the reply must open that flow with a step card.
         const INTENTS: Array<{ matches: RegExp; flow: string; opener: string }> = [
           { matches: /\blost\b|\bfound\b|misplac/i, flow: "Lost & found", opener: 'Did you lose something or find something? Options: "I lost something", "I found something".' },
@@ -929,7 +952,7 @@ You are coordinating this emergency from the start, not just answering questions
             : `\n\nAPPOINTMENT BOOKING REQUEST: The user asked to book an appointment, but the booking agent is not configured on this deployment. Do not pretend you booked anything. Tell them booking is temporarily unavailable, offer to list nearby clinics with find_facilities if they want, and remind Uganda emergency numbers if urgent (Ambulance 911, Toll-free 112, Police 999).`
           : "";
         const emailDraftBlock = emailCardMode
-          ? `\n\nEMAIL DRAFT REQUEST (user's Gmail connected: ${gmailConnected ? "yes" : "no"}): The user asked you to write an email. Call draft_email exactly once — it shows them an editable card with To, Subject, Body and a "Send from my Gmail" button. Do NOT write the email in chat text and do NOT call any other tool. Follow what they asked for in the subject and body (who is writing, why, the details they gave; for a hospital: patient and problem, location, callback number) using [placeholders] for anything unknown, signed "[your name]". Set to ONLY to an email address the user typed in their own messages; otherwise null — our directory has no hospital email addresses and you must never invent or guess one. Set recipient_name to the hospital or person if named. You never send anything; the user taps Send themselves. For a life-threatening emergency tell them to call 999 / 112 / 911 themselves — never dial for them.`
+          ? `\n\nEMAIL DRAFT REQUEST (user's Gmail connected: ${gmailConnected ? "yes" : "no"}): The user asked you to write an email. Call draft_email exactly once — it shows them an editable card with To, Subject, Body and a "Send from my Gmail" button. Do NOT write the email in chat text and do NOT call any other tool. Write a finished email the user could send as it is. NEVER use square brackets or template placeholders such as [Patient Name], [Symptoms], [Location], [Callback Number] or [Your Name] anywhere in the subject or body. Use ONLY these known facts about the sender, and only where they help:\n${emailFactsBlock(emailContext)}\nIf a detail is not listed above, leave it out of the sentence or word it naturally (for example "I would like to ask about appointment availability") — never invent a name, symptom, place, date, time or phone number. Sign with the sender's name only if it is listed. Keep the subject short and specific (under 60 characters, for example "Appointment request – <sender name>"). Set to ONLY to an email address the user typed in their own messages; otherwise null — our directory has no hospital email addresses and you must never invent or guess one. Set recipient_name to the hospital or person if named. You never send anything; the user taps Send themselves. For a life-threatening emergency tell them to call 999 / 112 / 911 themselves — never dial for them.`
           : isHospitalEmailDraftAsk(intakeText)
             ? `\n\nHOSPITAL EMAIL DRAFT REQUEST: The user is not signed in, so you cannot show the send card. Write the draft (To, Subject, body with [placeholders]) in this reply, never invent an email address, and tell them to sign in and connect Gmail in Profile to send it from their own address.`
             : "";
@@ -2082,7 +2105,7 @@ You are coordinating this emergency from the start, not just answering questions
             }),
             draft_email: tool({
               description:
-                "Show the user an editable EMAIL DRAFT card (To, Subject, Body) with a 'Send from my Gmail' button. This tool NEVER sends anything: the user reviews, edits and taps Send themselves. Use it when they ask you to write or send an email (for example to a nearby hospital). Pass `to` only if you were given a real address by the user or by a tool result; otherwise leave it null so the card asks the user to type it. Never guess or invent an email address.",
+                "Show the user an editable EMAIL DRAFT card (To, Subject, Body) with a 'Send from my Gmail' button. This tool NEVER sends anything: the user reviews, edits and taps Send themselves. Use it when they ask you to write or send an email (for example to a nearby hospital). Pass `to` only if you were given a real address by the user or by a tool result; otherwise leave it null so the card asks the user to type it. Never guess or invent an email address. Never write [placeholders] in the subject or body.",
               inputSchema: z.object({
                 to: z
                   .string()
@@ -2099,16 +2122,13 @@ You are coordinating this emergency from the start, not just answering questions
                   .string()
                   .min(1)
                   .max(8000)
-                  .describe("Full email text, signed with the user's name; use [placeholders] for unknown details"),
+                  .describe("Full, ready-to-send email text. No square brackets or placeholders; leave unknown details out."),
               }),
-              execute: async ({ to, recipient_name, subject, body }) => ({
-                draft: true as const,
-                sent: false as const,
-                to: trustedRecipient(to, { latest: intakeText, conversation: userConversationText }),
-                recipient_name,
-                subject,
-                body,
-              }),
+              execute: async ({ to, recipient_name, subject, body }) =>
+                finalizeModelDraft({ recipient_name, subject, body }, emailContext, {
+                  askText: intakeText,
+                  to: trustedRecipient(to, { latest: intakeText, conversation: userConversationText }),
+                }),
             }),
             list_alerts: tool({
               description: "List current verified community safety alerts.",
@@ -2346,7 +2366,10 @@ You are coordinating this emergency from the start, not just answering questions
               const id = `allma-gateway-fail-${Date.now()}`;
               writer.write({ type: "start", messageId: id });
               if (emailCardMode) {
-                const draft = fallbackEmailDraft({ text: intakeText });
+                const draft = composeEmailDraft(emailContext, {
+                      askText: intakeText,
+                      to: trustedRecipient(null, { latest: intakeText, conversation: userConversationText }),
+                    });
                 writer.write({ type: "tool-input-available", toolCallId: id, toolName: "draft_email", input: draft });
                 writer.write({ type: "tool-output-available", toolCallId: id, output: draft });
                 const noteId = `${id}-note`;
@@ -2452,7 +2475,10 @@ You are coordinating this emergency from the start, not just answering questions
                   // deterministic draft (no recipient unless the user typed one) instead of plain text.
                   if (!draftCardShown) {
                     const callId = `allma-email-draft-${Date.now()}`;
-                    const draft = fallbackEmailDraft({ text: intakeText });
+                    const draft = composeEmailDraft(emailContext, {
+                      askText: intakeText,
+                      to: trustedRecipient(null, { latest: intakeText, conversation: userConversationText }),
+                    });
                     controller.enqueue({
                       type: "tool-input-available",
                       toolCallId: callId,
