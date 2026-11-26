@@ -349,3 +349,15 @@ export function safetyPlanOf(parts: Array<{ type?: string; data?: unknown }> | u
     ...(data.sosType ? { sosType: data.sosType } : {}),
   };
 }
+
+/** User texts the SOS owner wrote: no other participant's messages, and not the latest question. */
+export function ownerReportTexts<M extends { role: string; authorId?: string | null }>(
+  messages: M[],
+  ownerId: string | null,
+  textOf: (message: M) => string,
+): string[] {
+  const users = messages.filter((m) => m.role === "user");
+  const earlier = users.slice(0, -1);
+  const owned = ownerId ? earlier.filter((m) => !m.authorId || m.authorId === ownerId) : earlier;
+  return owned.map(textOf);
+}

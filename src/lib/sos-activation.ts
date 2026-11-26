@@ -15,6 +15,8 @@ export type SosActivationResult = {
   notified: boolean;
   notifyDelivered: number;
   notifyRecipients: number;
+  /** False when the server has no Web Push keys: contacts only see the alert inside Allma. */
+  pushConfigured: boolean;
   locationCaptured: boolean;
   stage: SosActivationStage;
 };
@@ -215,6 +217,7 @@ async function notifyWithRetry(activityId: string, attempts = 2) {
         notified: true,
         delivered: result.delivered ?? 0,
         recipients: result.recipients ?? 0,
+        pushConfigured: result.pushConfigured !== false,
         error: null as unknown,
       };
     } catch (error) {
@@ -224,7 +227,7 @@ async function notifyWithRetry(activityId: string, attempts = 2) {
       }
     }
   }
-  return { notified: false, delivered: 0, recipients: 0, error: lastError };
+  return { notified: false, delivered: 0, recipients: 0, pushConfigured: true, error: lastError };
 }
 
 /**
@@ -275,6 +278,7 @@ export async function activateCanonicalSos(args: {
       notified: false,
       notifyDelivered: 0,
       notifyRecipients: 0,
+      pushConfigured: true,
       locationCaptured: false,
       stage: "activated",
     };
@@ -348,7 +352,7 @@ export async function activateCanonicalSos(args: {
 
   report("notifying");
   const notify = inserted.reused
-    ? { notified: false, delivered: 0, recipients: 0, error: null }
+    ? { notified: false, delivered: 0, recipients: 0, pushConfigured: true, error: null }
     : await notifyWithRetry(inserted.activityId);
 
   if (!notify.notified && notify.error) {
@@ -383,6 +387,7 @@ export async function activateCanonicalSos(args: {
     notified: notify.notified,
     notifyDelivered: notify.delivered,
     notifyRecipients: notify.recipients,
+    pushConfigured: notify.pushConfigured,
     locationCaptured: Boolean(coords),
     stage: "activated",
   };

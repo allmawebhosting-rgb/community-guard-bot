@@ -316,7 +316,7 @@ export const notifySosActivity = createServerFn({ method: "POST" })
       ),
     );
     if (!recipientIds.length) {
-      return { delivered: 0, devices: 0, recipients: 0, stage: "no_recipients" as const };
+      return { delivered: 0, devices: 0, recipients: 0, pushConfigured: vapidConfig().ready, stage: "no_recipients" as const };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -405,6 +405,7 @@ export const notifySosActivity = createServerFn({ method: "POST" })
       delivered,
       devices: deviceCount,
       recipients: recipientIds.length,
+      pushConfigured: vapidConfig().ready,
       stage: delivered > 0 ? ("provider_accepted" as const) : ("failed" as const),
     };
   });

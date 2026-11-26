@@ -8,6 +8,7 @@ import {
   emergencyTurn,
   factsPromptBlock,
   limitChips,
+  ownerReportTexts,
   priorityPromptBlock,
   safetyPlanOf,
   sessionFacts,
@@ -190,5 +191,24 @@ describe("follow-up answers stay inside their incident", () => {
   });
   it("does not continue when the follow-up question was not asked", () => {
     expect(continuedIncident("No, still bleeding", "Hello there", ["my nose is bleeding"])).toBeNull();
+  });
+});
+
+describe("ownerReportTexts", () => {
+  const text = (m: { t: string }) => m.t;
+  it("ignores responders and the question being answered now", () => {
+    const messages = [
+      { role: "user", authorId: "owner", t: "my nose is bleeding" },
+      { role: "user", authorId: "air", t: "Hi what is happening" },
+      { role: "user", t: "Can you call the nearest hospital" },
+    ];
+    expect(ownerReportTexts(messages, "owner", text)).toEqual(["my nose is bleeding"]);
+  });
+  it("keeps legacy messages without an author when the owner is unknown", () => {
+    const messages = [
+      { role: "user", t: "my nose is bleeding" },
+      { role: "user", t: "what happened" },
+    ];
+    expect(ownerReportTexts(messages, null, text)).toEqual(["my nose is bleeding"]);
   });
 });

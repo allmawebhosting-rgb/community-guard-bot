@@ -499,6 +499,10 @@ export function InChatSos({
         toast.message(
           "SOS is active, but Safety Network push could not be confirmed. Keep calling 999/112 if needed.",
         );
+      } else if (!result.pushConfigured && result.notifyRecipients > 0) {
+        toast.message(
+          "SOS is active. Phone alerts are switched off on the server, so your contacts will only see it inside Allma. Please call them directly.",
+        );
       } else if (result.notifyDelivered === 0 && result.notifyRecipients === 0) {
         toast.message("SOS is active. Add Safety Network contacts to notify them next time.");
       } else if (result.notifyDelivered === 0) {

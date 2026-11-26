@@ -46,6 +46,7 @@ import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
 import {
   SAFETY_PLAN_PART,
+  ownerReportTexts,
   classifySafety,
   emergencyTurn,
   factsPromptBlock,
@@ -382,6 +383,7 @@ export const Route = createFileRoute("/api/chat")({
         let sosAgentBlock = "";
         let sosEmergencyType: string | null = null;
         let sosAskerName: string | null = null;
+        let sosOwnerId: string | null = null;
         let sosRoomSnapshot: {
           personName: string;
           emergencyType: string | null;
@@ -397,6 +399,7 @@ export const Route = createFileRoute("/api/chat")({
             const room = roomRows?.[0];
             if (room) {
               sosEmergencyType = typeof room.emergency_type === "string" ? room.emergency_type : null;
+              sosOwnerId = typeof room.owner_id === "string" ? room.owner_id : null;
               const participants = Array.isArray(room.participants) ? room.participants : [];
               const participantNames = participants
                 .map((person: { name?: string }) => person.name)
@@ -734,7 +737,10 @@ You are coordinating this emergency from the start, not just answering questions
         const userHistoryTexts = uiMessages
           .filter((message) => message.role === "user")
           .map((message) => textOf(message));
-        const sosSituationCue = situationCueFromHistory(userHistoryTexts);
+        // The situation is what the person in need reported, never a responder's request or the question being answered now.
+        const sosSituationCue = situationCueFromHistory(
+          ownerReportTexts(uiMessages as Array<{ role: string; authorId?: string | null }>, sosOwnerId, (m) => textOf(m as never)),
+        );
 
         // Situation questions ("what is wrong with Allan?") stream through the
         // model with sosAgentBlock / topicSticky — never a fixed robotic script.

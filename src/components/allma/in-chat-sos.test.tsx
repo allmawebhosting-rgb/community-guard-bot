@@ -378,3 +378,18 @@ it("still activates SOS when the emergency thread is not ready on the first try"
   expect(await screen.findByText("SOS activated")).toBeTruthy();
   expect(screen.queryByText("SOS activation failed")).toBeNull();
 });
+
+it("tells the user plainly when phone alerts are switched off on the server", async () => {
+  notifyMock.mockResolvedValue({ delivered: 0, devices: 0, recipients: 2, pushConfigured: false });
+  const { toast } = await import("sonner");
+  const message = vi.spyOn(toast, "message").mockImplementation(() => "" as never);
+  render(<InChatSos type="medical" lines={[]} threadId="thread-1" immediateActivation />);
+  fireEvent.click(screen.getByRole("button", { name: "Activate SOS" }));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(4000);
+  });
+  vi.useRealTimers();
+  await screen.findByText("SOS activated");
+  expect(message).toHaveBeenCalledWith(expect.stringContaining("switched off on the server"));
+  message.mockRestore();
+});
