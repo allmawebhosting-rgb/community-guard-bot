@@ -350,7 +350,15 @@ export type SendGmailResult =
 
 async function logSend(
   db: Db,
-  row: { userId: string; to: string; subject: string; messageId: string | null; status: "sent" | "failed"; error?: string },
+  row: {
+    userId: string;
+    to: string;
+    subject: string;
+    messageId: string | null;
+    status: "sent" | "failed";
+    error?: string;
+    emergencyRunId?: string;
+  },
 ) {
   await db
     .from("email_sends")
@@ -361,12 +369,25 @@ async function logSend(
       gmail_message_id: row.messageId,
       status: row.status,
       error: row.error ?? null,
+      kind: row.emergencyRunId ? "emergency" : "normal",
+      emergency_run_id: row.emergencyRunId ?? null,
     })
     .then(() => undefined, () => undefined);
 }
 
-/** Send from the signed-in user's own connected Gmail. Never falls back to another sender. */
-export async function sendGmail(userId: string, input: OutgoingEmail): Promise<SendGmailResult> {
+export const EMERGENCY_EMAILS_PER_RUN = 10;
+
+/**
+ * Send from the signed-in user's own connected Gmail. Never falls back to another sender.
+ * `options.emergencyRunId` marks an automatic emergency email: it is logged as kind "emergency",
+ * does not use up the normal daily limit, and is capped per emergency instead.
+ */
+export async function sendGmail(
+  userId: string,
+  input: OutgoingEmail,
+  options: { emergencyRunId?: string } = {},
+): Promise<SendGmailResult> {
+  const emergencyRunId = options.emergencyRunId;
   if (!isGoogleEmailConfigured()) return { success: false, error: "google_not_configured" };
   const checked = validateOutgoingEmail(input);
   if (!checked.ok) return { success: false, error: checked.error };
@@ -380,18 +401,30 @@ export async function sendGmail(userId: string, input: OutgoingEmail): Promise<S
     .maybeSingle();
   if (!row?.refresh_token_encrypted) return { success: false, error: "gmail_not_connected" };
 
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await db
-    .from("email_sends")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("status", "sent")
-    .gte("created_at", since);
-  if ((count ?? 0) >= GMAIL_DAILY_LIMIT) return { success: false, error: "daily_limit" };
+  if (emergencyRunId) {
+    const { count: sentInRun } = await db
+      .from("email_sends")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("kind", "emergency")
+      .eq("emergency_run_id", emergencyRunId)
+      .eq("status", "sent");
+    if ((sentInRun ?? 0) >= EMERGENCY_EMAILS_PER_RUN) return { success: false, error: "emergency_cap" };
+  } else {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count } = await db
+      .from("email_sends")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("kind", "normal")
+      .eq("status", "sent")
+      .gte("created_at", since);
+    if ((count ?? 0) >= GMAIL_DAILY_LIMIT) return { success: false, error: "daily_limit" };
+  }
 
   const from = String(row.google_email);
   const fail = async (error: string): Promise<SendGmailResult> => {
-    await logSend(db, { userId, to, subject, messageId: null, status: "failed", error });
+    await logSend(db, { userId, to, subject, messageId: null, status: "failed", error, emergencyRunId });
     return { success: false, error };
   };
 
@@ -452,6 +485,6 @@ export async function sendGmail(userId: string, input: OutgoingEmail): Promise<S
     return fail(`gmail_${res.status}`);
   }
   const json = (await res.json().catch(() => ({}))) as { id?: string };
-  await logSend(db, { userId, to, subject, messageId: json.id ?? null, status: "sent" });
+  await logSend(db, { userId, to, subject, messageId: json.id ?? null, status: "sent", emergencyRunId });
   return { success: true, messageId: json.id ?? null, from, to };
 }

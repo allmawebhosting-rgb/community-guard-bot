@@ -75,7 +75,7 @@ const SECTIONS: InfoSection[] = [
           connected.
         </p>
         <ul>
-          <li><strong>What we do with it.</strong> We send an email from your address only after you review and confirm the recipient, subject and message in the chat. We use this access for nothing else.</li>
+          <li><strong>What we do with it.</strong> We send an email from your address only after you review and confirm the recipient, subject and message in the chat. The one exception is a real emergency, described in the next section. We use this access for nothing else.</li>
           <li><strong>What we do not do.</strong> Allma cannot read, list, search or delete your emails, and we never see your Google password. We do not use Google user data for advertising, sell it, or share it with anyone.</li>
           <li><strong>How it is stored.</strong> We keep an encrypted access token and your email address. The token is readable only by our server, never by other users.</li>
           <li><strong>Your control.</strong> Tap Disconnect in Profile at any time. We revoke the token with Google and delete it. You can also remove Allma at{" "}
@@ -87,6 +87,33 @@ const SECTIONS: InfoSection[] = [
             Google API Services User Data Policy
           </a>
           , including the Limited Use requirements.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "emergency-health-facilities",
+    title: "Emergencies: contacting nearby health facilities",
+    body: (
+      <>
+        <p>
+          <strong>
+            In an emergency, Allma may automatically email and call nearby health facilities on your
+            behalf.
+          </strong>{" "}
+          This happens when you report a real emergency to Allma (for example a road accident, heavy
+          bleeding, an unconscious person, a fire or an assault) or when you have an active SOS.
+        </p>
+        <ul>
+          <li><strong>You can stop it.</strong> Before anything is sent, Allma shows the facilities it will contact and a 10-second countdown with a Cancel button. If you do not cancel, it proceeds.</li>
+          <li><strong>Who is contacted.</strong> Up to three of the nearest hospitals and clinics, using only the business phone number and email address each facility publishes. Allma never guesses a number or address, and never dials 999, 112 or 911.</li>
+          <li><strong>What they receive.</strong> Your name, phone number, what happened, your location (address and a map link) and the time. Fields Allma does not know are left out.</li>
+          <li><strong>How emails are sent.</strong> If you connected Gmail, they are sent from your Gmail using the same send-only permission. Otherwise they are sent from Allma&apos;s own system email, and Allma tells you so. Calls use a spoken message through our calling provider.</li>
+          <li><strong>Records.</strong> Each email and call, and its result, is logged so you can see what was done. Emergency emails are limited to 10 per emergency and do not count toward the normal daily email limit.</li>
+        </ul>
+        <p>
+          To find facilities, your approximate location is sent to our maps provider. This is in
+          addition to notifying your Safety Network, which works exactly as it did before.
         </p>
       </>
     ),

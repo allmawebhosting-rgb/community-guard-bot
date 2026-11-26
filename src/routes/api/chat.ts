@@ -44,6 +44,9 @@ import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSo
 import { BOOKING_START_STEPS, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
+import { classifyRealEmergency } from "@/lib/emergency-contact-plan";
+import { startEmergencyRun } from "@/lib/emergency-contact.server";
+import { createEmergencyCard } from "@/lib/emergency-stream";
 import { CF_CHAT_MODEL, getCloudflareChatModel } from "@/lib/cloudflare-ai.server";
 import { lookupHospitalContact } from "@/lib/places.server";
 import { getGatewayFailure, selectChatStream } from "@/lib/ai-gateway-errors";
@@ -577,15 +580,58 @@ You are coordinating this emergency from the start, not just answering questions
             intakeText.trim(),
           );
 
+        // ---- EMERGENCY auto-contact: a real emergency report, or the owner's active SOS, starts the
+        // facility search right away (in parallel with everything below). The card the user sees has a
+        // 10 s Cancel countdown before anything is sent. Normal requests never reach this.
+        const emergencyReport = userId && !sharedSosActive ? classifyRealEmergency(intakeText) : null;
+        const emergencyPlan =
+          userId && threadIsOwner
+            ? sharedSosActive && sosActivityId
+              ? {
+                  trigger: "sos" as const,
+                  label: `SOS emergency${sosEmergencyType ? ` – ${sosEmergencyType}` : ""}`,
+                }
+              : emergencyReport
+                ? { trigger: "chat" as const, label: emergencyReport.incident.label }
+                : null
+            : null;
+        const earlyCoordMatch = /(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/.exec(intakeText);
+        const earlyDevicePoint = validLatLng(body.coords?.latitude, body.coords?.longitude);
+        const emergencyCoords = earlyCoordMatch
+          ? { latitude: Number(earlyCoordMatch[1]), longitude: Number(earlyCoordMatch[2]) }
+          : earlyDevicePoint
+            ? { latitude: earlyDevicePoint.lat, longitude: earlyDevicePoint.lng }
+            : null;
+        const emergencyCard =
+          userId && emergencyPlan
+            ? createEmergencyCard(
+                startEmergencyRun({
+                  userId,
+                  threadId,
+                  sosActivityId: emergencyPlan.trigger === "sos" ? sosActivityId : null,
+                  trigger: emergencyPlan.trigger,
+                  incident: { label: emergencyPlan.label },
+                  reportText: intakeText,
+                  placeTexts: [
+                    ...uiMessages.filter((m) => m.role === "user").map((m) => textOf(m)).reverse(),
+                    ...(sosRoomSnapshot?.area ? [sosRoomSnapshot.area] : []),
+                  ],
+                  coords: emergencyCoords,
+                }),
+              )
+            : null;
+
         const replyWithFixedText = (text: string, idPrefix: string) => {
           const assistantId = `${idPrefix}-${Date.now()}`;
           const stream = createUIMessageStream({
             originalMessages: uiMessages,
             execute: async ({ writer }) => {
               writer.write({ type: "start", messageId: assistantId });
+              if (emergencyCard) for (const chunk of emergencyCard.open()) writer.write(chunk);
               writer.write({ type: "text-start", id: idPrefix });
               writer.write({ type: "text-delta", id: idPrefix, delta: text });
               writer.write({ type: "text-end", id: idPrefix });
+              if (emergencyCard) for (const chunk of await emergencyCard.settle()) writer.write(chunk as UIMessageChunk);
               writer.write({ type: "finish" });
             },
             onFinish: async ({ responseMessage }) => {
@@ -618,6 +664,7 @@ You are coordinating this emergency from the start, not just answering questions
           .some((m) => m.role === "assistant" && JSON.stringify(m.parts ?? []).includes("draft_email"));
         const emailCardMode =
           !sharedSosActive &&
+          !emergencyPlan &&
           Boolean(userId) &&
           (isEmailWriteAsk(intakeText) || (recentDraftCard && isEmailFollowUp(intakeText)));
         const [gmailConnection, emailProfile] =
@@ -2371,6 +2418,7 @@ You are coordinating this emergency from the start, not just answering questions
             execute: async ({ writer }) => {
               const id = `allma-gateway-fail-${Date.now()}`;
               writer.write({ type: "start", messageId: id });
+              if (emergencyCard) for (const chunk of emergencyCard.open()) writer.write(chunk);
               if (emailCardMode) {
                 const draft = composeEmailDraft(emailContext, {
                       askText: intakeText,
@@ -2387,6 +2435,7 @@ You are coordinating this emergency from the start, not just answering questions
                 writer.write({ type: "text-delta", id, delta: failText });
                 writer.write({ type: "text-end", id });
               }
+              if (emergencyCard) for (const chunk of await emergencyCard.settle()) writer.write(chunk as UIMessageChunk);
               writer.write({ type: "finish" });
             },
           });
@@ -2449,6 +2498,9 @@ You are coordinating this emergency from the start, not just answering questions
             let draftCardShown = false;
             const emptyReplyGuard = new TransformStream<UIMessageChunk, UIMessageChunk>({
               transform(chunk, controller) {
+                if (emergencyCard) {
+                  for (const ready of emergencyCard.ready()) controller.enqueue(ready as UIMessageChunk);
+                }
                 // The card is the whole answer; the model's own prose about it (it sometimes describes
                 // the email instead of showing it) is replaced by the short note on flush.
                 if (emailCardMode && (chunk.type === "text-start" || chunk.type === "text-delta" || chunk.type === "text-end")) {
@@ -2469,9 +2521,10 @@ You are coordinating this emergency from the start, not just answering questions
                 // just before the first text delta if no start was seen.
                 // Parts render in order — an opener appended at the end
                 // reads as an afterthought, not as taking charge.
-                if (takeoverOpener && !takeoverSent && chunk.type === "start") {
+                if (chunk.type === "start" && (takeoverOpener || emergencyCard)) {
                   controller.enqueue(chunk);
                   emitTakeover(controller);
+                  if (emergencyCard) for (const open of emergencyCard.open()) controller.enqueue(open as UIMessageChunk);
                   return;
                 }
                 if (chunk.type === "text-delta" && chunk.delta.trim()) {
@@ -2480,7 +2533,10 @@ You are coordinating this emergency from the start, not just answering questions
                 }
                 controller.enqueue(chunk);
               },
-              flush(controller) {
+              async flush(controller) {
+                if (emergencyCard) {
+                  for (const chunk of await emergencyCard.settle()) controller.enqueue(chunk as UIMessageChunk);
+                }
                 if (emailCardMode) {
                   // The card is the answer. If the model skipped or botched the tool call, show a
                   // deterministic draft (no recipient unless the user typed one) instead of plain text.

@@ -154,6 +154,48 @@ export async function sendIncidentEmail(input: IncidentEmailInput): Promise<Inci
   };
 }
 
+/** Plain-text message from Allma's own sender (used when the user has no Gmail connected). */
+export async function sendSystemTextEmail(input: {
+  to: string;
+  subject: string;
+  text: string;
+  replyTo?: string | null;
+}): Promise<{ success: boolean; messageId: string | null; error?: string }> {
+  const to = input.to.trim();
+  if (!EMAIL_RE.test(to)) return { success: false, messageId: null, error: "invalid_recipient" };
+  const apiKey = runtimeEnv("RESEND_API_KEY");
+  if (!apiKey) return { success: false, messageId: null, error: "email_not_configured" };
+  const from = runtimeEnv("RESEND_FROM_EMAIL") || "Allma Safety AI <alerts@allmasafetyai.online>";
+  const replyTo = input.replyTo && EMAIL_RE.test(input.replyTo.trim()) ? [input.replyTo.trim()] : undefined;
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: input.subject.replace(/[\r\n]+/g, " ").slice(0, 200),
+        text: input.text,
+        ...(replyTo ? { reply_to: replyTo } : {}),
+      }),
+    });
+    const bodyText = await res.text();
+    if (!res.ok) {
+      console.error("[agent-email] resend failed", res.status);
+      return { success: false, messageId: null, error: `resend_${res.status}` };
+    }
+    let messageId: string | null = null;
+    try {
+      messageId = (JSON.parse(bodyText) as { id?: string }).id ?? null;
+    } catch {
+      messageId = null;
+    }
+    return { success: true, messageId };
+  } catch {
+    return { success: false, messageId: null, error: "resend_unreachable" };
+  }
+}
+
 const incidentEmailSchema = z.object({
   to: z.string().email().max(200),
   subject: z.string().min(1).max(200),

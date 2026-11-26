@@ -8,6 +8,8 @@ import {
   EmergencyDispatchCard,
 } from "@/components/allma/agent-tool-cards";
 import { EmailDraftCard, type EmailDraft } from "@/components/allma/email-draft-card";
+import { EmergencyContactCard } from "@/components/allma/emergency-contact-card";
+import type { EmergencyRunView } from "@/lib/emergency-contact.server";
 import { formatTravelLabel } from "@/lib/facility-etas";
 import { dispatchGuideToPlace } from "@/lib/guide-to-place";
 import { SosFloatingChatHeads } from "@/components/allma/sos-floating-chat-heads";
@@ -1124,6 +1126,11 @@ function ToolCard({
       label: "Incident email",
       busy: "Sending handoff email…",
     },
+    emergency_contact: {
+      icon: AlertCircle,
+      label: "Emergency contact",
+      busy: "Finding the nearest hospitals…",
+    },
     draft_email: {
       icon: FileText,
       label: "Email draft",
@@ -1168,6 +1175,13 @@ function ToolCard({
   const Icon = entry.icon;
 
   if (!running && (name === "remember" || name === "recall_history" || name === "get_draft")) {
+    return null;
+  }
+
+  if (name === "emergency_contact") {
+    if (running) return <EmergencyContactCard run={null} />;
+    if (output?.failed) return <EmergencyContactCard run={null} searching={false} />;
+    if (output?.run_id) return <EmergencyContactCard run={output as unknown as EmergencyRunView} />;
     return null;
   }
 

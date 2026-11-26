@@ -45,6 +45,9 @@ export function shouldShowToolOutput(
   if (name === "draft_email") {
     return Boolean(output && output.draft);
   }
+  if (name === "emergency_contact") {
+    return Boolean(output && (output.run_id || output.failed));
+  }
   if (name === "my_reports" || name === "match_reports") {
     const rows = (output?.reports ?? output?.matches) as unknown[] | undefined;
     return Array.isArray(rows); // empty list is a valid "nothing found" state for reports

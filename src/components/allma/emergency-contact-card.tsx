@@ -1,0 +1,256 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { AlertTriangle, Check, CircleSlash, Loader2, Mail, MapPin, Phone, X } from "lucide-react";
+import {
+  advanceEmergencyContact,
+  armEmergencyContact,
+  cancelEmergencyContact,
+} from "@/lib/emergency-contact.functions";
+import type { EmergencyActionView, EmergencyRunView } from "@/lib/emergency-contact.server";
+
+const TERMINAL = new Set(["completed", "cancelled", "no_facilities", "expired"]);
+
+export function formatDistance(meters: number) {
+  return meters < 1000 ? `${Math.max(50, Math.round(meters / 10) * 10)} m` : `${(meters / 1000).toFixed(1)} km`;
+}
+
+export function secondsLeft(view: Pick<EmergencyRunView, "countdown_ends_at" | "server_now">, clockOffsetMs: number, now = Date.now()) {
+  if (!view.countdown_ends_at) return null;
+  const end = new Date(view.countdown_ends_at).getTime();
+  return Math.max(0, Math.ceil((end - (now + clockOffsetMs)) / 1000));
+}
+
+function actionLabel(action: EmergencyActionView) {
+  const what = action.channel === "call" ? "Call" : "Email";
+  switch (action.status) {
+    case "pending":
+      return `${what}: waiting`;
+    case "running":
+      return action.channel === "call" ? "Calling now…" : "Sending email…";
+    case "answered":
+      return "Call answered";
+    case "no_answer":
+      return "No answer";
+    case "sent":
+      return "Email sent";
+    case "failed":
+      return `${what} failed`;
+    case "skipped":
+      return `${what} skipped`;
+    case "cancelled":
+      return `${what} cancelled`;
+    default:
+      return action.status;
+  }
+}
+
+function StatusIcon({ status }: { status: string }) {
+  if (status === "running") return <Loader2 className="size-4 animate-spin text-red-600" aria-hidden />;
+  if (status === "answered" || status === "sent") return <Check className="size-4 text-emerald-600" aria-hidden />;
+  if (status === "failed" || status === "no_answer") return <X className="size-4 text-red-600" aria-hidden />;
+  if (status === "cancelled" || status === "skipped") return <CircleSlash className="size-4 text-muted-foreground" aria-hidden />;
+  return <span className="block size-2 rounded-full bg-muted-foreground/50" aria-hidden />;
+}
+
+export function EmergencyContactCard({ run, searching }: { run: EmergencyRunView | null; searching?: boolean }) {
+  const arm = useServerFn(armEmergencyContact);
+  const advance = useServerFn(advanceEmergencyContact);
+  const cancel = useServerFn(cancelEmergencyContact);
+  const [view, setView] = useState<EmergencyRunView | null>(run);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const offset = useRef(0);
+  const loop = useRef(false);
+  const stopped = useRef(false);
+
+  const apply = useCallback((next: EmergencyRunView | null) => {
+    if (!next) return;
+    offset.current = new Date(next.server_now).getTime() - Date.now();
+    setView(next);
+  }, []);
+
+  useEffect(() => {
+    if (run && !view) setView(run);
+  }, [run, view]);
+
+  const runId = view?.run_id ?? run?.run_id ?? null;
+  useEffect(() => {
+    if (!runId) return;
+    stopped.current = false;
+    arm({ data: { runId } })
+      .then(apply)
+      .catch(() => setProblem("Could not start the countdown. Nothing was sent."));
+    return () => {
+      stopped.current = true;
+    };
+  }, [runId, arm, apply]);
+
+  const status = view?.status ?? null;
+  const endsAt = view?.countdown_ends_at ?? null;
+  useEffect(() => {
+    if (status !== "countdown" || !view || !endsAt) return;
+    const tick = () => setRemaining(secondsLeft(view, offset.current));
+    tick();
+    const timer = setInterval(tick, 250);
+    return () => clearInterval(timer);
+  }, [status, endsAt, view]);
+
+  const due = status === "running" || (status === "countdown" && remaining === 0);
+  useEffect(() => {
+    if (!runId || !due || loop.current) return;
+    loop.current = true;
+    (async () => {
+      try {
+        for (let step = 0; step < 24 && !stopped.current; step += 1) {
+          const next = await advance({ data: { runId } });
+          if (!next) break;
+          apply(next);
+          if (TERMINAL.has(next.status)) break;
+          if (next.status === "countdown") await new Promise((resolve) => setTimeout(resolve, 400));
+        }
+      } catch {
+        setProblem("Lost connection while contacting facilities. Reopen this chat to continue.");
+      } finally {
+        loop.current = false;
+      }
+    })();
+  }, [due, runId, advance, apply]);
+
+  if (!view) {
+    return (
+      <div role="status" className="rounded-2xl border-2 border-red-500/70 bg-red-50 p-4 text-sm dark:bg-red-950/30">
+        <div className="flex items-center gap-2 font-semibold text-red-700 dark:text-red-300">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          {searching === false ? "Could not look up nearby hospitals." : "Finding the nearest hospitals and clinics…"}
+        </div>
+      </div>
+    );
+  }
+
+  const onCancel = async () => {
+    setCancelling(true);
+    try {
+      apply(await cancel({ data: { runId: view.run_id } }));
+    } catch {
+      setProblem("Could not cancel. Check your connection and try again.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const counting = view.status === "countdown";
+  const active = counting || view.status === "running";
+  const heading =
+    view.status === "no_facilities"
+      ? "No hospital with a real phone number or email found nearby"
+      : view.status === "cancelled"
+        ? "Contacting hospitals was cancelled"
+        : view.status === "expired"
+          ? "Contacting hospitals did not start"
+          : counting
+            ? `Contacting nearby hospitals in ${remaining ?? 10} s`
+            : view.status === "running"
+              ? "Contacting nearby hospitals now"
+              : "Nearby hospitals have been contacted";
+
+  const emailActions = view.actions.filter((a) => a.channel === "email");
+  const callActions = view.actions.filter((a) => a.channel === "call");
+
+  return (
+    <section
+      aria-label="Emergency contact"
+      className="rounded-2xl border-2 border-red-500/70 bg-red-50 p-4 text-sm text-foreground shadow-sm dark:bg-red-950/30"
+    >
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-red-600" aria-hidden />
+        <div className="min-w-0">
+          <h3 className="text-base font-bold leading-tight text-red-700 dark:text-red-300" aria-live="polite">
+            {heading}
+          </h3>
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="size-3" aria-hidden />
+            {view.incident}
+            {view.place ? ` · ${view.location_source === "gps" ? "near" : "in"} ${view.place}` : ""}
+          </p>
+        </div>
+      </div>
+
+      {view.facilities.length > 0 ? (
+        <ol className="mt-3 space-y-2">
+          {view.facilities.map((facility) => (
+            <li key={`${facility.name}-${facility.phone ?? facility.email}`} className="rounded-xl bg-background/80 p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-semibold">{facility.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatDistance(facility.distance_m)}</span>
+              </div>
+              {facility.address ? <p className="text-xs text-muted-foreground">{facility.address}</p> : null}
+              {facility.open_note ? <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{facility.open_note}</p> : null}
+              <div className="mt-1 space-y-0.5 text-xs">
+                {facility.phone ? (
+                  <p className="flex items-center gap-1.5"><Phone className="size-3" aria-hidden />+{facility.phone}</p>
+                ) : null}
+                {facility.email ? (
+                  <p className="flex items-center gap-1.5 break-all"><Mail className="size-3 shrink-0" aria-hidden />{facility.email}</p>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      {counting ? (
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={cancelling}
+          className="mt-4 w-full rounded-xl bg-red-600 px-4 py-4 text-lg font-bold text-white shadow active:scale-[0.99] disabled:opacity-60"
+        >
+          {cancelling ? "Cancelling…" : "Cancel"}
+        </button>
+      ) : null}
+
+      {!counting && view.actions.length > 0 ? (
+        <div className="mt-3 space-y-3" aria-live="polite">
+          {[
+            { title: "Emails", items: emailActions },
+            { title: "Calls", items: callActions },
+          ]
+            .filter((group) => group.items.length > 0)
+            .map((group) => (
+              <div key={group.title}>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.title}</p>
+                <ul className="space-y-1">
+                  {group.items.map((action) => (
+                    <li key={action.id} className="flex items-start gap-2 text-[13px]">
+                      <span className="mt-1 flex w-4 justify-center"><StatusIcon status={action.status} /></span>
+                      <span>
+                        <span className="font-medium">{action.facility_name}</span>
+                        {" — "}
+                        {actionLabel(action)}
+                        {action.detail && action.status !== "running" && action.status !== "pending" ? (
+                          <span className="block text-xs text-muted-foreground">{action.detail}</span>
+                        ) : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+        </div>
+      ) : null}
+
+      {view.actions.some((a) => a.channel === "email") && view.status !== "cancelled" ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {view.email_via === "gmail"
+            ? `Emails go from your Gmail (${view.gmail_email}).`
+            : "Gmail is not connected, so emails go from Allma's own system email."}
+        </p>
+      ) : null}
+      {active ? (
+        <p className="mt-2 text-xs text-muted-foreground">Keep this chat open until it finishes. This never dials 999, 112 or 911 — call them yourself if you can.</p>
+      ) : null}
+      {problem ? <p role="alert" className="mt-2 text-xs font-medium text-red-700 dark:text-red-300">{problem}</p> : null}
+    </section>
+  );
+}
