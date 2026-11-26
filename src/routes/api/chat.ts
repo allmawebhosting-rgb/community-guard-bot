@@ -942,7 +942,11 @@ You are coordinating this emergency from the start, not just answering questions
           /^(yes|no|y|n|yeah|yep|nope|leg|arm|head|hand|foot|chest|back|neck|stomach|it hurts|hurts|bleeding|deep|shallow)[.!]?$/i.test(
             intakeText.trim(),
           );
-        const emergencyFromIntake = hardFlowBlocksEmergency ? null : classifyIncident(intakeText);
+        const emergencyFromIntake = hardFlowBlocksEmergency
+          ? null
+          : safety.reason === "followup" && safety.incident
+            ? safety.incident
+            : classifyIncident(intakeText);
         const emergencyFromThread =
           ((softFlowActive && !emergencyFromIntake && !directService && shortSoftAnswer) ||
             (sharedSosActive && !emergencyFromIntake))

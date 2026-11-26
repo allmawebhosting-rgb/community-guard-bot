@@ -105,6 +105,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { EMERGENCY_BLOCK_LINES } from "@/lib/emergency-triage";
 import type { FirstAid, Incident } from "@/lib/allma-emergency-playbook";
+import { MAX_NEARBY_KM } from "@/lib/nearby-guard";
 import { facilitiesFromLocationIntel, firstAidFallback, hasNotDoctorLine, incidentForReply, messageHasPlaces, preferredFirstAid, shouldRenderToolCard, shouldShowToolOutput, stripDuplicateFirstAidProse, stripFillerSentences } from "@/lib/chat-emergency-view";
 import {
   assistantHasVisibleText,
@@ -854,7 +855,11 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
   const facilities = useMemo((): Array<Record<string, unknown>> => {
     const rows = output.facilities as Array<Record<string, unknown>>;
     if (useLiveLocation && userLocation) {
-      return applyFacilityDistances(rows as Array<Record<string, unknown> & { distance_km?: number | null }>, userLocation);
+      // Results the server searched around somewhere else (e.g. a Kampala default sent before GPS arrived)
+      // are never "nearby" once measured from the real position.
+      return applyFacilityDistances(rows as Array<Record<string, unknown> & { distance_km?: number | null }>, userLocation).filter(
+        (row) => row.distance_km == null || row.distance_km <= MAX_NEARBY_KM,
+      );
     }
     // Server rows already carry haversine distances from the search origin; without one, none.
     return distanceSource === "none"
@@ -875,7 +880,7 @@ function FacilityResults({ output }: { output: Record<string, unknown> }) {
   return (
     <div className="w-full space-y-2.5" data-testid="safety-resource-list">
       {facilities.length === 0 ? (
-        <p className="rounded-2xl border border-border/60 bg-card p-3.5 text-[14px] leading-relaxed text-foreground">{output.location_unconfirmed ? "I couldn't confirm where you are, so I won't show places that may be far away. Tap Share my location or type your town or area." : "No places found nearby. Share your location or type your town or area."}</p>
+        <p className="rounded-2xl border border-border/60 bg-card p-3.5 text-[14px] leading-relaxed text-foreground">{output.location_unconfirmed ? "I couldn't confirm where you are, so I won't show places that may be far away. Tap Share my location or type your town or area." : "No places found within 50 km of you. Share your location or type your town or area."}</p>
       ) : (
         <>
           {output.resolved_area ? (
@@ -2140,6 +2145,8 @@ export function AllmaChat({
     const hasUsefulTool = (last.parts ?? []).some((part) => {
       const type = String((part as { type?: string }).type ?? "");
       if (!type.startsWith("tool-")) return false;
+      // The hospital contact card is its own answer, even while its output is still settling.
+      if (type === "tool-emergency_contact") return true;
       return shouldShowToolOutput(
         type,
         (part as { output?: Record<string, unknown> }).output,

@@ -80,7 +80,7 @@ export type SafetyAssessment = {
   level: SafetyLevel;
   incident: Incident | null;
   kind: EmergencyKind;
-  reason: "sos_active" | "report" | "help_call" | "sticky" | "incident" | "symptom" | "none";
+  reason: "sos_active" | "followup" | "report" | "help_call" | "sticky" | "incident" | "symptom" | "none";
   /** The user message that reported the emergency (differs from the latest when it is sticky). */
   reportText: string;
 };
@@ -133,6 +133,24 @@ function baseAssessment(text: string): SafetyAssessment {
  * Step 1 of every message. `lastAssistantText` + `priorUserTexts` let a bare answer ("Jinja")
  * to the location question stay inside the emergency that asked for it.
  */
+/**
+ * A short answer to the incident's own follow-up question ("No, still bleeding" after
+ * "Did the bleeding stop?") belongs to that incident, not to whatever its words match alone.
+ */
+export function continuedIncident(
+  text: string,
+  lastAssistantText: string | undefined,
+  priorUserTexts: string[] = [],
+): Incident | null {
+  if (!lastAssistantText || text.trim().split(/\s+/).length > 8) return null;
+  for (const earlier of [...priorUserTexts].reverse()) {
+    const incident = matchIncident(earlier);
+    if (!incident) continue;
+    return incident.followUp && lastAssistantText.includes(incident.followUp) ? incident : null;
+  }
+  return null;
+}
+
 export function classifySafety(
   text: string,
   opts: { sosActive?: boolean; lastAssistantText?: string; priorUserTexts?: string[] } = {},
@@ -142,6 +160,10 @@ export function classifySafety(
     return { ...base, level: "emergency", reason: base.level === "emergency" ? base.reason : "sos_active" };
   }
   if (base.level === "emergency") return base;
+  const continued = continuedIncident(text, opts.lastAssistantText, opts.priorUserTexts);
+  if (continued) {
+    return { level: "urgent", incident: continued, kind: continued.marker, reason: "followup", reportText: text };
+  }
   if (opts.lastAssistantText && LOCATION_ASK_RE.test(opts.lastAssistantText) && !CANCEL_RE.test(text)) {
     for (const earlier of [...(opts.priorUserTexts ?? [])].reverse()) {
       const prior = baseAssessment(earlier);

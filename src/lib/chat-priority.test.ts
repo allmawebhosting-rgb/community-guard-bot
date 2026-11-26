@@ -4,6 +4,7 @@ import {
   LOCATION_ASK,
   classifySafety,
   contactsHospitals,
+  continuedIncident,
   emergencyTurn,
   factsPromptBlock,
   limitChips,
@@ -168,5 +169,26 @@ describe("prompt blocks and plan part", () => {
       safetyPlanOf([{ type: "data-safety-plan", data: { level: "emergency", step: "dispatch", sosType: "medical" } }]),
     ).toEqual({ level: "emergency", step: "dispatch", sosType: "medical" });
     expect(safetyPlanOf([{ type: "text" }])).toBeNull();
+  });
+});
+
+describe("follow-up answers stay inside their incident", () => {
+  const ask = "Did the bleeding stop?";
+  it("keeps a nosebleed a nosebleed when the user says 'No, still bleeding'", () => {
+    const a = classifySafety("No, still bleeding", {
+      lastAssistantText: `1. Sit up\n${ask}`,
+      priorUserTexts: ["hi", "my nose is bleeding"],
+    });
+    expect(a.level).toBe("urgent");
+    expect(a.incident?.id).toBe("nosebleed");
+    expect(a.reason).toBe("followup");
+  });
+  it("does not continue after a long unrelated message", () => {
+    expect(
+      continuedIncident("Please write an email to my landlord about the broken window and the rent", ask, ["my nose is bleeding"]),
+    ).toBeNull();
+  });
+  it("does not continue when the follow-up question was not asked", () => {
+    expect(continuedIncident("No, still bleeding", "Hello there", ["my nose is bleeding"])).toBeNull();
   });
 });

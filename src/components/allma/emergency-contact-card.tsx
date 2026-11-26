@@ -44,6 +44,15 @@ function actionLabel(action: EmergencyActionView) {
   }
 }
 
+/** Provider sign-in errors mean no call was placed at all; say that plainly instead of an HTTP code. */
+export function callDetailText(action: Pick<EmergencyActionView, "channel" | "status" | "detail">) {
+  const detail = action.detail ?? "";
+  if (action.channel === "call" && action.status === "failed" && /provider error (401|403)\b/i.test(detail)) {
+    return "The calling service is not available right now, so no call was placed.";
+  }
+  return detail;
+}
+
 function StatusIcon({ status }: { status: string }) {
   if (status === "running") return <Loader2 className="size-4 animate-spin text-red-600" aria-hidden />;
   if (status === "answered" || status === "sent") return <Check className="size-4 text-emerald-600" aria-hidden />;
@@ -319,7 +328,15 @@ export function EmergencyContactCard({
                         {" — "}
                         {actionLabel(action)}
                         {action.detail && action.status !== "running" && action.status !== "pending" ? (
-                          <span className="block text-xs text-muted-foreground">{action.detail}</span>
+                          <span className="block text-xs text-muted-foreground">{callDetailText(action)}</span>
+                        ) : null}
+                        {action.channel === "call" && action.status === "failed" && /^\+?\d{6,}$/.test(action.destination) ? (
+                          <a
+                            href={`tel:+${action.destination.replace(/^\+/, "")}`}
+                            className="mt-1 inline-block rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white"
+                          >
+                            Call {action.facility_name} yourself
+                          </a>
                         ) : null}
                       </span>
                     </li>

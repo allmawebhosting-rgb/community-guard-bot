@@ -185,3 +185,29 @@ describe("EmergencyContactCard sequencing and live status", () => {
     expect(status.textContent).toContain("Not contacted yet");
   });
 });
+
+describe("callDetailText", () => {
+  it("hides raw provider 401 errors behind a plain sentence", async () => {
+    const { callDetailText } = await import("./emergency-contact-card");
+    expect(callDetailText({ channel: "call", status: "failed", detail: "Call provider error 401" })).toBe(
+      "The calling service is not available right now, so no call was placed.",
+    );
+    expect(callDetailText({ channel: "call", status: "no_answer", detail: "Rang 30 s" })).toBe("Rang 30 s");
+  });
+
+  it("offers a tap-to-call link when the automatic call failed", async () => {
+    arm.mockResolvedValue(
+      base({
+        status: "completed",
+        countdown_ends_at: new Date(Date.now() + 10_000).toISOString(),
+        actions: base().actions.map((a) =>
+          a.channel === "call" ? { ...a, status: "failed", detail: "Call provider error 401" } : { ...a, status: "sent" },
+        ),
+      }),
+    );
+    render(<EmergencyContactCard run={base()} />);
+    await act(async () => {});
+    const link = screen.getByRole("link", { name: /Call Jinja Hospital yourself/ });
+    expect(link.getAttribute("href")).toBe("tel:+256414123456");
+  });
+});
