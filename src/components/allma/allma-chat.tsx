@@ -1,5 +1,6 @@
 import { InChatSos } from "@/components/allma/in-chat-sos";
 import {
+  BookingAnswerContext,
   BookingResultCard,
   type BookingProcessStep,
 } from "@/components/allma/booking-result-card";
@@ -1510,6 +1511,8 @@ function ToolCard({
         summary={String(output?.summary ?? "No booking summary returned.")}
         success={Boolean(output?.success ?? output?.ok)}
         status={output?.status ? String(output.status) : undefined}
+        needsInput={Boolean(output?.needs_input)}
+        question={typeof output?.question === "string" ? output.question : null}
         screenshotUrl={
           typeof output?.screenshot_url === "string" ? output.screenshot_url : null
         }
@@ -3890,6 +3893,7 @@ export function AllmaChat({
                     <IncidentContext.Provider value={message.role === "assistant" ? incidentForReply(messages, msgIndex) : null}>
                     <BookingLiveProgressContext.Provider value={bookingLiveProgress}>
                     <EmailSentContext.Provider value={postEmailSentNote}>
+                    <BookingAnswerContext.Provider value={msgIndex === messages.length - 1 ? (text: string) => send(text) : null}>
                     <HasPlacesContext.Provider value={message.role === "assistant" && messageHasPlaces(message.parts as never)}>
                     <EmergencyShownContext.Provider value={message.role === "assistant" && Boolean(emergencyType)}>
                     <EmergencySequenceContext.Provider
@@ -4121,6 +4125,7 @@ export function AllmaChat({
                     </EmergencySequenceContext.Provider>
                     </EmergencyShownContext.Provider>
                     </HasPlacesContext.Provider>
+                    </BookingAnswerContext.Provider>
                     </EmailSentContext.Provider>
                     </BookingLiveProgressContext.Provider>
                     </IncidentContext.Provider>

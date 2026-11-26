@@ -144,6 +144,7 @@ async def list_domains() -> dict[str, Any]:
 # In-memory booking jobs so Cloudflare Workers can start a task and poll
 # without holding a single HTTP request open for the full Playwright run.
 _BOOKING_JOBS: dict[str, dict[str, Any]] = {}
+ASK_USER_TIMEOUT_S = int(os.getenv("BOOKING_ASK_USER_TIMEOUT_S", "600") or "600")
 
 
 async def _run_booking_job(job_id: str, body: BookAppointmentIn) -> None:
@@ -164,6 +165,27 @@ async def _run_booking_job(job_id: str, body: BookAppointmentIn) -> None:
         if isinstance(shot, str) and shot:
             job["screenshot_url"] = shot
 
+    async def ask_user(question: str) -> str:
+        job = _BOOKING_JOBS.get(job_id)
+        if job is None:
+            return "No answer available. Do not guess; stop and report what is missing."
+        future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+        job["question"] = question
+        job["answer_future"] = future
+        job["status"] = "needs_input"
+        try:
+            return await asyncio.wait_for(future, timeout=ASK_USER_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            return (
+                "The patient did not answer in time. Do not guess the value; stop and "
+                "report that the booking needs this detail."
+            )
+        finally:
+            job.pop("answer_future", None)
+            job.pop("question", None)
+            if job.get("status") == "needs_input":
+                job["status"] = "running"
+
     try:
         result = await run_booking_task(
             hospital_name=body.hospital_name,
@@ -174,6 +196,7 @@ async def _run_booking_job(job_id: str, body: BookAppointmentIn) -> None:
             portal_url=body.portal_url or "",
             clinic_phone=body.clinic_phone or "",
             on_progress=on_progress,
+            ask_user=ask_user,
         )
         _BOOKING_JOBS[job_id] = {
             "status": "completed" if result.get("success") else str(result.get("status") or "failed"),
@@ -232,6 +255,23 @@ async def book_appointment_status(job_id: str) -> dict[str, Any]:
     job = _BOOKING_JOBS.get(job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown job_id")
+    if job.get("status") == "needs_input":
+        question = str(job.get("question") or "I need one more detail to finish the form.")
+        return {
+            "ok": True,
+            "async": True,
+            "job_id": job_id,
+            "status": "needs_input",
+            "hospital": job.get("hospital"),
+            "preferred_time": job.get("preferred_time"),
+            "question": question,
+            "summary": question,
+            "steps": job.get("steps") or [],
+            "screenshots": job.get("screenshots") or [],
+            "screenshot_url": job.get("screenshot_url"),
+            "success": False,
+            "payment_required": False,
+        }
     if job.get("status") in {"queued", "running"}:
         return {
             "ok": True,
@@ -249,3 +289,21 @@ async def book_appointment_status(job_id: str) -> dict[str, Any]:
         }
     result = job.get("result") or {}
     return {"ok": True, "async": True, "job_id": job_id, **result}
+
+
+class BookingAnswerIn(BaseModel):
+    answer: str = Field(..., min_length=1, max_length=500)
+
+
+@app.post("/api/tasks/book-appointment/{job_id}/answer", dependencies=[Depends(require_bearer)])
+async def book_appointment_answer(job_id: str, body: BookingAnswerIn) -> dict[str, Any]:
+    """Give the paused booking agent the patient's answer so it keeps filling the form."""
+    job = _BOOKING_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown job_id")
+    future = job.get("answer_future")
+    if job.get("status") != "needs_input" or future is None or future.done():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Booking is not waiting for an answer")
+    future.set_result(body.answer.strip())
+    job["status"] = "running"
+    return {"ok": True, "job_id": job_id, "status": "running"}

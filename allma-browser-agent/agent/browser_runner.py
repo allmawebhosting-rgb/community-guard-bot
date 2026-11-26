@@ -8,7 +8,7 @@ import logging
 import os
 import re
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +25,7 @@ PAYMENT_HALT = re.compile(
 )
 
 ProgressCallback = Callable[[dict[str, Any]], None]
+AskUserCallback = Callable[[str], Awaitable[str]]
 
 
 def _safe_summary(text: str, limit: int = 1200) -> str:
@@ -404,11 +405,16 @@ Goals:
 3. {login_block}
 4. Find and select an appointment slot matching "{preferred_time}" (or the closest available slot if exact match is unavailable — say what you picked).
 5. Fill the booking form with:
-   - Patient name: {patient_name}
-   - Phone number: {phone_number}
+   - Patient name: {patient_name or "(not provided)"}
+   - Phone number: {phone_number or "(not provided)"}
    - Reason for visit / symptoms: {reason_for_visit}
 6. Submit the booking and reach the confirmation / reference screen.
 7. Extract any confirmation number, doctor/department, and date/time shown.
+
+Asking the patient (important):
+- If the form needs a detail you were NOT given above (date of birth, email, age, gender, doctor or department choice, ID number, which time slot, insurance, anything else), call the ask_user action with ONE short plain-language question. Never guess, never type N/A or a made-up value.
+- When several slots or doctors are available, ask_user which one the patient wants instead of choosing silently.
+- Use the patient's answer exactly, then continue filling the form.
 
 Hard rules:
 - NEVER open google.com, duckduckgo.com, bing.com, yahoo.com, or ANY search engine. They show CAPTCHA challenges to bots and waste the whole run.
@@ -544,11 +550,12 @@ async def run_booking_task(
     portal_url: str = "",
     clinic_phone: str = "",
     on_progress: ProgressCallback | None = None,
+    ask_user: AskUserCallback | None = None,
 ) -> dict[str, Any]:
     """Run the browser agent and return a structured booking result (no secrets)."""
     hospital_name = (hospital_name or "").strip()
-    patient_name = (patient_name or "").strip() or "Patient"
-    phone_number = (phone_number or "").strip() or "N/A"
+    patient_name = (patient_name or "").strip()
+    phone_number = (phone_number or "").strip()
     preferred_time = (preferred_time or "").strip() or "soonest available"
     reason_for_visit = (reason_for_visit or "").strip() or "Medical consultation"
     portal_url = (portal_url or "").strip()
@@ -751,6 +758,31 @@ async def run_booking_task(
                 if agent is not None and hasattr(agent, "stop"):
                     agent.stop()
 
+        controller = None
+        ask_patient = ask_user
+        if ask_patient is not None:
+            try:
+                from browser_use import ActionResult, Controller
+
+                controller = Controller()
+
+                @controller.action(
+                    "Ask the patient ONE short question when the booking form needs a detail "
+                    "you were not given (date of birth, email, doctor, time slot, ...). "
+                    "Waits for the real answer. Never guess instead."
+                )
+                async def ask_user(question: str) -> ActionResult:  # noqa: F811
+                    emit(f"Asking you: {question}", status="running")
+                    answer = await ask_patient(question)
+                    emit("Got your answer — continuing…", status="running")
+                    return ActionResult(
+                        extracted_content=f"The patient answered: {answer}",
+                        include_in_memory=True,
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("ask_user_unavailable err=%s", type(exc).__name__)
+                controller = None
+
         agent_kwargs: dict[str, Any] = {
             "task": task,
             "llm": llm,
@@ -765,6 +797,8 @@ async def run_booking_task(
         }
         if sensitive_data:
             agent_kwargs["sensitive_data"] = sensitive_data
+        if controller is not None:
+            agent_kwargs["controller"] = controller
 
         agent = Agent(**agent_kwargs)
         agent_ref["agent"] = agent

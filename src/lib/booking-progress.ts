@@ -1,3 +1,5 @@
+import { clinicContactQuestion } from "@/lib/booking-intake";
+
 /** Turn robotic browser-agent step labels into live first-person status lines. */
 
 const END = String.raw`[\s.…]*$`;
@@ -58,11 +60,17 @@ export type BookingOutcomeInput = {
   preferred_time?: string | null;
   clinic_phone?: string | null;
   payment_required?: boolean;
+  needs_input?: boolean;
+  field?: string;
 };
 
 /** The one plain-language line after a booking attempt, from what actually happened, never from model prose. */
 export function bookingOutcomeText(output: BookingOutcomeInput, clinic: string, requestedTime?: string): string {
   const name = clinic.trim() || "the clinic";
+  if (output.needs_input || output.status === "needs_input") {
+    if (output.field === "clinic_contact") return clinicContactQuestion(name);
+    return "I paused the booking because the clinic form needs one more detail to book your appointment. Type your answer here and I will pick up where I stopped.\n\n::suggest[Cancel booking]";
+  }
   const when = (output.preferred_time || requestedTime || "").trim();
   if (output.booked) {
     return `Your appointment request at ${name}${when ? ` for ${when}` : ""} went through. Check the confirmation above for the details.\n\n::suggest[Add to my reminders | Find clinics nearby]`;
@@ -70,5 +78,5 @@ export function bookingOutcomeText(output: BookingOutcomeInput, clinic: string, 
   const phone = output.clinic_phone?.trim();
   const pay = output.payment_required ? " The clinic asks for payment first, so it was not completed." : "";
   const call = phone ? ` You can call them on ${phone} to book by phone.` : "";
-  return `I could not confirm a booking at ${name}.${pay}${call} Nothing is reserved yet.\n\n::suggest[Try another clinic | Different time | Find clinics nearby]`;
+  return `I could not confirm a booking at ${name}.${pay}${call} Nothing is reserved yet. Tell me another clinic or time to book your appointment there.\n\n::suggest[Try another clinic | Different time | Find clinics nearby]`;
 }

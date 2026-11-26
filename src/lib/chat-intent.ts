@@ -98,6 +98,7 @@ export function isBookingOpenerMessage(text: string | null | undefined) {
     /Which clinic or hospital should I use/i.test(t) ||
     /Got it — .+ I'll use/i.test(t) ||
     /When do you want to go, and what'?s the reason/i.test(t) ||
+    /to book your appointment|which hospital or clinic should i book|when would you like to go to|what is the visit for|name should the booking be under|phone number can the clinic reach you|website or phone number for/i.test(t) ||
     /online booking (was )?not available|phone.?booking|call the clinic/i.test(t) ||
     /book .+ by e-?mail|email the clinic an appointment/i.test(t)
   );

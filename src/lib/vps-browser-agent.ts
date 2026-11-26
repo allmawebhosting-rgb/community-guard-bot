@@ -13,6 +13,8 @@ export type BookAppointmentInput = {
   portal_url?: string;
   /** Clinic phone for voice booking when online booking is blocked. */
   clinic_phone?: string;
+  /** Continue a booking the agent paused to ask the patient something. */
+  resume?: { job_id: string; answer: string };
 };
 
 export type BookingProcessStep = {
@@ -38,6 +40,10 @@ export type BookAppointmentResult = {
   job_id?: string;
   async?: boolean;
   ok?: boolean;
+  /** The agent is paused and waiting for the patient to answer `question`. */
+  needs_input?: boolean;
+  question?: string;
+  field?: string;
 };
 
 export type BookingProgressUpdate = {
@@ -137,6 +143,57 @@ function failedResult(
 const POLL_MS = 3_500;
 const MAX_WAIT_MS = 8 * 60 * 1000;
 
+async function pollBookingJob(
+  base: string,
+  token: string,
+  jobId: string,
+  input: BookAppointmentInput & { onProgress?: (update: BookingProgressUpdate) => void },
+): Promise<BookAppointmentResult | null> {
+  const deadline = Date.now() + MAX_WAIT_MS;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, POLL_MS));
+    const pollRes = await fetch(`${base}/api/tasks/book-appointment/${jobId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(20_000),
+    });
+    const { data: pollData, rawText: pollRaw } = await readAgentResponse(pollRes);
+    if (!pollRes.ok || !pollData) {
+      const hint = pollRaw.replace(/\s+/g, " ").trim().slice(0, 160);
+      return failedResult(
+        input.hospital_name,
+        `Booking poll returned HTTP ${pollRes.status}${hint ? ` (${hint})` : ""}.`,
+        { job_id: jobId },
+      );
+    }
+    const rewritten = rewriteResultUrls(pollData);
+    if (pollData.status === "needs_input") {
+      const question = String(pollData.question || pollData.summary || "I need one more detail to finish the form.");
+      return {
+        ...rewritten,
+        job_id: jobId,
+        status: "needs_input",
+        needs_input: true,
+        question,
+        summary: question,
+        success: false,
+      };
+    }
+    if (pollData.status === "queued" || pollData.status === "running") {
+      input.onProgress?.({
+        status: String(rewritten.status || "running"),
+        summary: rewritten.summary || "Booking in progress…",
+        steps: rewritten.steps ?? [],
+        screenshots: rewritten.screenshots ?? [],
+        screenshot_url: rewritten.screenshot_url,
+        hospital: rewritten.hospital || input.hospital_name,
+      });
+      continue;
+    }
+    return { ...rewritten, job_id: jobId };
+  }
+  return null;
+}
+
 /**
  * Start an async booking job on the VPS agent and poll until it finishes.
  * Avoids Cloudflare 524 / Worker timeouts from holding one long Playwright request.
@@ -161,6 +218,35 @@ export async function bookHospitalAppointment(
   };
 
   try {
+    if (input.resume) {
+      const answerRes = await fetch(`${base}/api/tasks/book-appointment/${input.resume.job_id}/answer`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ answer: input.resume.answer }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!answerRes.ok) {
+        return failedResult(
+          input.hospital_name,
+          "I could not pass your answer to the booking agent because that booking session already ended. Say the clinic and time again and I will start a fresh one.",
+          { job_id: input.resume.job_id },
+        );
+      }
+      input.onProgress?.({
+        status: "running",
+        summary: "Got your answer — continuing the booking…",
+        steps: [{ label: "Got your answer — continuing the booking…", status: "running" }],
+        screenshots: [],
+        hospital: input.hospital_name,
+      });
+      const resumed = await pollBookingJob(base, token, input.resume.job_id, input);
+      if (resumed) return resumed;
+      return failedResult(
+        input.hospital_name,
+        "Booking is still running on the agent but timed out waiting for a result. Try again in a minute.",
+        { job_id: input.resume.job_id, status: "running" },
+      );
+    }
     const startRes = await fetch(`${base}/api/tasks/book-appointment`, {
       method: "POST",
       headers,
@@ -197,38 +283,8 @@ export async function bookHospitalAppointment(
       screenshots: [],
       hospital: input.hospital_name,
     });
-
-    const deadline = Date.now() + MAX_WAIT_MS;
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, POLL_MS));
-      const pollRes = await fetch(`${base}/api/tasks/book-appointment/${jobId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(20_000),
-      });
-      const { data: pollData, rawText: pollRaw } = await readAgentResponse(pollRes);
-      if (!pollRes.ok || !pollData) {
-        const hint = pollRaw.replace(/\s+/g, " ").trim().slice(0, 160);
-        return failedResult(
-          input.hospital_name,
-          `Booking poll returned HTTP ${pollRes.status}${hint ? ` (${hint})` : ""}.`,
-          { job_id: jobId },
-        );
-      }
-
-      const rewritten = rewriteResultUrls(pollData);
-      if (pollData.status === "queued" || pollData.status === "running") {
-        input.onProgress?.({
-          status: String(rewritten.status || "running"),
-          summary: rewritten.summary || "Booking in progress…",
-          steps: rewritten.steps ?? [],
-          screenshots: rewritten.screenshots ?? [],
-          screenshot_url: rewritten.screenshot_url,
-          hospital: rewritten.hospital || input.hospital_name,
-        });
-        continue;
-      }
-      return { ...rewritten, job_id: jobId };
-    }
+    const polled = await pollBookingJob(base, token, jobId, input);
+    if (polled) return polled;
 
     return failedResult(
       input.hospital_name,

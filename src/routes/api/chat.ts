@@ -41,6 +41,7 @@ import {
   finalizeModelDraft,
 } from "@/lib/email-draft-compose";
 import { applyFacilityDistances, distanceFromLabel, validLatLng, type DistanceSource } from "@/lib/facility-distance";
+import { clinicContactQuestion, deriveBookingSlots, nextBookingQuestion, resolveBookingDetails, type BookingTurn } from "@/lib/booking-intake";
 import { BOOKING_START_STEPS, bookingOutcomeText, humanizeBookingStep, humanizeBookingSteps } from "@/lib/booking-progress";
 import { slimMessagesForTransport } from "@/lib/chat-media";
 import { firstAidFor, matchIncident } from "@/lib/allma-emergency-playbook";
@@ -790,7 +791,44 @@ You are coordinating this emergency from the start, not just answering questions
           priorAssistantMessages.map((m) => parseAllmaMarkers(textOf(m)).flow?.label).find(Boolean) ??
           null;
         const lastAssistantFullText = priorAssistantMessages[0] ? textOf(priorAssistantMessages[0]) : "";
-        const bookingFollowUp = isBookingFollowUp(intakeText, lastAssistantFullText);
+        const bookingResume = (() => {
+          const last = priorAssistantMessages[0];
+          for (const part of last?.parts ?? []) {
+            if (!part || typeof part !== "object") continue;
+            const type = String((part as { type?: unknown }).type ?? "");
+            if (!type.includes("book_hospital_appointment")) continue;
+            const output = (part as { output?: Record<string, unknown> }).output;
+            if (output?.status === "needs_input" && typeof output.job_id === "string" && output.job_id) {
+              return { jobId: output.job_id, answer: intakeText.trim() };
+            }
+          }
+          return null;
+        })();
+        const bookingFollowUp = Boolean(bookingResume) || isBookingFollowUp(intakeText, lastAssistantFullText);
+        const bookingTurns: BookingTurn[] = uiMessages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ role: m.role as "user" | "assistant", text: textOf(m) }));
+        const bookingSlots = bookingFollowUp ? deriveBookingSlots(bookingTurns) : null;
+        const bookingProfile =
+          (bookingFollowUp || isAppointmentBookingAsk(intakeText)) && userId && !bookingResume
+            ? await withTimeoutFallback(
+                supabase
+                  .from("profiles")
+                  .select("full_name, phone, phone_e164")
+                  .eq("id", userId)
+                  .maybeSingle()
+                  .then((res) => res.data ?? null),
+                2000,
+                null,
+                "booking-profile",
+              ).then((row) => ({
+                fullName: (row as { full_name?: string | null } | null)?.full_name ?? null,
+                phone:
+                  (row as { phone_e164?: string | null; phone?: string | null } | null)?.phone_e164 ??
+                  (row as { phone?: string | null } | null)?.phone ??
+                  null,
+              }))
+            : null;
         // Booking openers stay local even mid-thread. Skipping them when the
         // canonical history already had an assistant reply forced Workers AI
         // for "Book an appointment", and a plain-text gateway failure then
@@ -857,11 +895,9 @@ You are coordinating this emergency from the start, not just answering questions
               "allma-booking-email",
             );
           }
-          if (!bookingHasPreferredTime(intakeText)) {
-            if (looksLikeClinicName(intakeText)) {
-              return replyWithFixedText(bookingClinicAckReply(intakeText), "allma-booking");
-            }
-            return replyWithFixedText(bookingClarifyClinicReply(), "allma-booking");
+          if (!bookingResume) {
+            const ask = nextBookingQuestion(bookingSlots ?? {}, bookingProfile);
+            if (ask) return replyWithFixedText(ask, "allma-booking");
           }
         }
 
@@ -1103,6 +1139,11 @@ You are coordinating this emergency from the start, not just answering questions
         const bookingAsk =
           safety.level !== "emergency" && (isAppointmentBookingAsk(intakeText) || bookingFollowUp);
         const wantsBooking = isBrowserAgentConfigured() && bookingAsk;
+        const bookingReadyToRun =
+          wantsBooking &&
+          !emailCardMode &&
+          bookingFollowUp &&
+          (Boolean(bookingResume) || (bookingSlots !== null && !nextBookingQuestion(bookingSlots, bookingProfile)));
         const bookingBlock = bookingAsk
           ? wantsBooking
             ? `\n\nAPPOINTMENT BOOKING REQUEST: The user wants to book / schedule a medical appointment — do NOT call find_facilities, do NOT open SOS / ::emergency, and do NOT dump a clinic list unless they also asked for nearest/nearby places. Collect any missing details in ONE short question (hospital/clinic name, preferred time, reason for visit). When you have hospital_name + preferred_time + reason_for_visit, call book_hospital_appointment. If they ask to book by email and you have a clinic email from a prior phone_booking result or the user, call send_incident_email with incidentType=general, a clear appointment-request subject, and the triageSummary describing the visit time/reason — then confirm the email was queued only if success=true. After book_hospital_appointment: ONLY say the appointment was booked if booked=true / success=true. If status is phone_booking, say online booking was unavailable, share phone/email, and offer to email the clinic — never claim it was booked. Never invent a confirmation number. End with ::suggest[…] when you still need a choice.`
@@ -1390,10 +1431,12 @@ You are coordinating this emergency from the start, not just answering questions
           // first-aid text can follow the forced facility tool call.
           ...(emailCardMode
             ? { toolChoice: { type: "tool" as const, toolName: "draft_email" } }
-            : requireNearbyHelp
+            : bookingReadyToRun
+              ? { toolChoice: { type: "tool" as const, toolName: "book_hospital_appointment" } }
+              : requireNearbyHelp
               ? { toolChoice: { type: "tool" as const, toolName: "find_facilities" } }
               : {}),
-          stopWhen: emailCardMode
+          stopWhen: emailCardMode || bookingReadyToRun
             ? [stepCountIs(1)]
             : requireNearbyHelp && emergencyIncident
               ? [stepCountIs(2)]
@@ -1614,68 +1657,121 @@ You are coordinating this emergency from the start, not just answering questions
                 phone_number,
               }) => {
                 reportProgress("finding");
+                const details = resolveBookingDetails(bookingSlots ?? {}, bookingProfile);
+                const clinicName = details.clinic || hospital_name;
+                const whenText = details.time || preferred_time;
+                const reasonText = details.reason || reason_for_visit;
+                const patientForForm = details.patientName || patient_name;
+                const phoneForForm = details.phone || phone_number;
                 const emitBooking = (summary: string, steps?: Array<{ label: string; status?: string }>) => {
                   emitBookingUpdate({
                     status: "running",
                     summary,
                     steps: steps ?? [{ label: summary, status: "running" }],
                     screenshots: [],
-                    hospital: hospital_name,
+                    hospital: clinicName,
                   });
                 };
+                const shape = (result: Awaited<ReturnType<typeof bookHospitalAppointment>>, contactPhone?: string | null) => {
+                  const clinicEmail =
+                    extractBookingEmail(result.summary) ||
+                    extractBookingEmail(String((result as { clinic_email?: string }).clinic_email ?? "")) ||
+                    null;
+                  return {
+                    ...result,
+                    hospital: clinicName,
+                    ok: Boolean(result.success),
+                    clinic_phone: result.clinic_phone || contactPhone || null,
+                    clinic_email: clinicEmail,
+                    booked: Boolean(result.success) && result.status === "completed",
+                  };
+                };
+                if (bookingResume) {
+                  emitBooking("Got your answer — continuing the booking…");
+                  const resumed = await bookHospitalAppointment({
+                    hospital_name: clinicName,
+                    preferred_time: whenText,
+                    reason_for_visit: reasonText,
+                    resume: { job_id: bookingResume.jobId, answer: bookingResume.answer },
+                    onProgress: (update) => emitBookingUpdate(update),
+                  });
+                  reportProgress("writing");
+                  return shape(resumed);
+                }
                 emitBooking("Looking up the clinic now…", [
                   { label: "Reading your appointment request…", status: "completed" },
                   { label: "Looking up the clinic now…", status: "running" },
                 ]);
-                // Resolve a direct website/phone first — search engines CAPTCHA headless browsers.
-                const contact = await lookupHospitalContact(hospital_name).catch(() => null);
+                const given = details.website || details.clinicPhone;
+                const contact = given
+                  ? { name: clinicName, website: details.website ?? null, phone: details.clinicPhone ?? null, address: null }
+                  : await lookupHospitalContact(clinicName).catch(() => null);
+                if (!contact?.website && !contact?.phone) {
+                  reportProgress("writing");
+                  if (details.noClinicContact) {
+                    return {
+                      status: "unavailable",
+                      hospital: clinicName,
+                      summary: `I have no website or phone number for ${clinicName}, so I cannot book there online.`,
+                      steps: [],
+                      screenshots: [],
+                      success: false,
+                      ok: false,
+                      booked: false,
+                      clinic_phone: null,
+                      clinic_email: null,
+                      preferred_time: whenText,
+                    };
+                  }
+                  const question = clinicContactQuestion(clinicName);
+                  return {
+                    status: "needs_input",
+                    needs_input: true,
+                    field: "clinic_contact",
+                    question,
+                    hospital: clinicName,
+                    summary: `I could not find an online booking page for ${clinicName}.`,
+                    steps: [
+                      { label: "Reading your appointment request", status: "completed" },
+                      { label: `Searched the directory for ${clinicName}`, status: "completed" },
+                      { label: "Need the clinic website or phone number", status: "running" },
+                    ],
+                    screenshots: [],
+                    success: false,
+                    ok: false,
+                    booked: false,
+                    clinic_phone: null,
+                    clinic_email: null,
+                    preferred_time: whenText,
+                  };
+                }
                 emitBooking(
-                  contact?.website
-                    ? `Found the clinic website — opening it now…`
-                    : contact?.phone
-                      ? `Found clinic phone ${contact.phone} — checking online booking…`
-                      : "Starting the booking agent now…",
+                  contact.website
+                    ? "Found the clinic website — opening it now…"
+                    : `Found clinic phone ${contact.phone} — checking online booking…`,
                   [
                     { label: "Reading your appointment request…", status: "completed" },
+                    { label: `Matched clinic: ${clinicName}`, status: "completed" },
                     {
-                      label: contact?.name
-                        ? `Matched clinic: ${contact.name}`
-                        : "Finished the clinic directory lookup…",
-                      status: "completed",
-                    },
-                    {
-                      label: contact?.website
-                        ? "Opening the clinic website now…"
-                        : "Preparing the phone booking contacts…",
+                      label: contact.website ? "Opening the clinic website now…" : "Preparing the phone booking contacts…",
                       status: "running",
                     },
                   ],
                 );
                 const result = await bookHospitalAppointment({
-                  hospital_name: contact?.name || hospital_name,
-                  preferred_time,
-                  reason_for_visit,
-                  patient_name,
-                  phone_number,
-                  portal_url: contact?.website || undefined,
-                  clinic_phone: contact?.phone || undefined,
+                  hospital_name: clinicName,
+                  preferred_time: whenText,
+                  reason_for_visit: reasonText,
+                  patient_name: patientForForm,
+                  phone_number: phoneForForm,
+                  portal_url: contact.website || undefined,
+                  clinic_phone: contact.phone || undefined,
                   onProgress: (update) => {
                     emitBookingUpdate(update);
                   },
                 });
                 reportProgress("writing");
-                const clinicEmail =
-                  extractBookingEmail(result.summary) ||
-                  extractBookingEmail(String((result as { clinic_email?: string }).clinic_email ?? "")) ||
-                  null;
-                return {
-                  ...result,
-                  // phone_booking means contact info only — not a confirmed reservation.
-                  ok: Boolean(result.success),
-                  clinic_phone: result.clinic_phone || contact?.phone || null,
-                  clinic_email: clinicEmail,
-                  booked: Boolean(result.success) && result.status === "completed",
-                };
+                return shape(result, contact.phone);
               },
             }),
             find_facilities: tool({
@@ -2643,7 +2739,11 @@ You are coordinating this emergency from the start, not just answering questions
                 if (chunk.type === "tool-output-available" && bookingCalls.has(chunk.toolCallId)) {
                   const call = bookingCalls.get(chunk.toolCallId)!;
                   bookingOutcome = {
-                    text: bookingOutcomeText((chunk.output ?? {}) as Record<string, unknown>, call.hospital, call.time),
+                    text: bookingOutcomeText(
+                      (chunk.output ?? {}) as Record<string, unknown>,
+                      String(((chunk.output ?? {}) as { hospital?: string }).hospital || call.hospital),
+                      call.time,
+                    ),
                   };
                 }
                 // After a booking attempt the card plus one factual line is the answer; model prose
